@@ -1,0 +1,62 @@
+#STARTTIME
+2012		iYear
+11		iMonth
+12		iDay
+18		iHour
+00		iMinute
+00		iSecond
+
+#STOP
+300.0		TimeMax
+
+
+#NGDC_INDICES
+Indices.dat	NameNgdcFile
+
+#MHD_INDICES
+imf.dat		UpstreamFiles
+
+#SMOOTH
+F		UseSmooth
+300.0		SmoothWindow
+
+#BMODEL
+MHD		NameModel
+
+#IEMODEL
+F		UseWeimer
+
+#SAVEPLOT
+10.0		DtSavePlot
+T		DoSaveFlux
+F		DoSaveDrifts
+F		UseSeparatePlotFiles
+
+#SAVELOG
+10.0		DtLogOut
+
+#INITIALF2
+F		IsEmptyInitial
+F		IsGmInitial
+T		IsDataInitial
+
+#TYPEBOUNDARY
+Circle		TypeBoundary
+
+#PLASMASHEET
+F		UseYoungEtAl
+T		UseBoundaryEbihara
+
+#RESTART
+F		IsRestart
+
+#SAVERESTART
+100.0		DtSaveRestart
+
+#TIMESIMULATION
+0.0		Time
+
+#PRERUNFIELD
+F		DoWritePrerun
+T		UsePrerun
+60.		DtRead
