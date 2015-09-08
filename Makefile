@@ -4,6 +4,8 @@ include Makefile.def
 
 INSTALLFILES =  src/Makefile.DEPEND \
 		src/Makefile.RULES \
+		srcSAMI3/Makefile.DEPEND \
+		srcSAMI3/Makefile.RULES \
 		srcInterface/Makefile.DEPEND
 
 
@@ -24,6 +26,12 @@ CRCM:
 	@cd ${DATAREADINDICESDIR};make LIB
 	@cd src;	make LIB
 	@cd src;	make CRCM
+
+
+SAMI3:
+	@cd ${SHAREDIR};  	make LIB
+	@cd srcSAMI3;	make LIB
+	@cd srcSAMI3;	make SAMI3
 
 NOMPI:
 	cd util/NOMPI/src; $(MAKE) LIB
@@ -230,6 +238,7 @@ test_check_Prerun:
 clean:
 	@touch ${INSTALLFILES}
 	@cd src; make clean
+	@cd srcSAMI3; make clean
 	@cd srcInterface; make clean
 	@(if [ -d util ];  then cd util;  make clean; fi);
 	@(if [ -d share ]; then cd share; make clean; fi);
