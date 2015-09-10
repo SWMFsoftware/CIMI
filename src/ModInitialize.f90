@@ -6,6 +6,7 @@ Module ModCrcmInitialize
   real :: xmm(nspec,nm),xk(nk),dphi,dmm(nspec,nm),dk(nk),delE(nspec,neng),&
           dmu(npit1),xjac(nspec,np1,nm)
 
-  logical :: IsEmptyInitial=.false., IsDataInitial=.false., IsGmInitial=.true.
+  logical :: IsEmptyInitial=.false., IsDataInitial=.false., &
+       IsRBSPData=.false., IsGmInitial=.true.
 
 end Module ModCrcmInitialize

@@ -680,7 +680,8 @@ subroutine initial_f2(nspec,np,nt,iba,amu_I,vel,xjac,ib0)
   use ModCrcm,   ONLY: f2,eChangeOperator_VICI,nOperator,driftin,driftout, &
                  pChangeOperator_VICI,eTimeAccumult_ICI,pTimeAccumult_ICI, &
                  rbsumLocal,rbsumGlobal,rcsumLocal,rcsumGlobal
-  use ModCrcmInitialize,   ONLY: IsEmptyInitial, IsDataInitial, IsGmInitial
+  use ModCrcmInitialize,   ONLY: IsEmptyInitial, IsDataInitial, IsRBSPData, &
+       IsGmInitial
   use ModCrcmGrid,ONLY: nm,nk,MinLonPar,MaxLonPar,iProc,nProc,iComm,d4Element_C,neng
   use ModFieldTrace, ONLY: sinA,ro, ekev,pp,iw2,irm
   use ModMpi
@@ -703,6 +704,7 @@ subroutine initial_f2(nspec,np,nt,iba,amu_I,vel,xjac,ib0)
   real :: roii, e1,x, fluxi,psd2
   
   character(11) :: NameFile='quiet_x.fin'
+  character(5) :: FilePrefix='xxxxx'
   pi=acos(-1.)
 
   ib0=iba
@@ -744,14 +746,19 @@ subroutine initial_f2(nspec,np,nt,iba,amu_I,vel,xjac,ib0)
      end do
   elseif(IsDataInitial) then
      do n=1,nspec
-        !set the file name, open it and read it
-        if(n==1) NameFile='quiet_h.fin'
-        if(n==2 .and. n /= nspec) then 
-           NameFile='quiet_o.fin'
+        if (IsRBSPData) then
+           FilePrefix='RBSP'
         else
-           if(n==1) NameFile='quiet_e.fin'
+           FilePrefix='quiet'
         endif
-        if (n==nspec) NameFile='quiet_e.fin'
+        !set the file name, open it and read it
+        if(n==1) NameFile=TRIM(FilePrefix) // '_h.fin'
+        if(n==2 .and. n /= nspec) then
+           NameFile=TRIM(FilePrefix) // '_o.fin'
+        else
+           if(n==1) NameFile=TRIM(FilePrefix) // '_e.fin'
+        endif
+        if (n==nspec) NameFile=TRIM(FilePrefix) // '_e.fin'
         open(unit=UnitTmp_,file='IM/'//NameFile,status='old')
         read(UnitTmp_,*) il,ie
         allocate (roi(il),ei(ie),fi(il,ie))

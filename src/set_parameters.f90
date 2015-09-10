@@ -2,7 +2,8 @@ subroutine CRCM_set_parameters(NameAction)
 
   use ModIoUnit,         ONLY: UnitTmp_, io_unit_new
   use ModReadParam
-  use ModCrcmInitialize, ONLY: IsEmptyInitial,IsDataInitial, IsGmInitial
+  use ModCrcmInitialize, ONLY: IsEmptyInitial,IsDataInitial,IsRBSPData, &
+       IsGmInitial
   use ModCrcmPlot,       ONLY: DtOutput, DoSavePlot, DoSaveFlux, DoSaveDrifts,&
                                DoSaveLog, UseSeparatePlotFiles, DtLogOut
   use ModFieldTrace,     ONLY: UseEllipse, UseSmooth, UseCorotation, &
@@ -145,6 +146,8 @@ subroutine CRCM_set_parameters(NameAction)
         call read_var('IsEmptyInitial',IsEmptyInitial)
         call read_var('IsGmInitial',   IsGmInitial)
         call read_var('IsDataInitial', IsDataInitial)
+        if (IsDataInitial) &
+             call read_var('IsRBSPData', IsRBSPData)
         
         !IsDataInitial only works with EarthHO or EarthH configurations
         if (nspec > 3 .and. IsDataInitial) &
