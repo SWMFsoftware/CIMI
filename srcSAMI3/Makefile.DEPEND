@@ -9,5 +9,6 @@ madala_sevp_dp.o:\
 sami3_mpi-1.98.o:\
 	param3_mpi-1.98.inc \
 	com3_mpi-1.98.inc \
-	/Users/aglocer/Research/CIMI/trunk/share/Library/src/ModMpi.o
+	/Users/aglocer/Research/CIMI/trunk/share/Library/src/ModMpi.o \
+	ModSAMI.o
 

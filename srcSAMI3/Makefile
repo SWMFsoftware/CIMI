@@ -7,7 +7,16 @@ include Makefile.DEPEND
 include Makefile.RULES
 
 
-OBJECTS= apexcord.o grid3_mpi-1.98.o  hwm93.o madala_sevp_dp.o  nrlmsise00.o  sami3_mpi-1.98.o  sevp13_dp.o hwm14.o
+OBJECTS= \
+	ModSAMI.o\
+	apexcord.o\
+	grid3_mpi-1.98.o\
+	hwm93.o\
+	madala_sevp_dp.o\
+	nrlmsise00.o\
+	sami3_mpi-1.98.o\
+	sevp13_dp.o\
+	hwm14.o
 
 ###f90 = mpif90 -shared-intel -fp-model precise -mcmodel=large  -save -O3 -vec_report0
 
@@ -34,7 +43,11 @@ ${MY_LIB}: ${OBJECTS}
 	rm -f ${MY_LIB}
 	${AR} ${MY_LIB} ${OBJECTS} 
 
+#Object files not included into the library
+OBJECTS_EXE = sami3_main.o
+
 LIBSHARE  = ${LIBDIR}/libSHARE.a
+LIBTIMING = ${LIBDIR}/libTIMING.a
 
 # Libraries should be compiled first, because modules are used in main
 ${OBJECTS_EXE}: ${LIBSHARE} ${MY_LIB}   
@@ -53,13 +66,14 @@ ${EXE}: ${OBJECTS_EXE}
 	rm -rf Tmp_; mkdir Tmp_
 	cd Tmp_; \
 		ar -x ../${MY_LIB}; \
-		ar -x ${LIBSHARE}; 
+		ar -x ${LIBSHARE};  \
+		ar -x ${LIBTIMING};  
 	${LINK.f90} -o ${EXE} ${OBJECTS_EXE} Tmp_/*.o  ${Lflag1}
 	rm -rf Tmp_
 
 SAMI3_orig: ${OBJECTS_EXE}
-	${COMPILE.f90} ${Lflag1} -o ${EXE} ${OBJECTS} \
-	-L${LIBDIR}
+	${COMPILE.f90} ${Lflag1} -o ${EXE} sami3_main.f90 ${OBJECTS} \
+	-L${LIBDIR} -lTIMING
 
 
 distclean: clean

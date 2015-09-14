@@ -1,4 +1,6 @@
 
+
+
 !     *******************************************
 !     *******************************************
  
@@ -7,19 +9,20 @@
 !     *******************************************
 !     *******************************************
 !
-      program main
+!      program main
+      subroutine sami_init
       use ModMpi
-
+      use ModSAMI
       include 'param3_mpi-1.98.inc'
       include 'com3_mpi-1.98.inc' 
 
 c     Some local variables
 
 !       real fism(linesuv)
-
+      ! these look to be temporary variables for passing MPI 
        real denitmp(nz,nf,nl), titmp(nz,nf,nl), vsitmp(nz,nf,nl)
 
-       real deni_mnptmp(nz,nion),ti_mnptmp(nz,nion),te_mnptmp(nz)
+!       real deni_mnptmp(nz,nion),ti_mnptmp(nz,nion),te_mnptmp(nz)
 
        real denntmp(nz,nf,nl)
 
@@ -27,61 +30,62 @@ c     Some local variables
 !!     .        vsi_inp(nz,nf,nion),denn_inp(nz,nf,nion)
 !!       real te_inp(nz,nf)
 !!       real te_inp(nz,nf),tn_inp(nz,nf)
-       real phi(nnx,nny),phialt(nnx,nny),philon(nnx,nny),p_crit(nnx-1)
-
-       logical tflag,ttflag
-
-c allocatable total matrices
-
-! Total 
-c
-!      real denit(nz,nf,nlt,nion)
-
-! Total 
-
-       real, dimension(:,:,:,:), allocatable :: denit,dennt
-!      real denit(nz,nf,nlt,nion),dennt(nz,nf,nlt,nneut)
-       real, dimension(:,:,:,:), allocatable :: vsit, sumvsit
-!      real vsit(nz,nf,nlt,nion),sumvsit(nz,nf,nlt,nion)
-       real, dimension(:,:,:,:), allocatable :: tit
-!      real tit(nz,nf,nlt,nion)
-
-       real, dimension(:,:,:), allocatable :: ut, vt, vpit, net
-!      real ut(nz,nf,nlt),vt(nz,nf,nlt),vpit(nz,nf,nlt),net(nz,nf,nlt)
-       real, dimension(:,:,:), allocatable :: tet, tnt
-!      real tet(nz,nf,nlt),tnt(nz,nf,nlt)
-
-!     height integrated pedersen/hall conductivities
-       real, dimension(:,:,:), allocatable :: u1t, u2t, u3t, u4t
-!      real u1t(nz,nf,nlt),u2t(nz,nf,nlt),u3t(nz,nf,nlt),u4t(nz,nf,nlt)
-
-       real, dimension(:,:,:), allocatable :: vnqt, vnpt, vnphit
-!      real vnqt(nz,nf,nlt),vnpt(nz,nf,nlt),vnphit(nz,nf,nlt)
-
-       real, dimension(:,:,:), allocatable :: jpt, jphit
-!      real jpt(nz,nf,nlt),jphit(nz,nf,nlt)
-
-       real, dimension(:,:,:), allocatable :: u1pt, u2st, u3ht
-
-       real, dimension(:,:,:), allocatable :: sigmapict,sigmahict
-
-       real, dimension(:,:,:), allocatable :: sigmapt,sigmaht
+!!!       real phi(nnx,nny),phialt(nnx,nny),philon(nnx,nny),p_crit(nnx-1)
 
 
-c Output matrices for restart
+!!!       logical tflag,ttflag
 
-       real deniout(nz,nf,nl,nion,numwork),  
-     &      tiout(nz,nf,nl,nion,numwork),  
-     &      vsiout(nz,nf,nl,nion,numwork) 
-       real teout(nz,nf,nl,numwork) 
-       real*8 dphi(nnx+1,nnyt)
+!!!c allocatable total matrices
+!!!
+!!!! Total 
+!!!c
+!!!!      real denit(nz,nf,nlt,nion)
+!!!
+!!!! Total 
+!!!
+!!!       real, dimension(:,:,:,:), allocatable :: denit,dennt
+!!!!      real denit(nz,nf,nlt,nion),dennt(nz,nf,nlt,nneut)
+!!!       real, dimension(:,:,:,:), allocatable :: vsit, sumvsit
+!!!!      real vsit(nz,nf,nlt,nion),sumvsit(nz,nf,nlt,nion)
+!!!       real, dimension(:,:,:,:), allocatable :: tit
+!!!!      real tit(nz,nf,nlt,nion)
+!!!
+!!!       real, dimension(:,:,:), allocatable :: ut, vt, vpit, net
+!!!!      real ut(nz,nf,nlt),vt(nz,nf,nlt),vpit(nz,nf,nlt),net(nz,nf,nlt)
+!!!       real, dimension(:,:,:), allocatable :: tet, tnt
+!!!!      real tet(nz,nf,nlt),tnt(nz,nf,nlt)
+!!!
+!!!!     height integrated pedersen/hall conductivities
+!!!       real, dimension(:,:,:), allocatable :: u1t, u2t, u3t, u4t
+!!!!      real u1t(nz,nf,nlt),u2t(nz,nf,nlt),u3t(nz,nf,nlt),u4t(nz,nf,nlt)
+!!!
+!!!       real, dimension(:,:,:), allocatable :: vnqt, vnpt, vnphit
+!!!!      real vnqt(nz,nf,nlt),vnpt(nz,nf,nlt),vnphit(nz,nf,nlt)
+!!!
+!!!       real, dimension(:,:,:), allocatable :: jpt, jphit
+!!!!      real jpt(nz,nf,nlt),jphit(nz,nf,nlt)
+!!!
+!!!       real, dimension(:,:,:), allocatable :: u1pt, u2st, u3ht
+!!!
+!!!       real, dimension(:,:,:), allocatable :: sigmapict,sigmahict
+!!!
+!!!       real, dimension(:,:,:), allocatable :: sigmapt,sigmaht
+
+
+!!!c Output matrices for restart
+!!!
+!!!       real deniout(nz,nf,nl,nion,numwork),  
+!!!     &      tiout(nz,nf,nl,nion,numwork),  
+!!!     &      vsiout(nz,nf,nl,nion,numwork) 
+!!!       real teout(nz,nf,nl,numwork) 
+!!!       real*8 dphi(nnx+1,nnyt)
  
 
 c     Begin MPI stuff
 
 !      include 'mpif.h'
       integer status(MPI_STATUS_SIZE)
-      integer left,right
+      
       integer :: nError
 C ************************ initializations ***********************************
 C Find out how many tasks are in this partition and what my task id is.  Then
@@ -91,12 +95,26 @@ C to an odd number...to insure even distribution of the array to numtasks-1
 C worker tasks.
 C *****************************************************************************
 
-      call mpi_init(ierr)
-      call mpi_comm_rank(MPI_COMM_WORLD, taskid, ierr)
-      call mpi_comm_size(MPI_COMM_WORLD, numtasks, ierr)
+!!!      call mpi_init(ierr)
+!!!      call mpi_comm_rank(iComm, taskid, ierr)
+!!!      call mpi_comm_size(iComm, numtasks, ierr)
+      numtasks = nProc
+      taskid = iProc
       write(*,*)'taskid =',taskid
 
+      allocate(phi(nnx,nny),phialt(nnx,nny),philon(nnx,nny),p_crit(nnx-1))
+
+
+
       numworkers = numtasks-1
+
+!output matrices for restart
+      allocate(deniout(nz,nf,nl,nion,numwork))
+      allocate(tiout(nz,nf,nl,nion,numwork))
+      allocate(vsiout(nz,nf,nl,nion,numwork))
+      allocate(teout(nz,nf,nl,numwork))
+      allocate(dphi(nnx+1,nnyt))
+
 
 c Check to see if the number of processors selected agrees with 
 c the number of divisions in params
@@ -109,7 +127,7 @@ c the number of divisions in params
          print *, ' these two numbers must be the same '
          print *, ' Either set np = numwork +1 and rerun or '
          print *, ' change numwork and recompile '
-         call mpi_abort(MPI_COMM_WORLD, nError, ierr)
+         call mpi_abort(iComm, nError, ierr)
          call mpi_finalize(ierr)
 
       endif
@@ -202,11 +220,11 @@ c deni, vsi, ti, te if this is a restart (restart = true)
                   enddo
 
                   call mpi_send(denitmp, nz*nf*nl, MPI_REAL, iwrk, 9, 
-     .                 MPI_COMM_WORLD, ierr)
+     .                 iComm, ierr)
                   call mpi_send(titmp, nz*nf*nl, MPI_REAL, iwrk, 9, 
-     .                 MPI_COMM_WORLD, ierr)
+     .                 iComm, ierr)
                   call mpi_send(vsitmp, nz*nf*nl, MPI_REAL, iwrk, 9, 
-     .                 MPI_COMM_WORLD, ierr)
+     .                 iComm, ierr)
                enddo
 
                do ktmp = 1,nl
@@ -218,7 +236,7 @@ c deni, vsi, ti, te if this is a restart (restart = true)
                   enddo
                enddo
                call mpi_send(te, nz*nf*nl, MPI_REAL, iwrk, 9, 
-     .              MPI_COMM_WORLD, ierr)
+     .              iComm, ierr)
 
             enddo
          endif
@@ -229,11 +247,11 @@ c Now let's get those files
 
             do nntmp = 1,nion
                call mpi_recv(denitmp, nz*nf*nl, MPI_REAL, 0, 9, 
-     .              MPI_COMM_WORLD, status, ierr)
+     .              iComm, status, ierr)
                call mpi_recv(titmp, nz*nf*nl, MPI_REAL, 0, 9, 
-     .              MPI_COMM_WORLD, status, ierr)
+     .              iComm, status, ierr)
                call mpi_recv(vsitmp, nz*nf*nl, MPI_REAL, 0, 9, 
-     .              MPI_COMM_WORLD, status, ierr)
+     .              iComm, status, ierr)
                do ktmp = 1,nl
                   do jtmp = 1,nf
                      do itmp = 1,nz
@@ -248,14 +266,14 @@ c Now let's get those files
                enddo
             enddo
             call mpi_recv(te, nz*nf*nl, MPI_REAL, 0, 9, 
-     .           MPI_COMM_WORLD, status, ierr)
+     .           iComm, status, ierr)
 
          endif
 
 c tell the workers the starting time
 c this call has to be seen by the master and workers
 
-        call mpi_bcast(hrinit,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
+        call mpi_bcast(hrinit,1,MPI_REAL,0,iComm,ierr)
 
       endif
 
@@ -281,6 +299,42 @@ c this call has to be seen by the master and workers
          close (67)
          close (68)
       endif
+
+      end !end of sami_init
+!===============================================================================
+
+      subroutine sami_run(DtAdvance)
+      use ModMpi
+      use ModSAMI
+      include 'param3_mpi-1.98.inc'
+      include 'com3_mpi-1.98.inc' 
+      
+      ! input representing how much sami_run advances
+      real, intent(in) :: DtAdvance 
+      
+c     Some local variables
+
+!       real fism(linesuv)
+
+
+       real denitmp(nz,nf,nl), titmp(nz,nf,nl), vsitmp(nz,nf,nl)
+
+       real deni_mnptmp(nz,nion),ti_mnptmp(nz,nion),te_mnptmp(nz)
+
+       real denntmp(nz,nf,nl)
+
+!!       real deni_inp(nz,nf,nion),ti_inp(nz,nf,nion),
+!!     .        vsi_inp(nz,nf,nion),denn_inp(nz,nf,nion)
+!!       real te_inp(nz,nf)
+!!       real te_inp(nz,nf),tn_inp(nz,nf)
+
+
+       logical tflag,ttflag
+
+       integer status(MPI_STATUS_SIZE)
+       
+       integer :: nError
+
 
 ******************** master task *******************************************
       
@@ -312,6 +366,7 @@ c this call has to be seen by the master and workers
 
       allocate (sigmapt(nz,nf,nlt),sigmaht(nz,nf,nlt))
 
+
          hrut    = hrinit
          timemax = hrmax * sphr
          istep   = 0
@@ -340,12 +395,12 @@ c this call has to be seen by the master and workers
           do while ( tflag )
 
             do iwrk = 1,numworkers
-              call mpi_iprobe(iwrk,10,MPI_COMM_WORLD,flagit10,
+              call mpi_iprobe(iwrk,10,iComm,flagit10,
      .                status,ierr)
                 if (flagit10) then 
                   icnt10 = icnt10 + 1
                   call mpi_recv(xxx,1,MPI_REAL,iwrk,10,
-     .                   MPI_COMM_WORLD,status,ierr)
+     .                 iComm,status,ierr)
                 endif
                 if (icnt10 .eq. numworkers) tflag=.false.
             enddo
@@ -357,33 +412,33 @@ C Now wait to receive back the results from each worker task
                dest = source
 
                call mpi_iprobe(source, 2, 
-     .              MPI_COMM_WORLD, flagit, status, ierr)
+     .              iComm, flagit, status, ierr)
 
                  if(flagit .and. ifintot2 .gt. 0) then
 
                   call mpi_recv(hipcp, nf*nl, MPI_REAL, iwrk, 2, 
-     .                 MPI_COMM_WORLD, status, ierr)
+     .                 iComm, status, ierr)
                   call mpi_recv(hihcm, nf*nl, MPI_REAL, iwrk, 2, 
-     .                 MPI_COMM_WORLD, status, ierr)
+     .                 iComm, status, ierr)
                   call mpi_recv(hipcphi, nf*nl, MPI_REAL, iwrk, 2, 
-     .                 MPI_COMM_WORLD, status, ierr)
+     .                 iComm, status, ierr)
                   call mpi_recv(hidphig, nf*nl, MPI_REAL, iwrk, 2, 
-     .                 MPI_COMM_WORLD, status, ierr)
+     .                 iComm, status, ierr)
                   call mpi_recv(hidpg, nf*nl, MPI_REAL, iwrk, 2, 
-     .                 MPI_COMM_WORLD, status, ierr)
+     .                 iComm, status, ierr)
                   call mpi_recv(hidphiv, nf*nl, MPI_REAL, iwrk, 2, 
-     .                 MPI_COMM_WORLD, status, ierr)
+     .                 iComm, status, ierr)
                   call mpi_recv(hidpv, nf*nl, MPI_REAL, iwrk, 2, 
-     .                 MPI_COMM_WORLD, status, ierr)
+     .                 iComm, status, ierr)
                   call mpi_recv(hipc, nf*nl, MPI_REAL, iwrk, 2, 
-     .                 MPI_COMM_WORLD, status, ierr)
+     .                 iComm, status, ierr)
                   call mpi_recv(hihc, nf*nl, MPI_REAL, iwrk, 2, 
-     .                 MPI_COMM_WORLD, status, ierr)
+     .                 iComm, status, ierr)
                   call mpi_recv(hidv, nf*nl, MPI_REAL, iwrk, 2, 
-     .                 MPI_COMM_WORLD, status, ierr)
+     .                 iComm, status, ierr)
 
                   call mpi_recv(hrut, 1, MPI_REAL, iwrk, 2, 
-     .                 MPI_COMM_WORLD, status, ierr)
+     .                 iComm, status, ierr)
 
                   do k = 2,nl-1
                      kk = (iwrk-1)*(nl -2) + k - 1
@@ -406,7 +461,7 @@ C Now wait to receive back the results from each worker task
 
                   ifintot2 = ifintot2 - 1
 
-                 endif
+               endif
 
                  if ( ifintot2 .eq. 0 ) then
                        ifintot2 = numworkers
@@ -414,19 +469,19 @@ C Now wait to receive back the results from each worker task
 !                       print *,'called potential'
                        do jwrk = 1,numworkers
                          call mpi_send(phi,nnx*nny,MPI_REAL,jwrk,3,
-     .                                 MPI_COMM_WORLD,ierr)
+     .                                 iComm,ierr)
                          call mpi_send(phialt,nnx*nny,MPI_REAL,jwrk,3,
-     .                                 MPI_COMM_WORLD,ierr)
+     .                                 iComm,ierr)
                          call mpi_send(philon,nnx*nny,MPI_REAL,jwrk,3,
-     .                                 MPI_COMM_WORLD,ierr)
+     .                                 iComm,ierr)
                          call mpi_send(p_crit,nnx-1,MPI_REAL,jwrk,3,
-     .                                 MPI_COMM_WORLD,ierr)
+     .                                 iComm,ierr)
                        enddo
 !                       print *,'out of sends in potential'
                  endif
 
                call mpi_iprobe(source, 0, 
-     .              MPI_COMM_WORLD, flagit, status, ierr)
+     .              iComm, flagit, status, ierr)
 
                if(flagit .and. ifintot .gt. 0) then
                   
@@ -434,20 +489,20 @@ C Now wait to receive back the results from each worker task
 ! only sent as often as data dumps are requested
 
                   call mpi_recv(time, 1, MPI_REAL, iwrk, 0, 
-     .                 MPI_COMM_WORLD, status, ierr)
+     .                 iComm, status, ierr)
                   call mpi_recv(hrut, 1, MPI_REAL, iwrk, 0, 
-     .                 MPI_COMM_WORLD, status, ierr)
+     .                 iComm, status, ierr)
                   call mpi_recv(istep, 1, MPI_INTEGER, iwrk, 0, 
-     .                 MPI_COMM_WORLD, status, ierr)
+     .                 iComm, status, ierr)
                   do nntmp = 1,nion
                      call mpi_recv(denitmp, nz*nf*nl, MPI_REAL, iwrk, 0, 
-     .                    MPI_COMM_WORLD, status, ierr)
+     .                    iComm, status, ierr)
                      call mpi_recv(denntmp, nz*nf*nl, MPI_REAL, iwrk, 0, 
-     .                    MPI_COMM_WORLD, status, ierr)
+     .                    iComm, status, ierr)
                      call mpi_recv(titmp, nz*nf*nl, MPI_REAL, iwrk, 0, 
-     .                    MPI_COMM_WORLD, status, ierr)
+     .                    iComm, status, ierr)
                      call mpi_recv(vsitmp, nz*nf*nl, MPI_REAL, iwrk, 0, 
-     .                    MPI_COMM_WORLD, status, ierr)
+     .                    iComm, status, ierr)
                      do itmp = 1,nz
                         do jtmp = 1,nf
                            do ktmp = 1,nl
@@ -464,59 +519,59 @@ C Now wait to receive back the results from each worker task
                      enddo
                   enddo
                   call mpi_recv(te, nz*nf*nl, MPI_REAL, iwrk, 0, 
-     .                 MPI_COMM_WORLD, status, ierr)
+     .                 iComm, status, ierr)
                   call mpi_recv(u1p, nz*nf*nl, MPI_REAL, iwrk, 0, 
-     .                 MPI_COMM_WORLD, status, ierr)
+     .                 iComm, status, ierr)
                   call mpi_recv(u2s, nz*nf*nl, MPI_REAL, iwrk, 0, 
-     .                 MPI_COMM_WORLD, status, ierr)
+     .                 iComm, status, ierr)
                   call mpi_recv(u3h, nz*nf*nl, MPI_REAL, iwrk, 0, 
-     .                 MPI_COMM_WORLD, status, ierr)
+     .                 iComm, status, ierr)
                   call mpi_recv(u1, nz*nf*nl, MPI_REAL, iwrk, 0, 
-     .                 MPI_COMM_WORLD, status, ierr)
+     .                 iComm, status, ierr)
                   call mpi_recv(u2, nz*nf*nl, MPI_REAL, iwrk, 0, 
-     .                 MPI_COMM_WORLD, status, ierr)
+     .                 iComm, status, ierr)
                   call mpi_recv(u3, nz*nf*nl, MPI_REAL, iwrk, 0, 
-     .                 MPI_COMM_WORLD, status, ierr)
+     .                 iComm, status, ierr)
                   call mpi_recv(u4, nz*nf*nl, MPI_REAL, iwrk, 0, 
-     .                 MPI_COMM_WORLD, status, ierr)
+     .                 iComm, status, ierr)
                   call mpi_recv(sigmap, nz*nf*nl, MPI_REAL, iwrk, 0, 
-     .                 MPI_COMM_WORLD, status, ierr)
+     .                 iComm, status, ierr)
                   call mpi_recv(sigmah, nz*nf*nl, MPI_REAL, iwrk, 0, 
-     .                 MPI_COMM_WORLD, status, ierr)
+     .                 iComm, status, ierr)
                   call mpi_recv(sigmapic, nz*nf*nl, MPI_REAL, iwrk, 0, 
-     .                 MPI_COMM_WORLD, status, ierr)
+     .                 iComm, status, ierr)
                   call mpi_recv(sigmahic, nz*nf*nl, MPI_REAL, iwrk, 0, 
-     .                 MPI_COMM_WORLD, status, ierr)
+     .                 iComm, status, ierr)
  !                 call mpi_recv(hipcp, nf*nl, MPI_REAL, iwrk, 0, 
- !    .                 MPI_COMM_WORLD, status, ierr)
+ !    .                 iComm, status, ierr)
  !                 call mpi_recv(hipcphi, nf*nl, MPI_REAL, iwrk, 0, 
- !    .                 MPI_COMM_WORLD, status, ierr)
+ !    .                 iComm, status, ierr)
  !                 call mpi_recv(hihcm, nf*nl, MPI_REAL, iwrk, 0, 
- !    .                 MPI_COMM_WORLD, status, ierr)
+ !    .                 iComm, status, ierr)
  !                 call mpi_recv(hidpv, nf*nl, MPI_REAL, iwrk, 0, 
- !    .                 MPI_COMM_WORLD, status, ierr)
+ !    .                 iComm, status, ierr)
  !                 call mpi_recv(hidphiv, nf*nl, MPI_REAL, iwrk, 0, 
- !    .                 MPI_COMM_WORLD, status, ierr)
+ !    .                 iComm, status, ierr)
  !                 call mpi_recv(hidpg, nf*nl, MPI_REAL, iwrk, 0, 
- !    .                 MPI_COMM_WORLD, status, ierr)
+ !    .                 iComm, status, ierr)
  !                 call mpi_recv(hidphig, nf*nl, MPI_REAL, iwrk, 0, 
- !    .                 MPI_COMM_WORLD, status, ierr)
+ !    .                 iComm, status, ierr)
                   call mpi_recv(vnq, nz*nf*nl, MPI_REAL, iwrk, 0, 
-     .                 MPI_COMM_WORLD, status, ierr)
+     .                 iComm, status, ierr)
                   call mpi_recv(vnp, nz*nf*nl, MPI_REAL, iwrk, 0, 
-     .                 MPI_COMM_WORLD, status, ierr)
+     .                 iComm, status, ierr)
                   call mpi_recv(vnphi, nz*nf*nl, MPI_REAL, iwrk, 0, 
-     .                 MPI_COMM_WORLD, status, ierr)
+     .                 iComm, status, ierr)
                   call mpi_recv(jp, nz*nf*nl, MPI_REAL, iwrk, 0, 
-     .                 MPI_COMM_WORLD, status, ierr)
+     .                 iComm, status, ierr)
                   call mpi_recv(jphi, nz*nf*nl, MPI_REAL, iwrk, 0, 
-     .                 MPI_COMM_WORLD, status, ierr)
+     .                 iComm, status, ierr)
 !                  call mpi_recv(hipc, nf*nl, MPI_REAL, iwrk, 0, 
-!     .                 MPI_COMM_WORLD, status, ierr)
+!     .                 iComm, status, ierr)
 !                  call mpi_recv(hihc, nf*nl, MPI_REAL, iwrk, 0, 
-!     .                 MPI_COMM_WORLD, status, ierr)
+!     .                 iComm, status, ierr)
 !                  call mpi_recv(hidv, nf*nl, MPI_REAL, iwrk, 0, 
-!     .                 MPI_COMM_WORLD, status, ierr)
+!     .                 iComm, status, ierr)
 
 ! Put the submatrices into the correct matrix
 
@@ -606,24 +661,24 @@ C Now wait to receive back the results from each worker task
                endif
 
                call mpi_iprobe(source, 1, 
-     .              MPI_COMM_WORLD, flagit1, status, ierr)
+     .              iComm, flagit1, status, ierr)
    
                if(flagit1 .and. ifintot1 .gt. 0) then
                   call mpi_recv(dtmp, 1, MPI_REAL, iwrk, 1, 
-     .                 MPI_COMM_WORLD, status, ierr)
+     .                 iComm, status, ierr)
                   dt = min(dt,dtmp)
 
                call mpi_recv(time, 1, MPI_REAL, iwrk, 1, 
-     .          MPI_COMM_WORLD, status, ierr)
+     .          iComm, status, ierr)
                call mpi_recv(istep, 1, MPI_INTEGER, iwrk, 1, 
-     .          MPI_COMM_WORLD, status, ierr)
+     .          iComm, status, ierr)
 
         call mpi_recv(deni_mnptmp,nz*nion,MPI_REAL,iwrk,1,
-     .          MPI_COMM_WORLD, status, ierr)
+     .          iComm, status, ierr)
         call mpi_recv(ti_mnptmp,nz*nion,MPI_REAL,iwrk,1,
-     .          MPI_COMM_WORLD, status, ierr)
+     .          iComm, status, ierr)
         call mpi_recv(te_mnptmp,nz,MPI_REAL,iwrk,1,
-     .          MPI_COMM_WORLD, status, ierr)
+     .          iComm, status, ierr)
 
               if ( ifintot1 .eq. numworkers ) then
                  do ni = nion1,nion2
@@ -696,10 +751,10 @@ C Now wait to receive back the results from each worker task
 !               do iwrk = 1,numworkers
 
 !                  call mpi_send(ntm,1,MPI_INTEGER,iwrk,18,
-!     .                 MPI_COMM_WORLD,status,ierr)
+!     .                 iComm,status,ierr)
 
 !                  call mpi_send(ntmmax,1,MPI_INTEGER,iwrk,18,
-!     .                 MPI_COMM_WORLD,status,ierr)
+!     .                 iComm,status,ierr)
 
 !               enddo
 
@@ -716,13 +771,13 @@ c Need to fix up dt calculation
 !                print *,'master sending dt',dt
                do  iwrk = 1,numworkers
                   call mpi_send(dt, 1, MPI_REAL, iwrk, 1, 
-     .                 MPI_COMM_WORLD, ierr)
+     .                 iComm, ierr)
         call mpi_send(deni_mnp,nz*nion,MPI_REAL,iwrk,1,
-     .          MPI_COMM_WORLD, ierr)
+     .          iComm, ierr)
         call mpi_send(ti_mnp,nz*nion,MPI_REAL,iwrk,1,
-     .          MPI_COMM_WORLD, ierr)
+     .          iComm, ierr)
         call mpi_send(te_mnp,nz,MPI_REAL,iwrk,1,
-     .          MPI_COMM_WORLD, ierr)
+     .          iComm, ierr)
 !              print *,'master sending dt/mnp'
                enddo
             endif
@@ -809,7 +864,7 @@ c Need to fix up dt calculation
          close (497)
          close (498)
 
-!         call mpi_abort(MPI_COMM_WORLD, errorcode, ierr)
+!         call mpi_abort(iComm, errorcode, ierr)
 !         call mpi_finalize(ierr)
 
          
@@ -892,7 +947,7 @@ c buffer and send to the LEFT
 
             call mpi_sendrecv(tl1s, (nion+nion+1)*nz*nf, MPI_REAL, 
      .           left, 0, tl1r, (nion+nion+1)*nz*nf, MPI_REAL, 
-     .           right, 0, MPI_COMM_WORLD, status, ierr)
+     .           right, 0, iComm, status, ierr)
 
 c Now everybody receives
 
@@ -942,7 +997,7 @@ c Buffer and send to the RIGHT
 
             call mpi_sendrecv(tr1s, (nion+nion+1)*nz*nf, MPI_REAL, 
      .           right, 0, tr1r, (nion +nion +1)*nz*nf, MPI_REAL, 
-     .           left, 0, MPI_COMM_WORLD, status, ierr)
+     .           left, 0, iComm, status, ierr)
 
             do k = 1,nion
                do j = 1,nf
@@ -971,43 +1026,43 @@ c Buffer and send to the RIGHT
 ! potential
 
            call mpi_send(hipcp, nf*nl, MPI_REAL, 0, 2, 
-     .          MPI_COMM_WORLD, ierr)
+     .          iComm, ierr)
            call mpi_send(hihcm, nf*nl, MPI_REAL, 0, 2, 
-     .          MPI_COMM_WORLD, ierr)
+     .          iComm, ierr)
            call mpi_send(hipcphi, nf*nl, MPI_REAL, 0, 2, 
-     .          MPI_COMM_WORLD, ierr)
+     .          iComm, ierr)
            call mpi_send(hidphig, nf*nl, MPI_REAL, 0, 2, 
-     .          MPI_COMM_WORLD, ierr)
+     .          iComm, ierr)
            call mpi_send(hidpg, nf*nl, MPI_REAL, 0, 2, 
-     .          MPI_COMM_WORLD, ierr)
+     .          iComm, ierr)
            call mpi_send(hidphiv, nf*nl, MPI_REAL, 0, 2, 
-     .          MPI_COMM_WORLD, ierr)
+     .          iComm, ierr)
            call mpi_send(hidpv, nf*nl, MPI_REAL, 0, 2, 
-     .          MPI_COMM_WORLD, ierr)
+     .          iComm, ierr)
            call mpi_send(hipc, nf*nl, MPI_REAL, 0, 2, 
-     .          MPI_COMM_WORLD, ierr)
+     .          iComm, ierr)
            call mpi_send(hihc, nf*nl, MPI_REAL, 0, 2, 
-     .          MPI_COMM_WORLD, ierr)
+     .          iComm, ierr)
            call mpi_send(hidv, nf*nl, MPI_REAL, 0, 2, 
-     .          MPI_COMM_WORLD, ierr)
+     .          iComm, ierr)
 
 ! send master current time: hrut
 
            call mpi_send(hrut, 1, MPI_REAL, 0, 2, 
-     .          MPI_COMM_WORLD, ierr)
+     .          iComm, ierr)
 
 
 ! now get the potential from master
 
 
         call mpi_recv(phi, nnx*nny, MPI_REAL, 0, 3, 
-     .          MPI_COMM_WORLD, status, ierr)
+     .          iComm, status, ierr)
         call mpi_recv(phialt, nnx*nny, MPI_REAL, 0, 3, 
-     .          MPI_COMM_WORLD, status, ierr)
+     .          iComm, status, ierr)
         call mpi_recv(philon, nnx*nny, MPI_REAL, 0, 3, 
-     .          MPI_COMM_WORLD, status, ierr)
+     .          iComm, status, ierr)
         call mpi_recv(p_crit,nnx-1, MPI_REAL, 0, 3, 
-     .          MPI_COMM_WORLD, status, ierr)
+     .          iComm, status, ierr)
 
 !            print *,taskid,' just got phi'
 
@@ -1066,34 +1121,34 @@ c send local dt
 !         print *,'send local dt',taskid
 
         call mpi_send(dt, 1, MPI_REAL, 0, 1, 
-     .          MPI_COMM_WORLD, ierr)
+     .          iComm, ierr)
         call mpi_send(time, 1, MPI_REAL, 0, 1, 
-     .          MPI_COMM_WORLD, ierr)
+     .          iComm, ierr)
         call mpi_send(istep, 1, MPI_INTEGER, 0, 1, 
-     .          MPI_COMM_WORLD, ierr)
+     .          iComm, ierr)
 
         call mpi_send(deni_mnp,nz*nion,MPI_REAL,0,1,
-     .          MPI_COMM_WORLD, ierr)
+     .          iComm, ierr)
         call mpi_send(ti_mnp,nz*nion,MPI_REAL,0,1,
-     .          MPI_COMM_WORLD, ierr)
+     .          iComm, ierr)
         call mpi_send(te_mnp,nz,MPI_REAL,0,1,
-     .          MPI_COMM_WORLD, ierr)
+     .          iComm, ierr)
 
 c get global dt
 
 !         print *,'now receive dt',taskid
 
         call mpi_recv(dt, 1, MPI_REAL, 0, 1, 
-     .          MPI_COMM_WORLD, status, ierr)
+     .          iComm, status, ierr)
 !        call mpi_recv(flux,linesuv , MPI_REAL, 0, 1, 
-!     .          MPI_COMM_WORLD, status, ierr)
+!     .          iComm, status, ierr)
 
         call mpi_recv(deni_mnp,nz*nion,MPI_REAL,0,1,
-     .          MPI_COMM_WORLD, status, ierr)
+     .          iComm, status, ierr)
         call mpi_recv(ti_mnp,nz*nion,MPI_REAL,0,1,
-     .          MPI_COMM_WORLD, status, ierr)
+     .          iComm, status, ierr)
         call mpi_recv(te_mnp,nz,MPI_REAL,0,1,
-     .          MPI_COMM_WORLD, status, ierr)
+     .          iComm, status, ierr)
 
 !         print *,'done receiving dt/mnp',taskid,dt,hrut
      
@@ -1128,11 +1183,11 @@ c get global dt
            ntm    = ntm + 1
 
            call mpi_send(time, 1, MPI_REAL, 0, 0, 
-     .          MPI_COMM_WORLD, ierr)
+     .          iComm, ierr)
            call mpi_send(hrut, 1, MPI_REAL, 0, 0, 
-     .          MPI_COMM_WORLD, ierr)
+     .          iComm, ierr)
            call mpi_send(istep, 1, MPI_INTEGER, 0, 0, 
-     .          MPI_COMM_WORLD, ierr)
+     .          iComm, ierr)
            do nntmp = 1,nion
               do itmp = 1,nz
                  do jtmp = 1,nf
@@ -1149,68 +1204,68 @@ c get global dt
                  enddo
               enddo
               call mpi_send(denitmp, nz*nf*nl, MPI_REAL, 0, 0, 
-     .             MPI_COMM_WORLD, ierr)
+     .             iComm, ierr)
               call mpi_send(denntmp, nz*nf*nl, MPI_REAL, 0, 0, 
-     .             MPI_COMM_WORLD, ierr)
+     .             iComm, ierr)
               call mpi_send(titmp, nz*nf*nl, MPI_REAL, 0, 0, 
-     .             MPI_COMM_WORLD, ierr)
+     .             iComm, ierr)
               call mpi_send(vsitmp, nz*nf*nl, MPI_REAL, 0, 0, 
-     .             MPI_COMM_WORLD, ierr)
+     .             iComm, ierr)
            enddo
            call mpi_send(te, nz*nf*nl, MPI_REAL, 0, 0, 
-     .          MPI_COMM_WORLD, ierr)
+     .          iComm, ierr)
            call mpi_send(u1p, nz*nf*nl, MPI_REAL, 0, 0, 
-     .          MPI_COMM_WORLD,  ierr)
+     .          iComm,  ierr)
            call mpi_send(u2s, nz*nf*nl, MPI_REAL, 0, 0, 
-     .          MPI_COMM_WORLD,  ierr)
+     .          iComm,  ierr)
            call mpi_send(u3h, nz*nf*nl, MPI_REAL, 0, 0, 
-     .          MPI_COMM_WORLD,  ierr)
+     .          iComm,  ierr)
            call mpi_send(u1, nz*nf*nl, MPI_REAL, 0, 0, 
-     .          MPI_COMM_WORLD,  ierr)
+     .          iComm,  ierr)
            call mpi_send(u2, nz*nf*nl, MPI_REAL, 0, 0, 
-     .          MPI_COMM_WORLD,  ierr)
+     .          iComm,  ierr)
            call mpi_send(u3, nz*nf*nl, MPI_REAL, 0, 0, 
-     .          MPI_COMM_WORLD,  ierr)
+     .          iComm,  ierr)
            call mpi_send(u4, nz*nf*nl, MPI_REAL, 0, 0, 
-     .          MPI_COMM_WORLD,  ierr)
+     .          iComm,  ierr)
            call mpi_send(sigmap, nz*nf*nl, MPI_REAL, 0, 0, 
-     .          MPI_COMM_WORLD, ierr)
+     .          iComm, ierr)
            call mpi_send(sigmah, nz*nf*nl, MPI_REAL, 0, 0, 
-     .          MPI_COMM_WORLD, ierr)
+     .          iComm, ierr)
            call mpi_send(sigmapic, nz*nf*nl, MPI_REAL, 0, 0, 
-     .          MPI_COMM_WORLD, ierr)
+     .          iComm, ierr)
            call mpi_send(sigmahic, nz*nf*nl, MPI_REAL, 0, 0, 
-     .          MPI_COMM_WORLD, ierr)
+     .          iComm, ierr)
 !           call mpi_send(hipcp, nf*nl, MPI_REAL, 0, 0, 
-!     .          MPI_COMM_WORLD, ierr)
+!     .          iComm, ierr)
 !           call mpi_send(hipcphi, nf*nl, MPI_REAL, 0, 0, 
-!     .          MPI_COMM_WORLD, ierr)
+!     .          iComm, ierr)
 !           call mpi_send(hihcm, nf*nl, MPI_REAL, 0, 0, 
-!     .          MPI_COMM_WORLD, ierr)
+!     .          iComm, ierr)
 !           call mpi_send(hidpv, nf*nl, MPI_REAL, 0, 0, 
-!     .          MPI_COMM_WORLD, ierr)
+!     .          iComm, ierr)
 !           call mpi_send(hidphiv, nf*nl, MPI_REAL, 0, 0, 
-!     .          MPI_COMM_WORLD, ierr)
+!     .          iComm, ierr)
 !           call mpi_send(hidpg, nf*nl, MPI_REAL, 0, 0, 
-!     .          MPI_COMM_WORLD, ierr)
+!     .          iComm, ierr)
 !           call mpi_send(hidphig, nf*nl, MPI_REAL, 0, 0, 
-!     .          MPI_COMM_WORLD, ierr)
+!     .          iComm, ierr)
            call mpi_send(vnq, nz*nf*nl, MPI_REAL, 0, 0, 
-     .          MPI_COMM_WORLD, ierr)
+     .          iComm, ierr)
            call mpi_send(vnp, nz*nf*nl, MPI_REAL, 0, 0, 
-     .          MPI_COMM_WORLD, ierr)
+     .          iComm, ierr)
            call mpi_send(vnphi, nz*nf*nl, MPI_REAL, 0, 0, 
-     .          MPI_COMM_WORLD, ierr)
+     .          iComm, ierr)
            call mpi_send(jp, nz*nf*nl, MPI_REAL, 0, 0, 
-     .          MPI_COMM_WORLD, ierr)
+     .          iComm, ierr)
            call mpi_send(jphi, nz*nf*nl, MPI_REAL, 0, 0, 
-     .          MPI_COMM_WORLD, ierr)
+     .          iComm, ierr)
 !           call mpi_send(hipc, nf*nl, MPI_REAL, 0, 0, 
-!     .          MPI_COMM_WORLD, ierr)
+!     .          iComm, ierr)
 !           call mpi_send(hihc, nf*nl, MPI_REAL, 0, 0, 
-!     .          MPI_COMM_WORLD, ierr)
+!     .          iComm, ierr)
 !           call mpi_send(hidv, nf*nl, MPI_REAL, 0, 0, 
-!     .          MPI_COMM_WORLD, ierr)
+!     .          iComm, ierr)
  
           tprnt   = 0.
 
@@ -1218,7 +1273,7 @@ c get global dt
 !     .                 MPI_COM_WORLD,status,ierr)
 
 !                  call mpi_recv(ntmmax,1,MPI_INTEGER,0,18,
-!     .                 MPI_COMM_WORLD,status,ierr)
+!     .                 iComm,status,ierr)
           
 !             print *,'in worker',ntm,ntmmax,taskid
 
@@ -1226,15 +1281,16 @@ c get global dt
 
         endif
              
+!!! End of sami time advance unit
         enddo    ! end time loop
 
       endif ! end worker task
-
+!!! Finalizing
       xxx = 1.
       call mpi_send(xxx, 1, MPI_REAL, 0, 10, 
-     &    MPI_COMM_WORLD, ierr)
+     &    iComm, ierr)
 
-      call MPI_BARRIER(MPI_COMM_WORLD,ierr)
+      call MPI_BARRIER(iComm,ierr)
 
       call mpi_finalize(ierr)
       print *,'done finalizing,taskid',taskid
@@ -1252,7 +1308,8 @@ c get global dt
 
       subroutine initial(phialt,philon,p_crit)
       use ModMpi
-      
+      UseModSAMI, ONLY: iComm
+
       include 'param3_mpi-1.98.inc'
       include 'com3_mpi-1.98.inc' 
 
@@ -1386,81 +1443,81 @@ c Some local variables
 
 c send the namelist data to all the other processors
 
-      call mpi_bcast(fmtout,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(maxstep,1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(hrmax,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(dthr,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(hrpr,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(dt0,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(grad_in,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(glat_in,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(glon_in,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(fejer,1,MPI_LOGICAL,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(rmin,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(rmax,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(altmin,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(fbar,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(f10p7,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(ap,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(year,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(day,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(mmass,1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(nion1,1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(nion2,1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(tvn0,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(tvexb0,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(ver,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(veh,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(vw,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(gams1,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(gams1m,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(gamp1,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(nz1,1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(gams2,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(gams2m,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(gamp2,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(nz2,1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(gams3,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(gams3m,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(gamp3,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(nz3,1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(gams4,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(gams4m,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(gamp4,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(nz4,1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(r_min1,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(r_max1,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(r_max2,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(alt_crit_avg,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(blat_max3,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(blat_max4,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(snn,7,MPI_REAL,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(stn,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(denmin,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(alt_crit,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(cqe,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(plat,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(plon,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(dellon,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(psmooth,1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(hall,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(storm_ti,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(storm_tf,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(vexb_max,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(restart,1,MPI_LOGICAL,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(lmadala,1,MPI_LOGICAL,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(lcr,1,MPI_LOGICAL,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(lvs,1,MPI_LOGICAL,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(lweimer,1,MPI_LOGICAL,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(decay_time,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(pcrit,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
+      call mpi_bcast(fmtout,1,MPI_REAL,0,iComm,ierr)
+      call mpi_bcast(maxstep,1,MPI_INTEGER,0,iComm,ierr)
+      call mpi_bcast(hrmax,1,MPI_REAL,0,iComm,ierr)
+      call mpi_bcast(dthr,1,MPI_REAL,0,iComm,ierr)
+      call mpi_bcast(hrpr,1,MPI_REAL,0,iComm,ierr)
+      call mpi_bcast(dt0,1,MPI_REAL,0,iComm,ierr)
+      call mpi_bcast(grad_in,1,MPI_REAL,0,iComm,ierr)
+      call mpi_bcast(glat_in,1,MPI_REAL,0,iComm,ierr)
+      call mpi_bcast(glon_in,1,MPI_REAL,0,iComm,ierr)
+      call mpi_bcast(fejer,1,MPI_LOGICAL,0,iComm,ierr)
+      call mpi_bcast(rmin,1,MPI_REAL,0,iComm,ierr)
+      call mpi_bcast(rmax,1,MPI_REAL,0,iComm,ierr)
+      call mpi_bcast(altmin,1,MPI_REAL,0,iComm,ierr)
+      call mpi_bcast(fbar,1,MPI_REAL,0,iComm,ierr)
+      call mpi_bcast(f10p7,1,MPI_REAL,0,iComm,ierr)
+      call mpi_bcast(ap,1,MPI_REAL,0,iComm,ierr)
+      call mpi_bcast(year,1,MPI_REAL,0,iComm,ierr)
+      call mpi_bcast(day,1,MPI_REAL,0,iComm,ierr)
+      call mpi_bcast(mmass,1,MPI_INTEGER,0,iComm,ierr)
+      call mpi_bcast(nion1,1,MPI_INTEGER,0,iComm,ierr)
+      call mpi_bcast(nion2,1,MPI_INTEGER,0,iComm,ierr)
+      call mpi_bcast(tvn0,1,MPI_REAL,0,iComm,ierr)
+      call mpi_bcast(tvexb0,1,MPI_REAL,0,iComm,ierr)
+      call mpi_bcast(ver,1,MPI_REAL,0,iComm,ierr)
+      call mpi_bcast(veh,1,MPI_REAL,0,iComm,ierr)
+      call mpi_bcast(vw,1,MPI_REAL,0,iComm,ierr)
+      call mpi_bcast(gams1,1,MPI_REAL,0,iComm,ierr)
+      call mpi_bcast(gams1m,1,MPI_REAL,0,iComm,ierr)
+      call mpi_bcast(gamp1,1,MPI_REAL,0,iComm,ierr)
+      call mpi_bcast(nz1,1,MPI_INTEGER,0,iComm,ierr)
+      call mpi_bcast(gams2,1,MPI_REAL,0,iComm,ierr)
+      call mpi_bcast(gams2m,1,MPI_REAL,0,iComm,ierr)
+      call mpi_bcast(gamp2,1,MPI_REAL,0,iComm,ierr)
+      call mpi_bcast(nz2,1,MPI_INTEGER,0,iComm,ierr)
+      call mpi_bcast(gams3,1,MPI_REAL,0,iComm,ierr)
+      call mpi_bcast(gams3m,1,MPI_REAL,0,iComm,ierr)
+      call mpi_bcast(gamp3,1,MPI_REAL,0,iComm,ierr)
+      call mpi_bcast(nz3,1,MPI_INTEGER,0,iComm,ierr)
+      call mpi_bcast(gams4,1,MPI_REAL,0,iComm,ierr)
+      call mpi_bcast(gams4m,1,MPI_REAL,0,iComm,ierr)
+      call mpi_bcast(gamp4,1,MPI_REAL,0,iComm,ierr)
+      call mpi_bcast(nz4,1,MPI_INTEGER,0,iComm,ierr)
+      call mpi_bcast(r_min1,1,MPI_REAL,0,iComm,ierr)
+      call mpi_bcast(r_max1,1,MPI_REAL,0,iComm,ierr)
+      call mpi_bcast(r_max2,1,MPI_REAL,0,iComm,ierr)
+      call mpi_bcast(alt_crit_avg,1,MPI_REAL,0,iComm,ierr)
+      call mpi_bcast(blat_max3,1,MPI_REAL,0,iComm,ierr)
+      call mpi_bcast(blat_max4,1,MPI_REAL,0,iComm,ierr)
+      call mpi_bcast(snn,7,MPI_REAL,0,iComm,ierr)
+      call mpi_bcast(stn,1,MPI_REAL,0,iComm,ierr)
+      call mpi_bcast(denmin,1,MPI_REAL,0,iComm,ierr)
+      call mpi_bcast(alt_crit,1,MPI_REAL,0,iComm,ierr)
+      call mpi_bcast(cqe,1,MPI_REAL,0,iComm,ierr)
+      call mpi_bcast(plat,1,MPI_REAL,0,iComm,ierr)
+      call mpi_bcast(plon,1,MPI_REAL,0,iComm,ierr)
+      call mpi_bcast(dellon,1,MPI_REAL,0,iComm,ierr)
+      call mpi_bcast(psmooth,1,MPI_INTEGER,0,iComm,ierr)
+      call mpi_bcast(hall,1,MPI_REAL,0,iComm,ierr)
+      call mpi_bcast(storm_ti,1,MPI_REAL,0,iComm,ierr)
+      call mpi_bcast(storm_tf,1,MPI_REAL,0,iComm,ierr)
+      call mpi_bcast(vexb_max,1,MPI_REAL,0,iComm,ierr)
+      call mpi_bcast(restart,1,MPI_LOGICAL,0,iComm,ierr)
+      call mpi_bcast(lmadala,1,MPI_LOGICAL,0,iComm,ierr)
+      call mpi_bcast(lcr,1,MPI_LOGICAL,0,iComm,ierr)
+      call mpi_bcast(lvs,1,MPI_LOGICAL,0,iComm,ierr)
+      call mpi_bcast(lweimer,1,MPI_LOGICAL,0,iComm,ierr)
+      call mpi_bcast(decay_time,1,MPI_REAL,0,iComm,ierr)
+      call mpi_bcast(pcrit,1,MPI_REAL,0,iComm,ierr)
       if (.not. restart)
-     .  call mpi_bcast(hrinit,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(lhwm93,1,MPI_LOGICAL,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(lhwm14,1,MPI_LOGICAL,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(vsi0,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(delta_vsi0,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
-      call mpi_bcast(anu_drag0,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
+     .  call mpi_bcast(hrinit,1,MPI_REAL,0,iComm,ierr)
+      call mpi_bcast(lhwm93,1,MPI_LOGICAL,0,iComm,ierr)
+      call mpi_bcast(lhwm14,1,MPI_LOGICAL,0,iComm,ierr)
+      call mpi_bcast(vsi0,1,MPI_REAL,0,iComm,ierr)
+      call mpi_bcast(delta_vsi0,1,MPI_REAL,0,iComm,ierr)
+      call mpi_bcast(anu_drag0,1,MPI_REAL,0,iComm,ierr)
 !            print *,'done with bcast', taskid
       dt = dt0
 
@@ -1502,9 +1559,9 @@ c send the namelist data to all the other processors
       endif
 !       print *,'bcast zi', taskid
       call mpi_bcast(zi,29,
-     &       MPI_REAL,0,MPI_COMM_WORLD,ierr)
+     &       MPI_REAL,0,iComm,ierr)
       call mpi_bcast(denii,29*7,
-     &       MPI_REAL,0,MPI_COMM_WORLD,ierr)
+     &       MPI_REAL,0,iComm,ierr)
 
 ! read in chemistry data
 ! in format statement 104 need to 'hardwire' nneut (= 7)
@@ -1517,7 +1574,7 @@ c send the namelist data to all the other processors
       endif
 !       print *,'bcast ichem', taskid
       call mpi_bcast(ichem,nchem*3,
-     &       MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
+     &       MPI_INTEGER,0,iComm,ierr)
 !       print *,'done bcast ichem', taskid
 ! generate the mesh data by everybody but the Master
 !      write(*,*) 'start with blonp0a_mpi',taskid
@@ -1541,18 +1598,18 @@ C Now wait to receive back the results from each worker task
             dest = source
             
             call mpi_iprobe(source, 0, 
-     .           MPI_COMM_WORLD, flagit, status, ierr)
+     .           iComm, flagit, status, ierr)
                
             if(flagit .and. ifintot .gt. 0) then
 
 !  The three things we want to receive are  altpt blatpt blonpt
 
                call mpi_recv(altptmp, nzp1*nfp1*nlp1, MPI_REAL, 
-     .              iwrk, 0, MPI_COMM_WORLD, status, ierr)
+     .              iwrk, 0, iComm, status, ierr)
                call mpi_recv(blatptmp, nzp1*nfp1*nlp1, MPI_REAL, 
-     .              iwrk, 0, MPI_COMM_WORLD, status, ierr)
+     .              iwrk, 0, iComm, status, ierr)
                call mpi_recv(blonptmp, nzp1*nfp1*nlp1, MPI_REAL, 
-     .              iwrk, 0, MPI_COMM_WORLD, status, ierr)
+     .              iwrk, 0, iComm, status, ierr)
 
 !  Put the submatrices into the correct matrix
 
@@ -1572,11 +1629,11 @@ C Now wait to receive back the results from each worker task
 !  The three things we want to receive are  xpt ypt zpt
 
                call mpi_recv(altptmp, nzp1*nfp1*nlp1, MPI_REAL, 
-     .              iwrk, 0, MPI_COMM_WORLD, status, ierr)
+     .              iwrk, 0, iComm, status, ierr)
                call mpi_recv(blatptmp, nzp1*nfp1*nlp1, MPI_REAL, 
-     .              iwrk, 0, MPI_COMM_WORLD, status, ierr)
+     .              iwrk, 0, iComm, status, ierr)
                call mpi_recv(blonptmp, nzp1*nfp1*nlp1, MPI_REAL, 
-     .              iwrk, 0, MPI_COMM_WORLD, status, ierr)
+     .              iwrk, 0, iComm, status, ierr)
 
 !  Put the submatrices into the correct matrix
 
@@ -1596,7 +1653,7 @@ C Now wait to receive back the results from each worker task
 ! We want to receive pp
 
                call mpi_recv(altptmp, nzp1*nfp1*nlp1, MPI_REAL, 
-     .              iwrk, 0, MPI_COMM_WORLD, status, ierr)
+     .              iwrk, 0, iComm, status, ierr)
 
 ! Put the submatrices into the correct matrix
 
@@ -1614,11 +1671,11 @@ C Now wait to receive back the results from each worker task
 ! The three things we want to receive are  altst glatst glonst
 
                call mpi_recv(altstmp, nz*nf*nl, MPI_REAL, 
-     .              iwrk, 0, MPI_COMM_WORLD, status, ierr)
+     .              iwrk, 0, iComm, status, ierr)
                call mpi_recv(glatstmp, nz*nf*nl, MPI_REAL, 
-     .              iwrk, 0, MPI_COMM_WORLD, status, ierr)
+     .              iwrk, 0, iComm, status, ierr)
                call mpi_recv(glonstmp, nz*nf*nl, MPI_REAL, 
-     .              iwrk, 0, MPI_COMM_WORLD, status, ierr)
+     .              iwrk, 0, iComm, status, ierr)
 
 ! Put the submatrices into the correct matrix
 
@@ -1638,11 +1695,11 @@ C Now wait to receive back the results from each worker task
 ! The three things we want to receive are  baltst blatst blonst
 
                call mpi_recv(altstmp, nz*nf*nl, MPI_REAL, 
-     .              iwrk, 0, MPI_COMM_WORLD, status, ierr)
+     .              iwrk, 0, iComm, status, ierr)
                call mpi_recv(glatstmp, nz*nf*nl, MPI_REAL, 
-     .              iwrk, 0, MPI_COMM_WORLD, status, ierr)
+     .              iwrk, 0, iComm, status, ierr)
                call mpi_recv(glonstmp, nz*nf*nl, MPI_REAL, 
-     .              iwrk, 0, MPI_COMM_WORLD, status, ierr)
+     .              iwrk, 0, iComm, status, ierr)
 
 ! Put the submatrices into the correct matrix
 
@@ -1662,11 +1719,11 @@ C Now wait to receive back the results from each worker task
 ! The three things we want to receive are  xst yst zst
 
                call mpi_recv(altstmp, nz*nf*nl, MPI_REAL, 
-     .              iwrk, 0, MPI_COMM_WORLD, status, ierr)
+     .              iwrk, 0, iComm, status, ierr)
                call mpi_recv(glatstmp, nz*nf*nl, MPI_REAL, 
-     .              iwrk, 0, MPI_COMM_WORLD, status, ierr)
+     .              iwrk, 0, iComm, status, ierr)
                call mpi_recv(glonstmp, nz*nf*nl, MPI_REAL, 
-     .              iwrk, 0, MPI_COMM_WORLD, status, ierr)
+     .              iwrk, 0, iComm, status, ierr)
 
 ! Put the submatrices into the correct matrix
 
@@ -1686,11 +1743,11 @@ C Now wait to receive back the results from each worker task
 ! The three things we want to receive are  xrg,xthg,xphig
 
                call mpi_recv(altstmp, nz*nf*nl, MPI_REAL, 
-     .              iwrk, 0, MPI_COMM_WORLD, status, ierr)
+     .              iwrk, 0, iComm, status, ierr)
                call mpi_recv(glatstmp, nz*nf*nl, MPI_REAL, 
-     .              iwrk, 0, MPI_COMM_WORLD, status, ierr)
+     .              iwrk, 0, iComm, status, ierr)
                call mpi_recv(glonstmp, nz*nf*nl, MPI_REAL, 
-     .              iwrk, 0, MPI_COMM_WORLD, status, ierr)
+     .              iwrk, 0, iComm, status, ierr)
 
 ! Put the submatrices into the correct matrix
 
@@ -1710,11 +1767,11 @@ C Now wait to receive back the results from each worker task
 !  The three things we want to receive are vpsnx vpsny vpsnz
 
                call mpi_recv(altstmp, nz*nf*nl, MPI_REAL, 
-     .              iwrk, 0, MPI_COMM_WORLD, status, ierr)
+     .              iwrk, 0, iComm, status, ierr)
                call mpi_recv(glatstmp, nz*nf*nl, MPI_REAL, 
-     .              iwrk, 0, MPI_COMM_WORLD, status, ierr)
+     .              iwrk, 0, iComm, status, ierr)
                call mpi_recv(glonstmp, nz*nf*nl, MPI_REAL, 
-     .              iwrk, 0, MPI_COMM_WORLD, status, ierr)
+     .              iwrk, 0, iComm, status, ierr)
 
 !  Put the submatrices into the correct matrix
 
@@ -1734,11 +1791,11 @@ C Now wait to receive back the results from each worker task
 !  The three things we want to receive are vhsnx vhsny vhsnz
 
                call mpi_recv(altstmp, nz*nf*nl, MPI_REAL, 
-     .              iwrk, 0, MPI_COMM_WORLD, status, ierr)
+     .              iwrk, 0, iComm, status, ierr)
                call mpi_recv(glatstmp, nz*nf*nl, MPI_REAL, 
-     .              iwrk, 0, MPI_COMM_WORLD, status, ierr)
+     .              iwrk, 0, iComm, status, ierr)
                call mpi_recv(glonstmp, nz*nf*nl, MPI_REAL, 
-     .              iwrk, 0, MPI_COMM_WORLD, status, ierr)
+     .              iwrk, 0, iComm, status, ierr)
 
 !  Put the submatrices into the correct matrix
 
@@ -1758,11 +1815,11 @@ C Now wait to receive back the results from each worker task
 !  The three things we want to receive are bdirsx bdirsy bdirsz
 
                call mpi_recv(altstmp, nz*nf*nl, MPI_REAL, 
-     .              iwrk, 0, MPI_COMM_WORLD, status, ierr)
+     .              iwrk, 0, iComm, status, ierr)
                call mpi_recv(glatstmp, nz*nf*nl, MPI_REAL, 
-     .              iwrk, 0, MPI_COMM_WORLD, status, ierr)
+     .              iwrk, 0, iComm, status, ierr)
                call mpi_recv(glonstmp, nz*nf*nl, MPI_REAL, 
-     .              iwrk, 0, MPI_COMM_WORLD, status, ierr)
+     .              iwrk, 0, iComm, status, ierr)
 
 !  Put the submatrices into the correct matrix
 
@@ -1784,11 +1841,11 @@ C Now wait to receive back the results from each worker task
 !  The three things we want to receive are gsthetax/y/z
 
                call mpi_recv(altstmp, nz*nf*nl, MPI_REAL, 
-     .              iwrk, 0, MPI_COMM_WORLD, status, ierr)
+     .              iwrk, 0, iComm, status, ierr)
                call mpi_recv(glatstmp, nz*nf*nl, MPI_REAL, 
-     .              iwrk, 0, MPI_COMM_WORLD, status, ierr)
+     .              iwrk, 0, iComm, status, ierr)
                call mpi_recv(glonstmp, nz*nf*nl, MPI_REAL, 
-     .              iwrk, 0, MPI_COMM_WORLD, status, ierr)
+     .              iwrk, 0, iComm, status, ierr)
 
 !  Put the submatrices into the correct matrix
 
@@ -1808,11 +1865,11 @@ C Now wait to receive back the results from each worker task
 !  The three things we want to receive are gsphix/y/z
 
                call mpi_recv(altstmp, nz*nf*nl, MPI_REAL, 
-     .              iwrk, 0, MPI_COMM_WORLD, status, ierr)
+     .              iwrk, 0, iComm, status, ierr)
                call mpi_recv(glatstmp, nz*nf*nl, MPI_REAL, 
-     .              iwrk, 0, MPI_COMM_WORLD, status, ierr)
+     .              iwrk, 0, iComm, status, ierr)
                call mpi_recv(glonstmp, nz*nf*nl, MPI_REAL, 
-     .              iwrk, 0, MPI_COMM_WORLD, status, ierr)
+     .              iwrk, 0, iComm, status, ierr)
 
 !  Put the submatrices into the correct matrix
 
@@ -1833,11 +1890,11 @@ C Now wait to receive back the results from each worker task
 !  The three things we want to receive are gsrx/y/z
 
                call mpi_recv(altstmp, nz*nf*nl, MPI_REAL, 
-     .              iwrk, 0, MPI_COMM_WORLD, status, ierr)
+     .              iwrk, 0, iComm, status, ierr)
                call mpi_recv(glatstmp, nz*nf*nl, MPI_REAL, 
-     .              iwrk, 0, MPI_COMM_WORLD, status, ierr)
+     .              iwrk, 0, iComm, status, ierr)
                call mpi_recv(glonstmp, nz*nf*nl, MPI_REAL, 
-     .              iwrk, 0, MPI_COMM_WORLD, status, ierr)
+     .              iwrk, 0, iComm, status, ierr)
 
 !  Put the submatrices into the correct matrix
 
@@ -2231,7 +2288,7 @@ c endif for taskid > 0 initialization
          enddo 
       endif
       call mpi_bcast(sigabsdt,linesuv*3,
-     &     MPI_REAL,0,MPI_COMM_WORLD,ierr)
+     &     MPI_REAL,0,iComm,ierr)
 
 ! initialize photoionization rates to zero
 
@@ -2286,9 +2343,9 @@ c endif for taskid > 0 initialization
          enddo 
       endif
       call mpi_bcast(sigidt,linesuv*7,
-     &     MPI_REAL,0,MPI_COMM_WORLD,ierr)
+     &     MPI_REAL,0,iComm,ierr)
       call mpi_bcast(sigint,linesnt*7,
-     &     MPI_REAL,0,MPI_COMM_WORLD,ierr)
+     &     MPI_REAL,0,iComm,ierr)
 
 !     below is altered from original
 !     now just for flux spectra from harry warren
@@ -2319,7 +2376,7 @@ c endif for taskid > 0 initialization
 
 
       call mpi_bcast(flux,linesuv,
-     &     MPI_REAL,0,MPI_COMM_WORLD,ierr)
+     &     MPI_REAL,0,iComm,ierr)
 
 
 ! read in angles for nighttime deposition fluxes
@@ -2331,7 +2388,7 @@ c endif for taskid > 0 initialization
       endif
  108  format (4f7.1)
       call mpi_bcast(thetant,linesnt*4,
-     &     MPI_REAL,0,MPI_COMM_WORLD,ierr)
+     &     MPI_REAL,0,iComm,ierr)
 
 
 ! read in min/max altitude for nighttime deposition fluxes
@@ -2345,7 +2402,7 @@ c endif for taskid > 0 initialization
       endif
 
       call mpi_bcast(zaltnt,linesnt*2,
-     &     MPI_REAL,0,MPI_COMM_WORLD,ierr)
+     &     MPI_REAL,0,iComm,ierr)
 
 ! Do this for everything but the master
 
@@ -9705,29 +9762,4 @@ c  ====================================================================
       return
       end
 
-
-!============================================================================
-      subroutine CON_stop(StringError)
-      use ModMpi
-      implicit none
-      character (len=*), intent(in) :: StringError
-      
-! Local variables:
-      integer :: iError,nError
-!----------------------------------------------------------------------------
-      
-      write(*,*)'Stopping execution! in SAMI3'
-      write(*,*)StringError
-      call MPI_abort(MPI_COMM_WORLD, nError, iError)
-      stop
-      end subroutine CON_stop
-!============================================================================
-      subroutine CON_set_do_test(String,DoTest,DoTestMe)
-      implicit none
-      character (len=*), intent(in)  :: String
-      logical          , intent(out) :: DoTest, DoTestMe
-      DoTest   = .false.
-      DoTestMe = .false.
-      end subroutine CON_set_do_test
-!============================================================================
 

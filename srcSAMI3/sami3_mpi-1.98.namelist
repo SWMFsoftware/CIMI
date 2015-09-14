@@ -24,7 +24,7 @@
   day      =  328,
   mmass    =   48 ,
   nion1    =    1,
-  nion2    =    7,exit
+  nion2    =    7,
   hrinit   =    6.,
   tvn0     =    1.,
   tvexb0   =    1.,

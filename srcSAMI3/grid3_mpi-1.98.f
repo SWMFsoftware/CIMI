@@ -8,7 +8,7 @@
 
       subroutine grid3_mpi
       use ModMpi
-
+      UseModSAMI, ONLY: iComm
       include 'param3_mpi-1.98.inc'
       include 'com3_mpi-1.98.inc'
 
@@ -83,58 +83,58 @@ c     Begin MPI stuff
 !        print *,'done faces',taskid
 
       call mpi_send(vpsnx, nz*nf*nl, MPI_REAL, 0, 0, 
-     .              MPI_COMM_WORLD, ierr)
+     .              iComm, ierr)
 
       call mpi_send(vpsny, nz*nf*nl, MPI_REAL, 0, 0, 
-     .              MPI_COMM_WORLD, ierr)
+     .              iComm, ierr)
 
       call mpi_send(vpsnz, nz*nf*nl, MPI_REAL, 0, 0, 
-     .              MPI_COMM_WORLD, ierr)
+     .              iComm, ierr)
 
       call mpi_send(vhsnx, nz*nf*nl, MPI_REAL, 0, 0, 
-     .              MPI_COMM_WORLD, ierr)
+     .              iComm, ierr)
 
       call mpi_send(vhsny, nz*nf*nl, MPI_REAL, 0, 0, 
-     .              MPI_COMM_WORLD, ierr)
+     .              iComm, ierr)
 
       call mpi_send(vhsnz, nz*nf*nl, MPI_REAL, 0, 0, 
-     .              MPI_COMM_WORLD, ierr)
+     .              iComm, ierr)
 
       call mpi_send(bdirsx, nz*nf*nl, MPI_REAL, 0, 0, 
-     .              MPI_COMM_WORLD, ierr)
+     .              iComm, ierr)
 
       call mpi_send(bdirsy, nz*nf*nl, MPI_REAL, 0, 0, 
-     .              MPI_COMM_WORLD, ierr)
+     .              iComm, ierr)
 
       call mpi_send(bdirsz, nz*nf*nl, MPI_REAL, 0, 0, 
-     .              MPI_COMM_WORLD, ierr)
+     .              iComm, ierr)
 
       call mpi_send(gsthetax, nz*nf*nl, MPI_REAL, 0, 0, 
-     .              MPI_COMM_WORLD, ierr)
+     .              iComm, ierr)
 
       call mpi_send(gsthetay, nz*nf*nl, MPI_REAL, 0, 0, 
-     .              MPI_COMM_WORLD, ierr)
+     .              iComm, ierr)
 
       call mpi_send(gsthetaz, nz*nf*nl, MPI_REAL, 0, 0, 
-     .              MPI_COMM_WORLD, ierr)
+     .              iComm, ierr)
 
       call mpi_send(gsphix, nz*nf*nl, MPI_REAL, 0, 0, 
-     .              MPI_COMM_WORLD, ierr)
+     .              iComm, ierr)
 
       call mpi_send(gsphiy, nz*nf*nl, MPI_REAL, 0, 0, 
-     .              MPI_COMM_WORLD, ierr)
+     .              iComm, ierr)
 
       call mpi_send(gsphiz, nz*nf*nl, MPI_REAL, 0, 0, 
-     .              MPI_COMM_WORLD, ierr)
+     .              iComm, ierr)
 
       call mpi_send(gsrx, nz*nf*nl, MPI_REAL, 0, 0, 
-     .              MPI_COMM_WORLD, ierr)
+     .              iComm, ierr)
 
       call mpi_send(gsry, nz*nf*nl, MPI_REAL, 0, 0, 
-     .              MPI_COMM_WORLD, ierr)
+     .              iComm, ierr)
 
       call mpi_send(gsrz, nz*nf*nl, MPI_REAL, 0, 0, 
-     .              MPI_COMM_WORLD, ierr)
+     .              iComm, ierr)
 
       end
 
@@ -149,6 +149,7 @@ c     Begin MPI stuff
 
       subroutine da_grid(xs,ys,zs,xp,yp,zp)
       use ModMpi
+      UseModSAMI, ONLY: iComm
       include 'param3_mpi-1.98.inc'
       include 'com3_mpi-1.98.inc'
 
@@ -539,23 +540,23 @@ c$$$          endif
 c Now we know altp blatp blonp and we need to send them to master
 
       call mpi_send(baltp, nzp1*nfp1*nlp1, MPI_REAL, 0, 0, 
-     .              MPI_COMM_WORLD, ierr)
+     .              iComm, ierr)
       call mpi_send(blatp, nzp1*nfp1*nlp1, MPI_REAL, 0, 0, 
-     .              MPI_COMM_WORLD, ierr)
+     .              iComm, ierr)
       call mpi_send(blonp, nzp1*nfp1*nlp1, MPI_REAL, 0, 0, 
-     .              MPI_COMM_WORLD, ierr)
+     .              iComm, ierr)
 
 c Now we know xp yp zp and we need to send them to master
 
       call mpi_send(xp, nzp1*nfp1*nlp1, MPI_REAL, 0, 0, 
-     .              MPI_COMM_WORLD, ierr)
+     .              iComm, ierr)
       call mpi_send(yp, nzp1*nfp1*nlp1, MPI_REAL, 0, 0, 
-     .              MPI_COMM_WORLD, ierr)
+     .              iComm, ierr)
       call mpi_send(zp, nzp1*nfp1*nlp1, MPI_REAL, 0, 0, 
-     .              MPI_COMM_WORLD, ierr)
+     .              iComm, ierr)
 
       call mpi_send(pp, nzp1*nfp1*nlp1, MPI_REAL, 0, 0, 
-     .              MPI_COMM_WORLD, ierr)
+     .              iComm, ierr)
 
 !     now do s grid
 
@@ -681,32 +682,32 @@ c Now we know xp yp zp and we need to send them to master
 c Now we know alts glats glons and we need to send them to master
 
       call mpi_send(alts, nz*nf*nl, MPI_REAL, 0, 0, 
-     .              MPI_COMM_WORLD, ierr)
+     .              iComm, ierr)
       call mpi_send(glats, nz*nf*nl, MPI_REAL, 0, 0, 
-     .              MPI_COMM_WORLD, ierr)
+     .              iComm, ierr)
       call mpi_send(glons, nz*nf*nl, MPI_REAL, 0, 0, 
-     .              MPI_COMM_WORLD, ierr)
+     .              iComm, ierr)
 
       call mpi_send(brs, nz*nf*nl, MPI_REAL, 0, 0, 
-     .              MPI_COMM_WORLD, ierr)
+     .              iComm, ierr)
       call mpi_send(blats, nz*nf*nl, MPI_REAL, 0, 0, 
-     .              MPI_COMM_WORLD, ierr)
+     .              iComm, ierr)
       call mpi_send(blons, nz*nf*nl, MPI_REAL, 0, 0, 
-     .              MPI_COMM_WORLD, ierr)
+     .              iComm, ierr)
 
       call mpi_send(xs, nz*nf*nl, MPI_REAL, 0, 0, 
-     .              MPI_COMM_WORLD, ierr)
+     .              iComm, ierr)
       call mpi_send(ys, nz*nf*nl, MPI_REAL, 0, 0, 
-     .              MPI_COMM_WORLD, ierr)
+     .              iComm, ierr)
       call mpi_send(zs, nz*nf*nl, MPI_REAL, 0, 0, 
-     .              MPI_COMM_WORLD, ierr)
+     .              iComm, ierr)
 
       call mpi_send(xrg, nz*nf*nl, MPI_REAL, 0, 0, 
-     .              MPI_COMM_WORLD, ierr)
+     .              iComm, ierr)
       call mpi_send(xthg, nz*nf*nl, MPI_REAL, 0, 0, 
-     .              MPI_COMM_WORLD, ierr)
+     .              iComm, ierr)
       call mpi_send(xphig, nz*nf*nl, MPI_REAL, 0, 0, 
-     .              MPI_COMM_WORLD, ierr)
+     .              iComm, ierr)
 
 !       print *,'done sending',taskid
 !     following distances are in cm
