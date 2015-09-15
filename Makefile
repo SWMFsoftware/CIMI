@@ -27,9 +27,21 @@ CRCM:
 	@cd src;	make LIB
 	@cd src;	make CRCM
 
+CIMI_SAMI:
+	@cd ${SHAREDIR};  	make LIB
+	@cd ${NOMPIDIR};	make LIB
+	@cd ${TIMINGDIR}; 	make LIB 
+	@cd ${EMPIRICALIEDIR};	make LIB
+	@cd ${EMPIRICALGMDIR};	make LIB
+	@cd ${DATAREADINDICESDIR};make LIB
+	@cd srcSAMI3;	make LIB
+	@cd src;	make LIB
+	@cd src;	make CIMI_SAMI
+
 
 SAMI3:
 	@cd ${SHAREDIR};  	make LIB
+	@cd ${TIMINGDIR}; 	make LIB 
 	@cd srcSAMI3;	make LIB
 	@cd srcSAMI3;	make SAMI3
 

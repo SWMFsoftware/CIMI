@@ -1,7 +1,7 @@
 
 include ../Makefile.def
 
-SEARCHDIR = -I${SHAREDIR} -I${EMPIRICALGMDIR} -I${EMPIRICALIEDIR} -I${DATAREADINDICESDIR}
+SEARCHDIR = -I${SHAREDIR} -I${EMPIRICALGMDIR} -I${EMPIRICALIEDIR} -I${DATAREADINDICESDIR} -I../srcSAMI3
 
 include ../Makefile.conf
 include Makefile.DEPEND
@@ -53,6 +53,7 @@ LIBTIMING = ${LIBDIR}/libTIMING.a
 LIBINDICES  = ${LIBDIR}/libINDICES.a
 LIBEMPIRICALIE   = ${LIBDIR}/libEMPIRICALIE.a
 LIBEMPIRICALGM = ${LIBDIR}/libEMPIRICALGM.a
+LIBSAMI3 = ${LIBDIR}/libSAMI3.a
 
 # Libraries should be compiled first, because modules are used in main
 ${OBJECTS_EXE}: ${LIBSHARE} ${LIBTIMING} ${MY_LIB}   
@@ -80,6 +81,35 @@ ${EXE}: ${OBJECTS_EXE}
 CRCM_orig:
 	${COMPILE.f90} ${Lflag1} -o ${EXE} crcm_main.f90 ${OBJECTS} \
 	-L${LIBDIR} -lTIMING -lSHARE -lNOMPI -lINDICES
+
+#SAMI-CIMI targets
+${CIMI_SAMI_OBJECTS_EXE}: ${LIBSHARE} ${LIBTIMING} ${LIBSAMI3} ${MY_LIB}   
+
+CIMI_SAMI_EXE = ${BINDIR}/cimi_sami.exe
+
+CIMI_SAMI_EXE:
+	@echo ' '
+	@make ${CIMI_SAMI_EXE}
+	@echo "Program ${CIMI_SAMI_EXE} has been brought up to date."
+	@echo ' '
+
+${CIMI_SAMI_EXE}: ${CIMI_SAMI_OBJECTS_EXE}
+	rm -rf Tmp_; mkdir Tmp_
+	cd Tmp_; \
+		ar -x ../${MY_LIB}; \
+		ar -x ${LIBSAMI3}; \
+		ar -x ${LIBTIMING}; \
+		ar -x ${LIBSHARE}; \
+		ar -x ${LIBINDICES}; \
+		ar -x ${LIBEMPIRICALGM};\
+		ar -x ${LIBEMPIRICALIE};
+	${LINK.f90} -o ${CIMI_SAMI_EXE} ${OBJECTS_EXE} Tmp_/*.o ${LBLAS} ${Lflag1}
+	rm -rf Tmp_
+
+CIMI_SAMI_orig:
+	${COMPILE.f90} ${Lflag1} -o ${EXE} main_cimi_sami.f90 ${OBJECTS} \
+	-L${LIBDIR} -lTIMING -lSHARE -lNOMPI -lINDICES -lSAMI3
+
 
 distclean: clean
 	rm -f ModPlanet.f90 ModGrid.f90
