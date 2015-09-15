@@ -85,8 +85,8 @@
   lweimer  = .false.,   ! set lvs = .false. if .true
   decay_time = 6.,
   pcrit      = 8.,
-  lhwm93     = .true.,
-  lhwm14     = .false., 
+  lhwm93     = .false.,
+  lhwm14     = .true., 
   vsi0       = 1.e6,
   delta_vsi0 = 1.e5,
   anu_drag0  = 4.e3,

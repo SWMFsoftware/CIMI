@@ -8,7 +8,7 @@
 
       subroutine grid3_mpi
       use ModMpi
-      UseModSAMI, ONLY: iComm
+      use ModSAMI, ONLY: iComm
       include 'param3_mpi-1.98.inc'
       include 'com3_mpi-1.98.inc'
 
@@ -149,7 +149,7 @@ c     Begin MPI stuff
 
       subroutine da_grid(xs,ys,zs,xp,yp,zp)
       use ModMpi
-      UseModSAMI, ONLY: iComm
+      use ModSAMI, ONLY: iComm
       include 'param3_mpi-1.98.inc'
       include 'com3_mpi-1.98.inc'
 

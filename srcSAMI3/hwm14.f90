@@ -1417,17 +1417,17 @@ subroutine findandopen(datafile,unitid)
     else
         inquire(file=trim(datafile),exist=havefile)
 !        if (havefile) open(unit=unitid,file=trim(datafile),status='old',form='binary')
-        if (havefile) open(unit=unitid,file=trim(datafile),status='old',form='unformatted')
+        if (havefile) open(unit=unitid,file=trim(datafile),status='old',access='stream')
         if (.not. havefile) then
             call getenv('HWMPATH',hwmpath)
             inquire(file=trim(hwmpath)//'/'//trim(datafile),exist=havefile)
             if (havefile) open(unit=unitid, &
-                file=trim(hwmpath)//'/'//trim(datafile),status='old',form='unformatted')
+                file=trim(hwmpath)//'/'//trim(datafile),status='old',access='stream')
         endif
         if (.not. havefile) then
             inquire(file='../Meta/'//trim(datafile),exist=havefile)
             if (havefile) open(unit=unitid, &
-                file='../Meta/'//trim(datafile),status='old',form='unformatted')
+                file='../Meta/'//trim(datafile),status='old',access='stream')
         endif
     endif
 
