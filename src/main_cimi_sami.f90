@@ -10,7 +10,7 @@
 !******************************************************************************
 
 program cimi_sami
-  use ModCrcmGrid,    ONLY: iProcSAMI=>iProc,nProcSAMI=>nProc,iCommSAMI=>iComm
+  use ModSAMI,        ONLY: iProcSAMI=>iProc,nProcSAMI=>nProc,iCommSAMI=>iComm
   use ModCrcmGrid,    ONLY: iProcCIMI=>iProc,nProcCIMI=>nProc,iCommCIMI=>iComm
   use ModCRCM,        ONLY: IsStandalone
   use ModMpi
