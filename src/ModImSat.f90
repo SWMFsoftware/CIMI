@@ -43,7 +43,8 @@ contains
     real               :: SatLat, SatLon, SatAng, &
                           LatSatGen,LonSatGen, AngSatGen
     real               :: SatB2, RatioBeqBsat
-    integer            :: iSatLat, iSatLon, iSatAng, iAngle, iEnergy
+    integer            :: iSatLat, iSatLonMin,iSatLonMax, &
+         iSatAng, iAngle, iEnergy
     integer            :: iSpecies
     character(len=8)  :: NameChannel
     !-------------------------------------------------------------------------
@@ -131,12 +132,15 @@ contains
             / (LatGrid_I(iSatLat+1)-LatGrid_I(iSatLat))
 
        !get generallized sat lon
-       call locate1IM(LonGrid_G, nLon+2, SatLon, iSatLon)
+       call locate1IM(LonGrid_G, nLon+2, SatLon, iSatLonMax)
        LonSatGen=SatLon/(360.0/nLon)+1
-       iSatLon=floor(LonSatGen)
-       LonSatGen = iSatLon &
-            + (LonGrid_G(iSatLon+1) - SatLon) &
-            / (LonGrid_G(iSatLon+1)-LonGrid_G(iSatLon))
+       iSatLonMin=floor(LonSatGen)
+       select case (iSatLonMax)
+       case (48)
+          iSatLonMax=iSatLonMax
+       case DEFAULT
+          iSatLonMax=mod(ceiling(LonSatGen),nLon)
+       end select
 
        !get B^2 at sat
        SatB2 = SatLoc_3I(4,2,iSatIn)
@@ -147,7 +151,7 @@ contains
        if (RatioBeqBsat > 1.0) RatioBeqBsat=1.0
 
        !check that sat is in iba domain
-       if (iSatLat >= iba(iSatLon) .or. iSatLat >= iba(iSatLon+1)) then
+       if (iSatLat >= iba(iSatLonMin) .or. iSatLat >= iba(iSatLonMax)) then
           !treat as open
           LatSatGen=-1.0
           LonSatGen=-1.0
