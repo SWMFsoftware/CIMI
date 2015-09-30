@@ -41,6 +41,7 @@ F		UseSeparatePlotFiles
 F		IsEmptyInitial
 F		IsGmInitial
 T		IsDataInitial
+F		IsRBSPData
 
 #TYPEBOUNDARY
 Circle		TypeBoundary
