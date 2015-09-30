@@ -752,13 +752,22 @@ subroutine initial_f2(nspec,np,nt,iba,amu_I,vel,xjac,ib0)
            FilePrefix='quiet'
         endif
         !set the file name, open it and read it
-        if(n==1) NameFile=TRIM(FilePrefix) // '_h.fin'
-        if(n==2 .and. n /= nspec) then
-           NameFile=TRIM(FilePrefix) // '_o.fin'
-        else
-           if(n==1) NameFile=TRIM(FilePrefix) // '_e.fin'
-        endif
-        if (n==nspec) NameFile=TRIM(FilePrefix) // '_e.fin'
+        SELECT CASE (n)
+        CASE (1)
+           if (n==nspec) then
+              NameFile=TRIM(FilePrefix) // '_e.fin'
+           else
+              NameFile=TRIM(FilePrefix) // '_h.fin'
+           endif
+        CASE (2)
+           if (n==nspec) then
+              NameFile=TRIM(FilePrefix) // '_e.fin'
+           else
+              NameFile=TRIM(FilePrefix) // '_o.fin'
+           endif
+        CASE DEFAULT
+           NameFile=TRIM(FilePrefix) // '_e.fin'
+        END SELECT
         open(unit=UnitTmp_,file='IM/'//NameFile,status='old')
         read(UnitTmp_,*) il,ie
         allocate (roi(il),ei(ie),fi(il,ie))
