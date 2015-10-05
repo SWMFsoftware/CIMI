@@ -972,10 +972,14 @@ pro Generate_RBSP_fin, $
   Hplus_Energy_Output=[HOPE_Hplus_Energy(*,0), $
                        MagEIS_Hplus_Energy(4:20,0)]
   e_Energy_Output=[HOPE_e_Energy(*,0), $
-                   MagEIS_e_Energy(6:16,0), $
+                   MagEIS_e_Energy(6:15,0), $
                    MagEIS_e_Energy(18:19,0), $
                    REPT_e_energy_arr]
 
+  print,"O+ output array: ",Oplus_Energy_Output
+  print,"H+ output array: ",Hplus_Energy_Output
+  print,"e- output array: ",e_Energy_Output
+  
 ; The number of points in the L array.
   
   IL=num_L_fin_output
@@ -1041,7 +1045,7 @@ pro Generate_RBSP_fin, $
   printf,file_index,e_Energy_Output
   for num_energy_HOPE=0,num_HOPE_Energy_Channels-1 do $
      printf,file_index,average_fluxes_HOPE_e(*,num_Energy_HOPE)
-  for num_energy_MagEIS_e=6,16 do $
+  for num_energy_MagEIS_e=6,15 do $
      printf, $
         file_index,average_fluxes_MagEIS_e(*,num_Energy_MagEIS_e)
   printf,file_index,average_fluxes_MagEIS_e(*,18)
