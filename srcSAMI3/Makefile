@@ -79,6 +79,12 @@ SAMI3_orig: ${OBJECTS_EXE}
 distclean: clean
 
 
+#SAMI3 requires save flag  for origional .f files
+# right now this only works for gfortran and would have to get 
+# modified for other codes. Probably this hase to get fixed at Config.pl
+include Makefile.suff
+
+
 ###.SUFFIXES : .o .f90 .f 
 ###
 ###
@@ -90,8 +96,8 @@ distclean: clean
 ###.f90.o:
 ###	$(f90) -c $*.f90
 ###
-clean:
-	rm *.o *.exe 
+###clean:
+###	rm *.o *.exe 
 ###
 ###sami3.x:	$(OBJ)
 ###	$(f90) -o sami3.x $(OBJ)

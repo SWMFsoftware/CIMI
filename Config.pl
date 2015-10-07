@@ -17,6 +17,7 @@ my $Planet;
 my $NewPlanet;
 my $Grid;
 my $NewGrid;
+my $Compiler;
 
 $NewPlanet="EarthHO" if $Install;
 
@@ -42,15 +43,17 @@ foreach (@Arguments){
     if(/^-griddefault$/i)       {$NewGrid="GridDefault";           next};
     if(/^-gridexpanded$/i)      {$NewGrid="GridExpanded";          next};
     if(/^-s$/)                  {$Show=1;                          next};
-
-
+    if(/^-compiler=(.*)$/i)     {$Compiler=$1;                     next};        
     warn "WARNING: Unknown flag $_\n" if $Remaining{$_};
 }
+
 &get_settings;
 
 &set_planet if $NewPlanet and $NewPlanet ne $Planet;
 
 &set_grid   if $NewGrid and $NewGrid ne $Grid;
+
+&set_compiler  if $Compiler;
 
 &show_settings if $Show; 
 
@@ -104,6 +107,21 @@ sub set_planet{
     &shell_command("echo Grid=$NewGrid >> config.log");
 }
 #############################################################################
+
+#############################################################################
+
+sub set_compiler{
+    my $Files;
+    my $Dir = "srcSAMI3";
+    die "Directory $Dir is missing\n" unless -d $Dir;
+
+    $Files .= " $Dir/Makefile.suff.gfortran" if $Compiler eq "gfortran";
+    $Files .= " $Dir/Makefile.suff.ifort"   if $Compiler eq "ifort";
+
+    &shell_command("cp $Files $Dir/Makefile.suff");
+}
+#############################################################################
+
 
 sub set_grid{
     my $Files;
