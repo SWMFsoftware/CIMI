@@ -311,7 +311,7 @@ c this call has to be seen by the master and workers
       
       ! input representing how much sami_run advances
       real, intent(in) :: DtAdvance 
-      
+
 c     Some local variables
 
 !       real fism(linesuv)
@@ -327,8 +327,11 @@ c     Some local variables
 !!     .        vsi_inp(nz,nf,nion),denn_inp(nz,nf,nion)
 !!       real te_inp(nz,nf)
 !!       real te_inp(nz,nf),tn_inp(nz,nf)
-
-
+       real :: DeltaTime, DtStop
+       real, save :: DtCourant
+       real, parameter :: StopTolerance = 1e-5
+       logical, save :: IsFirstCall = .true.,IsFirstCallMaster = .true.
+       logical, save :: IsFirstCallWorker = .true.
        logical tflag,ttflag
 
        integer status(MPI_STATUS_SIZE)
@@ -337,50 +340,45 @@ c     Some local variables
 
 
 ******************** master task *******************************************
-      
-      if(taskid .eq. 0) then
-
-! allocate the total matrices only on master
-
-      allocate (denit(nz,nf,nlt,nion),dennt(nz,nf,nlt,nneut))
-
-      allocate  (vsit(nz,nf,nlt,nion),sumvsit(nz,nf,nlt,nion))
-
-      allocate  (tit(nz,nf,nlt,nion))
-
-      allocate (ut(nz,nf,nlt),vt(nz,nf,nlt),vpit(nz,nf,nlt),
-     .     net(nz,nf,nlt))
-
-      allocate (tet(nz,nf,nlt),tnt(nz,nf,nlt))
-
-      allocate (u1t(nz,nf,nlt),u2t(nz,nf,nlt),u3t(nz,nf,nlt),
-     .     u4t(nz,nf,nlt))
-
-      allocate (vnqt(nz,nf,nlt),vnpt(nz,nf,nlt),vnphit(nz,nf,nlt))
-
-      allocate (jpt(nz,nf,nlt),jphit(nz,nf,nlt))
-
-      allocate (u1pt(nz,nf,nlt),u2st(nz,nf,nlt),u3ht(nz,nf,nlt))
-
-      allocate (sigmapict(nz,nf,nlt),sigmahict(nz,nf,nlt))
-
-      allocate (sigmapt(nz,nf,nlt),sigmaht(nz,nf,nlt))
-
-
-         hrut    = hrinit
-         timemax = hrmax * sphr
-         istep   = 0
-         tprnt   = 0.
-         tneut   = 0.
-         time    = 0.
-         ntm     = 0
-!        ieuv    = 1
-
-         print *,'max',max(dt0/3600.,dthr)
+       if (IsFirstCall) then
+          DtCourant = Dt0
+          IsFirstCall = .false.
+       endif
+       Dt = DtCourant
+       DeltaTime = 0.0 
+       DtStop    = DtAdvance
+       
+       if(taskid .eq. 0) then
+          if(IsFirstCallMaster) then
+!     allocate the total matrices only on master
              
-         ntmmax  = min(maxstep, int( hrmax / max(dt0/3600.,dthr) ))
+             allocate (denit(nz,nf,nlt,nion),dennt(nz,nf,nlt,nneut))
+             allocate  (vsit(nz,nf,nlt,nion),sumvsit(nz,nf,nlt,nion))
+             allocate  (tit(nz,nf,nlt,nion))
+             allocate (ut(nz,nf,nlt),vt(nz,nf,nlt),vpit(nz,nf,nlt),
+     .            net(nz,nf,nlt))
+             allocate (tet(nz,nf,nlt),tnt(nz,nf,nlt))
+             allocate (u1t(nz,nf,nlt),u2t(nz,nf,nlt),u3t(nz,nf,nlt),
+     .            u4t(nz,nf,nlt))
+             allocate (vnqt(nz,nf,nlt),vnpt(nz,nf,nlt),vnphit(nz,nf,nlt))
+             allocate (jpt(nz,nf,nlt),jphit(nz,nf,nlt))
+             allocate (u1pt(nz,nf,nlt),u2st(nz,nf,nlt),u3ht(nz,nf,nlt))
+             allocate (sigmapict(nz,nf,nlt),sigmahict(nz,nf,nlt))
+             allocate (sigmapt(nz,nf,nlt),sigmaht(nz,nf,nlt))
+             hrut    = hrinit
+             timemax = hrmax * sphr
+             istep   = 0
+             tprnt   = 0.
+             tneut   = 0.
+             time    = 0.
+             ntm     = 0
+!     ieuv    = 1
+             print *,'max',max(dt0/3600.,dthr)
+             ntmmax  = min(maxstep, int( hrmax / max(dt0/3600.,dthr) ))
+             print *,'ntmmax ',ntmmax
+             IsFirstCallMaster=.false.
+          endif
 
-         print *,'ntmmax ',ntmmax
 
          ifintot = numworkers
          ifintot1 = numworkers
@@ -391,31 +389,31 @@ c     Some local variables
 
 !         do while (      time .le. timemax  
 !     .        .and. istep .le. maxstep     )
-
-          do while ( tflag )
-
+         
+         do while ( tflag )
+             !if(taskid == 0) write(*,*) 'Starting timeloop', deltatime,dt
             do iwrk = 1,numworkers
-              call mpi_iprobe(iwrk,10,iComm,flagit10,
-     .                status,ierr)
-                if (flagit10) then 
+               call mpi_iprobe(iwrk,10,iComm,flagit10,
+     .              status,ierr)
+               if (flagit10) then 
                   icnt10 = icnt10 + 1
                   call mpi_recv(xxx,1,MPI_REAL,iwrk,10,
      .                 iComm,status,ierr)
-                endif
-                if (icnt10 .eq. numworkers) tflag=.false.
+               endif
+               if (icnt10 .eq. numworkers) tflag=.false.
             enddo
 
 C Now wait to receive back the results from each worker task
-
+            
             do  iwrk = 1, numworkers
                source = iwrk
                dest = source
 
                call mpi_iprobe(source, 2, 
      .              iComm, flagit, status, ierr)
-
-                 if(flagit .and. ifintot2 .gt. 0) then
-
+               
+               if(flagit .and. ifintot2 .gt. 0) then
+                  
                   call mpi_recv(hipcp, nf*nl, MPI_REAL, iwrk, 2, 
      .                 iComm, status, ierr)
                   call mpi_recv(hihcm, nf*nl, MPI_REAL, iwrk, 2, 
@@ -436,58 +434,58 @@ C Now wait to receive back the results from each worker task
      .                 iComm, status, ierr)
                   call mpi_recv(hidv, nf*nl, MPI_REAL, iwrk, 2, 
      .                 iComm, status, ierr)
-
+                  
                   call mpi_recv(hrut, 1, MPI_REAL, iwrk, 2, 
      .                 iComm, status, ierr)
-
+                  
                   do k = 2,nl-1
                      kk = (iwrk-1)*(nl -2) + k - 1
                      if(kk .eq. 0) kk = nlt
                      if(kk .eq. nltp1) kk = 1
-                      do j = 1,nf
-                       hipcpt(j,kk)   = hipcp(j,k)
-                       hihcmt(j,kk)   = hihcm(j,k)
-                       hipcphit(j,kk) = hipcphi(j,k)
-                       hidphigt(j,kk) = hidphig(j,k)
-                       hidpgt(j,kk)   = hidpg(j,k)
-                       hidphivt(j,kk) = hidphiv(j,k)
-                       hidpvt(j,kk)   = hidpv(j,k)
-                       hipct(j,kk)    = hipc(j,k)
-                       hihct(j,kk)    = hihc(j,k)
-                       hidvt(j,kk)    = hidv(j,k)
+                     do j = 1,nf
+                        hipcpt(j,kk)   = hipcp(j,k)
+                        hihcmt(j,kk)   = hihcm(j,k)
+                        hipcphit(j,kk) = hipcphi(j,k)
+                        hidphigt(j,kk) = hidphig(j,k)
+                        hidpgt(j,kk)   = hidpg(j,k)
+                        hidphivt(j,kk) = hidphiv(j,k)
+                        hidpvt(j,kk)   = hidpv(j,k)
+                        hipct(j,kk)    = hipc(j,k)
+                        hihct(j,kk)    = hihc(j,k)
+                        hidvt(j,kk)    = hidv(j,k)
                      enddo
                   enddo
-
-
+                  
+                  
                   ifintot2 = ifintot2 - 1
-
+                  
                endif
-
-                 if ( ifintot2 .eq. 0 ) then
-                       ifintot2 = numworkers
-                       call potpphi(phi,phialt,philon,dphi,hrut,p_crit)
-!                       print *,'called potential'
-                       do jwrk = 1,numworkers
-                         call mpi_send(phi,nnx*nny,MPI_REAL,jwrk,3,
-     .                                 iComm,ierr)
-                         call mpi_send(phialt,nnx*nny,MPI_REAL,jwrk,3,
-     .                                 iComm,ierr)
-                         call mpi_send(philon,nnx*nny,MPI_REAL,jwrk,3,
-     .                                 iComm,ierr)
-                         call mpi_send(p_crit,nnx-1,MPI_REAL,jwrk,3,
-     .                                 iComm,ierr)
-                       enddo
-!                       print *,'out of sends in potential'
-                 endif
-
+               
+               if ( ifintot2 .eq. 0 ) then
+                  ifintot2 = numworkers
+                  call potpphi(phi,phialt,philon,dphi,hrut,p_crit)
+!     print *,'called potential'
+                  do jwrk = 1,numworkers
+                     call mpi_send(phi,nnx*nny,MPI_REAL,jwrk,3,
+     .                    iComm,ierr)
+                     call mpi_send(phialt,nnx*nny,MPI_REAL,jwrk,3,
+     .                    iComm,ierr)
+                     call mpi_send(philon,nnx*nny,MPI_REAL,jwrk,3,
+     .                    iComm,ierr)
+                     call mpi_send(p_crit,nnx-1,MPI_REAL,jwrk,3,
+     .                    iComm,ierr)
+                  enddo
+!     print *,'out of sends in potential'
+               endif
+               
                call mpi_iprobe(source, 0, 
      .              iComm, flagit, status, ierr)
-
+               
                if(flagit .and. ifintot .gt. 0) then
                   
-! This is just for outputting the data
-! only sent as often as data dumps are requested
-
+!     This is just for outputting the data
+!     only sent as often as data dumps are requested
+                  
                   call mpi_recv(time, 1, MPI_REAL, iwrk, 0, 
      .                 iComm, status, ierr)
                   call mpi_recv(hrut, 1, MPI_REAL, iwrk, 0, 
@@ -589,9 +587,9 @@ C Now wait to receive back the results from each worker task
                            enddo
                         enddo
                      enddo
-
+                     
 ! Put the submatrices into the total matrix for restart
-
+                     
                      do k = 1,nl
                         do j = 1,nf
                            do i = 1,nz
@@ -602,7 +600,7 @@ C Now wait to receive back the results from each worker task
                         enddo
                      enddo
                   enddo  ! for nion loop
-
+                  
                   do k = 1,nl
                      do j = 1,nf
                         do i = 1,nz
@@ -610,7 +608,7 @@ C Now wait to receive back the results from each worker task
                         enddo
                      enddo
                   enddo  
-
+                  
                   do k = 2,nl-1
                      kk = (iwrk-1)*(nl -2) +k -1
                      if(kk .eq. 0) kk = nlt
@@ -637,7 +635,7 @@ C Now wait to receive back the results from each worker task
                         enddo
                      enddo
                   enddo
-                 
+                  
 !                  do k = 2,nl-1
 !                     kk = (iwrk-1)*(nl -2) +k -1
 !                     if(kk .eq. 0) kk = nlt
@@ -657,21 +655,28 @@ C Now wait to receive back the results from each worker task
 !                  enddo
 
                   ifintot = ifintot -1                  
-
+                  
                endif
 
                call mpi_iprobe(source, 1, 
      .              iComm, flagit1, status, ierr)
-   
+               
                if(flagit1 .and. ifintot1 .gt. 0) then
                   call mpi_recv(dtmp, 1, MPI_REAL, iwrk, 1, 
      .                 iComm, status, ierr)
-                  dt = min(dt,dtmp)
+                  DtCourant = min(dt,dtmp)
+                  call mpi_recv(DeltaTime, 1, MPI_REAL, iwrk, 1, 
+     .                 iComm, status, ierr)
+                  
+                  call mpi_recv(time, 1, MPI_REAL, iwrk, 1, 
+     .                 iComm, status, ierr)
+                  DtStop = DtAdvance - DeltaTime
 
-               call mpi_recv(time, 1, MPI_REAL, iwrk, 1, 
-     .          iComm, status, ierr)
-               call mpi_recv(istep, 1, MPI_INTEGER, iwrk, 1, 
-     .          iComm, status, ierr)
+                  dt = min(DtCourant, DtStop)
+                  if (dt.eq.0) dt=DtCourant
+
+                  call mpi_recv(istep, 1, MPI_INTEGER, iwrk, 1, 
+     .                 iComm, status, ierr)
 
         call mpi_recv(deni_mnptmp,nz*nion,MPI_REAL,iwrk,1,
      .          iComm, status, ierr)
@@ -768,106 +773,32 @@ c Need to fix up dt calculation
 
             if(ifintot1 .eq. 0) then
                ifintot1 = numworkers
-!                print *,'master sending dt',dt
+               print *,'master sending dt',dt
                do  iwrk = 1,numworkers
                   call mpi_send(dt, 1, MPI_REAL, iwrk, 1, 
      .                 iComm, ierr)
-        call mpi_send(deni_mnp,nz*nion,MPI_REAL,iwrk,1,
-     .          iComm, ierr)
-        call mpi_send(ti_mnp,nz*nion,MPI_REAL,iwrk,1,
-     .          iComm, ierr)
-        call mpi_send(te_mnp,nz,MPI_REAL,iwrk,1,
-     .          iComm, ierr)
-!              print *,'master sending dt/mnp'
+                  call mpi_send(DtCourant, 1, MPI_REAL, iwrk, 1, 
+     .                 iComm, ierr)
+                  call mpi_send(deni_mnp,nz*nion,MPI_REAL,iwrk,1,
+     .                 iComm, ierr)
+                  call mpi_send(ti_mnp,nz*nion,MPI_REAL,iwrk,1,
+     .                 iComm, ierr)
+                  call mpi_send(te_mnp,nz,MPI_REAL,iwrk,1,
+     .                 iComm, ierr)
+!     print *,'master sending dt/mnp'
                enddo
             endif
-
-         enddo       ! end while (tflag)
+            
+            
+         enddo                  ! end while (tflag)
       
-         print *, 'MASTER: All Done!' 
+         print *, 'MASTER: All Done with sami_run!' 
 
-! close files
-
-         close (10)
-         close (20)
-         close (40)
-         close (70)
-         close (71)
-         close (72)
-         close (73)
-         close (74)
-         close (75)
-         close (78)
-         close (79)
-         close (80)
-         close (90)
-         close (91)
-         close (92)
-         close (93)
-         close (94)
-         close (95)
-         close (96)
-         close (97)
-         close (98)
-         close (81)
-         close (82)
-         close (83)
-         close (84)
-         close (85)
-         close (86)
-         close (87)
-         close (88)
-         close (711)
-         close (712)
-         close (713)
-         close (714)
-         close (715)
-         close (1712)
-         close (1713)
-         close (1714)
-         close (1715)
-         close (569)
-         close (716)
-         close (717)
-         close (1718)
-         close (811)
-         close (812)
-         close (813)
-         close (814)
-         close (815)
-         close (816)
-         close (817)
-         close (911)
-         close (912)
-         close (913)
-         close (914)
-         close (915)
-         close (916)
-         close (917)
-         close (384)
-         close (385)
-         close (386)
-
-         close (196)
-         close (197)
-         close (198)
-
-         close (201)
-         close (202)
-
-         close (491)
-         close (492)
-         close (493)
-         close (494)
-         close (495)
-         close (496)
-         close (497)
-         close (498)
 
 !         call mpi_abort(iComm, errorcode, ierr)
 !         call mpi_finalize(ierr)
 
-         
+      
       endif
 
 c******************* end master task ***************************************
@@ -877,18 +808,19 @@ c******************** worker task *******************************************
       if(taskid .gt. 0) then
 
 ! field line loop: actual run
-
-         hrut    = hrinit
-         timemax = hrmax * sphr
-         istep   = 0
-         tprnt   = 0.
-         tneut   = 0.
-         time    = 0.
+         if (IsFirstCallWorker) then
+            hrut    = hrinit
+            timemax = hrmax * sphr
+            istep   = 0
+            tprnt   = 0.
+            tneut   = 0.
+            time    = 0.
+            ntm     = 0
+            ntmmax  = min(maxstep, int(hrmax / max(dt0/3600.,dthr)))
+            IsFirstCallWorker = .false.
+         endif
          ttflag  = .true.
-         ntm     = 0
-         ntmmax  = min(maxstep, int(hrmax / max(dt0/3600.,dthr)))
-
-         print *,'iwrk ',taskid,ntmmax   
+!         print *,'iwrk ',taskid,ntmmax   
          
 ! initialize neutrals
 ! neutral density, temperature, and neutral wind
@@ -903,8 +835,11 @@ c******************** worker task *******************************************
 !         do while (      istep .le. maxstep 
 !     .          .and. time  .le. timemax+dt  )
 
-         do while ( istep .le. maxstep .and. ttflag )
+         do while ( ttflag )
 
+!            if (istep > maxstep) 
+!     &           call con_stop(
+!     &           'SAMI3 ERROR: stuck in time loop beyond maxstep')
 !           print *,'start worker loop',istep,ttflag,taskid
 
 ! parallel transport
@@ -1079,6 +1014,7 @@ c Buffer and send to the RIGHT
         istep  = istep + 1
         time   = time  + dt
         hrut   = time / sphr + hrinit
+        DeltaTime = DeltaTime+dt
         tprnt  = tprnt + dt / sphr
         tneut  = tneut + dt / sphr
 !            print *,'time/dt/hrut',time,dt,hrut,taskid
@@ -1122,6 +1058,8 @@ c send local dt
 
         call mpi_send(dt, 1, MPI_REAL, 0, 1, 
      .          iComm, ierr)
+        call mpi_send(DeltaTime, 1, MPI_REAL, 0, 1, 
+     .          iComm, ierr)
         call mpi_send(time, 1, MPI_REAL, 0, 1, 
      .          iComm, ierr)
         call mpi_send(istep, 1, MPI_INTEGER, 0, 1, 
@@ -1140,6 +1078,9 @@ c get global dt
 
         call mpi_recv(dt, 1, MPI_REAL, 0, 1, 
      .          iComm, status, ierr)
+        call mpi_recv(DtCourant, 1, MPI_REAL, 0, 1, 
+     .          iComm, status, ierr)
+
 !        call mpi_recv(flux,linesuv , MPI_REAL, 0, 1, 
 !     .          iComm, status, ierr)
 
@@ -1277,7 +1218,9 @@ c get global dt
           
 !             print *,'in worker',ntm,ntmmax,taskid
 
-           if ( ntm .ge. ntmmax ) ttflag = .false.
+!           if ( ntm .ge. ntmmax ) ttflag = .false.
+
+           if ( DtAdvance-DeltaTime < StopTolerance ) ttflag = .false.
 
         endif
              
@@ -1292,10 +1235,94 @@ c get global dt
 
       call MPI_BARRIER(iComm,ierr)
 
-      call mpi_finalize(ierr)
-      print *,'done finalizing,taskid',taskid
+!      call mpi_finalize(ierr)
+!      print *,'done finalizing,taskid',taskid
+      print *,'Finished sami_run for task',taskid
+      
+      return
+      end
 
-      stop
+!==============================================================================
+      subroutine sami_finalize
+! close files
+      
+      close (10)
+      close (20)
+      close (40)
+      close (70)
+      close (71)
+      close (72)
+      close (73)
+      close (74)
+      close (75)
+      close (78)
+      close (79)
+      close (80)
+      close (90)
+      close (91)
+      close (92)
+      close (93)
+      close (94)
+      close (95)
+      close (96)
+      close (97)
+      close (98)
+      close (81)
+      close (82)
+      close (83)
+      close (84)
+      close (85)
+      close (86)
+      close (87)
+      close (88)
+      close (711)
+      close (712)
+      close (713)
+      close (714)
+      close (715)
+      close (1712)
+      close (1713)
+      close (1714)
+      close (1715)
+      close (569)
+      close (716)
+      close (717)
+      close (1718)
+      close (811)
+      close (812)
+      close (813)
+      close (814)
+      close (815)
+      close (816)
+      close (817)
+      close (911)
+      close (912)
+      close (913)
+      close (914)
+      close (915)
+      close (916)
+      close (917)
+      close (384)
+      close (385)
+      close (386)
+      
+      close (196)
+      close (197)
+      close (198)
+      
+      close (201)
+      close (202)
+      
+      close (491)
+      close (492)
+      close (493)
+      close (494)
+      close (495)
+      close (496)
+      close (497)
+      close (498)
+      
+
       end
 
 *******************************************

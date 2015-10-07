@@ -18,7 +18,9 @@ program sami3
   integer :: iError, iStep
   real    :: DtAdvance
   real    :: DtRestart = 300.0 ! currently set at 300s, should be read in later
-  real    :: DtMax = 60.0      ! maximum timestep
+  real    :: DtMax = 5.0      ! maximum timestep
+  real    :: Time = 0.0
+  real    :: TimeMax=10.0
   !---------------------------------------------------------------------------
 
   !****************************************************************************
@@ -75,15 +77,15 @@ program sami3
   ! start Timestepping
   !****************************************************************************
   iStep = 0
-!!!  TIMELOOP:do
+  TIMELOOP:do
      !report progress on proc 0
-     if (iProc==0)write(*,*) 'In Time Loop iStep,Time = ', iStep!,Time
+     if (iProc==0)write(*,*) 'In Time Loop iStep,Time = ', iStep,Time
      ! If Time exceeds max time then stop advancing
-!!!     if (Time >= TimeMax) exit TIMELOOP
+     if (Time >= TimeMax) exit TIMELOOP
      
      ! Set time to advance the model to either the time to reach TimeMax or 
      ! the next restart time
-!!!     DtAdvance = min(TimeMax - Time, DtMax)
+     DtAdvance = min(TimeMax - Time, DtMax)
   
      ! If DtAdvance is too small then just stop advancing
 !!!     if (DtAdvance < 1.0e-6) then
@@ -91,12 +93,16 @@ program sami3
 !!!        exit TIMELOOP
 !!!     endif
      
+     write(*,*) 'calling sami_run at time', Time,'iProc=',iProc,'DtAdvance=',DtAdvance
+    
      ! Call crcm_run to advance the Timestep
      call timing_step(iStep)
      call timing_start('sami_run')     
      call sami_run(DtAdvance)
      call timing_stop('sami_run')
      
+     Time = Time+DtAdvance
+
 !     ! Save restart at DtSaveRestart or TimeMax
 !     if (floor((Time+1.0e-5)/DtSaveRestart) /= &
 !          floor((Time+1.0e-5-DtAdvance)/DtSaveRestart)) then
@@ -105,10 +111,13 @@ program sami3
      
      ! Advance the time iteration step
      iStep=iStep+1
-!!!  end do TIMELOOP
+  end do TIMELOOP
 
   ! Save restart at TimeMax
 !  call sami_write_restart
+
+  ! finalize SAMI
+  call sami_finalize
 
   ! Finalize timing commands
   call timing_stop('SAMI3')

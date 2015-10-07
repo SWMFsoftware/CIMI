@@ -1,7 +1,7 @@
  &go 
   fmtout   = .false.,
-!  maxstep  =   40000000,
-  maxstep  =    2,
+  maxstep  =   10000, !now use maxstep as a check on the while loop 
+!  maxstep  =    2, ! not used anymore
   hrmax    =   2.,
 !  hrmax    =   .28,
  dthr     =   .03125e-6,
@@ -85,8 +85,8 @@
   lweimer  = .false.,   ! set lvs = .false. if .true
   decay_time = 6.,
   pcrit      = 8.,
-  lhwm93     = .false.,
-  lhwm14     = .true., 
+  lhwm93     = .true.,
+  lhwm14     = .false., 
   vsi0       = 1.e6,
   delta_vsi0 = 1.e5,
   anu_drag0  = 4.e3,
