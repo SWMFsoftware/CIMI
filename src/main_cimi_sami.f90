@@ -16,7 +16,7 @@ program cimi_sami
   use ModMpi
   use ModCrcm,        ONLY: init_mod_crcm
   use ModFieldTrace,  ONLY: init_mod_field_trace
-  use ModImTime,      ONLY: TimeMaxCIMI=>TimeMax
+  use ModImTime,      ONLY: TimeMaxCIMI=>TimeMax,iStartTimeCIMI_I=>iStartTime_I
   use ModCrcmRestart, ONLY: DtSaveRestart,crcm_write_restart
   use ModReadParam
   use ModPrerunField, ONLY: UsePrerun, read_prerun, read_prerun_IE, DtRead
