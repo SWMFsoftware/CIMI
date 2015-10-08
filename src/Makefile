@@ -83,11 +83,14 @@ CRCM_orig:
 	-L${LIBDIR} -lTIMING -lSHARE -lNOMPI -lINDICES
 
 #SAMI-CIMI targets
+# Object files not included into the library
+CIMI_SAMI_OBJECTS_EXE = main_cimi_sami.o
+
 ${CIMI_SAMI_OBJECTS_EXE}: ${LIBSHARE} ${LIBTIMING} ${LIBSAMI3} ${MY_LIB}   
 
 CIMI_SAMI_EXE = ${BINDIR}/cimi_sami.exe
 
-CIMI_SAMI_EXE:
+CIMI_SAMI:
 	@echo ' '
 	@make ${CIMI_SAMI_EXE}
 	@echo "Program ${CIMI_SAMI_EXE} has been brought up to date."
@@ -103,7 +106,7 @@ ${CIMI_SAMI_EXE}: ${CIMI_SAMI_OBJECTS_EXE}
 		ar -x ${LIBINDICES}; \
 		ar -x ${LIBEMPIRICALGM};\
 		ar -x ${LIBEMPIRICALIE};
-	${LINK.f90} -o ${CIMI_SAMI_EXE} ${OBJECTS_EXE} Tmp_/*.o ${LBLAS} ${Lflag1}
+	${LINK.f90} -o ${CIMI_SAMI_EXE} ${CIMI_SAMI_OBJECTS_EXE} Tmp_/*.o ${LBLAS} ${Lflag1}
 	rm -rf Tmp_
 
 CIMI_SAMI_orig:

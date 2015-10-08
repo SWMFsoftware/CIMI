@@ -281,3 +281,22 @@ rundir:
 		ln -s ${BINDIR}/crcm.exe .   ; \
 		touch core ; chmod 444 core;\
 	fi);
+
+rundir_cimi_sami:
+	mkdir -p ${RUNDIR}/IM
+	@(cd ${RUNDIR}; \
+		if [ ! -e "EIE/README" ]; then \
+			ln -s ${EMPIRICALIEDIR}/data EIE;\
+		fi;)
+	cd ${RUNDIR}/IM; \
+		cp ${IMDIR}/input/quiet*fin . ;\
+		mkdir plots restartIN restartOUT plotsSAMI3
+	@(if [ "$(STANDALONE)" != "NO" ]; then \
+		cp input/testfiles/*.dat ${RUNDIR}/ ;\
+		cp input/testfiles/PARAM.in ${RUNDIR}/;\
+		cp srcSAMI3/sami3_mpi-1.98.namelist ${RUNDIR}/ ;\
+		cp srcSAMI3/*.inp ${RUNDIR}/ ;\
+		cd ${RUNDIR} ; \
+		ln -s ${BINDIR}/cimi_sami.exe .   ; \
+		touch core ; chmod 444 core;\
+	fi);

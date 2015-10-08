@@ -1237,7 +1237,7 @@ c get global dt
 
 !      call mpi_finalize(ierr)
 !      print *,'done finalizing,taskid',taskid
-      print *,'Finished sami_run for task',taskid
+!      print *,'Finished sami_run for task',taskid
       
       return
       end
@@ -1365,7 +1365,7 @@ c get global dt
       real, dimension(:,:,:), allocatable :: xrgt
       real, dimension(:,:,:), allocatable :: xthgt
       real, dimension(:,:,:), allocatable :: xphigt
-
+      character(len=14),parameter :: plotdir='IM/plotsSAMI3/'
 !      real fism(linesuv)
 
       real f1026(nz,nf,nl,91),f584(nz,nf,nl,91),
@@ -1955,9 +1955,9 @@ C Now wait to receive back the results from each worker task
             close(69)
             close(76)
             close(77)
-            open ( unit=69, file='zaltf.dat',form='formatted' )
-            open ( unit=76, file='glatf.dat',form='formatted' )
-            open ( unit=77, file='glonf.dat',form='formatted' )
+            open ( unit=69, file=plotdir//'zaltf.dat',form='formatted' )
+            open ( unit=76, file=plotdir//'glatf.dat',form='formatted' )
+            open ( unit=77, file=plotdir//'glonf.dat',form='formatted' )
             write(69,100) altst
             write(76,100) glatst
             write(77,100) glonst
@@ -1965,9 +1965,9 @@ C Now wait to receive back the results from each worker task
             close(76)
             close(77)
          else
-            open ( unit=69, file='zaltu.dat',form='unformatted' )
-            open ( unit=76, file='glatu.dat',form='unformatted' )
-            open ( unit=77, file='glonu.dat',form='unformatted' )
+            open ( unit=69, file=plotdir//'zaltu.dat',form='unformatted' )
+            open ( unit=76, file=plotdir//'glatu.dat',form='unformatted' )
+            open ( unit=77, file=plotdir//'glonu.dat',form='unformatted' )
             write(69) altst
             write(76) glatst
             write(77) glonst
@@ -1975,14 +1975,14 @@ C Now wait to receive back the results from each worker task
             close(76)
             close(77)
 
-            open (144,file='glons_cg.rst',form='unformatted')
+            open (144,file=plotdir//'glons_cg.rst',form='unformatted')
             write(144) glonst
             close(144)
 
 
-            open ( unit=69, file='baltu.dat',form='unformatted' )
-            open ( unit=76, file='blatu.dat',form='unformatted' )
-            open ( unit=77, file='blonu.dat',form='unformatted' )
+            open ( unit=69, file=plotdir//'baltu.dat',form='unformatted' )
+            open ( unit=76, file=plotdir//'blatu.dat',form='unformatted' )
+            open ( unit=77, file=plotdir//'blonu.dat',form='unformatted' )
             write(69) baltst
             write(76) blatst
             write(77) blonst
@@ -1990,13 +1990,13 @@ C Now wait to receive back the results from each worker task
             close(76)
             close(77)
 
-            open (144,file='blons_cg.rst',form='unformatted')
+            open (144,file=plotdir//'blons_cg.rst',form='unformatted')
             write(144) blonst
             close(144)
 
-            open ( unit=69, file='xsu.dat',form='unformatted' )
-            open ( unit=76, file='ysu.dat',form='unformatted' )
-            open ( unit=77, file='zsu.dat',form='unformatted' )
+            open ( unit=69, file=plotdir//'xsu.dat',form='unformatted' )
+            open ( unit=76, file=plotdir//'ysu.dat',form='unformatted' )
+            open ( unit=77, file=plotdir//'zsu.dat',form='unformatted' )
             write(69) xst
             write(76) yst
             write(77) zst
@@ -2004,9 +2004,9 @@ C Now wait to receive back the results from each worker task
             close(76)
             close(77)
 
-            open ( unit=169, file='baltpu.dat'   ,form='unformatted' )
-            open ( unit=176, file='blatpu.dat'   ,form='unformatted' )
-            open ( unit=177, file='blonpu.dat'   ,form='unformatted' )
+            open(unit=169,file=plotdir//'baltpu.dat',form='unformatted')
+            open(unit=176,file=plotdir//'blatpu.dat',form='unformatted')
+            open(unit=177,file=plotdir//'blonpu.dat',form='unformatted')
             write(169) baltpt
             write(176) blatpt
             write(177) blonpt
@@ -2014,7 +2014,7 @@ C Now wait to receive back the results from each worker task
             close(176)
             close(177)
 
-            open (144,file='blonp_cg.rst',form='unformatted')
+            open (144,file=plotdir//'blonp_cg.rst',form='unformatted')
             write(144) blonpt
             close(144)
 
@@ -2046,9 +2046,9 @@ C Now wait to receive back the results from each worker task
 !                 print *,i,philon(i,25)
 !               enddo
 
-            open ( unit=169, file='xpu.dat'   ,form='unformatted' )
-            open ( unit=176, file='ypu.dat'   ,form='unformatted' )
-            open ( unit=177, file='zpu.dat'   ,form='unformatted' )
+            open(unit=169,file=plotdir//'xpu.dat' ,form='unformatted' )
+            open(unit=176,file=plotdir//'ypu.dat' ,form='unformatted' )
+            open(unit=177,file=plotdir//'zpu.dat' ,form='unformatted' )
             write(169) xpt
             write(176) ypt
             write(177) zpt
@@ -2056,9 +2056,9 @@ C Now wait to receive back the results from each worker task
             close(176)
             close(177)
 
-            open ( unit=169, file='xrgu.dat'   ,form='unformatted' )
-            open ( unit=176, file='xthgu.dat'  ,form='unformatted' )
-            open ( unit=177, file='xphigu.dat' ,form='unformatted' )
+            open(unit=169,file=plotdir//'xrgu.dat' ,form='unformatted' )
+            open(unit=176,file=plotdir//'xthgu.dat',form='unformatted' )
+            open(unit=177,file=plotdir//'xphigu.dat',form='unformatted')
             write(169) xrgt
             write(176) xthgt
             write(177) xphigt
@@ -2066,9 +2066,9 @@ C Now wait to receive back the results from each worker task
             close(176)
             close(177)
 
-            open ( unit=169, file='vpsnxu.dat'   ,form='unformatted' )
-            open ( unit=176, file='vpsnyu.dat'   ,form='unformatted' )
-            open ( unit=177, file='vpsnzu.dat'   ,form='unformatted' )
+            open(unit=169,file=plotdir//'vpsnxu.dat',form='unformatted')
+            open(unit=176,file=plotdir//'vpsnyu.dat',form='unformatted')
+            open(unit=177,file=plotdir//'vpsnzu.dat',form='unformatted')
             write(169) vpsnxt
             write(176) vpsnyt
             write(177) vpsnzt
@@ -2076,9 +2076,9 @@ C Now wait to receive back the results from each worker task
             close(176)
             close(177)
 
-            open ( unit=169, file='vhsnxu.dat'   ,form='unformatted' )
-            open ( unit=176, file='vhsnyu.dat'   ,form='unformatted' )
-            open ( unit=177, file='vhsnzu.dat'   ,form='unformatted' )
+            open(unit=169,file=plotdir//'vhsnxu.dat',form='unformatted')
+            open(unit=176,file=plotdir//'vhsnyu.dat',form='unformatted')
+            open(unit=177,file=plotdir//'vhsnzu.dat',form='unformatted')
             write(169) vhsnxt
             write(176) vhsnyt
             write(177) vhsnzt
@@ -2086,9 +2086,9 @@ C Now wait to receive back the results from each worker task
             close(176)
             close(177)
 
-            open ( unit=169, file='bdirsxu.dat'   ,form='unformatted' )
-            open ( unit=176, file='bdirsyu.dat'   ,form='unformatted' )
-            open ( unit=177, file='bdirszu.dat'   ,form='unformatted' )
+            open(unit=169,file=plotdir//'bdirsxu.dat',form='unformatted')
+            open(unit=176,file=plotdir//'bdirsyu.dat',form='unformatted')
+            open(unit=177,file=plotdir//'bdirszu.dat',form='unformatted')
             write(169) bdirsxt
             write(176) bdirsyt
             write(177) bdirszt
@@ -2096,9 +2096,9 @@ C Now wait to receive back the results from each worker task
             close(176)
             close(177)
 
-            open ( unit=169, file='gsthetaxu.dat' ,form='unformatted' )
-            open ( unit=176, file='gsthetayu.dat' ,form='unformatted' )
-            open ( unit=177, file='gsthetazu.dat' ,form='unformatted' )
+         open(unit=169,file=plotdir//'gsthetaxu.dat',form='unformatted')
+         open(unit=176,file=plotdir//'gsthetayu.dat',form='unformatted')
+         open(unit=177,file=plotdir//'gsthetazu.dat',form='unformatted')
             write(169) gsthetaxt
             write(176) gsthetayt
             write(177) gsthetazt
@@ -2106,9 +2106,9 @@ C Now wait to receive back the results from each worker task
             close(176)
             close(177)
 
-            open ( unit=169, file='gsphixu.dat'   ,form='unformatted' )
-            open ( unit=176, file='gsphiyu.dat'   ,form='unformatted' )
-            open ( unit=177, file='gsphizu.dat'   ,form='unformatted' )
+            open(unit=169,file=plotdir//'gsphixu.dat',form='unformatted')
+            open(unit=176,file=plotdir//'gsphiyu.dat',form='unformatted')
+            open(unit=177,file=plotdir//'gsphizu.dat',form='unformatted')
             write(169) gsphixt
             write(176) gsphiyt
             write(177) gsphizt
@@ -2117,9 +2117,9 @@ C Now wait to receive back the results from each worker task
             close(177)
 
 
-            open ( unit=169, file='gsrxu.dat'   ,form='unformatted' )
-            open ( unit=176, file='gsryu.dat'   ,form='unformatted' )
-            open ( unit=177, file='gsrzu.dat'   ,form='unformatted' )
+            open(unit=169,file=plotdir//'gsrxu.dat',form='unformatted')
+            open(unit=176,file=plotdir//'gsryu.dat',form='unformatted')
+            open(unit=177,file=plotdir//'gsrzu.dat',form='unformatted')
             write(169) gsrxt
             write(176) gsryt
             write(177) gsrzt
@@ -5689,80 +5689,80 @@ c$$$     .                  0.5 * anu_drag0 * ( 1. - tanh(alpha_drag_n))
 *******************************************
 
       subroutine open_u
-
+      character(len=14),parameter :: plotdir='IM/plotsSAMI3/'
 ! open output files (unformatted, except time.dat)
 
-      open ( unit=70, file='time.dat'      ,form='formatted'   )  
-      open ( unit=71, file='deniu.dat'     ,form='unformatted' )
-      open ( unit=72, file='tiu.dat'       ,form='unformatted' )
-      open ( unit=73, file='vsiu.dat'      ,form='unformatted' )
-      open ( unit=75, file='teu.dat'       ,form='unformatted' )
-      open ( unit=78, file='vnu.dat'       ,form='unformatted' )
-      open ( unit=92, file='dennu.dat'     ,form='unformatted' )
-      open ( unit=93, file='hipcu.dat'     ,form='unformatted' )
-      open ( unit=94, file='hihcu.dat'     ,form='unformatted' )
-      open ( unit=95, file='sigmapu.dat'   ,form='unformatted' )
-      open ( unit=96, file='sigmahu.dat'   ,form='unformatted' )
-      open ( unit=97, file='sigmapicu.dat'   ,form='unformatted' )
-      open ( unit=98, file='sigmahicu.dat'   ,form='unformatted' )
-      open ( unit=711, file='deniu1.dat'     ,form='unformatted' )
-      open ( unit=712, file='deniu2.dat'     ,form='unformatted' )
-      open ( unit=713, file='deniu3.dat'     ,form='unformatted' )
-      open ( unit=714, file='deniu4.dat'     ,form='unformatted' )
-      open ( unit=715, file='deniu5.dat'     ,form='unformatted' )
-      open ( unit=716, file='deniu6.dat'     ,form='unformatted' )
-      open ( unit=717, file='deniu7.dat'     ,form='unformatted' )
-      open ( unit=1718, file='deneu.dat'      ,form='unformatted' )
-      open ( unit=811, file='tiu1.dat'     ,form='unformatted' )
-      open ( unit=812, file='tiu2.dat'     ,form='unformatted' )
-      open ( unit=813, file='tiu3.dat'     ,form='unformatted' )
-      open ( unit=814, file='tiu4.dat'     ,form='unformatted' )
-      open ( unit=815, file='tiu5.dat'     ,form='unformatted' )
-      open ( unit=816, file='tiu6.dat'     ,form='unformatted' )
-      open ( unit=817, file='tiu7.dat'     ,form='unformatted' )
-      open ( unit=911, file='vsiu1.dat'     ,form='unformatted' )
-      open ( unit=912, file='vsiu2.dat'     ,form='unformatted' )
-      open ( unit=913, file='vsiu3.dat'     ,form='unformatted' )
-      open ( unit=914, file='vsiu4.dat'     ,form='unformatted' )
-      open ( unit=915, file='vsiu5.dat'     ,form='unformatted' )
-      open ( unit=916, file='vsiu6.dat'     ,form='unformatted' )
-      open ( unit=917, file='vsiu7.dat'     ,form='unformatted' )
-      open ( unit=1711, file='dennu1.dat'     ,form='unformatted' )
-      open ( unit=1712, file='dennu2.dat'     ,form='unformatted' )
-      open ( unit=1713, file='dennu3.dat'     ,form='unformatted' )
-      open ( unit=1714, file='dennu4.dat'     ,form='unformatted' )
-      open ( unit=1715, file='dennu5.dat'     ,form='unformatted' )
-      open ( unit=569,  file='rhsegv.dat'     ,form='unformatted' )
+      open ( unit=70, file=plotdir//'time.dat' ,form='formatted'   )  
+      open ( unit=71, file=plotdir//'deniu.dat',form='unformatted' )
+      open ( unit=72, file=plotdir//'tiu.dat'  ,form='unformatted' )
+      open ( unit=73, file=plotdir//'vsiu.dat' ,form='unformatted' )
+      open ( unit=75, file=plotdir//'teu.dat'  ,form='unformatted' )
+      open ( unit=78, file=plotdir//'vnu.dat'  ,form='unformatted' )
+      open ( unit=92, file=plotdir//'dennu.dat',form='unformatted' )
+      open ( unit=93, file=plotdir//'hipcu.dat',form='unformatted' )
+      open ( unit=94, file=plotdir//'hihcu.dat',form='unformatted' )
+      open ( unit=95, file=plotdir//'sigmapu.dat',form='unformatted' )
+      open ( unit=96, file=plotdir//'sigmahu.dat',form='unformatted' )
+      open ( unit=97, file=plotdir//'sigmapicu.dat',form='unformatted' )
+      open ( unit=98, file=plotdir//'sigmahicu.dat',form='unformatted' )
+      open ( unit=711, file=plotdir//'deniu1.dat',form='unformatted' )
+      open ( unit=712, file=plotdir//'deniu2.dat',form='unformatted' )
+      open ( unit=713, file=plotdir//'deniu3.dat',form='unformatted' )
+      open ( unit=714, file=plotdir//'deniu4.dat',form='unformatted' )
+      open ( unit=715, file=plotdir//'deniu5.dat',form='unformatted' )
+      open ( unit=716, file=plotdir//'deniu6.dat',form='unformatted' )
+      open ( unit=717, file=plotdir//'deniu7.dat',form='unformatted' )
+      open ( unit=1718, file=plotdir//'deneu.dat',form='unformatted' )
+      open ( unit=811, file=plotdir//'tiu1.dat',form='unformatted' )
+      open ( unit=812, file=plotdir//'tiu2.dat',form='unformatted' )
+      open ( unit=813, file=plotdir//'tiu3.dat',form='unformatted' )
+      open ( unit=814, file=plotdir//'tiu4.dat',form='unformatted' )
+      open ( unit=815, file=plotdir//'tiu5.dat',form='unformatted' )
+      open ( unit=816, file=plotdir//'tiu6.dat',form='unformatted' )
+      open ( unit=817, file=plotdir//'tiu7.dat',form='unformatted' )
+      open ( unit=911, file=plotdir//'vsiu1.dat',form='unformatted' )
+      open ( unit=912, file=plotdir//'vsiu2.dat',form='unformatted' )
+      open ( unit=913, file=plotdir//'vsiu3.dat',form='unformatted' )
+      open ( unit=914, file=plotdir//'vsiu4.dat',form='unformatted' )
+      open ( unit=915, file=plotdir//'vsiu5.dat',form='unformatted' )
+      open ( unit=916, file=plotdir//'vsiu6.dat',form='unformatted' )
+      open ( unit=917, file=plotdir//'vsiu7.dat',form='unformatted' )
+      open ( unit=1711, file=plotdir//'dennu1.dat',form='unformatted' )
+      open ( unit=1712, file=plotdir//'dennu2.dat',form='unformatted' )
+      open ( unit=1713, file=plotdir//'dennu3.dat',form='unformatted' )
+      open ( unit=1714, file=plotdir//'dennu4.dat',form='unformatted' )
+      open ( unit=1715, file=plotdir//'dennu5.dat',form='unformatted' )
+      open ( unit=569,  file=plotdir//'rhsegv.dat',form='unformatted' )
 
 
-      open ( unit=196, file='vnqu.dat'     ,form='unformatted' )
-      open ( unit=197, file='vnpu.dat'     ,form='unformatted' )
-      open ( unit=198, file='vnphiu.dat'   ,form='unformatted' )
-      open ( unit=201, file='jpu.dat'     ,form='unformatted' )
-      open ( unit=202, file='jphiu.dat'   ,form='unformatted' )
+      open ( unit=196, file=plotdir//'vnqu.dat',form='unformatted' )
+      open ( unit=197, file=plotdir//'vnpu.dat',form='unformatted' )
+      open ( unit=198, file=plotdir//'vnphiu.dat',form='unformatted' )
+      open ( unit=201, file=plotdir//'jpu.dat',form='unformatted' )
+      open ( unit=202, file=plotdir//'jphiu.dat',form='unformatted' )
 
-      open ( unit=491, file='hipcpu.dat'    ,form='unformatted' )
-      open ( unit=492, file='hipcphiu.dat'  ,form='unformatted' )
-      open ( unit=493, file='hihcmu.dat'    ,form='unformatted' )
-      open ( unit=494, file='hidpvu.dat'     ,form='unformatted' )
-      open ( unit=495, file='hidphivu.dat'   ,form='unformatted' )
-      open ( unit=496, file='hidpgu.dat'     ,form='unformatted' )
-      open ( unit=497, file='hidphigu.dat'   ,form='unformatted' )
-      open ( unit=498, file='phiu.dat'       ,form='unformatted' )
+      open ( unit=491, file=plotdir//'hipcpu.dat',form='unformatted' )
+      open ( unit=492, file=plotdir//'hipcphiu.dat',form='unformatted' )
+      open ( unit=493, file=plotdir//'hihcmu.dat',form='unformatted' )
+      open ( unit=494, file=plotdir//'hidpvu.dat',form='unformatted' )
+      open ( unit=495, file=plotdir//'hidphivu.dat',form='unformatted' )
+      open ( unit=496, file=plotdir//'hidpgu.dat',form='unformatted' )
+      open ( unit=497, file=plotdir//'hidphigu.dat',form='unformatted' )
+      open ( unit=498, file=plotdir//'phiu.dat'    ,form='unformatted' )
 
 ! diagnostic files (unformatted)
 
-      open ( unit=81, file='t1u.dat'  ,form='unformatted' )
-      open ( unit=82, file='t2u.dat'  ,form='unformatted' )
-      open ( unit=83, file='t3u.dat'  ,form='unformatted' )
-      open ( unit=84, file='u1u.dat'  ,form='unformatted' )
-      open ( unit=85, file='u2u.dat'  ,form='unformatted' )
-      open ( unit=86, file='u3u.dat'  ,form='unformatted' )
-      open ( unit=87, file='u4u.dat'  ,form='unformatted' )
-      open ( unit=88, file='u5u.dat'  ,form='unformatted' )
-      open ( unit=384, file='u1pu.dat'  ,form='unformatted' )
-      open ( unit=385, file='u2su.dat'  ,form='unformatted' )
-      open ( unit=386, file='u3hu.dat'  ,form='unformatted' )
+      open ( unit=81, file=plotdir//'t1u.dat'  ,form='unformatted' )
+      open ( unit=82, file=plotdir//'t2u.dat'  ,form='unformatted' )
+      open ( unit=83, file=plotdir//'t3u.dat'  ,form='unformatted' )
+      open ( unit=84, file=plotdir//'u1u.dat'  ,form='unformatted' )
+      open ( unit=85, file=plotdir//'u2u.dat'  ,form='unformatted' )
+      open ( unit=86, file=plotdir//'u3u.dat'  ,form='unformatted' )
+      open ( unit=87, file=plotdir//'u4u.dat'  ,form='unformatted' )
+      open ( unit=88, file=plotdir//'u5u.dat'  ,form='unformatted' )
+      open ( unit=384, file=plotdir//'u1pu.dat'  ,form='unformatted' )
+      open ( unit=385, file=plotdir//'u2su.dat'  ,form='unformatted' )
+      open ( unit=386, file=plotdir//'u3hu.dat'  ,form='unformatted' )
 
       return
       end
@@ -5776,27 +5776,27 @@ c$$$     .                  0.5 * anu_drag0 * ( 1. - tanh(alpha_drag_n))
 *******************************************
 
       subroutine open_f
-
+      character(len=14),parameter :: plotdir='IM/plotsSAMI3/'
 ! open output files (formatted)
 
-      open ( unit=70, file='time.dat'      ,form='formatted'   )  
-      open ( unit=71, file='denif.dat'     ,form='formatted' )
-      open ( unit=72, file='tif.dat'       ,form='formatted' )
-      open ( unit=73, file='vsif.dat'      ,form='formatted' )
-      open ( unit=75, file='tef.dat'       ,form='formatted' )
-      open ( unit=78, file='vnf.dat'       ,form='formatted' )
-      open ( unit=92, file='dennf.dat'     ,form='formatted' )
+      open ( unit=70, file=plotdir//'time.dat'      ,form='formatted' )  
+      open ( unit=71, file=plotdir//'denif.dat'     ,form='formatted' )
+      open ( unit=72, file=plotdir//'tif.dat'       ,form='formatted' )
+      open ( unit=73, file=plotdir//'vsif.dat'      ,form='formatted' )
+      open ( unit=75, file=plotdir//'tef.dat'       ,form='formatted' )
+      open ( unit=78, file=plotdir//'vnf.dat'       ,form='formatted' )
+      open ( unit=92, file=plotdir//'dennf.dat'     ,form='formatted' )
 
 ! diagnostic files (formatted)
 
-      open ( unit=81, file='t1f.dat'  ,form='formatted' )
-      open ( unit=82, file='t2f.dat'  ,form='formatted' )
-      open ( unit=83, file='t3f.dat'  ,form='formatted' )
-      open ( unit=84, file='u1f.dat'  ,form='formatted' )
-      open ( unit=85, file='u2f.dat'  ,form='formatted' )
-      open ( unit=86, file='u3f.dat'  ,form='formatted' )
-      open ( unit=87, file='u4f.dat'  ,form='formatted' )
-      open ( unit=88, file='u5f.dat'  ,form='formatted' )
+      open ( unit=81, file=plotdir//'t1f.dat'  ,form='formatted' )
+      open ( unit=82, file=plotdir//'t2f.dat'  ,form='formatted' )
+      open ( unit=83, file=plotdir//'t3f.dat'  ,form='formatted' )
+      open ( unit=84, file=plotdir//'u1f.dat'  ,form='formatted' )
+      open ( unit=85, file=plotdir//'u2f.dat'  ,form='formatted' )
+      open ( unit=86, file=plotdir//'u3f.dat'  ,form='formatted' )
+      open ( unit=87, file=plotdir//'u4f.dat'  ,form='formatted' )
+      open ( unit=88, file=plotdir//'u5f.dat'  ,form='formatted' )
 
       return
       end
@@ -5853,8 +5853,8 @@ c$$$     .                  0.5 * anu_drag0 * ( 1. - tanh(alpha_drag_n))
        tsec   = ( tmin - ntmin ) * 60.
        ntsec  = int(tsec)
 
-       print *,'istep = ',istep,' ntm = ',ntm
-       print *,' hr = ',hr,' dt = ',dt
+!       print *,'istep = ',istep,' ntm = ',ntm
+!       print *,' hr = ',hr,' dt = ',dt
 
        write (70,100) ntm,nthr,ntmin,ntsec,hr
 

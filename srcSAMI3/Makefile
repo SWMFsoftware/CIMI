@@ -31,7 +31,7 @@ DEPEND:
 	@${SCRIPTDIR}/depend.pl ${SEARCHDIR} ${OBJECTS}
 
 
-MY_LIB = libSAMI3.a
+MY_LIB = ${LIBDIR}/libSAMI3.a
 
 LIB: DEPEND
 	make ${MY_LIB}
@@ -65,7 +65,7 @@ SAMI3:
 ${EXE}: ${OBJECTS_EXE}
 	rm -rf Tmp_; mkdir Tmp_
 	cd Tmp_; \
-		ar -x ../${MY_LIB}; \
+		ar -x ${MY_LIB}; \
 		ar -x ${LIBSHARE};  \
 		ar -x ${LIBTIMING};  
 	${LINK.f90} -o ${EXE} ${OBJECTS_EXE} Tmp_/*.o  ${Lflag1}
