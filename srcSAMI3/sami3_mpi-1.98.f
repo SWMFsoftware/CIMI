@@ -13,6 +13,7 @@
       subroutine sami_init
       use ModMpi
       use ModSAMI
+      use ModCoupleCimi,ONLY:DoCoupleCimi,set_sami_grid_for_mod
       include 'param3_mpi-1.98.inc'
       include 'com3_mpi-1.98.inc' 
 
@@ -300,12 +301,18 @@ c this call has to be seen by the master and workers
          close (68)
       endif
 
+      ! when coupling to cimi make sure coupling module knows sami's grid
+      if (DoCoupleCimi) 
+     &   call set_sami_grid_for_mod(nzp1,nfp1,nlt,nnx,nny,blatpt,blonpt)
+
       end !end of sami_init
 !===============================================================================
 
       subroutine sami_run(DtAdvance)
       use ModMpi
       use ModSAMI
+      use ModCoupleCimi,ONLY:DoCoupleCimi,PotCimiOnSamiGrid_C
+      
       include 'param3_mpi-1.98.inc'
       include 'com3_mpi-1.98.inc' 
       
@@ -329,10 +336,11 @@ c     Some local variables
 !!       real te_inp(nz,nf),tn_inp(nz,nf)
        real :: DeltaTime, DtStop
        real, save :: DtCourant
+       real, allocatable :: DtCourant_I(:)
        real, parameter :: StopTolerance = 1e-5
        logical, save :: IsFirstCall = .true.,IsFirstCallMaster = .true.
        logical, save :: IsFirstCallWorker = .true.
-       logical tflag,ttflag
+       logical tflag,ttflag,lprnt
 
        integer status(MPI_STATUS_SIZE)
        
@@ -365,6 +373,7 @@ c     Some local variables
              allocate (u1pt(nz,nf,nlt),u2st(nz,nf,nlt),u3ht(nz,nf,nlt))
              allocate (sigmapict(nz,nf,nlt),sigmahict(nz,nf,nlt))
              allocate (sigmapt(nz,nf,nlt),sigmaht(nz,nf,nlt))
+             allocate (DtCourant_I(numworkers))
              hrut    = hrinit
              timemax = hrmax * sphr
              istep   = 0
@@ -464,6 +473,8 @@ C Now wait to receive back the results from each worker task
                if ( ifintot2 .eq. 0 ) then
                   ifintot2 = numworkers
                   call potpphi(phi,phialt,philon,dphi,hrut,p_crit)
+!                  if (DoCoupleCimi) 
+!     &                 call add_cimi_pot_to_sami(nnx,nny,phi)
 !     print *,'called potential'
                   do jwrk = 1,numworkers
                      call mpi_send(phi,nnx*nny,MPI_REAL,jwrk,3,
@@ -664,16 +675,13 @@ C Now wait to receive back the results from each worker task
                if(flagit1 .and. ifintot1 .gt. 0) then
                   call mpi_recv(dtmp, 1, MPI_REAL, iwrk, 1, 
      .                 iComm, status, ierr)
-                  DtCourant = min(dt,dtmp)
+                  DtCourant_I(iwrk) = dtmp
+
                   call mpi_recv(DeltaTime, 1, MPI_REAL, iwrk, 1, 
      .                 iComm, status, ierr)
                   
                   call mpi_recv(time, 1, MPI_REAL, iwrk, 1, 
      .                 iComm, status, ierr)
-                  DtStop = DtAdvance - DeltaTime
-
-                  dt = min(DtCourant, DtStop)
-                  if (dt.eq.0) dt=DtCourant
 
                   call mpi_recv(istep, 1, MPI_INTEGER, iwrk, 1, 
      .                 iComm, status, ierr)
@@ -773,6 +781,12 @@ c Need to fix up dt calculation
 
             if(ifintot1 .eq. 0) then
                ifintot1 = numworkers
+               ! get the DtCourant and dt and send
+               DtCourant = minval(DtCourant_I)
+               DtStop = DtAdvance - DeltaTime
+               dt = min(DtCourant, DtStop)
+               if (dt.eq.0) dt=DtCourant
+               
                print *,'master sending dt',dt
                do  iwrk = 1,numworkers
                   call mpi_send(dt, 1, MPI_REAL, iwrk, 1, 
@@ -1003,23 +1017,12 @@ c Buffer and send to the RIGHT
 
 ! perpendicular transport
 
-
-        call exb(hrut,phi,phialt,philon)         
-!        call exb(hrinit,phi,phialt,philon)         
-
-!        call courant 
-!
-! time/step advancement
-
-        istep  = istep + 1
-        time   = time  + dt
-        hrut   = time / sphr + hrinit
-        DeltaTime = DeltaTime+dt
-        tprnt  = tprnt + dt / sphr
-        tneut  = tneut + dt / sphr
-!            print *,'time/dt/hrut',time,dt,hrut,taskid
+!        if (DoCoupleCimi) then
+!           call exb(hrut,phi+PotCimiOnSamiGrid_C,phialt,philon) 
+!        else
+           call exb(hrut,phi,phialt,philon) 
+!        endif
         call neut(hrut)
-
         call courant 
 
 !       average magnetic pole grid values (deni,Ti,Te)
@@ -1113,9 +1116,22 @@ c get global dt
            endif
         endif
 
-! output data
+! time/step advancement
 
-        if ( tprnt .ge. dthr .and. hrut .ge. hrpr+hrinit) then
+        istep  = istep + 1
+        time   = time  + dt
+        hrut   = time / sphr + hrinit
+        DeltaTime = DeltaTime+dt
+        tneut  = tneut + dt / sphr
+!            print *,'time/dt/hrut',time,dt,hrut,taskid
+
+
+! output data
+        ! check if it is time to print
+        lprnt = floor((time+1.0e-5)/(dthr*3600.)) /= 
+     &       floor((time+1.0e-5-dt)/(dthr*3600.))
+        
+        if ( lprnt .and. hrut .ge. hrpr+hrinit) then
 
 !         print *,'sending output to master',taskid
 ! We no longer call output from here, but send data to the MASTER
@@ -1220,10 +1236,13 @@ c get global dt
 
 !           if ( ntm .ge. ntmmax ) ttflag = .false.
 
-           if ( DtAdvance-DeltaTime < StopTolerance ) ttflag = .false.
+          lprnt   = .false.
 
-        endif
-             
+       endif
+       
+       if ( DtAdvance-DeltaTime < StopTolerance ) ttflag = .false.
+ 
+            
 !!! End of sami time advance unit
         enddo    ! end time loop
 

@@ -12,8 +12,10 @@
 program cimi_sami
   use ModSAMI,        ONLY: iProcSAMI=>iProc,nProcSAMI=>nProc,iCommSAMI=>iComm
   use ModCrcmGrid,    ONLY: iProcCIMI=>iProc,nProcCIMI=>nProc,iCommCIMI=>iComm
-  use ModCoupleSami,  ONLY: cimi_set_global_mpi,cimi_get_init_for_sami    
-  use ModCoupleCimi,  ONLY: sami_set_global_mpi,sami_put_init_from_cimi    
+  use ModCoupleSami,  ONLY: cimi_set_global_mpi,cimi_get_init_for_sami, &
+       cimi_send_to_sami
+  use ModCoupleCimi,  ONLY: sami_set_global_mpi,sami_put_init_from_cimi, &
+       sami_get_from_cimi
   use ModCRCM,        ONLY: IsStandalone
   use ModMpi
   use ModCrcm,        ONLY: init_mod_crcm
@@ -121,14 +123,15 @@ program cimi_sami
      !if (usePrerun) call read_prerun(t)
      !if (usePrerun .and. iConvect==2) call read_prerun_IE(t)
      
-     !\
-     ! Initialize the planetary constant library and set Earth
-     ! as the default planet.
-     !/
-     call init_planet_const
-     call set_planet_defaults
-  endif
 
+  endif
+  !\
+  ! Initialize the planetary constant library and set Earth
+  ! as the default planet.
+  !/
+  call init_planet_const
+  call set_planet_defaults
+  
   !****************************************************************************
   ! Initialize the model
   !****************************************************************************
@@ -171,6 +174,10 @@ program cimi_sami
   ! TimeMax is set in CIMI PARAM.in file and should be sent to SAMI
   if (iProcGlobal == iProc0CIMI) TimeMax=TimeMaxCIMI
   call MPI_bcast(TimeMax, 1, MPI_REAL, iProc0CIMI, iCommGlobal, iError)
+  
+  ! couple one time before timestepping
+  if(IsCimiProc) call cimi_send_to_sami
+  if(IsSamiProc) call sami_get_from_cimi
   !****************************************************************************
   ! start Timestepping
   !****************************************************************************
@@ -204,6 +211,11 @@ program cimi_sami
         call sami_run(DtAdvance)
         call timing_stop('sami_run')
      endif
+
+     !here we put the coupling
+     if(IsCimiProc) call cimi_send_to_sami
+     if(IsSamiProc) call sami_get_from_cimi
+     
 
      ! Save restart at DtSaveRestart or TimeMax
      if (floor((Time+1.0e-5)/DtSaveRestart) /= &
@@ -244,6 +256,8 @@ program cimi_sami
      call timing_report
   endif
   
+  If(IsSamiProc) call sami_finalize
+
   ! Finalize MPI
   call MPI_FINALIZE(iError)
 
