@@ -300,3 +300,16 @@ rundir_cimi_sami:
 		ln -s ${BINDIR}/cimi_sami.exe .   ; \
 		touch core ; chmod 444 core;\
 	fi);
+
+
+rundir_sami:
+	mkdir -p ${RUNDIR}/IM
+	cd ${RUNDIR}/IM; \
+		mkdir restartIN restartOUT plotsSAMI3
+	@(if [ "$(STANDALONE)" != "NO" ]; then \
+		cp srcSAMI3/sami3_mpi-1.98.namelist ${RUNDIR}/ ;\
+		cp srcSAMI3/*.inp ${RUNDIR}/ ;\
+		ln -s srcSAMI3/sami3.exe ${RUNDIR}/SAMI3.exe ;\
+		cd ${RUNDIR} ; \
+		touch core ; chmod 444 core;\
+	fi);
