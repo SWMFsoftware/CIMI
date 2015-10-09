@@ -12,11 +12,13 @@
 program cimi_sami
   use ModSAMI,        ONLY: iProcSAMI=>iProc,nProcSAMI=>nProc,iCommSAMI=>iComm
   use ModCrcmGrid,    ONLY: iProcCIMI=>iProc,nProcCIMI=>nProc,iCommCIMI=>iComm
+  use ModCoupleSami,  ONLY: cimi_set_global_mpi,cimi_get_init_for_sami    
+  use ModCoupleCimi,  ONLY: sami_set_global_mpi,sami_put_init_from_cimi    
   use ModCRCM,        ONLY: IsStandalone
   use ModMpi
   use ModCrcm,        ONLY: init_mod_crcm
   use ModFieldTrace,  ONLY: init_mod_field_trace
-  use ModImTime,      ONLY: TimeMaxCIMI=>TimeMax,iStartTimeCIMI_I=>iStartTime_I
+  use ModImTime,      ONLY: TimeMaxCIMI=>TimeMax
   use ModCrcmRestart, ONLY: DtSaveRestart,crcm_write_restart
   use ModReadParam
   use ModPrerunField, ONLY: UsePrerun, read_prerun, read_prerun_IE, DtRead
@@ -99,7 +101,11 @@ program cimi_sami
   ! set the zero CIMI and SAMI proc
   iProc0SAMI = 0
   iProc0CIMI = nProcSAMI 
-  
+
+  ! set the global mpi coupling variables in the coupling modules
+  if (IsCimiProc) call cimi_set_global_mpi(iProc0Cimi,iProc0Sami, iCommGlobal)
+  if (IsSamiProc) call sami_set_global_mpi(iProc0Cimi,iProc0Sami, iCommGlobal)
+
   !****************************************************************************
   ! Read the input file
   !****************************************************************************
@@ -150,8 +156,14 @@ program cimi_sami
      call timing_start('sami_init')
      call sami_init
      call timing_stop('sami_init')
+     
   endif
   
+  call MPI_BARRIER(iCommGlobal,iError)
+
+  if (iProcGlobal==iProc0CIMI) call cimi_get_init_for_sami
+  if (IsSamiProc) call sami_put_init_from_cimi
+
 
   if (iProcGlobal == 0)call timing_report_total
   call timing_reset('#all',3)

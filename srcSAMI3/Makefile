@@ -9,6 +9,7 @@ include Makefile.RULES
 
 OBJECTS= \
 	ModSAMI.o\
+	ModCoupleCimi.o\
 	apexcord.o\
 	grid3_mpi-1.98.o\
 	hwm93.o\

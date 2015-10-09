@@ -14,6 +14,7 @@ OBJECTS = \
 	ModFieldTrace.o\
 	ModGmCRCM.o\
 	ModGrid.o\
+	ModCoupleSAMI.o\
 	ModIeCrcm.o\
 	ModImSat.o\
 	ModImTime.o\
