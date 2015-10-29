@@ -275,6 +275,7 @@ rundir:
 		fi;)
 	cd ${RUNDIR}/IM; \
 		cp ${IMDIR}/input/quiet*fin . ;\
+		cp ${IMDIR}/input/WaveData/*dat . ;\
 		mkdir plots restartIN restartOUT
 	@(if [ "$(STANDALONE)" != "NO" ]; then \
 		cd ${RUNDIR} ; \

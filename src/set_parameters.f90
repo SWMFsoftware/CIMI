@@ -17,6 +17,8 @@ subroutine CRCM_set_parameters(NameAction)
   use ModIeCrcm,         ONLY: UseWeimer
   use ModPrerunField,    ONLY: DoWritePrerun, UsePrerun, DtRead
   use ModGmCRCM,         ONLY: UseGm
+  use ModWaveDiff,       ONLY: UseWaveDiffusion,UseHiss,UseChorus,UseChorusUB, &
+                               DiffStartT,HissWavesD, ChorusWavesD,ChorusUpperBandD
 
   implicit none
 
@@ -194,7 +196,17 @@ subroutine CRCM_set_parameters(NameAction)
         if(.not.DoWritePrerun) call read_var('UsePrerun',UsePrerun)
         if(UsePrerun)          call read_var('DtRead',   DtRead)
         if(UsePrerun .or. DoWritePrerun) UseGm=.true.
-     
+
+     case('#WAVEDIFFUSION')
+        call read_var('UseWaveDiffusion',UseWaveDiffusion)
+        if(UseWaveDiffusion) call read_var('DiffStartT',  DiffStartT)
+        if(UseWaveDiffusion) call read_var('UseHiss',  UseHiss)
+        if(UseWaveDiffusion) call read_var('UseChorus',  UseChorus)
+        if(UseWaveDiffusion) call read_var('UseChorusUB',  UseChorusUB)
+        if(UseWaveDiffusion) call read_var('HissWavesD', HissWavesD)
+        if(UseWaveDiffusion) call read_var('ChorusWavesD', ChorusWavesD)
+        if(UseWaveDiffusion) call read_var('ChorusUpperBandD', ChorusUpperBandD)
+    
      end select
      
   enddo

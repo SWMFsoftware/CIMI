@@ -27,7 +27,8 @@ OBJECTS = \
 	set_parameters.o\
 	plot_fieldline.o\
 	trace_dipole.o\
-	geopack.o
+	geopack.o\
+        ModWaveDiff.o
 
 DEPEND:
 	@${SCRIPTDIR}/depend.pl ${SEARCHDIR} ${OBJECTS}

@@ -27,6 +27,8 @@ subroutine crcm_run(delta_t)
                             MinLonPar, MaxLonPar
   use ModCrcmBoundary,ONLY: crcm_set_boundary_mhd, crcm_set_boundary_empirical
   use ModMpi
+  use ModWaveDiff,    ONLY: UseWaveDiffusion,ReadDiffCoef,WavePower, & 
+                            diffuse_aa,DiffStartT 
   implicit none
 
 
@@ -39,7 +41,8 @@ subroutine crcm_run(delta_t)
   real vl(nspec,0:np,nt,nm,nk),vp(nspec,np,nt,nm,nk),fb(nspec,nt,nm,nk),rc
   integer iLat, iLon, iSpecies, iSat
   logical, save :: IsFirstCall =.true.
-  
+  real  AE_temp  
+
   !Vars for mpi passing
   integer ::iSendCount,iM,iK,iLon1,iError,iEnergy,iPit,iRecvLower,iRecvUpper,iPe
   integer,allocatable :: iRecieveCount_P(:),iDisplacement_P(:)
@@ -91,6 +94,12 @@ subroutine crcm_run(delta_t)
      call MPI_bcast(DoWriteSats,1,MPI_LOGICAL,0,iComm,iError)
   endif
 
+  !  read wave models 
+ if (IsFirstCall) then
+  if (UseWaveDiffusion) call ReadDiffCoef(rc)
+ endif
+  
+
   ! setup initial distribution
   if (IsFirstCall .and. .not.IsRestart) then
      !set initial state when no restarting
@@ -118,6 +127,11 @@ subroutine crcm_run(delta_t)
 
   ! calculate boundary flux (fb) at the CRCM outer boundary at the equator
   call boundaryIM(nspec,neng,np,nt,nm,nk,iba,irm,amu_I,xjac,energy,vel,fb)
+
+  ! calculate wave power for the first time; the second time in the loop
+    AE_temp=200.
+    if (Time.ge.DiffStartT .and. UseWaveDiffusion) &
+         call WavePower(Time,AE_temp,iba)
   
   if (Time == 0.0 .and. nProc == 1 .and. DoSavePlot) then
      call timing_start('crcm_output')
@@ -184,6 +198,15 @@ subroutine crcm_run(delta_t)
      call sume_cimi(OpStrongDiff_)
      call timing_stop('crcm_StrongDiff')                       
      
+     if (Time.ge.DiffStartT .and. UseWaveDiffusion) then 
+     call timing_start('crcm_WaveDiffusion')
+     call diffuse_aa(f2,dt,xjac,iba,iw2)
+     call timing_stop('crcm_WaveDiffusion')
+
+     call WavePower(Time,AE_temp,iba)
+     endif
+
+
      Time = Time+dt
      ! Update CurrentTime and iCurrentTime_I
      CurrentTime = StartTime+Time
@@ -2304,6 +2327,100 @@ subroutine locate1IM(xx,n,x,j)
   j=jl
 
 end subroutine locate1IM
+
+
+!-------------------------------------------------------------------------------
+        subroutine lintp3IM(x,y,z,v,nx,ny,nz,x1,y1,z1,v1)
+!-------------------------------------------------------------------------------
+!  This sub program takes 3-d interplation.
+!
+      real x(nx),y(ny),z(nz),v(nx,ny,nz)
+
+      call locate1IM(x,nx,x1,i)
+      if (i.gt.(nx-1)) i=nx-1      ! extrapolation if out of range
+      if (i.lt.1) i=1              ! extrapolation if out of range
+
+      call locate1IM(y,ny,y1,j)
+      if (j.gt.(ny-1)) j=ny-1      ! extrapolation if out of range
+      if (j.lt.1) j=1              ! extrapolation if out of range
+
+      call locate1IM(z,nz,z1,k)
+      if (k.gt.(nz-1)) k=nz-1      ! extrapolation if out of range
+      if (k.lt.1) k=1              ! extrapolation if out of range
+
+
+      i1=i+1
+      j1=j+1
+      k1=k+1
+      a=(x1-x(i))/(x(i1)-x(i))
+      b=(y1-y(j))/(y(j1)-y(j))
+      c=(z1-z(k))/(z(k1)-z(k))
+
+      q000=(1.-a)*(1.-b)*(1.-c)*v(i,j,k)
+      q001=(1.-a)*(1.-b)*c*v(i,j,k1)
+      q010=(1.-a)*b*(1.-c)*v(i,j1,k)
+      q011=(1.-a)*b*c*v(i,j1,k1)
+      q100=a*(1.-b)*(1.-c)*v(i1,j,k)
+      q101=a*(1.-b)*c*v(i1,j,k1)
+      q110=a*b*(1.-c)*v(i1,j1,k)
+      q111=a*b*c*v(i1,j1,k1)
+      v1=q000+q001+q010+q011+q100+q101+q110+q111
+
+      end subroutine lintp3IM
+
+
+!-----------------------------------------------------------------------------
+
+      subroutine tridagIM(a,b,c,r,u,n,ier)
+!-----------------------------------------------------------------------------
+
+      parameter (nmax=100)
+      real gam(nmax),a(n),b(n),c(n),r(n),u(n)
+!
+!    problem can be simplified to n-1
+!
+      if(b(1).eq.0.)then
+        ier = 1
+        return
+      endif
+      ier = 0
+      bet=b(1)
+      u(1)=r(1)/bet
+!
+!    decomposition and forward substitution
+!
+      do 11 j=2,n
+        gam(j)=c(j-1)/bet
+        bet=b(j)-a(j)*gam(j)
+!
+!    algotithm fails
+!
+        if(bet.eq.0.)then
+          ier = 2
+          return
+        endif
+        u(j)=(r(j)-a(j)*u(j-1))/bet
+11    continue
+!
+!    back substitution
+!
+      do 12 j=n-1,1,-1
+        u(j)=u(j)-gam(j+1)*u(j+1)
+12    continue
+
+      end subroutine tridagIM
+
+!-------------------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
 
 
 !Old CLOSED SUBROUTINE
