@@ -291,6 +291,7 @@ rundir_cimi_sami:
 		fi;)
 	cd ${RUNDIR}/IM; \
 		cp ${IMDIR}/input/quiet*fin . ;\
+		cp ${IMDIR}/input/WaveData/*dat . ;\
 		mkdir plots restartIN restartOUT plotsSAMI3
 	@(if [ "$(STANDALONE)" != "NO" ]; then \
 		cp input/testfiles/*.dat ${RUNDIR}/ ;\
