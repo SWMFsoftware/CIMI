@@ -9,6 +9,8 @@
 #STOP
 300.0		TimeMax
 
+#STRONGDIFFUSION
+T
 
 #NGDC_INDICES
 Indices.dat	NameNgdcFile

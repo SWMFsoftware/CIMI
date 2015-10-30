@@ -7,7 +7,7 @@ subroutine crcm_run(delta_t)
                             OpBfield_,OpDrift_,OpLossCone_, &
                             OpChargeEx_, OpStrongDiff_,rbsumLocal,rbsumGlobal, &
                             driftin, driftout, IsStandAlone,rcsumLocal,rcsumGlobal,&
-                            preP,preF,Eje1
+                            preP,preF,Eje1,UseStrongDiff
   use ModCrcmPlanet,  ONLY: re_m, dipmom, Hiono, nspec, amu_I, &
                             dFactor_I,tFactor_I
   use ModFieldTrace,  ONLY: fieldpara, brad=>ro, ftv=>volume, xo,yo,rb,irm,&
@@ -170,11 +170,13 @@ subroutine crcm_run(delta_t)
   call ceparaIM(nspec,np,nt,nm,nk,irm,dt,vel,ekev,Have,achar)
   call timing_stop('crcm_ceparaIM')
 
-  ! Calculate the strong diffusion lifetime for electrons
-  call timing_start('crcm_StDiTime')
-  call StDiTime(dt,vel,ftv,rc,re_m,dipmom,iba)
-  call timing_stop('crcm_StDiTime')
-
+  if (UseStrongDiff) then
+     ! Calculate the strong diffusion lifetime for electrons
+     call timing_start('crcm_StDiTime')
+     call StDiTime(dt,vel,ftv,rc,re_m,dipmom,iba)
+     call timing_stop('crcm_StDiTime')
+  endif
+  
   ! time loop
   do n=1,nstep
      call timing_start('crcm_driftIM')
@@ -193,10 +195,12 @@ subroutine crcm_run(delta_t)
      call sume_cimi(OpLossCone_)
      call timing_stop('crcm_lossconeIM')
 
-     call timing_start('crcm_StrongDiff')
-     call StrongDiff(iba)        
-     call sume_cimi(OpStrongDiff_)
-     call timing_stop('crcm_StrongDiff')                       
+     if (UseStrongDiff) then
+        call timing_start('crcm_StrongDiff')
+        call StrongDiff(iba)        
+        call sume_cimi(OpStrongDiff_)
+        call timing_stop('crcm_StrongDiff')
+     endif
      
      if (Time.ge.DiffStartT .and. UseWaveDiffusion) then 
      call timing_start('crcm_WaveDiffusion')

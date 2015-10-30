@@ -9,7 +9,7 @@ subroutine CRCM_set_parameters(NameAction)
   use ModFieldTrace,     ONLY: UseEllipse, UseSmooth, UseCorotation, &
        UsePotential, SmoothWindow, imod
   use ModCrcm,           ONLY: UseMcLimiter, BetaLimiter, time, Pmin,&
-       IsStandAlone
+       IsStandAlone, UseStrongDiff
   use ModCrcmRestart,    ONLY: IsRestart,DtSaveRestart
   use ModCrcmPlanet,     ONLY: nspec
   use ModImTime,         ONLY: iStartTime_I, TimeMax
@@ -197,6 +197,9 @@ subroutine CRCM_set_parameters(NameAction)
         if(UsePrerun)          call read_var('DtRead',   DtRead)
         if(UsePrerun .or. DoWritePrerun) UseGm=.true.
 
+     case('#STRONGDIFFUSION')
+        call read_var('UseStrongDiff',UseStrongDiff)
+        
      case('#WAVEDIFFUSION')
         call read_var('UseWaveDiffusion',UseWaveDiffusion)
         if(UseWaveDiffusion) call read_var('DiffStartT',  DiffStartT)
