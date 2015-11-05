@@ -19,7 +19,9 @@ subroutine CRCM_set_parameters(NameAction)
   use ModGmCRCM,         ONLY: UseGm
   use ModWaveDiff,       ONLY: UseWaveDiffusion,UseHiss,UseChorus,UseChorusUB, &
                                DiffStartT,HissWavesD, ChorusWavesD,ChorusUpperBandD
-
+  use ModImSat,          ONLY: DtSatOut, DoWritePrerunSat, UsePrerunSat, &
+       DtReadSat, DoWriteSats
+  
   implicit none
 
   character (len=100)           :: NameCommand
@@ -154,6 +156,7 @@ subroutine CRCM_set_parameters(NameAction)
         !IsDataInitial only works with EarthHO or EarthH configurations
         if (nspec > 3 .and. IsDataInitial) &
              call CON_STOP('IsDataInitial only works with EarthHO or EarthH')  
+
      case('#TYPEBOUNDARY')
         call read_var('TypeBoundary',TypeBoundary)
         if(TypeBoundary == 'Ellipse') then
@@ -191,6 +194,15 @@ subroutine CRCM_set_parameters(NameAction)
      case('#TIMESIMULATION')
         call read_var('TimeSimulation',time)
 
+     case('#PRERUNSAT')
+        call read_var('DoWritePrerunSat',DoWritePrerunSat)
+        if(.not.DoWritePrerunSat) call read_var('UsePrerunSat',UsePrerunSat)
+        if(UsePrerunSat) then
+           call read_var('DtReadSat',   DtReadSat)
+           DtSatout = DtReadSat
+           DoWriteSats = .true.
+        end if
+        
      case('#PRERUNFIELD')
         call read_var('DoWritePrerun',DoWritePrerun)
         if(.not.DoWritePrerun) call read_var('UsePrerun',UsePrerun)

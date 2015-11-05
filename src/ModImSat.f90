@@ -2,14 +2,18 @@ Module ModImSat
   implicit none
   
   logical :: DoWriteSats  = .false.
-  logical :: IsFirstWrite = .true.
+  logical,            allocatable :: IsFirstWrite(:,:)
   integer :: nImSats = 0, iStartIter = 0
-  real    :: DtSatOut = 1.0 !write sat output every minute
+  real    :: DtSatOut = 1.0 !Default write sat output every minute
   real,               allocatable :: SatLoc_3I(:,:,:), SatFlux_3I(:,:,:)
   real,               allocatable :: BfieldEq2_G(:,:)
   real,               allocatable :: LonGrid_G(:), Flux_G(:,:,:,:,:)
   character(len=100), allocatable :: NameSat_I(:)
-  
+
+  ! Variables for the Prerunsat output.
+  real :: DtReadSat
+  logical :: DoWritePrerunSat = .false., UsePrerunSat = .false.
+
 contains
     !===========================================================================
   subroutine write_im_sat(iSatIn, nLat,nLon,nEnergy,nAngle,Flux_C)
@@ -51,6 +55,11 @@ contains
     character(len=3)    :: numChannels
     !-------------------------------------------------------------------------
     ! Allocate array for satellite flux
+
+    if (.not. allocated(IsFirstWrite)) then
+       allocate( IsFirstWrite(3,nImSats) )
+       IsFirstWrite = .true.
+    end if
     
     if(.not. allocated(SatFlux_3I))  &
          allocate(SatFlux_3I(nSpecies,nEnergy,nAngle))
@@ -159,7 +168,7 @@ contains
        ! Write satellite output
        
        ! Build file name; 
-       if (IsFirstWrite) iStartIter = int(t/DtOutput)
+       if (IsFirstWrite(iSpecies,iSatIn)) iStartIter = int(t/DtOutput)
        
        !set the file name for each species
        SELECT CASE (iSpecies)
@@ -186,8 +195,8 @@ contains
        ! Open file in appropriate mode.  Write header if necessary.
        inquire(file=NameSatFile, exist=IsExist)
        
-       if ( (.not.IsExist) .or. IsFirstWrite ) then
-          IsFirstWrite = .false.
+       if ( (.not.IsExist) .or. IsFirstWrite(iSpecies,iSatIn) ) then
+          IsFirstWrite(iSpecies,iSatIn) = .false.
           HeadVar = 'it year mo dy hr mn sc msc X Y Z'
           open(unit=UnitTmp_, file=trim(NameSatFile), &
                status='replace', iostat=iError)
@@ -210,7 +219,7 @@ contains
           if(iError /= 0) &
                call CON_stop(NameSubSub//' Error opening file '//NameSatFile)
        end if
-       
+
        write(UnitTmp_,'(i7)',ADVANCE='NO') int(t/DtOutput)
        write(UnitTmp_,'(i5,5(1X,i2.2),1X,i3.3)',ADVANCE='NO') &
             iCurrentTime_I
@@ -226,7 +235,94 @@ contains
     ! Deallocate Flux_G after last satellite to save memory
     if(iSatIn == nImSats) deallocate(Flux_G)
 
+    if (iSatIn == nImSats .and. DoWritePrerunSat) then
+       call save_prerun_sat(t)
+    end if
+        
   end subroutine write_im_sat
+
+  subroutine save_prerun_sat(tSimulation)
+
+    use ModGmCrcm
+    use ModIoUnit,  ONLY: UnitTmp_
+    real, intent(in) :: tSimulation
+    integer          :: iTimeOut,iSat,iRow
+    Character(len=100) :: NameFile             ! input file name
+
+    iTimeOut=int(tSimulation)
+    
+    write(NameFile,"(a,i8.8,a)") &
+         'IM/PrerunSat_',iTimeOut,'.dat'
+    open(UnitTmp_,file=NameFile,status="replace", form="unformatted")
+
+    write(UnitTmp_) nImSats
+
+    do iSat=1,nImSats
+       
+       write(UnitTmp_) NameSat_I(iSat)
+
+    end do
+
+    do iSat=1,nImSats
+
+       do iRow=1,2
+
+          write(UnitTmp_) SatLoc_3I(1:4,iRow,iSat)
+
+       end do
+       
+    end do
+    
+    close(UnitTmp_)    
+    
+  end subroutine save_prerun_sat
+
+  subroutine read_prerun_sat(tSimulation)
+
+    use ModGmCrcm
+    use ModIoUnit,  ONLY: UnitTmp_
+    real, intent(in) :: tSimulation
+    integer          :: iTimeOut,iSat,iRow
+    integer, save    :: iTimeOutPrev = -1
+    Character(len=100) :: NameFile             ! input file name
+
+    iTimeOut=int(floor(tSimulation/DtReadSat) * DtReadSat)
+
+    if(iTimeOut == iTimeOutPrev) then
+       return
+    else
+       iTimeOutPrev =iTimeOut
+    end if
+
+    write(NameFile,"(a,i8.8,a)") &
+         'IM/PrerunSat_',iTimeOut,'.dat'   
+
+    open(UnitTmp_,file=NameFile,status="old", form="unformatted")
+
+    read(UnitTmp_) nImSats
+
+    if (.not. allocated(NameSat_I)) allocate(NameSat_I(nImSats))
+    if (.not. allocated(SatLoc_3I)) allocate(SatLoc_3I(4,2,nImSats))
+    
+    do iSat=1,nImSats
+       
+       read(UnitTmp_) NameSat_I(iSat)
+
+    end do
+
+    do iSat=1,nImSats
+
+       do iRow=1,2
+
+          read(UnitTmp_) SatLoc_3I(1:4,iRow,iSat)
+
+       end do
+       
+    end do
+
+    close(UnitTmp_)
+    
+  end subroutine read_prerun_sat
   
 end Module ModImSat
 

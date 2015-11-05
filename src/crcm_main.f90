@@ -18,6 +18,8 @@ program crcm
   use ModCrcmRestart, ONLY: DtSaveRestart,crcm_write_restart
   use ModReadParam
   use ModPrerunField, ONLY: UsePrerun, read_prerun, read_prerun_IE, DtRead
+  use ModImSat,       ONLY: UsePrerunSat, read_prerun_sat, DtReadSat, &
+       IsFirstWrite
   use ModIeCrcm,      ONLY: UseWeimer
   use CON_planet, ONLY: init_planet_const, set_planet_defaults
 !  use ModPrerunField, ONLY: UsePrerun, read_prerun, read_prerun_IE
@@ -74,7 +76,7 @@ program crcm
   !read initial prerun field
   if (UsePrerun) call read_prerun(Time)
   if (UsePrerun .and. .not.UseWeimer) call read_prerun_IE(Time)
-  
+
   ! init model
   call timing_start('crcm_init')
   call crcm_init
@@ -103,6 +105,13 @@ program crcm
         exit TIMELOOP
      endif
      
+     ! Read next prerun sat file if using prerun sat files and it is
+     ! time to read.     
+     if (floor((Time+1.0e-5)/DtReadSat) /= &
+          floor((Time+1.0e-5+DtAdvance)/DtReadSat)) then
+        if (UsePrerunSat) call read_prerun_sat(Time+DtAdvance)
+     endif
+
      ! Call crcm_run to advance the Timestep
      call timing_step(iStep)
      call timing_start('crcm_run')     
@@ -121,6 +130,7 @@ program crcm
         if (UsePrerun) call read_prerun(Time)
         if (UsePrerun .and. .not.UseWeimer) call read_prerun_IE(Time)     
      endif
+
      ! Advance the time iteration step
      iStep=iStep+1
   end do TIMELOOP
