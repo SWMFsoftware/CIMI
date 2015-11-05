@@ -20,7 +20,7 @@ subroutine CRCM_set_parameters(NameAction)
   use ModWaveDiff,       ONLY: UseWaveDiffusion,UseHiss,UseChorus,UseChorusUB, &
                                DiffStartT,HissWavesD, ChorusWavesD,ChorusUpperBandD
   use ModImSat,          ONLY: DtSatOut, DoWritePrerunSat, UsePrerunSat, &
-       DtReadSat, DoWriteSats
+       DtReadSat, DoWriteSats, ReadRestartSat
   
   implicit none
 
@@ -174,7 +174,8 @@ subroutine CRCM_set_parameters(NameAction)
         
      case('#RESTART')
         call read_var('IsRestart',IsRestart) !T:Continuous run, F: Initial Run
-
+        if(IsRestart) call read_var('ReadRestartSat',ReadRestartSat)
+        
      case('#SAVERESTART')
         ! when in standalone mode read restart save frequency
         if(IsStandAlone) then

@@ -69,12 +69,16 @@ contains
     use ModGmCrcm,    ONLY: Den_IC
     use ModIoUnit,    ONLY: UnitTmp_
     use ModCrcmGrid,  ONLY: iProc,nProc,iComm,nLonPar,nLonPar_P,nLonBefore_P
+    use ModImSat,     ONLY: DoWriteSats,nImSats,NameSat_I,SatLoc_3I
     use ModMpi
 
     integer ::iSendCount, iSpecies, iM, iK, iError
     real :: BufferSend_C(np,nt),BufferRecv_C(np,nt)
     integer :: BufferSend_I(nt),BufferRecv_I(nt)
     integer,allocatable :: iRecieveCount_P(:),iDisplacement_P(:)
+
+    ! Initialize necessary variables for saving restart.sat file
+    integer :: iSat,iRow
     !--------------------------------------------------------------------------
 
     ! When nProc>1 gather to proc 0 for writing.
@@ -171,6 +175,33 @@ contains
        write(UnitTmp_,'(a)') '#TIMESIMULATION'
        write(UnitTmp_,'(es15.8,a25)') time,'tSimulation'
        close(UnitTmp_)
+
+       if (DoWriteSats) then
+          open(UnitTmp_,file='IM/restartOUT/restart.sat',&
+               status="replace", form="unformatted")
+          
+          write(UnitTmp_) nImSats
+       
+          do iSat=1,nImSats
+             
+             write(UnitTmp_) NameSat_I(iSat)
+             
+          end do
+       
+          do iSat=1,nImSats
+          
+             do iRow=1,2
+             
+                write(UnitTmp_) SatLoc_3I(1:4,iRow,iSat)
+                
+             end do
+             
+          end do
+          
+          close(UnitTmp_)
+
+       end if
+       
     endif
   end subroutine crcm_write_restart
 

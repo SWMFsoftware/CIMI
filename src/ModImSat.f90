@@ -1,9 +1,9 @@
 Module ModImSat
   implicit none
   
-  logical :: DoWriteSats  = .false.
+  logical :: DoWriteSats  = .false., ReadRestartSat = .false.
   logical,            allocatable :: IsFirstWrite(:,:)
-  integer :: nImSats = 0, iStartIter = 0
+  integer :: nImSats = 0, iStartTime = 0
   real    :: DtSatOut = 1.0 !Default write sat output every minute
   real,               allocatable :: SatLoc_3I(:,:,:), SatFlux_3I(:,:,:)
   real,               allocatable :: BfieldEq2_G(:,:)
@@ -21,7 +21,6 @@ contains
     use ModIoUnit,      ONLY: io_unit_new, UnitTmp_
     use ModInterpolate, ONLY: bilinear, trilinear
     use ModNumConst,    ONLY: cDegToRad,cRadToDeg
-    use ModCrcmPlot,    ONLY: DtOutput
     use ModCrcm,        ONLY: t=>time
     use ModCrcmPlanet,  ONLY: nSpecies=>nspec
     use ModCrcmGrid,    ONLY: LonGrid_I=>phi, LatGrid_I=>xlat, &
@@ -168,7 +167,7 @@ contains
        ! Write satellite output
        
        ! Build file name; 
-       if (IsFirstWrite(iSpecies,iSatIn)) iStartIter = int(t/DtOutput)
+       if (IsFirstWrite(iSpecies,iSatIn)) iStartTime = int(t)
        
        !set the file name for each species
        SELECT CASE (iSpecies)
@@ -190,7 +189,7 @@ contains
        
        write(NameSatFile, '(a, i6.6, a)')                    &
             'IM/plots/'//'sat_'//trim(NameSat_I(iSatIn))// &
-            '_n',iStartIter, NameSpecies//'.sat'
+            '_t',iStartTime, NameSpecies//'.sat'
        
        ! Open file in appropriate mode.  Write header if necessary.
        inquire(file=NameSatFile, exist=IsExist)
@@ -220,7 +219,7 @@ contains
                call CON_stop(NameSubSub//' Error opening file '//NameSatFile)
        end if
 
-       write(UnitTmp_,'(i7)',ADVANCE='NO') int(t/DtOutput)
+       write(UnitTmp_,'(i7)',ADVANCE='NO') int(t)
        write(UnitTmp_,'(i5,5(1X,i2.2),1X,i3.3)',ADVANCE='NO') &
             iCurrentTime_I
        write(UnitTmp_,'(3es13.5)',ADVANCE='NO') SatLoc_3I(1:3,1,iSatIn)

@@ -440,8 +440,11 @@ contains
   subroutine IM_put_sat_from_gm(nSats, Buffer_I, Buffer_III)
 
     ! Puts satellite locations and names from GM into IM.
-    use ModImSat, ONLY: nImSats, DoWriteSats, NameSat_I, SatLoc_3I
+    use ModImSat, ONLY: nImSats, DoWriteSats, ReadRestartSat, &
+         NameSat_I, SatLoc_3I
     use ModNumConst,   ONLY: cDegToRad
+    use ModCrcmGrid,   ONLY: iProc
+    use ModIoUnit,     ONLY: UnitTmp_
 
     implicit none
     character (len=*),parameter :: NameSub='IM_put_sat_from_gm'
@@ -452,7 +455,7 @@ contains
     character(len=100), intent(in) :: Buffer_I(nSats)
 
     ! Internal variables
-    integer :: iError, iSat, l1, l2
+    integer :: iError, iSat, l1, l2, iRow
     !--------------------------------------------------------------------------
     ! Activate satellite writing in RCM
     DoWriteSats = .true.
@@ -465,17 +468,49 @@ contains
     allocate(SatLoc_3I(4,2,nImSats), stat=iError)
     allocate(NameSat_I(nImSats),     stat=iError)
 
-    ! Assign incoming values, remove path and extension from name.
-    SatLoc_3I = Buffer_III
-    SatLoc_3I(4,2,:)=SatLoc_3I(4,2,:)
-    do iSat=1, nSats
-       l1 = index(Buffer_I(iSat), '/', back=.true.) + 1
-       l2 = index(Buffer_I(iSat), '.') - 1
-       if (l1-1<=0) l1=1
-       if (l2+1<=0) l2=len_trim(Buffer_I(iSat))
-       NameSat_I(iSat) = Buffer_I(iSat)(l1:l2)
-    end do
+    if (iProc == 0 .and. ReadRestartSat) then
+       open(UnitTmp_,file="IM/restartIN/restart.sat",&
+            status="old", form="unformatted")
 
+       read(UnitTmp_) nImSats
+       
+       do iSat=1,nImSats
+          
+          read(UnitTmp_) NameSat_I(iSat)
+          
+       end do
+
+       write(*,*),"NameSat_I: ",NameSat_I
+       
+       do iSat=1,nImSats
+          
+          do iRow=1,2
+             
+             read(UnitTmp_) SatLoc_3I(1:4,iRow,iSat)
+             
+          end do
+          
+       end do
+       
+       close(UnitTmp_)
+
+       ReadRestartSat = .false.
+       
+    else
+       
+       ! Assign incoming values, remove path and extension from name.
+       SatLoc_3I = Buffer_III
+       SatLoc_3I(4,2,:)=SatLoc_3I(4,2,:)
+       do iSat=1, nSats
+          l1 = index(Buffer_I(iSat), '/', back=.true.) + 1
+          l2 = index(Buffer_I(iSat), '.') - 1
+          if (l1-1<=0) l1=1
+          if (l2+1<=0) l2=len_trim(Buffer_I(iSat))
+          NameSat_I(iSat) = Buffer_I(iSat)(l1:l2)
+       end do
+
+    endif
+ 
   end subroutine IM_put_sat_from_gm
 
   !============================================================================
