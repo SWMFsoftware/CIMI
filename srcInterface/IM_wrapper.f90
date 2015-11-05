@@ -480,8 +480,6 @@ contains
           
        end do
 
-       write(*,*),"NameSat_I: ",NameSat_I
-       
        do iSat=1,nImSats
           
           do iRow=1,2
