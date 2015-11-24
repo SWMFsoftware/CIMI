@@ -507,7 +507,8 @@ subroutine crcm_init
   use ModCrcmInitialize
   use ModCrcmRestart, ONLY: IsRestart, crcm_read_restart
   use ModImTime
-  use ModCrcmGrid,    ONLY: iProcLeft, iProcRight, iLonLeft, iLonRight,d4Element_C
+  use ModCrcmGrid,    ONLY: iProcLeft, iProcRight, iLonLeft, iLonRight, &
+       d4Element_C, MinIonEnergy, MaxIonEnergy
   use ModTimeConvert, ONLY: time_int_to_real,time_real_to_int
   use ModMpi
 
@@ -611,8 +612,8 @@ subroutine crcm_init
 !!$  dmu=(/0.000207365,0.000868320,0.00167125,0.00489855,0.0165792,0.0404637, &
 !!$       0.078819500,0.121098000,0.14729600,0.16555900,0.1738560,0.2486830/)
 
-  energy_ion(1)=0.1
-  energy_ion(neng)=316.22777
+  energy_ion(1)=MinIonEnergy
+  energy_ion(neng)=MaxIonEnergy
   aloga=log10(energy_ion(neng)/energy_ion(1))/(neng-1)
   eratio=10.**aloga
   do k=2,neng-1

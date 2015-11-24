@@ -231,7 +231,14 @@ subroutine CRCM_set_parameters(NameAction)
         if(UseWaveDiffusion) call read_var('HissWavesD', HissWavesD)
         if(UseWaveDiffusion) call read_var('ChorusWavesD', ChorusWavesD)
         if(UseWaveDiffusion) call read_var('ChorusUpperBandD', ChorusUpperBandD)
-    
+
+
+     case('#ENERGYGRID')
+        call read_var('MinIonEnergy (in keV), MinElectronEnergy x10',&
+             MinIonEnergy)
+        call read_var('MaxIonEnergy (in keV), MaxElectronEnergy x10',&
+             MaxIonEnergy)
+        
      end select
      
   enddo

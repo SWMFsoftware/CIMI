@@ -58,6 +58,9 @@ Module ModCrcmGrid
   integer, allocatable :: nLonPar_P(:),nLonBefore_P(:)
   integer ::iProcLeft, iProcRight, iLonLeft, iLonRight
   integer :: iProcMidnight, iLonMidnight
+
+  real :: MinIonEnergy=0.1, MaxIonEnergy=316.22777
+
 end Module ModCrcmGrid
 
 
