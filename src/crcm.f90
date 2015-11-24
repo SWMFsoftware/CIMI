@@ -15,10 +15,10 @@ subroutine crcm_run(delta_t)
   use ModGmCrcm,      ONLY: Den_IC,UseGm
   use ModIeCrcm,      ONLY: UseWeimer, pot
   use ModCrcmPlot,    ONLY: Crcm_plot, Crcm_plot_fls, &
-                            Crcm_plot_vl,Crcm_plot_vp, &
+       			    Crcm_plot_psd,Crcm_plot_vl,Crcm_plot_vp, &
                             crcm_plot_log, crcm_plot_precip, &
                             DtOutput, DtLogOut,DoSavePlot, &
-                            DoSaveFlux, DoSaveDrifts, DoSaveLog
+                            DoSaveFlux, DoSavePSD, DoSaveDrifts, DoSaveLog
   use ModCrcmRestart, ONLY: IsRestart
   use ModImTime
   use ModTimeConvert, ONLY: time_real_to_int
@@ -38,7 +38,8 @@ subroutine crcm_run(delta_t)
   real flux(nspec,np,nt,neng,npit),&
        vlEa(nspec,np,nt,neng,npit),vpEa(nspec,np,nt,neng,npit)
   real achar(nspec,np,nt,nm,nk)
-  real vl(nspec,0:np,nt,nm,nk),vp(nspec,np,nt,nm,nk),fb(nspec,nt,nm,nk),rc
+  real vl(nspec,0:np,nt,nm,nk),vp(nspec,np,nt,nm,nk),psd(nspec,np,nt,nm,nk),&
+       fb(nspec,nt,nm,nk),rc
   integer iLat, iLon, iSpecies, iSat
   logical, save :: IsFirstCall =.true.
   real  AE_temp  
@@ -138,7 +139,7 @@ subroutine crcm_run(delta_t)
      call crcm_output(np,nt,nm,nk,nspec,neng,npit,iba,ftv,f2,ekev, &
           sinA,energy,sinAo,delE,dmu,amu_I,xjac,pp,xmm,dmm,dk,xlat,dphi, &
           re_m,Hiono,vp,vL,flux,FAC_C,phot,Ppar_IC,Pressure_IC,PressurePar_IC, &
-          vlEa,vpEa)
+          vlEa,vpEa,psd)
      call timing_stop('crcm_output')
      
      call timing_start('crcm_plot')
@@ -146,6 +147,7 @@ subroutine crcm_run(delta_t)
           bo,ftv,pot,FAC_C,Time,dt)
      call timing_stop('crcm_plot')
      if (DoSaveFlux) call Crcm_plot_fls(rc,flux,time)
+     if (DoSavePSD) call Crcm_plot_psd(rc,psd,xmm,xk,time)
      if (DoSaveDrifts) then
         call Crcm_plot_vl(rc,vlEa,time)
         call Crcm_plot_vp(rc,vpEa,time)
@@ -242,7 +244,7 @@ subroutine crcm_run(delta_t)
   call crcm_output(np,nt,nm,nk,nspec,neng,npit,iba,ftv,f2,ekev, &
        sinA,energy,sinAo,delE,dmu,amu_I,xjac,pp,xmm,dmm,dk,xlat,dphi, &
        re_m,Hiono,vl,vp,flux,FAC_C,phot,Ppar_IC,Pressure_IC,PressurePar_IC,&
-       vlEa,vpEa)
+       vlEa,vpEa,psd)
   call timing_stop('crcm_output')
 
   
@@ -368,6 +370,18 @@ subroutine crcm_run(delta_t)
        ((floor((Time+1.0e-5)/DtSatOut))/=&
        floor((Time+1.0e-5-delta_t)/DtSatOut).and.DoWriteSats))) then
      do  iSpecies=1,nspec
+        do iM=1,nm
+           do iK=1,nk
+
+              BufferSend_C(:,:)=psd(iSpecies,:,:,im,ik)
+              call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
+                   MPI_REAL, BufferRecv_C,iRecieveCount_P, iDisplacement_P, &
+                   MPI_REAL, 0, iComm, iError)
+              if (iProc==0) psd(iSpecies,:,:,im,ik)=BufferRecv_C(:,:)
+
+           end do
+        end do
+        
         do iEnergy=1,neng
            do iPit=1,nPit
 
@@ -436,6 +450,7 @@ subroutine crcm_run(delta_t)
         call timing_stop('crcm_plot')
 
         if (DoSaveFlux) call Crcm_plot_fls(rc,flux,time)
+        if (DoSavePSD) call Crcm_plot_psd(rc,psd,xmm,xk,time)
         if (DoSaveDrifts) then
            call Crcm_plot_vl(rc,vlEa,time)
            call Crcm_plot_vp(rc,vpEa,time)
@@ -1757,14 +1772,14 @@ end subroutine sume_cimi
 subroutine crcm_output(np,nt,nm,nk,nspec,neng,npit,iba,ftv,f2,ekev, &
      sinA,energy,sinAo,delE,dmu,amu_I,xjac,pp,xmm, &
      dmm,dk,xlat,dphi,re_m,Hiono,vl,vp, &
-     flux,fac,phot,Ppar_IC,Pressure_IC,PressurePar_IC,vlEa,vpEa)
+     flux,fac,phot,Ppar_IC,Pressure_IC,PressurePar_IC,vlEa,vpEa,psd)
   !-----------------------------------------------------------------------------
   ! Routine calculates CRCM output, flux, fac and phot from f2
   ! Routine also converts the particle drifts from (m,K) space to (E,a) space
   !
   ! Input: np,nt,nm,nk,nspec,neng,npit,iba,ftv,f2,ekev,sinA,energy,sinAo,xjac
   !        delE,dmu,amu_I,xjac,pp,xmm,dmm,dk,xlat,dphi,re_m,Hiono,vl,vp
-  ! Output: flux,fac,phot,Ppar_IC,Den_IC,Temp_IC,vlEa,vpEa
+  ! Output: flux,fac,phot,Ppar_IC,Den_IC,Temp_IC,vlEa,vpEa,psd
   Use ModGmCrcm, ONLY: Den_IC, Temp_IC
   use ModConst,   ONLY: cProtonMass
   use ModNumConst,ONLY: cPi, cDegToRad

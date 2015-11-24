@@ -3,12 +3,14 @@ module ModCrcmPlot
   implicit none
 
   private ! except
-  public :: Crcm_plot, Crcm_plot_fls, crcm_plot_log, crcm_plot_precip, &
-            Crcm_plot_vl, Crcm_plot_vp
+  public :: Crcm_plot, Crcm_plot_fls, Crcm_plot_psd, &
+       crcm_plot_log, crcm_plot_precip, &
+       Crcm_plot_vl, Crcm_plot_vp
   character(len=5),  public    :: TypePlot   = 'ascii'
   logical,           public    :: DoSavePlot = .false.
   logical,           public    :: DoSaveFlux = .false.
   logical,           public    :: DoSaveDrifts = .false.
+  logical,           public    :: DoSavePSD = .false. 
   logical,           public    :: DoSaveLog = .false.
   logical,           public    :: UseSeparatePlotFiles = .false.
   real,              public    :: DtOutput   = 10.0
@@ -268,6 +270,115 @@ contains
     
 
   end subroutine Crcm_plot_fls
+
+  subroutine Crcm_plot_psd(rc,psd,xmm,xk,time)
+    use ModIoUnit,	ONLY: UnitTmp_
+    use ModCrcmGrid,	ONLY: nLat=>np, nLon=>nt, &
+         nEnergy=>neng, nPitchAng=>npit,&
+         nm, nk, &
+         energy,sinAo,xlat,xmlt,Ebound
+    use ModCrcmPlanet,	ONLY: nSpecies=>nspec,re_m
+    use ModFieldTrace,	ONLY: ro,bo,xmlto,irm
+    use ModCrcmRestart,	ONLY: IsRestart
+    use ModImTime,	ONLY: iCurrentTime_I
+    use ModConst,	ONLY: cElectronCharge, cLightSpeed
+
+    real, intent(in) :: rc,psd(nSpecies,nLat,nLon,nm,nk), &
+         xmm(nSpecies,nm),xk(nk),time
+    
+    real          :: parmod(1:10)=0.0,lat,ro1,xmlt1,bo1,energy_temp(1:nEnergy)
+    integer       :: iLat,iLon,k,m,n,i,nprint
+    logical, save :: IsFirstCall = .true.
+    character(len=13):: outnameSep
+    !--------------------------------------------------------------------------
+
+    nprint=ifix(time/DtOutput)
+    write(outnameSep,"(i4.4,i2.2,i2.2,a,i2.2,i2.2)") & 
+         iCurrentTime_I(1),iCurrentTime_I(2),iCurrentTime_I(3),'_',&
+         iCurrentTime_I(4),iCurrentTime_I(5)
+    
+    
+    do n=1,nSpecies
+       energy_temp(1:nEnergy)=energy(n,1:nEnergy)
+       If (UseSeparatePlotFiles) then
+          
+          if (n==1) &
+               open(unit=UnitTmp_,file='IM/plots/'//outnameSep//'_h.psd',&
+               status='unknown')
+          if (n==2 .and. n /= nSpecies) &
+               open(unit=UnitTmp_,file='IM/plots/'//outnameSep//'_o.psd',&
+               status='unknown')
+          if (n==3 .and. n /= nSpecies) &
+               open(unit=UnitTmp_,file='IM/plots/'//outnameSep//'_he.psd',&
+               status='unknown')
+          if (n==nSpecies) &
+               open(unit=UnitTmp_,file='IM/plots/'//outnameSep//'_e.psd',&
+               status='unknown')
+          write(UnitTmp_,"(f10.6,5i6,6x,'! rc in Re,nr,ip,nm,nk,ntime')") &
+               rc,nLat-1,nLon,nint(nm/2.),nint(nk/2.),nprint
+          write(UnitTmp_,'(1p,7e11.3)') (xk(k)*sqrt(1.e9)/re_m,k=1,nk,2)
+          write(UnitTmp_,'(1p,7e11.3)') (xmm(n,m)*6.25e6,m=1,nm,2)
+          write(UnitTmp_,'(10f8.3)') (xlat(i),i=2,nLat)
+       else
+          if (IsFirstCall .and. .not. IsRestart) then
+             if (n==1) &
+                  open(unit=UnitTmp_,file='IM/plots/CrcmPSD_h.psd',&
+                  status='unknown')
+             if (n==2 .and. n /= nSpecies) &
+                  open(unit=UnitTmp_,file='IM/plots/CrcmPSD_o.psd',&
+                  status='unknown')
+             if (n==3 .and. n /= nSpecies) &
+                  open(unit=UnitTmp_,file='IM/plots/CrcmPSD_he.psd',&
+                  status='unknown')
+             if (n==nSpecies) &
+                  open(unit=UnitTmp_,file='IM/plots/CrcmPSD_e.psd',&
+                  status='unknown')
+             write(UnitTmp_,"(f10.6,5i6,6x,'! rc in Re,nr,ip,nm,nk,ntime')") &
+                  rc,nLat-1,nLon,nint(nm/2.),nint(nk/2.),nprint
+             write(UnitTmp_,'(1p,7e11.3)') (xk(k)*sqrt(1.e9)/re_m,k=1,nk,2)
+             write(UnitTmp_,'(1p,7e11.3)') (xmm(n,m)*6.25e6,m=1,nm,2)
+             write(UnitTmp_,'(10f8.3)') (xlat(i),i=2,nLat)
+          else
+             if (n==1) &
+                  open(unit=UnitTmp_,file='IM/plots/CrcmPSD_h.psd',&
+                  status='old', position='append')
+             if (n==2 .and. n /= nSpecies)&
+                  open(unit=UnitTmp_,file='IM/plots/CrcmPSD_o.psd',&
+                  status='old', position='append')
+             if (n==3 .and. n /= nSpecies)&
+                  open(unit=UnitTmp_,file='IM/plots/CrcmPSD_he.psd',&
+                  status='old', position='append')
+             if (n==nSpecies)&
+                  open(unit=UnitTmp_,file='IM/plots/CrcmPSD_e.psd', &
+                  status='old', position='append')
+          endif
+       endif
+       write(UnitTmp_,'(f8.3,10f9.2,"    ! hour,  parmod")') &
+            time/3600.,parmod(1:10)
+       do iLat=2,nLat             ! Write PSD @ fixed mu & K grids
+          do iLon=1,nLon
+             lat=xlat(iLat)
+             if (iLat.gt.irm(iLon)) lat=xlat(irm(iLon))
+             ro1=ro(iLat,iLon)
+             if (iLat.gt.irm(iLon)) ro1=ro(irm(iLon),iLon)
+             bo1=bo(iLat,iLon)
+             if (iLat.gt.irm(iLon)) bo1=bo(irm(iLon),iLon)
+             xmlt1=xmlto(iLat,iLon)
+             if (iLat.gt.irm(iLon)) xmlt1=xmlto(irm(iLon),iLon)
+             write(UnitTmp_,'(f7.2,f6.1,2f8.3,1pe11.3)') &
+                  lat,xmlt(iLon),ro1,xmlt1,bo1
+             do m=1,nm,2
+                write(UnitTmp_,'(1p,13e11.3)') &
+                     (psd(n,iLat,iLon,m,k)*1e51* &
+                     (cElectronCharge/cLightSpeed)**3,k=1,nk,2)
+             enddo
+          enddo
+       enddo
+       close(UnitTmp_)
+    enddo
+    IsFirstCall=.false.
+
+  end subroutine Crcm_plot_psd
 
   subroutine Crcm_plot_vl(rc,vlEa,time)
     use ModIoUnit,    ONLY: UnitTmp_

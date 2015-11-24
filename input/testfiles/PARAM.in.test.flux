@@ -32,6 +32,7 @@ T		UseWeimer
 10.0		DtSavePlot
 T		DoSaveFlux
 F		DoSaveDrifts
+F		DoSavePSD
 F		UseSeparatePlotFiles
 
 #SAVELOG
@@ -41,6 +42,7 @@ F		UseSeparatePlotFiles
 F		IsEmptyInitial
 F		IsGmInitial
 T		IsDataInitial
+F		IsDataRBSP
 
 #TYPEBOUNDARY
 Ellipse		TypeBoundary

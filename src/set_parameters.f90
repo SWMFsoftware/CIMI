@@ -5,7 +5,7 @@ subroutine CRCM_set_parameters(NameAction)
   use ModCrcmInitialize, ONLY: IsEmptyInitial,IsDataInitial,IsRBSPData, &
        IsGmInitial
   use ModCrcmPlot,       ONLY: DtOutput, DoSavePlot, DoSaveFlux, DoSaveDrifts,&
-                               DoSaveLog, UseSeparatePlotFiles, DtLogOut
+       DoSaveLog, UseSeparatePlotFiles, DtLogOut,DoSavePSD
   use ModFieldTrace,     ONLY: UseEllipse, UseSmooth, UseCorotation, &
        UsePotential, SmoothWindow, imod
   use ModCrcm,           ONLY: UseMcLimiter, BetaLimiter, time, Pmin,&
@@ -21,9 +21,11 @@ subroutine CRCM_set_parameters(NameAction)
                                DiffStartT,HissWavesD, ChorusWavesD,ChorusUpperBandD
   use ModImSat,          ONLY: DtSatOut, DoWritePrerunSat, UsePrerunSat, &
        DtReadSat, DoWriteSats, ReadRestartSat
+  use ModCrcmGrid
   
   implicit none
 
+  logical 			:: DoEcho=.false.
   character (len=100)           :: NameCommand
   character (len=*), intent(in) :: NameAction
   character (len=7)             :: TypeBoundary
@@ -47,6 +49,12 @@ subroutine CRCM_set_parameters(NameAction)
      if(.not.read_command(NameCommand)) CYCLE
 
      select case(NameCommand)
+
+     case("#ECHO")
+!        call check_stand_alone
+        call read_var('DoEcho', DoEcho)
+        if(iProc==0)call read_echo_set(DoEcho)
+
      case('#STOP')
         if(IsStandAlone)then
            call read_var('TimeMax',TimeMax)
@@ -134,14 +142,15 @@ subroutine CRCM_set_parameters(NameAction)
      case('#SAVEPLOT')
         call read_var('DtSavePlot',DtOutput)
         call read_var('DoSaveFlux',DoSaveFlux)
-        call read_var('DoSaveDrifts',DoSaveDrifts)        
+        call read_var('DoSaveDrifts',DoSaveDrifts)
+        call read_var('DoSavePSD',DoSavePSD)
         ! If saving flux then decide if it should be just one file or many
-        if (DoSaveFlux .or. DoSaveDrifts) then
+        if (DoSaveFlux .or. DoSaveDrifts .or. DoSavePSD) then
            call read_var('UseSeparatePlotFiles',UseSeparatePlotFiles)
         endif
         
         DoSavePlot = .true.
-
+        
      case('#SAVELOG')
         call read_var('DtLogOut',DtLogOut)
         DoSaveLog = .true.
@@ -179,7 +188,7 @@ subroutine CRCM_set_parameters(NameAction)
      case('#SAVERESTART')
         ! when in standalone mode read restart save frequency
         if(IsStandAlone) then
-           call read_var('DtSaveResart',DtSaveRestart)
+           call read_var('DtSaveRestart',DtSaveRestart)
         else
            call CON_STOP('ERROR: Restart save frequency only set in standalone')
         end if

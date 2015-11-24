@@ -32,6 +32,7 @@ T		UseWeimer
 10.0		DtSavePlot
 F		DoSaveFlux
 T		DoSaveDrifts
+F		DoSavePSD
 F		UseSeparatePlotFiles
 
 #SAVELOG
