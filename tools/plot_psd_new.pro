@@ -44,8 +44,8 @@ if (min(var) lt vmin) then var(where(var le vmin))=vmin
 polyfill,[xi,xf,xf,xi,xi],[yi,yi,yf,yf,yi],color=blackc,/normal
 
 ; plot flux or PA anisotropy
-if (dir eq 1) then phi=mlto+!pi 	; Sun to the left
-if (dir eq 2) then phi=mlto             ; Sun to the right
+if (dir eq 1) then phi=mlto 	          ; Sun to the left
+if (dir eq 2) then phi=mlto+!pi           ; Sun to the right
 polar_contour,var,phi,ro,xrange=[-halfl,halfl],yrange=[-halfl,halfl], $
       levels=lvl,c_colors=colr,xstyle=1,ystyle=1,xticks=4,yticks=4, $
       xtitle='RE',pos=[xi,yi,xf,yf],color=blackc,/fill,/noerase
