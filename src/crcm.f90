@@ -129,7 +129,7 @@ subroutine crcm_run(delta_t)
   ! calculate boundary flux (fb) at the CRCM outer boundary at the equator
   call boundaryIM(nspec,neng,np,nt,nm,nk,iba,irm,amu_I,xjac,energy,vel,fb)
 
-  ! calculate wave power for the first time; the second time in the loop
+  ! calculate wave power for the first time; the second time is in the loop
     AE_temp=200.
     if (Time.ge.DiffStartT .and. UseWaveDiffusion) &
          call WavePower(Time,AE_temp,iba)
@@ -205,11 +205,10 @@ subroutine crcm_run(delta_t)
      endif
      
      if (Time.ge.DiffStartT .and. UseWaveDiffusion) then 
-     call timing_start('crcm_WaveDiffusion')
-     call diffuse_aa(f2,dt,xjac,iba,iw2)
-     call timing_stop('crcm_WaveDiffusion')
-
-     call WavePower(Time,AE_temp,iba)
+    call timing_start('crcm_WaveDiffusion')
+    call diffuse_aa(f2,dt,xjac,iba,iw2)
+    call timing_stop('crcm_WaveDiffusion')
+    call WavePower(Time,AE_temp,iba)
      endif
 
 
@@ -679,6 +678,9 @@ subroutine crcm_init
      if (i.gt.1) xk(i)=xk(i-1)*rsi
      dk(i)=xk(i)*rs1                 
   enddo
+  
+  xk(0)=40.
+  xk(nk+1)=xk(nk)*rsi
 
   ! Calculate Jacobian, xjac
   do n=1,nspec 
@@ -820,8 +822,7 @@ subroutine initial_f2(nspec,np,nt,iba,amu_I,vel,xjac,ib0)
         read(UnitTmp_,*) fi
         close(UnitTmp_)
         if(iunit.eq.2) fi(:,:)=fi(:,:)/4./pi/1000. !con.To(cm^2 s sr keV)^-1\
-        
-        
+    !    fi(:,:)=1.e6 ! wave test only
         ei(:)=log10(ei(:))                      ! take log of ei 
         fi(:,:)=log10(fi(:,:))                  ! take log of fi
         
@@ -2395,7 +2396,7 @@ end subroutine locate1IM
 !-----------------------------------------------------------------------------
 
       parameter (nmax=100)
-      real gam(nmax),a(n),b(n),c(n),r(n),u(n)
+      real gam(nmax),a(n),b(n),c(n),r(n),u(n),bet
 !
 !    problem can be simplified to n-1
 !

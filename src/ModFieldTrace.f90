@@ -36,7 +36,7 @@ contains
   subroutine init_mod_field_trace
     
     if(allocated(bo)) RETURN
-    allocate( bo(ir,ip),ro(ir,ip),xmlto(ir,ip),sinA(ir,ip,ik),&
+    allocate( bo(ir,ip),ro(ir,ip),xmlto(ir,ip),sinA(ir,ip,0:ik+1),&
          Have(ir,ip,ik),pp(nspec,ir,ip,iw,ik),vel(nspec,ir,ip,iw,ik),&
          ekev(nspec,ir,ip,iw,ik),rmir(ir,ip,ik),alscone(nspec,ir,ip,iw,ik),&
          tanA2(ir,ip,0:ik+1),&
@@ -72,7 +72,7 @@ contains
 
     integer, parameter :: np=2545,nd=3
     real :: rc, re,xme,dt,t,c
-    real xlati(ir),phi(ip),si(ik),&
+    real xlati(ir),phi(ip),si(0:ik+1),&
          si3(np),bm1(np),rm(np),rs(np),dss(np),&
          h3(np),bs(np),bba(np),&
          x1(ir),xmlt(ip),xli(0:ir),&
@@ -95,6 +95,7 @@ contains
             MajorAxis2,MinorAxis2,sin2,Req2,xo1,xc,xCenter,rell2
     real, parameter :: LengthMax = 50.0
     integer :: iError
+    real :: bmin
     !--------------------------------------------------------------------------
     DstOutput=0.0
     ekev=0.0
@@ -352,23 +353,24 @@ contains
           si3(im2)=0.               ! equatorially mirroring
           tya3(im2)=tya3(im2-1)
           h3(im2)=hden(rm(im2))
+         ! bmin=bm1(im2)
 
           ! Calculate y, rmir (dist. of mirror point), T(y), bounced average [H]
-          do m=1,ik
+           do m=0,ik+1 
              !write(*,*) '!!! iLat,iLon',i,j
              sim=si(m)                 ! get Bm @ given K & location
              call lintpIM(si3,bm1,im2,sim,bmmx)
-             bm(i,j,m)=bmmx
-             sinA(i,j,m)=sqrt(bo(i,j)/bmmx)
+             if (m.ge.1.and.m.le.ik) bm(i,j,m)=bmmx
+           !  sinA(i,j,m)=sqrt(bmin/bmmx)
+             sinA(i,j,m)=sqrt(bo(i,j)/bmmx) 
              if (sinA(i,j,m).gt.1.) sinA(i,j,m)=1.
              call lintpIM(si3,rm,im2,sim,rmm)
-             rmir(i,j,m)=rmm
+             if (m.ge.1.and.m.le.ik) rmir(i,j,m)=rmm
              call lintpIM(si3,tya3,im2,sim,tya33)
              tya(i,j,m)=tya33
              call lintpIM(si3,h3,im2,sim,h33)
-             Have(i,j,m)=h33  ! bounce-ave [H]
+             if (m.ge.1.and.m.le.ik)  Have(i,j,m)=h33  ! bounce-ave [H]
           enddo
-
        enddo LATITUDE                              ! end of i loop
     enddo LONGITUDE                              ! end of j loop
 
@@ -380,7 +382,6 @@ contains
           yo(i,j)=yo(irm(j),j)
        enddo
     end do
-
     call timing_stop('crcm_trace')
 
     ! Peridic boundary condition
@@ -740,11 +741,12 @@ contains
     integer imod,np,npf1,i,j,n,ii,iopt,ind(np)
     integer, intent(in) :: iLat  
     real, intent(out)   :: ra(np)
-    integer:: ieq
+    integer  :: ieq,ibmin
     real rlim,re,rc,xlati1,phi1,t,ps,parmod(10),dssa(np),bba(np),volume1,ro1,&
          xmlt1,bo1
     real xa(np),ya(np),za(np),x0(3),xend(3),f(3),t0,tend,h,h1,aza(np)
     real dir,pas,xwrk(4,nd),b_mid,dss(np),ss,yint(np)
+    real bba_abs(np)
 
     iopt=1               ! dummy variable for tsy models
     !  rlim=20.
@@ -816,12 +818,18 @@ contains
     ! find the equatorial crossing point
     aza(1:npf1)=abs(za(1:npf1))
 
-    call sort_quick(npf1,aza,ind)    ! find the equatorial crossing point
-    ieq=ind(1)
-    ro1=ra(ieq)
-    xmlt1=atan2(-ya(ieq),-xa(ieq))*12./cPi   ! mlt in hr
+    bba_abs(1:npf1)=abs(bba(1:npf1))
+    ibmin=minloc(bba_abs(1:npf1),DIM=1)
+    ro1=ra(ibmin)
+    bo1=bba(ibmin)
+
+ !   call sort_quick(npf1,aza,ind)    ! find the equatorial crossing point
+ !   ieq=ind(1)
+ !   ro1=ra(ieq)
+ !   xmlt1=atan2(-ya(ieq),-xa(ieq))*12./cPi   ! mlt in hr
+    xmlt1=atan2(-ya(ibmin),-xa(ibmin))*12./cPi   ! mlt in hr
     if (xmlt1.lt.0.) xmlt1=xmlt1+24.
-    bo1=bba(ieq)
+ !   bo1=bba(ieq)
 
   end subroutine tsy_trace
   !-----------------------------------------------------------------------------

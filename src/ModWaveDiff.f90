@@ -1,14 +1,14 @@
 Module DensityTemp
 use ModCrcmGrid,ONLY: ir=>np, ip=>nt
 implicit none
-real,parameter ::  density(ir,ip)=10.
+real,parameter ::  density(ir,ip)=1.e+6
 EndModule
 
 
 !!!!!!!!!!!!!!!!  Main wave module !!!!!!!!!!!!!1
 Module ModWaveDiff
 
-use ModCrcmGrid,ONLY: ir=>np, ip=>nt, iw=>nm , ik=>nk, ie=>neng
+use ModCrcmGrid,ONLY: ir=>np, ip=>nt, iw=>nm , ik=>nk  
 use ModCrcmPlanet,ONLY: nspec
 use ModFieldTrace, ONLY: ekev,tya,y=>sinA,Bo,ro,xmlto,lintpIM
 use ModNumConst,       ONLY: pi => cPi
@@ -21,9 +21,9 @@ logical            :: UseHiss  = .false.
 logical            :: UseChorus  = .false.
 logical            :: UseChorusUB = .false.
 real               :: DiffStartT = 0.
-character(len=100)  :: HissWavesD = 'Hiss_UCLA_v1'
-character(len=12)  :: ChorusWavesD= 'LBchorus_mer'
-character(len=12)  :: ChorusUpperBandD = 'UBchorus_mer'
+character(len=100)  :: HissWavesD = ' '
+character(len=100)  :: ChorusWavesD= ' '
+character(len=100)  :: ChorusUpperBandD = ' '
 
 
 integer,parameter :: ipu=6,iwu=31,ipa=89    ! from module cimigrid_dim in CIMI: dimension of Qiuhua's UB chorus coef
@@ -62,7 +62,7 @@ contains
 
   implicit none
 
- integer j,k,m,ichor,iUBC,ihiss
+ integer j,k,m  
  real Eo,c_cgs,pa,daa,dap,dpp,daE,dEE,Dnorm,cMeV,Lc0,Lh0
  real E_cgs,cE2,EEo,E2Eo,daan,dapn,dppn,daa0,dap0,dpp0
  real,parameter :: Lu0=6.
@@ -70,22 +70,22 @@ contains
  real rc
 
 ! list of available wave diffusion coefficients models:
-! name in PARAM file       file name 
-! LBchorus__QZ             D_LBchorus_QZ.dat
-! LBchorus_mer             D_LBchorus_merge.dat
-! Hiss_USLA_v1             D_hiss_UCLA.dat
-! Hiss__Albert             D_hiss_Albert.dat
+!  main lower band chorus model:  D_LBchorus_merge.dat
+!  Q.Zheng lower band model:      D_LBchorus_QZ.dat
+!  main hiss model:               D_hiss_UCLA.dat
+!  additionall hiss model:        D_hiss_Albert.dat
+
 
  ihiss=0
  if (UseHiss) then
-   if ( HissWavesD .eq.'Hiss_UCLA_v1') ihiss=2
+   if ( trim(HissWavesD) .eq.'D_hiss_UCLA.dat') ihiss=2
  else 
    ihiss=1
  endif
 
  ichor=0
  if (UseChorus) then 
-   if (ChorusWavesD.eq.'LBchorus_mer') ichor=2
+   if ( trim(ChorusWavesD) .eq.'D_LBchorus_merge.dat') ichor=2
  else 
   ichor=1
  endif
@@ -93,15 +93,11 @@ contains
  iUBC=0
  if (UseChorusUB) iUBC=1
 
- write(*,*) '*** Wave model is on ***'
- write(*,*) 'IfUseHiss:', UseHiss
- if (UseHiss) write(*,*) 'Dcoef for Hiss model:', HissWavesD
-
- write(*,*) 'IfUseChorus Lower Band:', UseChorus
- if (UseChorus)  write(*,*) 'Dcoef for Chorus model:', ChorusWavesD
-
- write(*,*) 'IfUseChorus Upper Band:', UseChorusUB
- if (UseChorusUB)  write(*,*) 'Dcoef for Upper Band Chorus:', ChorusUpperBandD
+ write(*,*) '*** WAVE MODEL FOR ELECTRONS IS ON ***'
+ write(*,*) 'UseHiss:            ', UseHiss
+ write(*,*) 'Lower (main) Chorus:', UseChorus
+ write(*,*) 'Upper  Chorus:      ', UseChorusUB
+ write(*,*) '***'
 
   Eo=511.                 ! electron rest energy in keV
   c_cgs=2.998e10          ! speed of light in cgs
@@ -118,10 +114,14 @@ contains
                 3.981,5.012,6.31,7.943,10.0,12.59,15.85,19.95, &
                 25.12,31.62,39.81,50.12,63.1,79.43,100.0/)
 
+
+  if (UseChorus) then
 ! Read LB chorus ckeV(0.1keV-10MeV), Daa, DEE, DaE at L = 6.5
-  write(*,*) 'Reading chorus files:',ichor
-  if (ichor.eq.1) open(unit=UnitTmp_,file='IM/D_LBchorus_QZ.dat',status='old')
-  if (ichor.eq.2) open(unit=UnitTmp_,file='IM/D_LBchorus_merge.dat',status='old')
+  write(*,*) 'Reading chorus data, ichor=',ichor
+  write(*,*) 'Chorus Dcoef are from: ', trim(ChorusWavesD)
+  open(unit=UnitTmp_,file='IM/'//trim(ChorusWavesD),status='old')
+!  if (ichor.eq.1) open(unit=UnitTmp_,file='IM/D_LBchorus_QZ.dat',status='old')
+!  if (ichor.eq.2) open(unit=UnitTmp_,file='IM/D_LBchorus_merge.dat',status='old')
   read(UnitTmp_,*) Cpower0,Lc0
   read(UnitTmp_,*) ipc,iwc
   allocate (cOmpe(ipc),ckeV(iwc))
@@ -148,15 +148,20 @@ contains
      enddo
   endif
   close(UnitTmp_)
+  endif ! if UseChorus
 
 ! Read UB chorus Daa, DEE, DaE at L = 6.0
   BLu0=xme/(Lu0*re_m)**3       ! dipole B at Lu0
   uDaa(:,:,:)=0.
   uDaE(:,:,:)=0.
   uDEE(:,:,:)=0.
+
+  if (UseChorusUB) then
+    write(*,*) 'Reading UBchorus, iUBC=',iUBC
+    write(*,*) 'Upper band Dcoeff are from: ', trim(ChorusUpperBandD)
+    open(unit=UnitTmp_,file='IM/'//trim(ChorusUpperBandD),status='old')
+!    open(unit=UnitTmp_,file='IM/D_UBchorus.dat',status='old')
   if (iUBC.eq.1) then
-     write(*,*) 'reading UBchorus'
-      open(unit=UnitTmp_,file='IM/D_UBchorus.dat',status='old')
       do j=1,6
          read(UnitTmp_,'(a80)') header
       enddo
@@ -170,12 +175,17 @@ contains
       enddo
       close(UnitTmp_)
   endif
+  endif ! if UseChorusUB
 
 ! Read hiss Daa, DEE, DaE at L = 5.5
 
-  write(*,*) 'reading hiss waves',ihiss
-  if (ihiss.eq.2) open(unit=UnitTmp_,file='IM/D_hiss_UCLA.dat',status='old')
-  if (ihiss.eq.1) open(unit=UnitTmp_,file='IM/D_hiss_Albert.dat',status='old')
+
+  if (UseHiss) then
+  write(*,*) 'Reading hiss data, ihiss=',ihiss
+  write(*,*) 'Hiss Dcoeff are from: ',trim(HissWavesD)
+  open(unit=UnitTmp_,file='IM/'//trim(HissWavesD),status='old')
+  !if (ihiss.eq.2) open(unit=UnitTmp_,file='IM/D_hiss_UCLA.dat',status='old')
+  !if (ihiss.eq.1) open(unit=UnitTmp_,file='IM/D_hiss_Albert.dat',status='old')
   read(UnitTmp_,*) Hpower0,Lh0
   read(UnitTmp_,*) iph,iwh
   allocate (hOmpe(iph),hkeV(iwh))
@@ -217,6 +227,7 @@ contains
      endif   ! endif (ihiss.eq.2)
   enddo
   close(UnitTmp_)
+  endif ! UseHiss
 
    end subroutine ReadDiffCoef
 
@@ -263,7 +274,7 @@ contains
      do i=1,iba(j)
         if (density(i,j).eq.0.) then
            write(*,*) 'Error: density(i,j).eq.0, t,iba(j),i,j ',t,iba(j),i,j
-           stop
+           call CON_STOP('CRCM dies in WavePower')
         endif
         ompe(i,j)=sqrt(density(i,j)*e_mass/epsilon0)/bo(i,j)    ! fpe/fce
         ro1=ro(i,j)
@@ -380,14 +391,14 @@ contains
   end subroutine HissBpower
 
 
-!!!!!!!!!!!!!!!!!!!   main diffusion aa subroutine  !!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!   main  subroutine  for diffusion in pitch-angle !!!!!!!!!!!!
 
    subroutine diffuse_aa(f2,dt,xjac,iba,iw2)
       use DensityTemp
       use ModMPI
       use ModCrcmGrid,   ONLY: MinLonPar,MaxLonPar
       implicit none
-      integer,parameter :: ie=40
+      integer,parameter :: ie=40 ! diffusion subroutine has its own energy grid
       integer i,j,m,k,irun,n,nn,ier
       integer iba(ip),iw2(nspec,ik)
       real f2(nspec,ir,ip,iw,ik),xjac(nspec,ir,iw),dt  ! xjac has different dimension from CIMI !
@@ -403,14 +414,17 @@ contains
       real u_mx,u_mx_log,factor1,factor_1,DDm,DDp,ump_mx,xlam,alam,dpsd,ao_d
       real densityP,edmin,edmax
 
+
      u_max=5.              ! magic number for numerical method from M.C. Fok
      u_max_log=log10(u_max)
      Upower0=10000.        ! coeff based on UB chorus power of (100pT)^2
-     densityP=2.e7         ! plasmaspheric density (m^-3) to define plasmapause
+     densityP=2.e7         ! plasmaspheric density (m^-3) to define plasmapause;
+!    needed to avoid applying chorus and hiss at the same time
 
      ckeV_log(:)=log10(ckeV(:))
      ukeV_log(:)=log10(ukeV(:))
      hkeV_log(:)=log10(hkeV(:))
+     
 
 ! determine edmax and edmin
   if (iUBC.eq.1) edmax=ukeV(iwu)
@@ -419,7 +433,6 @@ contains
   if (ihiss.ge.1) edmin=hkeV(1)
   if (ichor.ge.1) edmin=ckeV(1)
   if (iUBC.eq.1) edmin=ukeV(1)
-
 
    n=nspec  ! use last index to access electrons; different from CIMI
 
@@ -431,6 +444,8 @@ contains
         Cfactor=(BLc0/bo(i,j))*CHpower(i,j)/Cpower0
         Ufactor=(BLu0/bo(i,j))*UBCpower(i,j)/Upower0
         Hfactor=(BLh0/bo(i,j))*HIpower(i,j)/Hpower0
+
+!        ompe1=cOmpe(1)  ! for testing; this is because we do not have realistic plasmasphere now
 
         if (ompe1.ge.cOmpe(1).and.ompe1.le.cOmpe(ipc).and.ro1.ge.r_wave) then
             ! Set up the energy grid, ein
@@ -454,6 +469,7 @@ contains
                do k=1,iw
                 f1d(k)=-50.                      ! f1d is log(psd)
                 if(f2(n,i,j,k,m).gt.0.)f1d(k)=log10(f2(n,i,j,k,m)/xjac(n,i,k))
+                
                 if (k.gt.iw2(n,m)) f1d(k)=f1d(iw2(n,m))
                 ekevlog(k,m)=log10(ekev(n,i,j,k,m))
                 e1d(k)=ekevlog(k,m)              ! e1d is log(ekev)
@@ -469,6 +485,7 @@ contains
                enddo
             enddo
 
+
              ! calcuate ao, dao, and Gjac
             do m=0,ik+1
                ao(m)=asin(y(i,j,m))
@@ -479,9 +496,9 @@ contains
             enddo
 
             df=0.
+         
             do k=1,ie      ! *****
              if (ein(k).ge.edmin.and.ein(k).le.edmax) then
-
                ! calculate DD, Daoao*Gjac
                do m=0,ik+1
                  ao_d=ao(m)*180./pi
@@ -506,6 +523,14 @@ contains
                                  ipa,ompe1,ein_log(k),ao_d,hDaoao)
                  endif
                  Daoao=cDaoao*Cfactor+uDaoao*Ufactor+hDaoao*Hfactor
+                 ! Next 5 are subject to remove: BEGIN TESTING:
+                 !if ( ro(i,j).ge.3.0 .and. ro(i,j).le.5.0 ) then 
+                 !  Daoao=0.01   ! artificially force diffusion time to be 100sec
+                 !else
+                 ! Daoao=0.
+                 !endif
+                 ! END TESTING
+ 
                  DD(m)=Daoao*Gjac(m)
                enddo
 
@@ -518,6 +543,10 @@ contains
                   DDp=0.5*(DD(m)+DD(m+1))
                   um(m)=dt*DDm/factor_1/Gjac(m)
                   up(m)=dt*DDp/factor1/Gjac(m)
+                  if (factor_1.eq.0 .or. factor1.eq.0 .or. Gjac(m).eq.0) then
+                    write(*,*) 'WARNING: CIMI: Diffuseaa: Null in denominator!'
+                  ! if factor1 or factor_1 eq 0 check fied tracing and Bo and sinA grid
+                  endif
                   ump_mx=max(abs(up(m)),abs(um(m)))
                   if (ump_mx.gt.u_mx) u_mx=ump_mx
                enddo
@@ -560,7 +589,10 @@ contains
                   fr(ik)=alam*um(ik)*f0(ik-1)+(1.-alam*(up(ik)+um(ik)))*f0(ik) &
                          +alam*up(ik)*f0(ik+1)+xlam*up(ik)*f0(ik+1)
                   call tridagIM(a1d,b1d,c1d,fr,f0(1:ik),ik,ier)
+                  if (ier.eq.1) call CON_STOP('ERROR in CIMI: Diffusionaa: tridag failed,ier=1')
+                  if (ier.eq.2) call CON_STOP('ERROR in CIMI: Diffusionaa: tridag failed,ier=2')
                enddo
+
                do m=1,ik
                   df(k,m)=f0(m)-f2d(k,m)    ! df is differential psd
                enddo
