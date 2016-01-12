@@ -16,7 +16,7 @@ program cimi_sami
        cimi_send_to_sami
   use ModCoupleCimi,  ONLY: sami_set_global_mpi,sami_put_init_from_cimi, &
        sami_get_from_cimi
-  use ModCRCM,        ONLY: IsStandalone
+  use ModCRCM,        ONLY: IsStandalone,TimeCIMI=>time
   use ModMpi
   use ModCrcm,        ONLY: init_mod_crcm
   use ModFieldTrace,  ONLY: init_mod_field_trace
@@ -48,7 +48,7 @@ program cimi_sami
   real    :: DtAdvance
   real    :: DtRestart = 300.0 ! currently set at 300s, should be read in later
   real    :: DtMax = 5.0      ! maximum timestep
-  real    :: TimeMax,Time
+  real    :: TimeMax,Time=0.0
   !---------------------------------------------------------------------------
 
   !****************************************************************************
@@ -132,6 +132,16 @@ program cimi_sami
   call init_planet_const
   call set_planet_defaults
   
+
+  ! TimeMax is set in CIMI PARAM.in file and should be sent to SAMI
+  if (iProcGlobal == iProc0CIMI) TimeMax=TimeMaxCIMI
+  call MPI_bcast(TimeMax, 1, MPI_REAL, iProc0CIMI, iCommGlobal, iError)
+
+  ! The simulation time is set in CIMI param file and should be sent to SAMI
+  if (iProcGlobal == iProc0CIMI) Time=TimeCIMI
+  call MPI_bcast(Time, 1, MPI_REAL, iProc0CIMI, iCommGlobal, iError)
+
+
   !****************************************************************************
   ! Initialize the model
   !****************************************************************************
@@ -170,14 +180,10 @@ program cimi_sami
 
   if (iProcGlobal == 0)call timing_report_total
   call timing_reset('#all',3)
-
-  ! TimeMax is set in CIMI PARAM.in file and should be sent to SAMI
-  if (iProcGlobal == iProc0CIMI) TimeMax=TimeMaxCIMI
-  call MPI_bcast(TimeMax, 1, MPI_REAL, iProc0CIMI, iCommGlobal, iError)
   
   ! couple one time before timestepping
   if(IsCimiProc) call cimi_send_to_sami
-  if(IsSamiProc) call sami_get_from_cimi
+  if(IsSamiProc) call sami_get_from_cimi(Time)
   !****************************************************************************
   ! start Timestepping
   !****************************************************************************
@@ -214,7 +220,7 @@ program cimi_sami
 
      !here we put the coupling
      if(IsCimiProc) call cimi_send_to_sami
-     if(IsSamiProc) call sami_get_from_cimi
+     if(IsSamiProc) call sami_get_from_cimi(Time)
      
 
      ! Save restart at DtSaveRestart or TimeMax

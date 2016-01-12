@@ -5,7 +5,7 @@ Module ModCoupleCimi
     logical, public :: DoCoupleCimi = .false.
     
     integer, public ::  iStartTime_I(7)  =(/1976,6,28,0,0,0,0/)
-    
+ 
     integer, public :: iProc0CIMI,iProc0SAMI, iCommGlobal
     
     ! cimi Latitude (radians) and lon (radians) grid
@@ -22,7 +22,7 @@ Module ModCoupleCimi
     integer :: nLatSami, nLonSami
     real,allocatable    :: bLatSami(:,:), bLonSami(:,:)
     
-  
+   
 
     !public methods
     public :: sami_set_global_mpi
@@ -46,14 +46,25 @@ Module ModCoupleCimi
     subroutine sami_put_init_from_cimi
       use ModSAMI, ONLY: iComm,iProc
       use ModMpi
+      use ModTimeConvert, ONLY: time_int_to_real
+      use CON_axes,         ONLY: init_axes
       integer ::  iStartTimeCIMI_I(7),iError
       integer :: iStatus_I(MPI_STATUS_SIZE)
+      ! real version of start time for axes
+      real :: StartTime
       !----------------------------------------------------------------------
 
       ! recieve and then bcast the starttime from cimi
       if (iProc == 0) call MPI_recv(iStartTime_I,7,MPI_INTEGER,iProc0CIMI,&
            1,iCommGlobal,iStatus_I,iError)
       call MPI_bcast(iStartTime_I,7,MPI_LOGICAL,0,iComm,iError)
+
+      !set startime and axes
+      call time_int_to_real(iStartTime_I,StartTime)
+      !\
+      ! Set axes for coord transform 
+      !/
+      call init_axes(StartTime)
       
       ! recieve grid size
       if (iProc == 0) call MPI_recv(nLatCIMI,1,MPI_INTEGER,iProc0CIMI,&
@@ -83,9 +94,10 @@ Module ModCoupleCimi
     
     !==========================================================================
     ! 
-    subroutine sami_get_from_cimi
+    subroutine sami_get_from_cimi(TimeSimulation)
       use ModMPI
       use ModSAMI, ONLY: iComm,iProc
+      real, intent(in) :: TimeSimulation
       integer :: iError
       integer :: iStatus_I(MPI_STATUS_SIZE)
       !------------------------------------------------------------------------
@@ -99,7 +111,7 @@ Module ModCoupleCimi
            maxval(PotCIMI_C), minval(PotCIMI_C)
       
       ! interpolate cimi potential to sami grid
-      if(iProc ==0) call interpolate_cimi_to_sami
+      if(iProc ==0) call interpolate_cimi_to_sami(TimeSimulation)
       
       if(iProc ==0) write(*,*) 'Max and min of CIMI Potential on Sami Grid: ', &
            maxval(PotCimiOnSamiGrid_C), minval(PotCimiOnSamiGrid_C)
@@ -111,18 +123,26 @@ Module ModCoupleCimi
     end subroutine sami_get_from_cimi
 
     !==========================================================================
-    subroutine interpolate_cimi_to_sami
+    subroutine interpolate_cimi_to_sami(TimeSimulation)
       use ModInterpolate, ONLY: bilinear
       use ModNumConst,    ONLY: cDegToRad
+      real, intent(in) :: TimeSimulation
       integer :: iLat, iLon
       real :: LatLon_D(2)
       
       do iLon = 1, nLonSami-1
          do iLat = 1, nLatSami
             !write(*,*) 'iLat,iLon,cDegToRad',iLat,iLon,cDegToRad
-            LatLon_D(1) = bLatSami(iLat,iLon) * cDegToRad
-            LatLon_D(2) = bLonSami(iLat,iLon) * cDegToRad
+            !LatLon_D(1) = bLatSami(iLat,iLon) * cDegToRad
+            !LatLon_D(2) = bLonSami(iLat,iLon) * cDegToRad
             
+            !convert point on SAMI grid to CIMI coords for interpolation 
+            call convert_sami_to_cimi_lat_lon(TimeSimulation, &
+                 bLatSami(iLat,iLon),bLonSami(iLat,iLon), &
+                 LatLon_D(1), LatLon_D(2))
+            
+            ! convert to radians
+            LatLon_D(:)=LatLon_D(:)*cDegToRad
             !deal with coord transformation here
 
             if (LatLon_D(1) > maxval(LatCimi_C) .or. &
@@ -159,11 +179,54 @@ Module ModCoupleCimi
       allocate(PotCimiOnSamiGrid_C(nLatSami,nLonSami))
     end subroutine set_sami_grid_for_mod
 
+    !==========================================================================
+    ! subroutine that takes SAMI lat lon and returns CIMI lat lon
+    subroutine convert_sami_to_cimi_lat_lon(TimeSimulation, SamiLat,SamiLon, &
+         CimiLat, CimiLon)
+      use CON_axes, ONLY: transform_matrix
+      use ModNumConst, ONLY: cPi, cTwoPi, cDegToRad, cRadToDeg
+      
+      real, intent(in) :: TimeSimulation, SamiLat, SamiLon
+      real, intent(out):: CimiLat, CimiLon
+      real             :: SamiToCimi_DD(3,3), theta, phi 
+      real             :: XyzCimi_D(3), XyzSami_D(3)
+      character(len=*),  parameter :: NameCimiCoord='SMG'
+      character(len=*),  parameter :: NameSamiCoord='MAG'
+      !------------------------------------------------------------------------
+      
+      ! Get polar angle (theta) and azimuthal angle (phi)
+      theta = 0.5*cPi - SamiLat*cDegToRad
+      phi   = SamiLon*cDegToRad
+      
+      ! Get xyzCimi_D from CimiLat and CimiLon
+      xyzSami_D(1) = sin(theta)*cos(phi)
+      xyzSami_D(2) = sin(theta)*sin(phi)
+      xyzSami_D(3) = cos(theta)
+      
+      !\
+      ! get equivalent geographic coords Hemisphere 1
+      !/
+      
+      ! Get transform matrix 
+      SamiToCimi_DD = &
+           transform_matrix(TimeSimulation, NameSamiCoord, NameCimiCoord)
+      
+      ! Transform xyzCimi_D to XyzGg_DI
+      XyzCimi_D = matmul( SamiToCimi_DD, XyzSami_D)
+      
+      ! Calculate CimiLat and CimiLon 
+      CimiLon = modulo(atan2(XyzCimi_D(2), XyzCimi_D(1)), cTwoPi) * cRadToDeg
+      CimiLat = 90.0 - (acos(max(-1.0,min(1.0, XyzCimi_D(3))))*cRadToDeg)
+      
+      
+    end subroutine convert_sami_to_cimi_lat_lon
+    
     !===========================================================================
     subroutine plot_coupled_values
       use ModIoUnit,    ONLY: UnitTmp_
+      use ModNumConst, ONLY: cDegToRad, cRadToDeg
       integer :: iLat, iLon
-
+      
       open(UnitTmp_,FILE='SamiGridPot.dat')
       write(UnitTmp_,'(a)') &
            'VARIABLES = "Lat", "Lon", "Phi"'
@@ -177,7 +240,7 @@ Module ModCoupleCimi
          enddo
       enddo
       close(UnitTmp_)
-
+      
       open(UnitTmp_,FILE='CimiGridPot.dat')
       write(UnitTmp_,'(a)') &
            'VARIABLES = "Lat", "Lon", "Phi"'
@@ -186,13 +249,13 @@ Module ModCoupleCimi
       
       do iLon = 1, nLonCimi
          do iLat = 1, nLatCimi
-            write(UnitTmp_,"(100es18.10)") LatCimi_C(iLat),&
-                  LonCimi_C(iLon),PotCimi_C(iLat,iLon)
+            write(UnitTmp_,"(100es18.10)") LatCimi_C(iLat)*cRadToDeg,&
+                 LonCimi_C(iLon)*cRadToDeg,PotCimi_C(iLat,iLon)
          enddo
       enddo
       close(UnitTmp_)
-
+      
     end subroutine plot_coupled_values
-    
-  end Module ModCoupleCimi
+  
+end Module ModCoupleCimi
   
