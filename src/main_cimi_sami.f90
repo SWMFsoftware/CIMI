@@ -13,9 +13,9 @@ program cimi_sami
   use ModSAMI,        ONLY: iProcSAMI=>iProc,nProcSAMI=>nProc,iCommSAMI=>iComm
   use ModCrcmGrid,    ONLY: iProcCIMI=>iProc,nProcCIMI=>nProc,iCommCIMI=>iComm
   use ModCoupleSami,  ONLY: cimi_set_global_mpi,cimi_get_init_for_sami, &
-       cimi_send_to_sami
+       cimi_send_to_sami,cimi_put_init_from_sami,cimi_get_from_sami
   use ModCoupleCimi,  ONLY: sami_set_global_mpi,sami_put_init_from_cimi, &
-       sami_get_from_cimi
+       sami_get_from_cimi,sami_send_to_cimi,sami_get_init_for_cimi
   use ModCRCM,        ONLY: IsStandalone,TimeCIMI=>time
   use ModMpi
   use ModCrcm,        ONLY: init_mod_crcm
@@ -175,15 +175,27 @@ program cimi_sami
   call MPI_BARRIER(iCommGlobal,iError)
 
   if (iProcGlobal==iProc0CIMI) call cimi_get_init_for_sami
-  if (IsSamiProc) call sami_put_init_from_cimi
+  if (IsSamiProc)              call sami_put_init_from_cimi
+   
+  if (iProcGlobal==iProc0SAMI) call sami_get_init_for_cimi
+  if (IsCimiProc)              call cimi_put_init_from_sami
 
+  
+
+  
 
   if (iProcGlobal == 0)call timing_report_total
   call timing_reset('#all',3)
   
   ! couple one time before timestepping
-  if(IsCimiProc) call cimi_send_to_sami
-  if(IsSamiProc) call sami_get_from_cimi(Time)
+  if(IsCimiProc) then
+     call cimi_send_to_sami
+     call cimi_get_from_sami(Time)
+  endif
+  if(IsSamiProc) then
+     call sami_send_to_cimi
+     call sami_get_from_cimi(Time)
+  endif
   !****************************************************************************
   ! start Timestepping
   !****************************************************************************
@@ -219,9 +231,14 @@ program cimi_sami
      endif
 
      !here we put the coupling
-     if(IsCimiProc) call cimi_send_to_sami
-     if(IsSamiProc) call sami_get_from_cimi(Time)
-     
+     if(IsCimiProc) then
+        call cimi_send_to_sami
+        call cimi_get_from_sami(Time)
+     endif
+     if(IsSamiProc) then
+        call sami_send_to_cimi
+        call sami_get_from_cimi(Time)
+     endif
 
      ! Save restart at DtSaveRestart or TimeMax
      if (floor((Time+1.0e-5)/DtSaveRestart) /= &

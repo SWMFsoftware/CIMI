@@ -29,6 +29,8 @@ Module ModCoupleCimi
     public :: sami_put_init_from_cimi
     public :: sami_get_from_cimi
     public :: set_sami_grid_for_mod
+    public :: sami_send_to_cimi
+    public :: sami_get_init_for_cimi
   contains
     !==========================================================================
     ! call by all procs
@@ -220,6 +222,45 @@ Module ModCoupleCimi
       
       
     end subroutine convert_sami_to_cimi_lat_lon
+
+    !==========================================================================
+    ! only call by proc 0
+    subroutine sami_get_init_for_cimi
+      use ModMPI
+      integer :: iError
+      integer :: iStatus_I(MPI_STATUS_SIZE)
+      !------------------------------------------------------------------------
+      
+      ! Send the grid parameters from sami to cimi
+      call MPI_send(nLatSami,1,MPI_INTEGER,iProc0CIMI,&
+           1,iCommGlobal,iError)
+
+      call MPI_send(nLonSami,1,MPI_INTEGER,iProc0CIMI,&
+           2,iCommGlobal,iError)
+      
+      call MPI_send(bLatSami(1:nLatSami,1),nLatSami,MPI_REAL,iProc0CIMI,&
+           3,iCommGlobal,iError)
+
+      call MPI_send(bLonSami(1:nLonSami,1),nLonSami,MPI_REAL,iProc0CIMI,&
+           4,iCommGlobal,iError)
+
+    end subroutine sami_get_init_for_cimi
+    !==========================================================================
+    ! 
+    subroutine sami_send_to_cimi
+      use ModSAMI, ONLY: iProc
+      use ModMPI
+      integer :: iError
+      integer :: iStatus_I(MPI_STATUS_SIZE)
+      !------------------------------------------------------------------------
+      
+      !if(iProc==0) write(*,*) 'cimi_send_to_sami',nLat,nLon
+      ! Send the starttime from cimi to sami
+      if(iProc ==0) call MPI_send(plas,nLatSami*nLonSami,MPI_REAL,iProc0CIMI,&
+           1,iCommGlobal,iError)
+
+    end subroutine sami_send_to_cimi
+
     
     !===========================================================================
     subroutine plot_coupled_values
