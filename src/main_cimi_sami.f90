@@ -107,7 +107,6 @@ program cimi_sami
   ! set the global mpi coupling variables in the coupling modules
   if (IsCimiProc) call cimi_set_global_mpi(iProc0Cimi,iProc0Sami, iCommGlobal)
   if (IsSamiProc) call sami_set_global_mpi(iProc0Cimi,iProc0Sami, iCommGlobal)
-
   !****************************************************************************
   ! Read the input file
   !****************************************************************************
@@ -171,13 +170,16 @@ program cimi_sami
      call timing_stop('sami_init')
      
   endif
-  
+
   call MPI_BARRIER(iCommGlobal,iError)
 
   if (iProcGlobal==iProc0CIMI) call cimi_get_init_for_sami
+
   if (IsSamiProc)              call sami_put_init_from_cimi
-   
+
+  
   if (iProcGlobal==iProc0SAMI) call sami_get_init_for_cimi
+
   if (IsCimiProc)              call cimi_put_init_from_sami
 
   
@@ -186,16 +188,19 @@ program cimi_sami
 
   if (iProcGlobal == 0)call timing_report_total
   call timing_reset('#all',3)
-  
+
   ! couple one time before timestepping
   if(IsCimiProc) then
      call cimi_send_to_sami
+
      call cimi_get_from_sami(Time)
+
   endif
   if(IsSamiProc) then
-     call sami_send_to_cimi
      call sami_get_from_cimi(Time)
+     call sami_send_to_cimi
   endif
+
   !****************************************************************************
   ! start Timestepping
   !****************************************************************************
@@ -228,6 +233,7 @@ program cimi_sami
         call timing_start('sami_run')     
         call sami_run(DtAdvance)
         call timing_stop('sami_run')
+        write(*,*) 'Finished sami_run for iProcSAMI = ',iProcSAMI
      endif
 
      !here we put the coupling
@@ -236,8 +242,8 @@ program cimi_sami
         call cimi_get_from_sami(Time)
      endif
      if(IsSamiProc) then
-        call sami_send_to_cimi
         call sami_get_from_cimi(Time)
+        call sami_send_to_cimi
      endif
 
      ! Save restart at DtSaveRestart or TimeMax
@@ -262,6 +268,7 @@ program cimi_sami
      iStep=iStep+1
      Time = Time+DtAdvance
   end do TIMELOOP
+  write(*,*) 'Finished timestepping for iProcGlobal=', iProcGlobal
 
   ! Save restart at TimeMax
   If(IsCimiProc) then 

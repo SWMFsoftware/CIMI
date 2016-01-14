@@ -21,6 +21,7 @@ Module ModCoupleSami
     public :: cimi_get_init_for_sami
     public :: cimi_send_to_sami
     public :: cimi_put_init_from_sami
+    public :: cimi_get_from_sami
   contains
     !==========================================================================
     subroutine cimi_set_global_mpi(iProc0CimiIN,iProc0SamiIN, iCommGlobalIN)
@@ -60,7 +61,7 @@ Module ModCoupleSami
       call MPI_send(phi,nLon,MPI_REAL,iProc0SAMI,&
            5,iCommGlobal,iError)
       
-      allocate(PlasSamiOnCimiGrid_C(nLat,nLon))
+
 
     end subroutine cimi_get_init_for_sami
     !==========================================================================
@@ -73,17 +74,18 @@ Module ModCoupleSami
       integer :: iStatus_I(MPI_STATUS_SIZE)
       !------------------------------------------------------------------------
       
-      !if(iProc==0) write(*,*) 'cimi_send_to_sami',nLat,nLon
+      if(iProc==0) write(*,*) 'cimi_send_to_sami',nLat,nLon
       ! Send the starttime from cimi to sami
       if(iProc ==0) call MPI_send(pot,nLat*nLon,MPI_REAL,iProc0SAMI,&
            1,iCommGlobal,iError)
-
+      if(iProc==0) write(*,*) 'cimi_send_to_sami done'
     end subroutine cimi_send_to_sami
     
     !========================================================================
     subroutine cimi_put_init_from_sami
       use ModCrcmGrid, ONLY: iProc,iComm, nLat=>np, nLon=>nt
       use ModMpi
+      use ModNumConst,    ONLY: cDegToRad
       integer :: iStatus_I(MPI_STATUS_SIZE)
       integer :: iError
       !----------------------------------------------------------------------
@@ -92,45 +94,54 @@ Module ModCoupleSami
       if (iProc == 0) call MPI_recv(nLatSAMI,1,MPI_INTEGER,iProc0SAMI,&
            1,iCommGlobal,iStatus_I,iError)
 
+
       if (iProc == 0) call MPI_recv(nLonSAMI,1,MPI_INTEGER,iProc0SAMI,&
            2,iCommGlobal,iStatus_I,iError)
-      
+
       ! bcast grid size
       call MPI_bcast(nLatSAMI,1,MPI_LOGICAL,0,iComm,iError)
       call MPI_bcast(nLonSAMI,1,MPI_LOGICAL,0,iComm,iError)
-      
+
       ! allocate SAMI grid
       allocate(LatSami_C(nLatSAMI))
       allocate(LonSami_C(nLonSAMI))
 
-      if (iProc == 0) call MPI_recv(LonSami_C,nLatSAMI,MPI_REAL,iProc0SAMI,&
-           3,iCommGlobal,iStatus_I,iError)
+      if (iProc == 0) then 
+         call MPI_recv(LatSami_C,nLatSAMI,MPI_REAL,iProc0SAMI,&
+              3,iCommGlobal,iStatus_I,iError)
+         call MPI_recv(LonSami_C(1:nLonSAMI-1),nLonSAMI-1,MPI_REAL,iProc0SAMI,&
+              4,iCommGlobal,iStatus_I,iError)
+         ! last lon point in sami is 0, but make it equivilently 360 for 
+         ! interpolation purposes
+         LonSami_C(nLonSAMI) = 360.0
 
-      if (iProc == 0) call MPI_recv(LonSami_C,nLonSAMI,MPI_REAL,iProc0SAMI,&
-           4,iCommGlobal,iStatus_I,iError)
+         ! convert sami lat and lon into radians from degrees
+         LatSami_C = LatSami_C*cDegToRad
+         LonSami_C = LonSami_C*cDegToRad
+      endif
 
-      ! allocate arrays that hold data from cimi
+      ! allocate arrays that hold data from sami
       allocate(PlasSAMI_C(nLatSAMI,nLonSAMI))
-      
+      allocate(PlasSamiOnCimiGrid_C(nLat,nLon))      
     end subroutine cimi_put_init_from_sami
     
     !==========================================================================
     ! 
     subroutine cimi_get_from_sami(TimeSimulation)
       use ModMPI
-      use ModCrcmGrid, ONLY: iProc,iComm, nLat=>np, nLon=>nt      
+      use ModCrcmGrid, ONLY: iProc, nProc, iComm, nLat=>np, nLon=>nt      
 
       real, intent(in) :: TimeSimulation
-      integer :: iError
+      integer :: iwrk, iError
       integer :: iStatus_I(MPI_STATUS_SIZE)
       !------------------------------------------------------------------------
-      
+      write(*,*) 'Starting cimi_get_from_sami on iProc=', iProc
       !if(iProc ==0) write(*,*) 'sami_get_from_cimi',nLatCIMI,nLonCIMI
       ! Send the starttime from cimi to sami
       if(iProc ==0) call MPI_recv(PlasSAMI_C,nLatSAMI*nLonSAMI,MPI_REAL,&
            iProc0SAMI,1,iCommGlobal,iStatus_I,iError)
       ! write out max and min of plas
-      if(iProc ==0) write(*,*) 'Max and min of SAMI Plas: ', &
+      if(iProc ==0) write(*,*) 'Max and min of SAMI Plas recv in CIMI: ', &
            maxval(PlasSAMI_C), minval(PlasSAMI_C)
       
       ! interpolate sami plas to cimi grid
@@ -139,17 +150,29 @@ Module ModCoupleSami
       if(iProc ==0) write(*,*) 'Max and min of SAMI Plas on cimi Grid: ',&
            maxval(PlasSamiOnCimiGrid_C), minval(PlasSamiOnCimiGrid_C)
 
-      ! now bcast cimi potential on sami grid to all procs
+!      write(*,*) iProc,'started send/recv of PlasSamiOnCimiGrid_C'
+!      call MPI_BARRIER(iComm,iError)
+!     if(iProc==0) then
+!         do iwrk=1,nProc
+!            call MPI_send(PlasSamiOnCimiGrid_C,nLat*nLon,MPI_REAL,iwrk,&
+!                 1,iComm,iError)
+!         enddo
+!      else
+!         call MPI_recv(PlasSamiOnCimiGrid_C,nLat*nLon,MPI_REAL,&
+!              0,1,iComm,iStatus_I,iError)
+!      endif
+!
+!      ! now bcast cimi potential on sami grid to all procs
       call MPI_bcast(PlasSamiOnCimiGrid_C,nLat*nLon, &
            MPI_REAL,0,iComm,iError)
-      
-    end subroutine sami_get_from_cimi
+      write(*,*) iProc,'finished send/recv of PlasSamiOnCimiGrid_C'
+    end subroutine cimi_get_from_sami
 
     !==========================================================================
     subroutine interpolate_sami_to_cimi(TimeSimulation)
       use ModCrcmGrid, ONLY: nLat=>np, nLon=>nt,Lat_C=>xlatr,Lon_C=>phi      
       use ModInterpolate, ONLY: bilinear
-      use ModNumConst,    ONLY: cDegToRad
+      use ModNumConst,    ONLY: cDegToRad,cPi,cTwoPi
       real, intent(in) :: TimeSimulation
       integer :: iLat, iLon
       real :: LatLon_D(2)
@@ -161,19 +184,19 @@ Module ModCoupleSami
             !LatLon_D(2) = bLonSami(iLat,iLon) * cDegToRad
             
             !convert point on CIMI grid to SAMI coords for interpolation 
-            call convert_cimi_to_sami_lat_lon(TimeSimulation, &
-                 Lat_C(iLat),Lon_C(iLon), &
-                 LatLon_D(1), LatLon_D(2))
+            !call convert_cimi_to_sami_lat_lon(TimeSimulation, &
+            !     Lat_C(iLat),Lon_C(iLon), &
+            !     LatLon_D(1), LatLon_D(2))
+            LatLon_D(1) = Lat_C(iLat)
+            LatLon_D(2) = modulo(Lon_C(iLon)+cPi,cTwoPi)
             
        
-            !deal with coord transformation here
-
             if (LatLon_D(1) > maxval(LatSami_C) .or. &
                  LatLon_D(1) < minval(LatSami_C) ) then
                PlasSamiOnCimiGrid_C(iLat,iLon) = 0.0
             else
                PlasSamiOnCimiGrid_C(iLat,iLon) = &
-                    bilinear(PlasSAMI_C,1,nLat,1,nLon,LatLon_D, &
+                    bilinear(PlasSAMI_C,1,nLatSAMI,1,nLonSAMI,LatLon_D, &
                     LatSami_C,LonSami_C,DoExtrapolate=.true.)
             endif
          enddo
@@ -181,7 +204,7 @@ Module ModCoupleSami
       
 !      ! add the ghost cell for potential
 !      PotCimiOnSamiGrid_C(:,nLonSami) = PotCimiOnSamiGrid_C(:,1) 
- !     call plot_coupled_values
+      call plot_coupled_values
       
 
     end subroutine interpolate_sami_to_cimi

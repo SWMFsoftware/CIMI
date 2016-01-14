@@ -14,6 +14,7 @@
       use ModMpi
       use ModSAMI
       use ModCoupleCimi,ONLY:DoCoupleCimi,set_sami_grid_for_mod
+
       include 'param3_mpi-1.98.inc'
       include 'com3_mpi-1.98.inc' 
 
@@ -179,7 +180,7 @@ c
       endif
 
       call initial(phialt,philon,p_crit)
-
+      
 c We are out of initial now.  
 c We will overwrite the values of
 c deni, vsi, ti, te if this is a restart (restart = true)
@@ -302,9 +303,9 @@ c this call has to be seen by the master and workers
       endif
 
       ! when coupling to cimi make sure coupling module knows sami's grid
-      if (DoCoupleCimi) 
-     &   call set_sami_grid_for_mod(nzp1,nfp1,nlt,nnx,nny,blatpt,blonpt)
-
+      if (DoCoupleCimi) then
+         call set_sami_grid_for_mod(nzp1,nfp1,nlt,nnx,nny,blatpt,blonpt)
+      endif
       end !end of sami_init
 !===============================================================================
 
@@ -312,7 +313,7 @@ c this call has to be seen by the master and workers
       use ModMpi
       use ModSAMI
       use ModCoupleCimi,ONLY:DoCoupleCimi,PotCimiOnSamiGrid_C
-      
+     &     ,iStartTime_I
       include 'param3_mpi-1.98.inc'
       include 'com3_mpi-1.98.inc' 
       
@@ -356,6 +357,12 @@ c     Some local variables
        DeltaTime = 0.0 
        DtStop    = DtAdvance
        
+       if(DoCoupleCimi) then
+!     force hrinit to be consistant with CIMI start time
+          hrinit = real(iStartTime_I(4))+real(iStartTime_I(5))/60.0
+     &         +real(iStartTime_I(6))/3600.0
+       endif
+       
        if(taskid .eq. 0) then
           if(IsFirstCallMaster) then
 !     allocate the total matrices only on master
@@ -382,6 +389,7 @@ c     Some local variables
              time    = 0.
              ntm     = 0
 !     ieuv    = 1
+             print *,'hrinit = ',hrinit
              print *,'max',max(dt0/3600.,dthr)
              ntmmax  = min(maxstep, int( hrmax / max(dt0/3600.,dthr) ))
              print *,'ntmmax ',ntmmax
@@ -473,9 +481,6 @@ C Now wait to receive back the results from each worker task
                if ( ifintot2 .eq. 0 ) then
                   ifintot2 = numworkers
                   call potpphi(phi,phialt,philon,dphi,hrut,p_crit)
-!                  if (DoCoupleCimi) 
-!     &                 call add_cimi_pot_to_sami(nnx,nny,phi)
-!     print *,'called potential'
                   do jwrk = 1,numworkers
                      call mpi_send(phi,nnx*nny,MPI_REAL,jwrk,3,
      .                    iComm,ierr)
@@ -731,6 +736,17 @@ C Now wait to receive back the results from each worker task
                ifintot = numworkers
                ntm = ntm + 1
 !               call output ( hrut,ntm,istep,phi )
+              do k = 1,nlt
+                do j = 1,nf-1
+                  do i = 1,nz
+!             u1(i,j,k) =  eph(i,j,k)
+!             u2(i,j,k) =  delph(i,j,k)
+!             u3(i,j,k) =  phihp(j,k)
+                   u4t(i,j,k) =   PotCimiOnSamiGrid_C(k,j)
+                 enddo
+               enddo
+             enddo
+               
  
                call output ( hrut,ntm,istep,phi,denit,dennt,vsit,
      &                       sumvsit,tit,ut,vt,vpit,net,tet,tnt,u1t,
@@ -7092,13 +7108,20 @@ c do compensation in the z direction
 !
 !     ********************************************
 
-      subroutine vexb_phi (phi,phialt,philon)
-
+      subroutine vexb_phi (phi_sami,phialt,philon)
+      use ModCoupleCimi,ONLY:DoCoupleCimi,PotCimiOnSamiGrid_C
+      
       include 'param3_mpi-1.98.inc'
       include 'com3_mpi-1.98.inc' 
 
-      real phi(nnx,nny),phialt(nnx,nny),philon(nnx,nny)
+      real phi_sami(nnx,nny),phi(nnx,nny),phialt(nnx,nny),philon(nnx,nny)
 
+      if (DoCoupleCimi) then
+         phi=phi_sami+PotCimiOnSamiGrid_C
+      else
+         phi=phi_sami
+      endif
+      
 !      p face
 
        call phi_nfp1_nlp1(bradss,blonss,phihp,phi,phialt,philon)
@@ -7237,12 +7260,12 @@ c do compensation in the z direction
        enddo
 
 !       do k = 1,nl
-!         do j = 1,nf
+!         do j = 1,nf-1
 !           do i = 1,nz
 !             u1(i,j,k) =  eph(i,j,k)
 !             u2(i,j,k) =  delph(i,j,k)
 !             u3(i,j,k) =  phihp(j,k)
-!             u4(i,j,k) =  bmhf(i,j,k)
+!             u4(i,j,k) =   PotCimiOnSamiGrid_C(k,j)
 !           enddo
 !         enddo
 !       enddo
