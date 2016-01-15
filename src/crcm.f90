@@ -4,7 +4,7 @@ subroutine crcm_run(delta_t)
   use ModCrcmInitialize
   use ModCrcm,        ONLY: f2,dt, Time, phot, Ppar_IC, Pressure_IC, &
                             PressurePar_IC,FAC_C, Bmin_C, &
-                            OpBfield_,OpDrift_,OpLossCone_, &
+                            OpBfield_,OpDrift_,OpLossCone_, OpWaves_, &
                             OpChargeEx_, OpStrongDiff_,rbsumLocal,rbsumGlobal, &
                             driftin, driftout, IsStandAlone,rcsumLocal,rcsumGlobal,&
                             preP,preF,Eje1,UseStrongDiff
@@ -190,27 +190,27 @@ subroutine crcm_run(delta_t)
      call timing_start('crcm_charexchange')
      call charexchangeIM(np,nt,nm,nk,nspec,iba,achar,f2)
      call sume_cimi(OpChargeEx_)
-     call timing_stop('crcm_charexchange')
+     call timing_stop('crcm_charexchange') 
+
+      if (Time.ge.DiffStartT .and. UseWaveDiffusion) then
+    call timing_start('crcm_WaveDiffusion')
+    call diffuse_aa(f2,dt,xjac,iba,iw2)
+    call sume_cimi(OpWaves_)
+    call timing_stop('crcm_WaveDiffusion')
+    call WavePower(Time,AE_temp,iba)
+      endif
+
+      if (UseStrongDiff) then
+    call timing_start('crcm_StrongDiff')
+    call StrongDiff(iba)
+    call sume_cimi(OpStrongDiff_)
+    call timing_stop('crcm_StrongDiff')
+      endif
 
      call timing_start('crcm_lossconeIM')
      call lossconeIM(np,nt,nm,nk,nspec,iba,alscone,f2)
      call sume_cimi(OpLossCone_)
      call timing_stop('crcm_lossconeIM')
-
-     if (UseStrongDiff) then
-        call timing_start('crcm_StrongDiff')
-        call StrongDiff(iba)        
-        call sume_cimi(OpStrongDiff_)
-        call timing_stop('crcm_StrongDiff')
-     endif
-     
-     if (Time.ge.DiffStartT .and. UseWaveDiffusion) then 
-    call timing_start('crcm_WaveDiffusion')
-    call diffuse_aa(f2,dt,xjac,iba,iw2)
-    call timing_stop('crcm_WaveDiffusion')
-    call WavePower(Time,AE_temp,iba)
-     endif
-
 
      Time = Time+dt
      ! Update CurrentTime and iCurrentTime_I
