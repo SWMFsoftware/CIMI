@@ -284,7 +284,7 @@ contains
     use ModConst,	ONLY: cElectronCharge, cLightSpeed
 
     real, intent(in) :: rc,psd(nSpecies,nLat,nLon,nm,nk), &
-         xmm(nSpecies,nm),xk(nk),time
+         xmm(nSpecies,0:nm+1),xk(nk),time
     
     real          :: parmod(1:10)=0.0,lat,ro1,xmlt1,bo1,energy_temp(1:nEnergy)
     integer       :: iLat,iLon,k,m,n,i,nprint

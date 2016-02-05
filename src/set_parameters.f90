@@ -18,7 +18,8 @@ subroutine CRCM_set_parameters(NameAction)
   use ModPrerunField,    ONLY: DoWritePrerun, UsePrerun, DtRead
   use ModGmCRCM,         ONLY: UseGm
   use ModWaveDiff,       ONLY: UseWaveDiffusion,UseHiss,UseChorus,UseChorusUB, &
-                               DiffStartT,HissWavesD, ChorusWavesD,ChorusUpperBandD
+                               DiffStartT,HissWavesD, ChorusWavesD,ChorusUpperBandD, &
+                               testDiff_aa, testDiff_EE
   use ModImSat,          ONLY: DtSatOut, DoWritePrerunSat, UsePrerunSat, &
        DtReadSat, DoWriteSats, ReadRestartSat
   use ModCrcmGrid

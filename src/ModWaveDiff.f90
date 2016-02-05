@@ -10,7 +10,7 @@ Module ModWaveDiff
 
 use ModCrcmGrid,ONLY: ir=>np, ip=>nt, iw=>nm , ik=>nk  
 use ModCrcmPlanet,ONLY: nspec
-use ModFieldTrace, ONLY: ekev,tya,y=>sinA,Bo,ro,xmlto,lintpIM
+use ModFieldTrace, ONLY: ekev,tya,y=>sinA,Bo,ro,xmlto,lintpIM,bm
 use ModNumConst,       ONLY: pi => cPi
 
 
@@ -20,6 +20,8 @@ logical            :: UseWaveDiffusion = .false.
 logical            :: UseHiss  = .false.
 logical            :: UseChorus  = .false.
 logical            :: UseChorusUB = .false.
+logical            :: testDiff_aa = .false.
+logical            :: testDiff_EE = .false.      
 real               :: DiffStartT = 0.
 character(len=100)  :: HissWavesD = ' '
 character(len=100)  :: ChorusWavesD= ' '
@@ -618,19 +620,204 @@ contains
 
 end subroutine diffuse_aa
 
+!****************************************************************************
+!                            diffuse_EE
+!  Routine calculates the change of electron distributions due to
+!  diffusion in E.
+!****************************************************************************
+  subroutine diffuse_EE(f2,dt,xmm,xjac,iw2,iba)
 
+  use DensityTemp
+  use ModMPI
+  use ModCrcmGrid,   ONLY: MinLonPar,MaxLonPar
 
-   subroutine WaveDipoleTya
-! calculates Tya=1/R_0 ( \int_0^sm ds/cos(a_0) ) in the dipole tilt; only for
-! wave test
+!  use constants
+!  use cimigrid_dim CHECK je and ig
+  implicit none
+  integer i,j,k,m,k1,k2,iww,irun,nrun,ier,n
+  real xjac(nspec,ir,iw),xmm(nspec,0:iw+1)  ! xjac and xmm have different dimension from CIMI !
+  integer iba(ip),iw2(nspec,ik)
+  real dt,Eo,f2(nspec,ir,ip,iw,ik),fl(iw), &
+       xlam,alam,um(iw),up(iw),ompe1,ro1,PA1, &
+       fr(iw),a1d(iw),b1d(iw),c1d(iw),&
+       factor_1, &
+       Hfactor,Upower0, &
+       factor1,gjac_1,gjac1,gjac(iw),E1(0:iw),Ep,DEE(0:iw+1), &
+       DDm,DDp,DEEc,DEEu,DEEh,u_mx,ump_mx,Enor(iw),dEn(iw), & ! CHECKED
+       WM1,Wo,Cfactor,Ufactor,edmin,edmax, & ! CHECKED
+       ckeV_log(iwc),ukeV_log(iwu),hkeV_log(iwh),Ep_log,densityP ! CHECKED
 
-   end subroutine WaveDipoleTya
+  Eo=511.               ! electron rest energy in keV
+  xlam=0.5              ! implicitness in solving diffusion equation
+  alam=1.-xlam
+  Upower0=10000.        ! coeff based on UB chorus power of (100pT)^2
+  densityP=2.e7         ! plasmaspheric density (m^-3) to define plasmapause
 
-   subroutine WaveTest_fpe_fce
-! calculates ratio fpe/fce with dipole tilt and exponential plasmasphere
+  ckeV_log(:)=log10(ckeV(:))
+  ukeV_log(:)=log10(ukeV(:))
+  hkeV_log(:)=log10(hkeV(:))
 
-   end subroutine WaveTest_fpe_fce 
+! determine edmax and edmin
+  if (iUBC.eq.1) edmax=ukeV(iwu)
+  if (ihiss.ge.1) edmax=hkeV(iwh)
+  if (ichor.ge.1) edmax=ckeV(iwc)
+  if (ihiss.ge.1) edmin=hkeV(1)
+  if (ichor.ge.1) edmin=ckeV(1)
+  if (iUBC.eq.1) edmin=ukeV(1)
 
+ n=nspec  ! use last index to access electrons; different from CIMI
 
-Endmodule
+!   do j=1,ip
+    do j=MinLonPar,MaxLonPar
+     do i=1,iba(j)
+        ro1=ro(i,j)
+        Cfactor=(BLc0/bo(i,j))*CHpower(i,j)/Cpower0
+        Ufactor=(BLu0/bo(i,j))*UBCpower(i,j)/Upower0
+        Hfactor=(BLh0/bo(i,j))*HIpower(i,j)/Hpower0
+        ompe1=ompe(i,j)                         ! fpe/fce
 
+        if (testDiff_EE) ompe1=cOmpe(1)
+
+        if (ompe1.ge.cOmpe(1).and.ompe1.le.cOmpe(ipc).and.ro1.ge.r_wave) then
+           do m=1,ik
+              PA1=asin(y(i,j,m))*180./pi        ! pitch angle in degree
+              if (PA1.lt.cPA(1)) PA1=cPA(1)
+              if (PA1.gt.cPA(ipa)) PA1=cPA(ipa)
+              do k=1,iw
+                 Enor(k)=ekev(n,i,j,k,m)/Eo
+                 gjac(k)=(Enor(k)+1.)*sqrt(Enor(k)*(Enor(k)+2.))
+              enddo
+
+              ! determine k1 and k2, corresponding to edmin and edmax
+              k1=iw2(n,m)
+              findk1: do k=2,iw2(n,m)
+                 if (edmin.le.ekev(n,i,j,k,m)) then
+                    k1=k
+                    if (k1.eq.1) k1=2
+                    exit findk1
+                 endif
+              enddo findk1
+              k2=1
+              findk2: do k=iw2(n,m)-1,1,-1
+                 if (edmax.ge.ekev(n,i,j,k,m)) then
+                    k2=k
+                    exit findk2
+                 endif
+              enddo findk2
+              iww=k2-k1+1
+
+!    if (i.eq.30 .and. j.eq.5) write(*,*) 'm',m,'energy range in D_ee',ekev(n,i,j,k1,m),ekev(n,i,j,k2,m),k1,k2
+
+              ! find DEE/E^2 and dEn
+
+             ! find DEE/E^2 and dEn
+              Wo=Eo*1.6e-16/bm(i,j,m)   ! normalization factor of mag moment
+              do k=k1-1,k2
+                 WM1=sqrt(xmm(n,k)*xmm(n,k+1))
+                 E1(k)=sqrt(2.*WM1/Wo+1.)-1.    ! normalized kinetic energy
+                 Ep=E1(k)*Eo                    ! Ep in keV
+                 Ep_log=log10(Ep)
+                 if (k.ge.k1) dEn(k)=E1(k)-E1(k-1)
+                 DEEc=0.
+                 if (ichor.ge.1.and.density(i,j).le.densityP) then
+                    if (Ep.ge.ckeV(1).and.Ep.le.ckeV(iwc)) call lintp3IM(cOmpe, &
+                        ckeV_log,cPA,cDEE,ipc,iwc,ipa,ompe1,Ep_log,PA1,DEEc)
+                 endif
+                 DEEu=0.
+                 if (iUBC.eq.1.and.density(i,j).le.densityP) then
+                    if (Ep.ge.ukeV(1).and.Ep.le.ukeV(iwu)) call lintp3IM(uOmpe, &
+                        ukeV_log,cPA,uDEE,ipu,iwu,ipa,ompe1,Ep_log,PA1,DEEu)
+                 endif
+                 DEEh=0.
+                 if(ihiss.ge.1.and.ompe1.ge.2..and.density(i,j).gt.densityP)then
+                    if (Ep.ge.hkeV(1).and.Ep.le.hkeV(iwh)) call lintp3IM(hOmpe, &
+                        hkeV_log,cPA,hDEE,iph,iwh,ipa,ompe1,Ep_log,PA1,DEEh)
+                 endif
+                 DEE(k)=DEEc*Cfactor+DEEu*Ufactor+DEEh*Hfactor ! this is DEE/E^2
+                   
+                 if (testDiff_EE) then 
+                  if ( ro(i,j).ge.3.0 .and. ro(i,j).le.5.0 ) then
+                   DEE(k)=0.01   ! artificially force diffusion time to be 1/DEE sec;
+                  ! over 1/DEE the psd should evolve at energy range E0~0.5MeV;
+                  ! this is how the current setup is normalized. 
+                  else
+                   DEE(k)=0.
+                  endif
+                 endif
+
+              enddo
+
+              ! find the Courant number
+              u_mx=0.
+              do k=k1,k2
+                 factor_1=dEn(k)*(Enor(k)-Enor(k-1))   ! normalized factor
+                 factor1=dEn(k)*(Enor(k+1)-Enor(k))    !
+                 gjac_1=(E1(k-1)+1.)*sqrt(E1(k-1)*(E1(k-1)+2.))
+                 gjac1=(E1(k)+1.)*sqrt(E1(k)*(E1(k)+2.))
+                 DDm=DEE(k-1)*E1(k-1)*E1(k-1)*gjac_1
+                 DDp=DEE(k)*E1(k)*E1(k)*gjac1
+                 if ( (factor_1.eq.0) .or. (factor1.eq.0) .or. (gjac_1.eq.0) &
+                 .or. (gjac1.eq.0))  write(*,*) 'WARNING in CIMI: diffuse_EE:um,up:Null in denominator!!!'
+                 um(k)=dt*DDm/factor_1/gjac(k)
+                 up(k)=dt*DDp/factor1/gjac(k)
+                 ump_mx=max(abs(up(k)),abs(um(k)))
+                 if (ump_mx.gt.u_mx) u_mx=ump_mx
+              enddo
+
+              ! reduce time step size if up or um is too large
+              irun=ifix(u_mx)+1
+              do k=k1,k2
+                 um(k)=um(k)/irun
+                 up(k)=up(k)/irun
+                 a1d(k)=-xlam*um(k)
+                 b1d(k)=1.+xlam*(um(k)+up(k))
+                 c1d(k)=-xlam*up(k)
+              enddo
+              ! Start diffusion in E
+              do k=k1-1,k2+1
+                 fl(k)=f2(n,i,j,k,m)/xjac(n,i,k)   ! fl is psd
+               if (xjac(n,i,k).eq.0) write(*,*) 'WARNING in CIMI: diffuse_EE: xjac:Null in denominator!!!'  
+              enddo
+              ! force flat psd across the boundaries; this is done to force zero
+              ! flux across the boundaries and close boundaries
+                fl(k1-1)=fl(k1+1)
+                fl(k1)=fl(k1+1)
+                fl(k2+1)=fl(k2-1)
+                fl(k2)=fl(k2-1)       
+       
+              do nrun=1,irun
+                 fr(k1)=alam*um(k1)*fl(k1-1)+(1.-alam*(up(k1)+um(k1)))*&
+                        fl(k1)+alam*up(k1)*fl(k1+1)+xlam*um(k1)*fl(k1-1)
+                 do k=k1+1,k2-1    ! calculate the RHS of matrix equation
+                    fr(k)=alam*um(k)*fl(k-1)+(1.-alam*(up(k)+um(k)))*&
+                          fl(k)+alam*up(k)*fl(k+1)
+                 enddo
+                 fr(k2)=alam*um(k2)*fl(k2-1)+(1.-alam*(up(k2)+um(k2)))*&
+                        fl(k2)+alam*up(k2)*fl(k2+1)+xlam*up(k2)*fl(k2+1)
+               !  if (i.eq.30 .and. j.eq.5) write(*,*) 'nrun',nrun,'fr1',fr(k1),fr(k1+1),'fr2',fr(k2-1),fr(k2)           
+               !  if (i.eq.30 .and. j.eq.5) write(*,*) 'nrun',nrun,'fl1',fl(k1),fl(k1+1),'fl2',fl(k2-1),fl(k2)
+               !  if (i.eq.30 .and. j.eq.5) write(*,*) 'nrun',nrun,'f2_right',f2(n,i,j,k1,m),&
+               !  f2(n,i,j,k1+1,m),'f2_left',f2(n,i,j,k2-1,m),f2(n,i,j,k2,m)
+
+                 call tridagIM(a1d(k1),b1d(k1),c1d(k1),fr(k1),fl(k1),iww,ier)
+              if (ier.eq.1) call CON_STOP('ERROR in CIMI: diffuse_EE:tridag failed,ier=1')
+              if (ier.eq.2) call CON_STOP('ERROR in CIMI: diffuse_EE:tridag failed,ier=2')
+              enddo
+
+              ! get back f2
+              ! if (i.eq.30 .and. j.eq.5 .and. m.eq.5) write(*,*) 'psd, ', fl(k1:k2)
+              do k=k1+1,k2-1 ! change made by NB to avoid two 'ghost cells'. Originally was do k=k1,k2
+              ! do k=k1,k2
+                 if (fl(k).lt.0.) fl(k)=0.
+                 f2(n,i,j,k,m)=fl(k)*xjac(n,i,k)
+              enddo
+
+           enddo       ! end of m=1,ik
+        endif          ! end of if (ompe1.ge.cOmpe(1).and.ompe1.le.cOmpe(ipc)..)
+
+     enddo       ! end of i loop
+   enddo         ! end of j loop
+
+end subroutine diffuse_EE
+
+ EndModule

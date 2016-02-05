@@ -28,7 +28,7 @@ subroutine crcm_run(delta_t)
   use ModCrcmBoundary,ONLY: crcm_set_boundary_mhd, crcm_set_boundary_empirical
   use ModMpi
   use ModWaveDiff,    ONLY: UseWaveDiffusion,ReadDiffCoef,WavePower, & 
-                            diffuse_aa,DiffStartT 
+                            diffuse_aa,diffuse_EE,DiffStartT,testDiff_aa,testDiff_EE 
   implicit none
 
 
@@ -181,6 +181,7 @@ subroutine crcm_run(delta_t)
   
   ! time loop
   do n=1,nstep
+
      call timing_start('crcm_driftIM')
      call driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
           fb,f2,driftin,driftout,ib0)
@@ -195,6 +196,7 @@ subroutine crcm_run(delta_t)
       if (Time.ge.DiffStartT .and. UseWaveDiffusion) then
     call timing_start('crcm_WaveDiffusion')
     call diffuse_aa(f2,dt,xjac,iba,iw2)
+    call diffuse_EE(f2,dt,xmm,xjac,iw2,iba)
     call sume_cimi(OpWaves_)
     call timing_stop('crcm_WaveDiffusion')
     call WavePower(Time,AE_temp,iba)
@@ -517,7 +519,7 @@ subroutine crcm_init
 
   real aloga,eratio
   real sina0,sina1
-  real rw,rsi,rs1
+  real rw,rw1,rsi,rs1
   real xjac1,sqrtm
   real d2,energy_ion(1:neng),energy_ele(1:neng)
 
@@ -656,18 +658,22 @@ subroutine crcm_init
      Ebound(n,neng)=energy(n,neng)*energy(n,neng)/Ebound(n,neng-1)
   enddo
 
-
-
-
   ! CRCM magnetic moment, xmm1
  do n=1,nspec
   xmm(n,1)=energy(n,1)*cElectronCharge/(dipmom/(2*re_m)**3.0)
-  dmm(n,1)=xmm(n,1)*2.              
-  rw=1.55                       
-  do i=2,nm                    
-     dmm(n,i)=dmm(n,1)*rw**(i-1)           
-     xmm(n,i)=xmm(n,i-1)+0.5*(dmm(n,i-1)+dmm(n,i))
+!  dmm(n,1)=xmm(n,1)*2.              
+  rw=1.55 
+  rw1=(rw-1.)/sqrt(rw)
+  xmm(n,0)=xmm(n,1)/rw                      
+  !do i=2,nm                    
+  !   dmm(n,i)=dmm(n,1)*rw**(i-1)           
+  !   xmm(n,i)=xmm(n,i-1)+0.5*(dmm(n,i-1)+dmm(n,i))
+  !enddo
+  do i=1,nm            ! This setup makes xmm(k+0.5)=sqrt(xmm(k)*xmm(k+1))
+         xmm(n,i)=xmm(n,i-1)*rw
+         dmm(n,i)=xmm(n,i)*rw1
   enddo
+      xmm(n,nm+1)=xmm(n,nm)*rw
  enddo
 
   ! CRCM K, xk
@@ -730,6 +736,7 @@ subroutine initial_f2(nspec,np,nt,iba,amu_I,vel,xjac,ib0)
   use ModCrcmGrid,ONLY: nm,nk,MinLonPar,MaxLonPar,iProc,nProc,iComm,d4Element_C,neng
   use ModFieldTrace, ONLY: sinA,ro, ekev,pp,iw2,irm
   use ModMpi
+  use ModWaveDiff, ONLY:  testDiff_aa,testDiff_EE
 
   implicit none
 
@@ -746,7 +753,7 @@ subroutine initial_f2(nspec,np,nt,iba,amu_I,vel,xjac,ib0)
   ! Variables needed for data initialization 
   integer :: il, ie, iunit
   real, allocatable :: roi(:), ei(:), fi(:,:)
-  real :: roii, e1,x, fluxi,psd2
+  real :: roii, e1,x, fluxi,psd2,etemp
   
   character(11) :: NameFile='quiet_x.fin'
   character(5) :: FilePrefix='xxxxx'
@@ -822,10 +829,11 @@ subroutine initial_f2(nspec,np,nt,iba,amu_I,vel,xjac,ib0)
         read(UnitTmp_,*) fi
         close(UnitTmp_)
         if(iunit.eq.2) fi(:,:)=fi(:,:)/4./pi/1000. !con.To(cm^2 s sr keV)^-1\
-    !    fi(:,:)=1.e6 ! wave test only
-        ei(:)=log10(ei(:))                      ! take log of ei 
+
+        !if (testDiff_EE)  fi(:,:)=1.e6
+
+        ei(:)=log10(ei(:))                      ! take log of ei         
         fi(:,:)=log10(fi(:,:))                  ! take log of fi
-        
         
         !interpolate data from quiet.fin files to CRCM grid
         do j=MinLonPar,MaxLonPar
@@ -834,15 +842,18 @@ subroutine initial_f2(nspec,np,nt,iba,amu_I,vel,xjac,ib0)
               do m=1,nk
                  do k=1,iw2(n,m)
                     e1=log10(ekev(n,i,j,k,m)) 
-                    if (e1.le.ei(ie)) then
+                   ! if (e1.le.ei(ie)) then
+                    if (e1.ge.ei(ie)) e1=ei(ie)    ! flat dist at high E
                        if (e1.lt.ei(1)) e1=ei(1)    ! flat dist. at low E
                        if (roii.lt.roi(1)) roii=roi(1) ! flat dist @ lowL
                        if (roii.gt.roi(il)) roii=roi(il) ! flat @ high L
                        call lintp2IM(roi,ei,fi,il,ie,roii,e1,x)
                        fluxi=10.**x          ! flux in (cm^2 s sr keV)^-1
                        psd2=fluxi/(1.6e19*pp(n,i,j,k,m))/pp(n,i,j,k,m)
-                       f2(n,i,j,k,m)=psd2*xjac(n,i,k)*1.e20*1.e19  
-                    endif
+                   !   if (testDiff_aa) psd2=psd2*sinA(i,j,m)*sinA(i,j,m)  !  
+                   !   if (testDiff_EE)  psd2=1.
+                       f2(n,i,j,k,m)=psd2*xjac(n,i,k)*1.e20*1.e19 
+                   ! endif
                  enddo                            ! end of k loop
               enddo                               ! end of m loop
               
@@ -1800,7 +1811,7 @@ subroutine crcm_output(np,nt,nm,nk,nspec,neng,npit,iba,ftv,f2,ekev, &
   real vl_lo,vp_lo
   real sina1,sina0,dcosa
   real amu_I(nspec),amu1,psd1,psd(nspec,np,nt,nm,nk),fave(nspec,np,nt,neng)
-  real xmm(nspec,nm),dmm(nspec,nm),dk(nk),xlat(np),xlatr(np),dphi,eta(nspec,np,nt,nm,nk)
+  real xmm(nspec,0:nm+1),dmm(nspec,nm),dk(nk),xlat(np),xlatr(np),dphi,eta(nspec,np,nt,nm,nk)
   real flux(nspec,np,nt,neng,npit),detadi,detadj,dwkdi,dwkdj
   real vlEa(nspec,np,nt,neng,npit),vpEa(nspec,np,nt,neng,npit)
   real fac(np,nt),phot(nspec,np,nt),Ppar_IC(nspec,np,nt)
