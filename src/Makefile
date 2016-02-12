@@ -28,7 +28,8 @@ OBJECTS = \
 	plot_fieldline.o\
 	trace_dipole.o\
 	geopack.o\
-        ModWaveDiff.o
+        ModWaveDiff.o\
+        ModLstar.o
 
 DEPEND:
 	@${SCRIPTDIR}/depend.pl ${SEARCHDIR} ${OBJECTS}

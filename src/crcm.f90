@@ -28,7 +28,8 @@ subroutine crcm_run(delta_t)
   use ModCrcmBoundary,ONLY: crcm_set_boundary_mhd, crcm_set_boundary_empirical
   use ModMpi
   use ModWaveDiff,    ONLY: UseWaveDiffusion,ReadDiffCoef,WavePower, & 
-                            diffuse_aa,diffuse_EE,DiffStartT,testDiff_aa,testDiff_EE 
+                            diffuse_aa,diffuse_EE,DiffStartT,testDiff_aa,testDiff_EE
+  use ModLstar,       ONLY: calc_Lstar1 
   implicit none
 
 
@@ -43,6 +44,7 @@ subroutine crcm_run(delta_t)
   integer iLat, iLon, iSpecies, iSat
   logical, save :: IsFirstCall =.true.
   real  AE_temp  
+  real Lstar(np,nt),Lstar_max
 
   !Vars for mpi passing
   integer ::iSendCount,iM,iK,iLon1,iError,iEnergy,iPit,iRecvLower,iRecvUpper,iPe
@@ -141,7 +143,8 @@ subroutine crcm_run(delta_t)
           re_m,Hiono,vp,vL,flux,FAC_C,phot,Ppar_IC,Pressure_IC,PressurePar_IC, &
           vlEa,vpEa,psd)
      call timing_stop('crcm_output')
-     
+    
+     call calc_Lstar1(Lstar,Lstar_max,rc)
      call timing_start('crcm_plot')
      call Crcm_plot(np,nt,xo,yo,Pressure_IC,PressurePar_IC,phot,Ppar_IC,Den_IC,&
           bo,ftv,pot,FAC_C,Time,dt)
@@ -374,7 +377,7 @@ subroutine crcm_run(delta_t)
         do iM=1,nm
            do iK=1,nk
 
-              BufferSend_C(:,:)=psd(iSpecies,:,:,im,ik)
+              BufferSend_C(:,:)=psd(iSpecies,:,:,im,iK)
               call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
                    MPI_REAL, BufferRecv_C,iRecieveCount_P, iDisplacement_P, &
                    MPI_REAL, 0, iComm, iError)
