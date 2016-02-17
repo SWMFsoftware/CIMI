@@ -44,7 +44,7 @@ subroutine crcm_run(delta_t)
   integer iLat, iLon, iSpecies, iSat
   logical, save :: IsFirstCall =.true.
   real  AE_temp  
-  real Lstar(np,nt),Lstar_max
+  real Lstar_C(np,nt),Lstar_max
 
   !Vars for mpi passing
   integer ::iSendCount,iM,iK,iLon1,iError,iEnergy,iPit,iRecvLower,iRecvUpper,iPe
@@ -143,11 +143,14 @@ subroutine crcm_run(delta_t)
           re_m,Hiono,vp,vL,flux,FAC_C,phot,Ppar_IC,Pressure_IC,PressurePar_IC, &
           vlEa,vpEa,psd)
      call timing_stop('crcm_output')
-    
-     call calc_Lstar1(Lstar,Lstar_max,rc)
+     
+     call timing_start('calc_Lstar1')
+     call calc_Lstar1(Lstar_C,Lstar_max,rc)
+     call timing_stop('calc_Lstar1')
+
      call timing_start('crcm_plot')
      call Crcm_plot(np,nt,xo,yo,Pressure_IC,PressurePar_IC,phot,Ppar_IC,Den_IC,&
-          bo,ftv,pot,FAC_C,Time,dt)
+          bo,ftv,pot,FAC_C,Time,dt,Lstar_C)
      call timing_stop('crcm_plot')
      if (DoSaveFlux) call Crcm_plot_fls(rc,flux,time)
      if (DoSavePSD) call Crcm_plot_psd(rc,psd,xmm,xk,time)
@@ -448,9 +451,12 @@ subroutine crcm_run(delta_t)
      if (DoSavePlot.and.&
           (floor((Time+1.0e-5)/DtOutput))/=&
           floor((Time+1.0e-5-delta_t)/DtOutput)) then
+        call timing_start('calc_Lstar1')
+        call calc_Lstar1(Lstar_C,Lstar_max,rc)
+        call timing_stop('calc_Lstar1')
         call timing_start('crcm_plot')
         call Crcm_plot(np,nt,xo,yo,Pressure_IC,PressurePar_IC,phot,Ppar_IC,Den_IC,&
-             bo,ftv,pot,FAC_C,Time,dt)
+             bo,ftv,pot,FAC_C,Time,dt,Lstar_C)
         call timing_stop('crcm_plot')
 
         if (DoSaveFlux) call Crcm_plot_fls(rc,flux,time)

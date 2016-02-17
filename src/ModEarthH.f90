@@ -28,14 +28,16 @@ Module ModCrcmPlanet
        NamePlotVar='x y P[nP] HpP[nP] eP[nP] Phot[nP] '&
        //'Ppar[nP] HpPpar[nP] ePpar[nP] '&
        //'HpPhot[nP] ePhot[nP] Pparhot[nP] HpPparhot[nP] ePparhot[nP] '&
-       // 'N[/m3] HpN[/m3] eN[/m3] Beq[T] Vol[m3/Wb] Pot[Volts] FAC[Amp/m2] g rbody'
+       // 'N[/m3] HpN[/m3] eN[/m3] Beq[T] Vol[m3/Wb] Pot[Volts] FAC[Amp/m2]'& 
+       // 'Lstar g rbody'
 
   integer, dimension(nspec+1) :: iPplot_I    =(/1,2,3/) 
   integer, dimension(nspec+1) :: iPparplot_I =(/4,5,6/)
   integer, dimension(nspec+1) :: iPhotplot_I =(/7,8,9/) 
   integer, dimension(nspec+1) :: iPparhotplot_I =(/10,11,12/)
   integer, dimension(nspec+1) :: iNplot_I    =(/12,14,15/)
-  integer, parameter          :: Beq_=16,Vol_=17,Pot_=18, FAC_=19, nVar=19
+  integer, parameter          :: Beq_=16,Vol_=17,Pot_=18, FAC_=19, FAC_=20,&
+                                 nVar=20
 
   !set Logplot parameters
   character(len=300), parameter :: & 

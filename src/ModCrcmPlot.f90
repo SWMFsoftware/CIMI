@@ -22,14 +22,14 @@ module ModCrcmPlot
 contains
   subroutine Crcm_plot(nLat,nLon, X_C,Y_C,Pressure_IC,PressurePar_IC,&
        PressureHot_IC,PparHot_IC, Den_IC, Beq_C,Volume_C,Potential_C,FAC_C, &
-       Time,Dt)
+       Time,Dt,Lstar_C)
 
     use ModIoUnit,     ONLY: UnitTmp_
     use ModPlotFile,   ONLY: save_plot_file
     use ModCrcmRestart, ONLY: IsRestart
     use ModCrcmPlanet,   ONLY: nspec,NamePlotVar,iPplot_I,iPparplot_I, &
                                iPhotplot_I,iPparhotplot_I, iNplot_I,   &
-                               Beq_,Vol_,Pot_,FAC_,nVar
+                               Beq_,Vol_,Pot_,FAC_,Lstar_, nVar
     use ModCrcmGrid,   ONLY: PhiIono_C => phi, LatIono_C => xlatr
     use ModFieldTrace, ONLY: iba
     integer, intent(in) :: nLat, nLon
@@ -41,7 +41,7 @@ contains
                            Potential_C(nLat,nLon), &
                            PressureHot_IC(nspec,nLat,nLon), &
                            PparHot_IC(nspec,nLat,nLon), &
-                           FAC_C(nLat,nLon)
+                           FAC_C(nLat,nLon),Lstar_C(nLat,nLon)
     real, allocatable   :: Coord_DII(:,:,:), PlotState_IIV(:,:,:)
     real, allocatable   :: CoordIono_DII(:,:,:)
     integer             :: iLat,iLon,iSpecies
@@ -114,6 +114,7 @@ contains
        PlotState_IIV(1:iba(iLon),iLon,Vol_) = Volume_C(1:iba(iLon),iLon)    
        PlotState_IIV(1:iba(iLon),iLon,Pot_) = Potential_C(1:iba(iLon),iLon)    
        PlotState_IIV(1:iba(iLon),iLon,FAC_) = FAC_C   (1:iba(iLon),iLon)    
+       PlotState_IIV(1:iba(iLon),iLon,Lstar_) = Lstar_C   (1:iba(iLon),iLon)    
     enddo
     !fill ghost cells of plot data
     PlotState_IIV(:,nLon+1,iPplot_I(1))= &
@@ -142,6 +143,7 @@ contains
     PlotState_IIV(:,nLon+1,Vol_) = Volume_C(:,1)    
     PlotState_IIV(:,nLon+1,Pot_) = Potential_C(:,1)    
     PlotState_IIV(:,nLon+1,FAC_) = FAC_C(:,1)    
+    PlotState_IIV(:,nLon+1,Lstar_) = Lstar_C(:,1)    
 
     TypePosition = 'append'
     if(IsFirstCall .and. .not. IsRestart) TypePosition = 'rewind'
@@ -270,6 +272,8 @@ contains
     
 
   end subroutine Crcm_plot_fls
+
+  !============================================================================
 
   subroutine Crcm_plot_psd(rc,psd,xmm,xk,time)
     use ModIoUnit,	ONLY: UnitTmp_
