@@ -53,7 +53,7 @@ contains
        dmlt(ip),mlt1,mlt2,dp,dmlt1,xlat_i,dBdlat_i,b1,b2,mlat2,logBo_i(ir)
   integer i,j,j0,ib0,ii,ii1,jdawn,jdusk,jnoon,j1,j2,B_island(ir,ip)
   !real,external :: dBdMLAT
- 
+
   jdawn=nint(float(ip)*0.75)+1     ! MLT index at dawn
   jdusk=nint(float(ip)*0.25)+1     ! MLT index at dusk
   jnoon=1      ! MLT index at noon

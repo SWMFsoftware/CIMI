@@ -152,7 +152,7 @@ subroutine crcm_run(delta_t)
      call Crcm_plot(np,nt,xo,yo,Pressure_IC,PressurePar_IC,phot,Ppar_IC,Den_IC,&
           bo,ftv,pot,FAC_C,Time,dt,Lstar_C)
      call timing_stop('crcm_plot')
-     if (DoSaveFlux) call Crcm_plot_fls(rc,flux,time)
+     if (DoSaveFlux) call Crcm_plot_fls(rc,flux,time,Lstar_C,Lstar_max)
      if (DoSavePSD) call Crcm_plot_psd(rc,psd,xmm,xk,time)
      if (DoSaveDrifts) then
         call Crcm_plot_vl(rc,vlEa,time)
@@ -459,7 +459,7 @@ subroutine crcm_run(delta_t)
              bo,ftv,pot,FAC_C,Time,dt,Lstar_C)
         call timing_stop('crcm_plot')
 
-        if (DoSaveFlux) call Crcm_plot_fls(rc,flux,time)
+        if (DoSaveFlux) call Crcm_plot_fls(rc,flux,time,Lstar_C,Lstar_max)
         if (DoSavePSD) call Crcm_plot_psd(rc,psd,xmm,xk,time)
         if (DoSaveDrifts) then
            call Crcm_plot_vl(rc,vlEa,time)

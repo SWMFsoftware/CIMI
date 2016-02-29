@@ -168,7 +168,7 @@ contains
   end subroutine Crcm_plot
   !============================================================================
 
-  subroutine Crcm_plot_fls(rc,flux,time)
+  subroutine Crcm_plot_fls(rc,flux,time,Lstar_C,Lstar_max)
     use ModIoUnit,    ONLY: UnitTmp_
     use ModCrcmGrid,  ONLY:nLat=>np, nLon=>nt, nEnergy=>neng, nPitchAng=>npit,&
                            energy,sinAo,xlat,xmlt,Ebound
@@ -176,9 +176,11 @@ contains
     use ModFieldTrace,ONLY:ro,bo,xmlto,irm
     use ModCrcmRestart, ONLY: IsRestart
     use ModImTime,    ONLY:iCurrentTime_I
-    real, intent(in) :: rc,flux(nSpecies,nLat,nLon,nEnergy,nPitchAng),time
+    real, intent(in) :: rc,flux(nSpecies,nLat,nLon,nEnergy,nPitchAng),time,&
+                        Lstar_C(nLat,nLon),Lstar_max
     
-    real          :: parmod(1:10)=0.0,lat,ro1,xmlt1,bo1,energy_temp(1:nEnergy)
+    real          :: parmod(1:10)=0.0,lat,ro1,xmlt1,bo1,energy_temp(1:nEnergy),&
+                     Lstar1
     integer       :: iLat,iLon,k,m,n,i,nprint
     logical, save :: IsFirstCall = .true.
     character(len=13):: outnameSep
@@ -246,8 +248,8 @@ contains
                   status='old', position='append')
           endif
        endif
-       write(UnitTmp_,'(f8.3,10f9.2,"    ! hour,  parmod")') &
-            time/3600.,parmod(1:10)
+       write(UnitTmp_,'(2f8.3,10f9.2,"    ! hour,  parmod")') &
+            time/3600.,Lstar_max,parmod(1:10)
        do iLat=2,nLat             ! Write fluxes @ fixed E & y grids
           do iLon=1,nLon
              lat=xlat(iLat)
@@ -258,8 +260,9 @@ contains
              if (iLat.gt.irm(iLon)) bo1=bo(irm(iLon),iLon)
              xmlt1=xmlto(iLat,iLon)
              if (iLat.gt.irm(iLon)) xmlt1=xmlto(irm(iLon),iLon)
-             write(UnitTmp_,'(f7.2,f6.1,2f8.3,1pe11.3)') &
-                  lat,xmlt(iLon),ro1,xmlt1,bo1
+             Lstar1=Lstar_C(iLat,iLon)
+             write(UnitTmp_,'(f7.2,f6.1,2f8.3,1pe11.3,0p,f8.3,i6)') &
+                  lat,xmlt(iLon),ro1,xmlt1,bo1,Lstar1
              do k=1,nEnergy
                 write(UnitTmp_,'(1p,12e11.3)') &
                      (flux(n,iLat,iLon,k,m),m=1,nPitchAng)
