@@ -120,6 +120,7 @@ dE=fltarr(je)
 for k=0,je-1 do dE(k)=Ebound(k+1)-Ebound(k)
 
 ; Read fluxes and calculate pa-mlt averaged flux
+Lmax0=15.
 for n=0,ntime-1 do begin
     readf,2,hour1,Lmax0
     if (iLs eq 4) then Lstar_max(n)=Lmax0
@@ -220,6 +221,7 @@ for n=0,ntime-1 do begin
         plsfluxk(n,i,0:je-1)=0.   
         if (Lshell(i) gt ri or iplt eq 1) then begin
            for k=0,je-1 do plsfluxk(n,i,k)=total(plsflux3(i,*,k))/nmlt 
+           if (iLs eq 4 and Lshell(i) gt Lmax0) then plsfluxk(n,i,*)=0.
         endif
     endfor
 endfor
