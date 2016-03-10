@@ -130,10 +130,12 @@ Module ModCoupleSami
     subroutine cimi_get_from_sami(TimeSimulation)
       use ModMPI
       use ModCrcmGrid, ONLY: iProc, nProc, iComm, nLat=>np, nLon=>nt      
-
+      use DensityTemp,    ONLY: density
+      
       real, intent(in) :: TimeSimulation
       integer :: iwrk, iError
       integer :: iStatus_I(MPI_STATUS_SIZE)
+      real, parameter :: cCm3ToM3 = 1.0e6
       !------------------------------------------------------------------------
       write(*,*) 'Starting cimi_get_from_sami on iProc=', iProc
       !if(iProc ==0) write(*,*) 'sami_get_from_cimi',nLatCIMI,nLonCIMI
@@ -165,7 +167,12 @@ Module ModCoupleSami
 !      ! now bcast cimi potential on sami grid to all procs
       call MPI_bcast(PlasSamiOnCimiGrid_C,nLat*nLon, &
            MPI_REAL,0,iComm,iError)
+      
       write(*,*) iProc,'finished send/recv of PlasSamiOnCimiGrid_C'
+
+      ! Set plas in module for waves
+      density=PlasSamiOnCimiGrid_C*cCm3ToM3
+
     end subroutine cimi_get_from_sami
 
     !==========================================================================
@@ -173,6 +180,7 @@ Module ModCoupleSami
       use ModCrcmGrid, ONLY: nLat=>np, nLon=>nt,Lat_C=>xlatr,Lon_C=>phi      
       use ModInterpolate, ONLY: bilinear
       use ModNumConst,    ONLY: cDegToRad,cPi,cTwoPi
+      
       real, intent(in) :: TimeSimulation
       integer :: iLat, iLon
       real :: LatLon_D(2)
@@ -202,7 +210,7 @@ Module ModCoupleSami
          enddo
       enddo
       
-!      ! add the ghost cell for potential
+      !      ! add the ghost cell for potential
 !      PotCimiOnSamiGrid_C(:,nLonSami) = PotCimiOnSamiGrid_C(:,1) 
       call plot_coupled_values
       

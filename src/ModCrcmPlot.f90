@@ -29,9 +29,10 @@ contains
     use ModCrcmRestart, ONLY: IsRestart
     use ModCrcmPlanet,   ONLY: nspec,NamePlotVar,iPplot_I,iPparplot_I, &
                                iPhotplot_I,iPparhotplot_I, iNplot_I,   &
-                               Beq_,Vol_,Pot_,FAC_,Lstar_, nVar
+                               Beq_,Vol_,Pot_,FAC_,Lstar_, Plas_,nVar
     use ModCrcmGrid,   ONLY: PhiIono_C => phi, LatIono_C => xlatr
     use ModFieldTrace, ONLY: iba
+    use DensityTemp, ONLY: density
     integer, intent(in) :: nLat, nLon
     real,    intent(in) :: X_C(nLat,nLon), Y_C(nLat,nLon), Time, Dt
     real,    intent(in) :: Pressure_IC(nspec,nLat,nLon), &
@@ -115,6 +116,7 @@ contains
        PlotState_IIV(1:iba(iLon),iLon,Pot_) = Potential_C(1:iba(iLon),iLon)    
        PlotState_IIV(1:iba(iLon),iLon,FAC_) = FAC_C   (1:iba(iLon),iLon)    
        PlotState_IIV(1:iba(iLon),iLon,Lstar_) = Lstar_C   (1:iba(iLon),iLon)    
+       PlotState_IIV(1:iba(iLon),iLon,Plas_) = density   (1:iba(iLon),iLon)    
     enddo
     !fill ghost cells of plot data
     PlotState_IIV(:,nLon+1,iPplot_I(1))= &
@@ -144,6 +146,7 @@ contains
     PlotState_IIV(:,nLon+1,Pot_) = Potential_C(:,1)    
     PlotState_IIV(:,nLon+1,FAC_) = FAC_C(:,1)    
     PlotState_IIV(:,nLon+1,Lstar_) = Lstar_C(:,1)    
+    PlotState_IIV(:,nLon+1,Plas_) = density(:,1)    
 
     TypePosition = 'append'
     if(IsFirstCall .and. .not. IsRestart) TypePosition = 'rewind'

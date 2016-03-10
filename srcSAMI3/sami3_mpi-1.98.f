@@ -1147,6 +1147,7 @@ c get global dt
         lprnt = floor((time+1.0e-5)/(dthr*3600.)) /= 
      &       floor((time+1.0e-5-dt)/(dthr*3600.))
         
+
         if ( lprnt .and. hrut .ge. hrpr+hrinit) then
 
 !         print *,'sending output to master',taskid
@@ -4013,25 +4014,25 @@ c$$$     .         * exp ( -.005*ne(i,nfl,nll)/deni(i,nfl,nll,ni) )
 
         hipcp(nfl,nll) = hipcp(nfl,nll) +
      .                   sigmap(i,nfl,nll) * del / bms(i,nfl,nll) *
-!!     .                   d22s(i,nfl,nll) * 
+!!     .                   dels(i,nfl,nll) * 
 !!     .                   0.25 / tan(bang)
-     .                   d22s(i,nfl,nll) * ps(i,nfl,nll)
+     .                   dels(i,nfl,nll) * ps(i,nfl,nll)
 
 ! original hipcphi divided by p
 ! now it is divided by tan(bang)
 
         hipcphi(nfl,nll) = hipcphi(nfl,nll) +
      .                     sigmap(i,nfl,nll) / del / bms(i,nfl,nll) *
-!!     .                     d22s(i,nfl,nll) * tan(bang)
-     .                     d22s(i,nfl,nll) / ps(i,nfl,nll)
+!!     .                     dels(i,nfl,nll) * tan(bang)
+     .                     dels(i,nfl,nll) / ps(i,nfl,nll)
 
 ! original hihcm
 ! now it is divided by 2
 
         hihcm(nfl,nll) = hihcm(nfl,nll) +
      .                   sigmah(i,nfl,nll) / bms(i,nfl,nll) *
-!!     .                   d22s(i,nfl,nll) * 0.5
-     .                   d22s(i,nfl,nll) 
+!!     .                   dels(i,nfl,nll) * 0.5
+     .                   dels(i,nfl,nll) 
 
 
 ! original fdpv
@@ -4043,7 +4044,7 @@ c$$$     .         * exp ( -.005*ne(i,nfl,nll)/deni(i,nfl,nll,ni) )
 
         hidpv(nfl,nll) = hidpv(nfl,nll) +
      .                   brs(i,nfl,nll) * 1.e5  * sin(ang) *
-     .                   fdpv * d22s(i,nfl,nll)    
+     .                   fdpv * dels(i,nfl,nll)    
 
 ! original fdpg
 ! now it is multiplied by 0.5
@@ -4054,7 +4055,7 @@ c$$$     .         * exp ( -.005*ne(i,nfl,nll)/deni(i,nfl,nll,ni) )
 
         hidpg(nfl,nll) = hidpg(nfl,nll) +
      .                   brs(i,nfl,nll) * 1.e5  * sin(ang) *
-     .                   fdpg * d22s(i,nfl,nll)    
+     .                   fdpg * dels(i,nfl,nll)    
 
 ! fdphiv and fdphig now divide by
 ! sin^2(bang)*tan(bang)
@@ -4067,7 +4068,7 @@ c$$$     .         * exp ( -.005*ne(i,nfl,nll)/deni(i,nfl,nll,ni) )
 
         hidphiv(nfl,nll) = hidphiv(nfl,nll) +
      .                     re * 1.e5 * ( sin(ang) ** 3 ) / del * 
-     .                     fdphiv * d22s(i,nfl,nll) 
+     .                     fdphiv * dels(i,nfl,nll) 
 
 
         fdphig = (bmag/sol) * sigmahic(i,nfl,nll) * gp(i,nfl,nll)
@@ -4075,18 +4076,18 @@ c$$$     .         * exp ( -.005*ne(i,nfl,nll)/deni(i,nfl,nll,ni) )
 
         hidphig(nfl,nll) = hidphig(nfl,nll) +
      .                     re * 1.e5 * ( sin(ang) ** 3 ) / del * 
-     .                     fdphig * d22s(i,nfl,nll) 
+     .                     fdphig * dels(i,nfl,nll) 
 
 !       integrated quantities for current
 
         hipc(nfl,nll) = hipc(nfl,nll) +
      .                  sigmap(i,nfl,nll) * del / re / sin(ang) ** 3 *
-     .                  d22s(i,nfl,nll) / 1.e5
+     .                  dels(i,nfl,nll) / 1.e5
         hihc(nfl,nll) = hihc(nfl,nll) +
      .                  sigmah(i,nfl,nll) / brs(i,nfl,nll) / sin(ang) *
-     .                  d22s(i,nfl,nll) / 1.e5
+     .                  dels(i,nfl,nll) / 1.e5
         hidv(nfl,nll) = hidv(nfl,nll) +
-     .                  fdpv * d22s(i,nfl,nll)    
+     .                  fdpv * dels(i,nfl,nll)    
 
       enddo
 

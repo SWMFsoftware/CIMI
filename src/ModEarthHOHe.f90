@@ -30,7 +30,7 @@ Module ModCrcmPlanet
        //'Phot[nP] HpPhot[nP] OpPhot[nP] HepPhot[nP] ePhot[nP] ' &
        //'Pparhot[nP] HpPparhot[nP] OpPparhot[nP] HepPparhot[nP] ePparhot[nP] ' &
        //'N[/m3] HpN[/m3] OpN[/m3] HepN[/m3] eN[/m3] ' &
-       //'Beq[T] Vol[m3/Wb] Pot[Volts] FAC[Amp/m2] Lstar g rbody'
+       //'Beq[T] Vol[m3/Wb] Pot[Volts] FAC[Amp/m2] Lstar Plas g rbody'
 
   integer, dimension(nspec+1) :: iPplot_I    =(/1,2,3,4,5/)
   integer, dimension(nspec+1) :: iPparplot_I =(/6,7,8,9,10/) 
@@ -38,7 +38,7 @@ Module ModCrcmPlanet
   integer, dimension(nspec+1) :: iPparhotplot_I =(/16,17,18,19,20/)
   integer, dimension(nspec+1) :: iNplot_I    =(/21,22,23,24,25/)
   integer, parameter          :: Beq_=26,Vol_=27,Pot_=28, FAC_=29, FAC_=30, &
-                                 nVar=30
+                                 Lstar_=31, Plas_=32,nVar=32
 
   !set Logplot parameters
 

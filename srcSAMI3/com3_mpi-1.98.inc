@@ -29,7 +29,7 @@
      .                 r_max2,
      .                 blat_max3,blat_max4,
      .                 snn,stn,denmin,alt_crit,cqe,plat,plon,
-     .                 dellon,psmooth,hall,restart,
+     .                 dellon,psmooth,hall,restart,alt_crit_avg,
      .                 storm_ti,storm_tf,vexb_max,
      .                 lmadala,lcr,lvs,lweimer,decay_time,pcrit,
      .                 lhwm93,lhwm14,

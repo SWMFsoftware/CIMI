@@ -1,8 +1,8 @@
 Module DensityTemp
 use ModCrcmGrid,ONLY: ir=>np, ip=>nt
 implicit none
-real,parameter ::  density(ir,ip)=1.e+6
-EndModule
+real ::  density(ir,ip)=0.0
+end Module DensityTemp
 
 
 !!!!!!!!!!!!!!!!  Main wave module !!!!!!!!!!!!!1
