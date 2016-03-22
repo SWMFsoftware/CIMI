@@ -12,6 +12,13 @@
 !
 ! Creaded by Suk-Bin Kang (Code 673) at NASA/GSFC on November 12, 2015
 !
+! Subroutines
+! - calc_lstar1: calculates L* for K = 0 (or 90deg) particles.
+! - calc_lstar2: calculates L* with K dependence.
+! - locateB: is modified from locate1 and calculates latitudinal index
+!            of bo or bm excluding magnetic island.
+! - dBdMLAT: calculates magnetic flux at the ionosphere
+!
 ! Parameters
 ! - BE: magnetic field strength at the Earth surface at magnetic equator.
 ! - Bflux: magnetic flux enclosed by drift path at each grid.
@@ -37,6 +44,7 @@
 !  * November 20. 215  - direct linear interpolation -> log linear interpol.
 !  * February 11, 2016 - allocable logBo_i(:) -> real logBo_i(ir)
 !                      - remove allocate and deallocate logBo_i
+!  * March 21, 2016    - Add calc_lstar2.f90
 !**************************************************************************
   Module ModLstar
 
@@ -124,13 +132,108 @@ contains
 
   ! Determines L* max
   Lstar_max=Lstar(iba(jnoon),jnoon) ! L* at noon magnetopause
-  do j=jdawn,jdusk                  ! find L* max from dawn to dusk
+  do j=jdusk,jdawn                  ! find L* max from dawn to dusk
      if (Lstar_max.gt.Lstar(iba(j),j)) Lstar_max=Lstar(iba(j),j)
   enddo
 
-write(*,'("L*max =",f8.2)') Lstar_max
-write(*,'("L* =",10f8.2)') (Lstar(i,1),i=1,ir)
   end subroutine calc_Lstar1
+
+!**************************************************************************
+  subroutine calc_Lstar2(Lstar,Lstar_max,rc)
+!
+! Routine calcuates L* with K (second adiabatic invariant) dependence.
+!**************************************************************************
+
+  use ModNumConst, only:pi=>cPi
+  use ModCrcmPlanet, only:re_m,xme=>dipmom
+  use ModFieldTrace,only: bm,ro,iba,rb
+  use ModCrcmGrid, only:xlati=>xlatr,ir=>np,ip=>nt,xmlt,ik=>nk
+  implicit none
+
+  real BE,Bflux(ir,ip),dBdlat(ir),Lstar(ir,ip,ik),Lstar_max(ik),rc,&
+       dmlt(ip),mlt1,mlt2,dp,dmlt1,xlat_i,dBdlat_i,b1,b2,mlat2,logBm,&
+       logbm_i(ir)
+  integer i,j,m,j0,ib0,ii,ii1,jdawn,jdusk,jnoon,j1,j2,B_island(ir,ip)
+ 
+  jdawn=nint(float(ip)*0.75)+1     ! MLT index at dawn
+  jdusk=nint(float(ip)*0.25)+1     ! MLT index at dusk
+  jnoon=1      ! MLT index at noon
+  dp=24./ip                        ! MLT grid size
+  ib0=11          ! ro(ib0,*)=2.1, inner boundary of L* calculation
+
+  BE=xme/re_m**3                    ! mangetic field at L* = 1 in
+
+! Calulates dmlt at MLT grid 
+  dmlt(1:ip)=24./ip
+
+  do m=1,ik
+! Find magnetic island
+     B_island(1:ir,1:ip)=0    ! 0=normal, 1=island
+     do j=1,ip
+        ii=1000
+        do i=iba(j)-1,1,-1
+           if (ii.lt.i) go to 20 
+           if (bm(i,j,m).lt.bm(i+1,j,m)) then
+              B_island(i,j)=1          
+              ii=i
+10            if(bm(ii-1,j,m).lt.bm(i+1,j,m)) then
+                ii=ii-1
+                B_island(ii,j)=1
+              go to 10
+              endif
+              write(*,'(" bm(i,j,m) has a island at ,m,j = ",2i3,"  i = ",i3," -",i3 )'),m,j,ii,i
+           endif
+20         continue
+        enddo
+     enddo
+   
+! Caculates L* at each grid
+     Bflux=0.  ! Initialize magnetic fluxes
+     Lstar(1:ib0-1,1:ip,m)=ro(1:ib0-1,1:ip)  ! set L*=ro at i<ib0
+     do j0=1,ip                     ! MLT grid
+        do i=ib0,iba(j0)
+           Bflux(i,j0)=0.             ! initialization of magnetic flux  
+           if (B_island(i,j0).eq.1) then 
+              lstar(i,j0,m)=-1.*rb      
+              go to 40                ! skipping magnetic island
+           endif
+           logBm=log10(bm(i,j0,m))
+           do j=1,ip
+              logbm_i(1:iba(j))=log10(bm(1:iba(j),j,m))            ! Drift path is estimated with bm 
+              if (j.ne.j0.and.logBm.lt.logbm_i(1).and.logBm.ge.logbm_i(iba(j))) &
+              call locateB(logbm_i(1:iba(j)),iba(j),logBm,ii) ! Find the MLAT index for the same bo
+              if (logBm.ge.logbm_i(1)) ii=1
+              if (logBm.lt.logbm_i(iba(j))) ii=iba(j)
+              if (j.eq.j0) ii=i
+              if (ii.lt.iba(j)) then
+                 ii1=ii
+30               ii1=ii1+1
+                 if(B_island(ii1,j).eq.1) go to 30
+                 b2=logbm_i(ii1)-logBm
+                 b1=logBm-logbm_i(ii)
+                 xlat_i=(xlati(ii)*b2+xlati(ii1)*b1)/(b2+b1) ! interpolates xlati
+              else
+                 xlat_i=xlati(iba(j))                   
+              endif
+              dBdlat_i=dBdMLAT(BE,rc,xlat_i)
+              Bflux(i,j0)=Bflux(i,j0)+dBdlat_i*dmlt(j)*pi/12. ! analytic intergration of magnetic flux
+           enddo ! end of j
+           lstar(i,j0,m)=2.*pi*BE/Bflux(i,j0)
+40         continue
+        enddo    ! end of i
+        if (iba(j0).lt.ir) lstar(iba(j0)+1:ir,j0,m)=rb     ! arbitrary big L* 
+     enddo       ! end of j0
+
+  ! Determines L* max
+     Lstar_max(m)=Lstar(iba(jnoon),jnoon,m) ! L* at noon magnetopause
+     do j=jdusk,jdawn                  ! find L* max from dawn to dusk
+        if (Lstar_max(m).gt.Lstar(iba(j),j,m)) Lstar_max(m)=Lstar(iba(j),j,m)
+     enddo
+  enddo          ! end of k
+write(*,'("L*max =",8f8.2)') (Lstar_max(m),m=1,ik)
+write(*,'("L* =",10f8.2)') (Lstar(i,1,1),i=1,ir)
+
+  end subroutine calc_Lstar2
 
 !**************************************************************************
       subroutine locateB(xx,n,x,j)

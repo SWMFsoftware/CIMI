@@ -16,7 +16,7 @@ subroutine crcm_run(delta_t)
   use ModIeCrcm,      ONLY: UseWeimer, pot
   use ModCrcmPlot,    ONLY: Crcm_plot, Crcm_plot_fls, &
        			    Crcm_plot_psd,Crcm_plot_vl,Crcm_plot_vp, &
-                            crcm_plot_log, crcm_plot_precip, &
+                            crcm_plot_log, crcm_plot_precip, Crcm_plot_Lstar,&
                             DtOutput, DtLogOut,DoSavePlot, &
                             DoSaveFlux, DoSavePSD, DoSaveDrifts, DoSaveLog
   use ModCrcmRestart, ONLY: IsRestart
@@ -29,7 +29,7 @@ subroutine crcm_run(delta_t)
   use ModMpi
   use ModWaveDiff,    ONLY: UseWaveDiffusion,ReadDiffCoef,WavePower, & 
                             diffuse_aa,diffuse_EE,DiffStartT,testDiff_aa,testDiff_EE
-  use ModLstar,       ONLY: calc_Lstar1 
+  use ModLstar,       ONLY: calc_Lstar1,calc_Lstar2 
   implicit none
 
 
@@ -44,7 +44,7 @@ subroutine crcm_run(delta_t)
   integer iLat, iLon, iSpecies, iSat
   logical, save :: IsFirstCall =.true.
   real  AE_temp  
-  real Lstar_C(np,nt),Lstar_max
+  real Lstar_C(np,nt),Lstar_max,Lstarm(np,nt,nk),Lstar_maxm(nk)
 
   !Vars for mpi passing
   integer ::iSendCount,iM,iK,iLon1,iError,iEnergy,iPit,iRecvLower,iRecvUpper,iPe
@@ -148,12 +148,18 @@ subroutine crcm_run(delta_t)
      call calc_Lstar1(Lstar_C,Lstar_max,rc)
      call timing_stop('calc_Lstar1')
 
+     call timing_start('calc_Lstar2')
+     call calc_Lstar2(Lstarm,Lstar_maxm,rc)
+     call timing_stop('calc_Lstar2')
+
      call timing_start('crcm_plot')
      call Crcm_plot(np,nt,xo,yo,Pressure_IC,PressurePar_IC,phot,Ppar_IC,Den_IC,&
           bo,ftv,pot,FAC_C,Time,dt,Lstar_C)
      call timing_stop('crcm_plot')
      if (DoSaveFlux) call Crcm_plot_fls(rc,flux,time,Lstar_C,Lstar_max)
      if (DoSavePSD) call Crcm_plot_psd(rc,psd,xmm,xk,time)
+     if (DoSaveFlux.or.DoSavePSD) call &
+        Crcm_plot_Lstar(rc,xk,time,Lstarm,Lstar_maxm)
      if (DoSaveDrifts) then
         call Crcm_plot_vl(rc,vlEa,time)
         call Crcm_plot_vp(rc,vpEa,time)
