@@ -1,5 +1,5 @@
 Module DensityTemp
-use ModCrcmGrid,ONLY: ir=>np, ip=>nt
+use ModCrcmGrid,ONLY: ir=>np, ip=>nt, ik=>nk
 implicit none
 real ::  density(ir,ip)=0.0
 end Module DensityTemp
@@ -20,12 +20,15 @@ logical            :: UseWaveDiffusion = .false.
 logical            :: UseHiss  = .false.
 logical            :: UseChorus  = .false.
 logical            :: UseChorusUB = .false.
-logical            :: testDiff_aa = .false.
-logical            :: testDiff_EE = .false.      
 real               :: DiffStartT = 0.
 character(len=100)  :: HissWavesD = ' '
 character(len=100)  :: ChorusWavesD= ' '
 character(len=100)  :: ChorusUpperBandD = ' '
+! these variables are needed for testing purposes only
+logical            :: testDiff_aa = .false.
+logical            :: testDiff_EE = .false.
+logical            :: testDiff_aE = .false.
+
 
 
 integer,parameter :: ipu=6,iwu=31,ipa=89    ! from module cimigrid_dim in CIMI: dimension of Qiuhua's UB chorus coef
@@ -820,4 +823,378 @@ end subroutine diffuse_aa
 
 end subroutine diffuse_EE
 
- EndModule
+!****************************************************************************
+!                             diffuse_aE
+!  Routine solves cross diffusion in ao and E.
+!****************************************************************************
+! The version from April 19, 2016 starts to be unstable after ~15-20 time steps
+! with dt=5 sec and constant Dae=0.05
+! Dae=0.05 is considered to be large in comparison with realistic values. 
+! Therefore, it is expected that in realistic simulations the accumulative error and instability
+! will be washed away with other dominant processes like convection and
+! precipitation.
+  subroutine diffuse_aE(f2,dt,xjac,iw2,iba,time)
+     use DensityTemp, ONLY: density
+     use ModMPI
+     use ModCrcmGrid,   ONLY: MinLonPar,MaxLonPar
+  implicit none
+  integer,parameter :: ie=40
+  integer i,j,m,k,k1,k2,nrun,n,ier,iww,nn
+  integer iba(ip),iw2(nspec,ik),nrun2
+  real f2(nspec,ir,ip,iw,ik),xjac(nspec,ir,iw),einlog, &
+           ein_log(ie),&
+           fl(0:ie+1),f1d(iw),ein(ie),ao(0:ik+1),dao(ik),ao1, &
+           a1d(ie),b1d(ie),c1d(ie),e1d(iw),u_mx,u_mx1,u_mx2,dpsd,dt, &
+           f2d0(ie,ik), &
+           f2d(ie,0:ik+1), &
+           df1(ie),fr(ie),ekevlog(iw,ik),Upower0, &
+           Eo,Enor(ie),edmin,edmax, &
+           gjacA(0:ik+1),Dae(ie,0:ik+1),Cfactor,Ufactor,Hfactor,DaEc,DaEu,DaEh,&
+           u1(ie,ik),u2(ie,ik),u3(ie,ik),dtda2,dtda2dE2,Dkm,Dk_1m,Dkm_1,Dkm1, &
+           Dk1m,gjacE(ie),ompe1,ro1,emin,emax,x0,x2,x, &
+           ckeV_log(iwc),ukeV_log(iwu),hkeV_log(iwh),densityP,f2d1(ie,0:ik+1),f2d2(ie,0:ik+1),time
+
+  Eo=511.               ! electron rest energy in keV
+  Upower0=10000.        ! coeff based on UB chorus power of (100pT)^2
+  densityP=2.e7         ! plasmaspheric density (m^-3) to define plasmapause
+  
+
+  ckeV_log(:)=log10(ckeV(:))
+  ukeV_log(:)=log10(ukeV(:))
+  hkeV_log(:)=log10(hkeV(:))
+
+! determine edmax and edmin
+  if (iUBC.eq.1) edmax=ukeV(iwu)
+  if (ihiss.ge.1) edmax=hkeV(iwh)
+  if (ichor.ge.1) edmax=ckeV(iwc)
+  if (ihiss.ge.1) edmin=hkeV(1)
+  if (ichor.ge.1) edmin=ckeV(1)
+  if (iUBC.eq.1) edmin=ukeV(1)
+
+! check whether ie < ik
+  if (ie.lt.ik) then
+     write(*,*) 'CIMI Error, Diffuse_aE: ie.lt.ik'
+     stop
+  endif
+
+  n=nspec  ! use last index to access electrons; different from CIMI
+!   do j=1,ip
+    do j=MinLonPar,MaxLonPar
+     do i=1,iba(j)
+        ompe1=ompe(i,j)                         ! fpe/fce
+        ro1=ro(i,j)
+        Cfactor=(BLc0/bo(i,j))*CHpower(i,j)/Cpower0
+        Ufactor=(BLu0/bo(i,j))*UBCpower(i,j)/Upower0
+        Hfactor=(BLh0/bo(i,j))*HIpower(i,j)/Hpower0
+        if (testDiff_aE) ompe1=cOmpe(1)
+        if (ompe1.ge.cOmpe(1).and.ompe1.le.cOmpe(ipc).and.ro1.ge.r_wave) then
+           ! Set up the energy grid, ein
+           emin=minval(ekev(n,i,j,1,1:ik))
+           emax=maxval(ekev(n,i,j,iw,1:ik))
+           
+           ein(1)=emin
+           ein(ie)=emax
+           ein_log(1)=log10(emin)
+           ein_log(ie)=log10(emax)
+           x0=log10(emin)
+           x2=log10(emax)
+           x=(x2-x0)/(ie-1)
+           do k=1,ie
+              if (k.gt.1.and.k.lt.ie) ein_log(k)=x0+(k-1)*x
+              if (k.gt.1.and.k.lt.ie) ein(k)=10.**ein_log(k)
+              Enor(k)=ein(k)/Eo             ! normalized kinetic energies
+              gjacE(k)=(Enor(k)+1.)*sqrt(Enor(k)*(Enor(k)+2.))
+           enddo
+           ! Map psd to ein grid, f2d
+           f2d(:,:)=0.
+           do m=1,ik
+              do k=1,iw
+                f1d(k)=-50.                      ! f1d is log(psd)
+                if(f2(n,i,j,k,m).gt.0.)f1d(k)=log10(f2(n,i,j,k,m)/xjac(n,i,k))
+                if (k.gt.iw2(n,m)) f1d(k)=f1d(iw2(n,m))
+                ekevlog(k,m)=log10(ekev(n,i,j,k,m))
+                e1d(k)=ekevlog(k,m)              ! e1d is log(ekev)
+              enddo
+
+              do k=1,ie
+                 einlog=ein_log(k)
+                 if (einlog.le.e1d(1)) einlog=e1d(1)
+                 if (einlog.ge.e1d(iw)) einlog=e1d(iw)
+                    call lintpIM(e1d,f1d,iw,einlog,x)
+                    f2d(k,m)=10.**x      ! f2d is psd
+              enddo
+           enddo
+           f2d(1:ie,0)=f2d(1:ie,1)
+           f2d(1:ie,ik+1)=f2d(1:ie,ik)
+           f2d0(1:ie,1:ik)=f2d(1:ie,1:ik)
+
+           ! calcuate ao, dao and gjacA
+
+        ! calcuate ao, dao and gjacA
+           do m=0,ik+1
+              ao(m)=asin(y(i,j,m))
+              gjacA(m)=tya(i,j,m)*y(i,j,m)*sqrt(1.-y(i,j,m)*y(i,j,m))
+           enddo
+           do m=1,ik
+              dao(m)=0.5*(ao(m+1)-ao(m-1))
+           enddo
+
+           ! determine k1 and k2, corresponding to edmin and edmax
+           k1=ie
+           findk1: do k=1,ie
+              if (edmin.le.ein(k)) then
+                 k1=k
+                 exit findk1
+              endif
+           enddo findk1
+           k2=1
+           findk2: do k=ie,1,-1
+              if (edmax.ge.ein(k)) then
+                 k2=k
+                 exit findk2
+              endif
+           enddo findk2
+       !    k1=max(k1,2)
+       !    k2=min(k2,ie-1)
+            k1=2
+            k2=ie-1
+            iww=k2-k1+1
+
+           ! Find Dae
+           do m=0,ik+1
+              ao1=ao(m)*180./pi
+              if (ao1.lt.cPA(1)) ao1=cPA(1)
+              if (ao1.gt.cPA(ipa)) ao1=cPA(ipa)
+              do k=k1-1,k2+1
+                 DaEc=0.
+                 if (ichor.ge.1.and.density(i,j).le.densityP) then
+                    if (ein(k).ge.ckeV(1).and.ein(k).le.ckeV(iwc)) &
+                    call lintp3IM(cOmpe,ckeV_log,cPA,cDaE,ipc,iwc,ipa,&
+                                ompe1,ein_log(k),ao1,DaEc)
+                 endif
+                 DaEu=0.
+                 if (iUBC.eq.1.and.density(i,j).le.densityP) then
+                    if (ein(k).ge.ukeV(1).and.ein(k).le.ukeV(iwu)) &
+                    call lintp3IM(uOmpe,ukeV_log,cPA,uDaE,ipu,iwu,ipa,&
+                                ompe1,ein_log(k),ao1,DaEu)
+                 endif
+                 DaEh=0.
+                 if(ihiss.ge.1.and.ompe1.ge.2..and.density(i,j).gt.densityP)then
+                    if (ein(k).ge.hkeV(1).and.ein(k).le.hkeV(iwh)) &
+                     call lintp3IM(hOmpe,hkeV_log,cPA,hDaE,iph,iwh,ipa, &
+                                 ompe1,ein_log(k),ao1,DaEh)
+                 endif
+                 Dae(k,m)=DaEc*Cfactor+DaEu*Ufactor+DaEh*Hfactor
+              enddo
+           enddo
+              if (testDiff_aE) then
+                if ( ro(i,j).ge.3.0 .and. ro(i,j).le.5.0 ) then
+                 Dae(:,:)=0.005   ! artificially force diffusion time to be 1/DaE sec;
+                !  Dae(:,:)=0.0
+                 ! over 1/DaE the psd should evolve at energy range E0~0.5MeV;
+                 ! this is how the current setup is normalized.
+                else
+                 Dae(:,:)=0.
+                endif
+              endif
+           ! Find u1, u2, and u3
+
+        ! Find u1, u2, and u3
+           u1=0.
+           u2=0.
+           u3=0.
+           do m=1,ik
+              dtda2=dt/(ao(m+1)-ao(m-1))
+              do k=k1,k2
+                 Dkm=Enor(k)*Dae(k,m)
+                 Dk_1m=Enor(k-1)*Dae(k-1,m)
+                 Dk1m=Enor(k+1)*Dae(k+1,m)
+                 Dkm_1=Enor(k)*Dae(k,m-1)
+                 Dkm1=Enor(k)*Dae(k,m+1)
+                 dtda2dE2=dtda2/(Enor(k+1)-Enor(k-1))
+                 u1(k,m)=(gjacA(m+1)*Dkm1-gjacA(m-1)*Dkm_1)*dtda2dE2/gjacA(m)/2.
+    if (gjacA(m).eq.0) write(*,*) 'WARNING in CIMI: diffuse_aE: gjacA:Null in denominator!!!'
+                 u2(k,m)=(gjacE(k+1)*Dk1m-gjacE(k-1)*Dk_1m)*dtda2dE2/gjacE(k)/2.
+    if (gjacE(k).eq.0) write(*,*) 'WARNING in CIMI: diffuse_aE: gjacE:Null in denominator!!!'
+                 u3(k,m)=Dkm*dtda2dE2
+              enddo
+              u1(1,m)=u1(2,m)
+              u1(ie,m)=u1(ie-1,m)
+              u2(1,m)=u2(2,m)
+              u2(ie,m)=u2(ie-1,m)
+              u3(1,m)=u3(2,m)
+              u3(ie,m)=u3(ie-1,m)
+           enddo
+           ! reduce time step if u_mx is too large
+           u_mx1=maxval(u1)
+           u_mx2=maxval(u2)
+           u_mx=max(u_mx1,u_mx2)
+           nrun=ifix(u_mx)+1
+
+           
+           u1=u1/nrun
+           u2=u2/nrun
+           u3=u3/nrun
+
+           do nn=1,nrun
+              ! First step of ADI: "diffusion in E"
+              f2d1(:,:)=f2d(:,:)
+              f2d2(:,:)=f2d(:,:)
+
+              f2d1(k1-1,0:ik+1)=f2d1(k1,0:ik+1)   ! 'closed' boundary             
+              f2d1(k2+1,0:ik+1)=f2d1(k2,0:ik+1)                
+
+              ADI_step1: do m=1,ik
+                 do k=1,ie
+                    a1d(k)=u1(k,m)
+                    b1d(k)=1.
+                    c1d(k)=-u1(k,m)
+                 enddo
+                 ! solving the tridiagonal matrix in E
+                 do k=k1-1,k2+1
+                    fl(k)=f2d1(k,m)
+                 enddo
+                 do k=k1,k2   ! fr: RHS of matrix equation
+                    fr(k)=f2d1(k,m)+u2(k,m)*(f2d1(k,m+1)-f2d1(k,m-1))+u3(k,m)* &
+                          (f2d1(k+1,m+1)+f2d1(k-1,m-1)-f2d1(k+1,m-1)-f2d1(k-1,m+1))
+                 enddo
+                 fr(k1)=fr(k1)-u1(k1,m)*fl(k1-1)   ! boundary condition
+                 fr(k2)=fr(k2)+u1(k2,m)*fl(k2+1)   !
+           !      fr(k1)=fl(k1)-u1(k1,m)*fl(k1-1) ! boundary conditions NB - var2
+           !      fr(k2)=fl(k2)+u1(k2,m)*fl(k2+1) ! boundary conditions NB - var2
+                 call tridagIM(a1d(k1:k2),b1d(k1:k2),c1d(k1:k2),fr(k1:k2), &
+                             fl(k1:k2),iww,ier)
+                 if (ier.eq.1) call CON_STOP('ERROR in CIMI: diffuse_aE,diff E:tridag failed,ier=1')
+                 if (ier.eq.2) call CON_STOP('ERROR in CIMI: diffuse_aE,diff E:tridag failed,ier=2')
+                 f2d2(k1:k2,m)=fl(k1:k2)
+              enddo ADI_step1
+
+              f2d2(1:ie,0)=f2d2(1:ie,1)
+              f2d2(1:ie,ik+1)=f2d2(1:ie,ik)
+
+!    if (i.eq.30 .and. j.eq.5) write(*,*) nn, 't=t0 m=1:', f2d0(1:ie,1)
+!    if (i.eq.30 .and. j.eq.5) write(*,*) nn, 't=t0+dt m=1:', f2d(1:ie,1)
+!    if (i.eq.30 .and. j.eq.5) write(*,*) nn, 't=t0 m=ik:', f2d0(1:ie,ik)
+!    if (i.eq.30 .and. j.eq.5) write(*,*) nn, 't=t0+dt m=ik:', f2d(1:ie,ik)  
+
+              ! Second step of ADI: "diffusion in a"
+              ADI_step2: do k=k1,k2
+                 do m=1,ik
+                    a1d(m)=u2(k,m)
+                    b1d(m)=1.
+                    c1d(m)=-u2(k,m)
+                 enddo
+                 ! solving the tridiagonal matrix in a
+                 fl(0:ik+1)=f2d2(k,0:ik+1)
+                 do m=1,ik         ! fr: RHS of matrix equation
+                    fr(m)=f2d2(k,m)+u1(k,m)*(f2d2(k+1,m)-f2d2(k-1,m))+u3(k,m)* &
+                          (f2d2(k+1,m+1)+f2d2(k-1,m-1)-f2d2(k+1,m-1)-f2d2(k-1,m+1))
+                 enddo
+                 fr(1)=fr(1)-u2(k,1)*fl(0)         ! boundary condition
+                 fr(ik)=fr(ik)+u2(k,ik)*fl(ik+1)   !
+    !              fr(1)=fl(1)-u2(k,1)*fl(0)         ! boundary conditions NB - var2
+    !              fr(ik)=fl(ik)+u2(k,ik)*fl(ik+1)   ! boundary conditions NB - var2
+
+                 call tridagIM(a1d,b1d,c1d,fr,fl(1:ik),ik,ier)
+                 if (ier.eq.1) call CON_STOP('ERROR in CIMI: diffuse_aE,diff a:tridag failed,ier=1')
+                 if (ier.eq.2) call CON_STOP('ERROR in CIMI: diffuse_aE,diff a:tridag failed,ier=2')
+                 f2d(k,1:ik)=fl(1:ik)
+              enddo ADI_step2
+              f2d(1:ie,0)=f2d(1:ie,1)
+              f2d(1:ie,ik+1)=f2d(1:ie,ik)
+! third step
+!                           f2d_temp(:,:)=f2d(:,:)
+!             f2d_temp(k1-1:k2+1,0)=f2d_temp(k1-1:k2+1,1)
+!              f2d_temp(k1-1:k2+1,ik+1)=f2d_temp(k1-1:k2+1,ik)
+!
+!
+!                            ADI_step3: do k=k1,k2
+!                 do m=1,ik
+!                    a1d(m)=u2(k,m)
+!                    b1d(m)=1.
+!                    c1d(m)=-u2(k,m)
+!                 enddo
+!                 ! solving the tridiagonal matrix in a
+!                 fl(1:ik)=f2d(k,1:ik)
+!                 fl(0)=fl(1)          ! boundary condition
+!                 fl(ik+1)=fl(ik)      !
+!                 do m=1,ik         ! fr: RHS of matrix equation
+!                    fr(m)=f2d_temp(k,m)+u1(k,m)*(f2d_temp(k+1,m)-f2d_temp(k-1,m))+u3(k,m)*&
+!                          (f2d_temp(k+1,m+1)+f2d_temp(k-1,m-1)-f2d_temp(k+1,m-1)-f2d_temp(k-1,m+1))
+!                 enddo
+!
+!                  fr(1)=fl(1)-u2(k,1)*fl(0)         ! boundary condition
+!                  fr(ik)=fl(ik)+u2(k,ik)*fl(ik+1)
+!
+!
+!                 call tridagIM(a1d,b1d,c1d,fr,fl(1:ik),ik,ier)
+!                 if (ier.eq.1) call CON_STOP('ERROR in CIMI: diffuse_aE,diff a:tridag failed,ier=1')
+!                 if (ier.eq.2) call CON_STOP('ERROR in CIMI: diffuse_aE,diffa:tridag failed,ier=2')
+!                 f2d(k,1:ik)=fl(1:ik)
+!              enddo ADI_step3
+!              f2d(1:ie,0)=f2d(1:ie,1)
+!!!              f2d(1:ie,ik+1)=f2d(1:ie,ik)
+!
+!              f2d_temp(:,:)=f2d(:,:)
+!              f2d_temp(k1-1:k2+1,0)=f2d_temp(k1-1:k2+1,1)
+!              f2d_temp(k1-1:k2+1,ik+1)=f2d_temp(k1-1:k2+1,ik)
+
+! forth step:          
+!                           ! forth step of ADI: "diffusion in E"
+!              ADI_step4: do m=1,ik
+!                 do k=1,ie
+!!                   a1d(k)=u1(k,m)
+!                    b1d(k)=1.
+!                    c1d(k)=-u1(k,m)
+!                 enddo
+!                 ! solving the tridiagonal matrix in E
+!!!                 do k=k1-1,k2+1
+!!                    fl(k)=f2d(k,m)
+!                 enddo
+!                   fl(k1-1)=fl(k1) ! by NB to close bondaries
+!                   fl(k2+1)=fl(k2)
+!                 do k=k1,k2   ! fr: RHS of matrix equation
+!                    fr(k)=f2d_temp(k,m)+u2(k,m)*(f2d_temp(k,m+1)-f2d_temp(k,m-1))+u3(k,m)*&
+!                          (f2d_temp(k+1,m+1)+f2d_temp(k-1,m-1)-f2d_temp(k+1,m-1)-f2d_temp(k-1,m+1))
+!                 enddo
+!                 fr(k1)=fr(k1)-u1(k1,m)*fl(k1-1)   ! boundary condition
+!                 fr(k2)=fr(k2)+u1(k2,m)*fl(k2+1)   !
+!              !   fr(k1)=fl(k1)-u1(k1,m)*fl(k1-1)    !
+!              !   fr(k2)=fl(k2)+u1(k2,m)*fl(k2+1)    !
+!  
+!                 call tridagIM(a1d(k1:k2),b1d(k1:k2),c1d(k1:k2),fr(k1:k2), &
+!                             fl(k1:k2),iww,ier)
+!                 if (ier.eq.1) call CON_STOP('ERROR in CIMI: diffuse_aE,diff E:tridag failed,ier=1')
+!                 if (ier.eq.2) call CON_STOP('ERROR in CIMI: diffuse_aE,diff E:tridag failed,ier=2')
+!                 f2d(k1:k2,m)=fl(k1:k2)
+!              enddo ADI_step4
+!              f2d(1:ie,0)=f2d(1:ie,1)
+!              f2d(1:ie,ik+1)=f2d(1:ie,ik)
+
+           enddo                  ! end of do nn=1,nrun
+
+! if (i.eq.30 .and. j.eq.5) write(*,*) 'time',time,'t=t0 m=1:', f2d0(1:ie,1)
+! if (i.eq.30 .and. j.eq.5) write(*,*) 'time',time,'t=t0+dt m=1:', f2d(1:ie,1)
+! if (i.eq.30 .and. j.eq.5) write(*,*) 'time',time,'t=t0 m=ik:', f2d0(1:ie,ik)
+! if (i.eq.30 .and. j.eq.5) write(*,*) 'time',time,'t=t0+dt m=ik:', f2d(1:ie,ik)           
+
+           ! map psd back to M grid
+           do m=1,ik
+              do k=1,ie
+                 df1(k)=f2d(k,m)-f2d0(k,m)
+              enddo
+              do k=1,iw2(n,m)
+                 call lintpIM(ein_log,df1,ie,ekevlog(k,m),dpsd)
+                 !if (i.eq.30 .and. j.eq.5 .and. m.eq.ik) write(*,*) m,k,' m,k;',df1(k),dpsd,'df1,dpsd'
+                 f2(n,i,j,k,m)=f2(n,i,j,k,m)+xjac(n,i,k)*dpsd
+                 if (f2(n,i,j,k,m).lt.0.) f2(n,i,j,k,m)=0.
+              enddo
+           enddo
+
+        endif  ! end if (ompe1.ge.cOmpe(1).and.ompe1.le.cOmpe(ipc).and.ro1..)
+
+     enddo     ! end of i loop
+   enddo       ! end of j loop
+end subroutine diffuse_aE
+
+EndModule

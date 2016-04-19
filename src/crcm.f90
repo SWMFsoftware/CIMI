@@ -28,7 +28,8 @@ subroutine crcm_run(delta_t)
   use ModCrcmBoundary,ONLY: crcm_set_boundary_mhd, crcm_set_boundary_empirical
   use ModMpi
   use ModWaveDiff,    ONLY: UseWaveDiffusion,ReadDiffCoef,WavePower, & 
-                            diffuse_aa,diffuse_EE,DiffStartT,testDiff_aa,testDiff_EE
+                            diffuse_aa,diffuse_EE,Diffuse_aE,DiffStartT, &
+                            testDiff_aa, testDiff_EE,testDiff_aE 
   use ModLstar,       ONLY: calc_Lstar1,calc_Lstar2 
   implicit none
 
@@ -205,10 +206,11 @@ subroutine crcm_run(delta_t)
      call sume_cimi(OpChargeEx_)
      call timing_stop('crcm_charexchange') 
 
-      if (Time.ge.DiffStartT .and. UseWaveDiffusion) then
+    if (Time.ge.DiffStartT .and. UseWaveDiffusion) then
     call timing_start('crcm_WaveDiffusion')
     call diffuse_aa(f2,dt,xjac,iba,iw2)
     call diffuse_EE(f2,dt,xmm,xjac,iw2,iba)
+ !   call diffuse_aE(f2,dt,xjac,iw2,iba,Time)
     call sume_cimi(OpWaves_)
     call timing_stop('crcm_WaveDiffusion')
     call WavePower(Time,AE_temp,iba)
@@ -751,7 +753,7 @@ subroutine initial_f2(nspec,np,nt,iba,amu_I,vel,xjac,ib0)
   use ModCrcmGrid,ONLY: nm,nk,MinLonPar,MaxLonPar,iProc,nProc,iComm,d4Element_C,neng
   use ModFieldTrace, ONLY: sinA,ro, ekev,pp,iw2,irm
   use ModMpi
-  use ModWaveDiff, ONLY:  testDiff_aa,testDiff_EE
+  use ModWaveDiff, ONLY:  testDiff_aa,testDiff_EE,testDiff_aE
 
   implicit none
 
@@ -845,8 +847,6 @@ subroutine initial_f2(nspec,np,nt,iba,amu_I,vel,xjac,ib0)
         close(UnitTmp_)
         if(iunit.eq.2) fi(:,:)=fi(:,:)/4./pi/1000. !con.To(cm^2 s sr keV)^-1\
 
-        !if (testDiff_EE)  fi(:,:)=1.e6
-
         ei(:)=log10(ei(:))                      ! take log of ei         
         fi(:,:)=log10(fi(:,:))                  ! take log of fi
         
@@ -866,7 +866,7 @@ subroutine initial_f2(nspec,np,nt,iba,amu_I,vel,xjac,ib0)
                        fluxi=10.**x          ! flux in (cm^2 s sr keV)^-1
                        psd2=fluxi/(1.6e19*pp(n,i,j,k,m))/pp(n,i,j,k,m)
                    !   if (testDiff_aa) psd2=psd2*sinA(i,j,m)*sinA(i,j,m)  !  
-                   !   if (testDiff_EE)  psd2=1.
+                       if (testDiff_EE.or.testDiff_aE)  psd2=1.
                        f2(n,i,j,k,m)=psd2*xjac(n,i,k)*1.e20*1.e19 
                    ! endif
                  enddo                            ! end of k loop
@@ -1791,6 +1791,8 @@ subroutine sume_cimi(OperatorName)
           enddo                ! end of do i=1,ir
        enddo                   ! end of do j=MinLatPar,MaxLatPar
     enddo                      ! end of do n=1,ijs
+
+    if (testDiff_aE)   write(*,*) 'tot particles, el: ',psum(nspec,30,5,je+2)
 
 end subroutine sume_cimi
 

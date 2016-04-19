@@ -19,7 +19,7 @@ subroutine CRCM_set_parameters(NameAction)
   use ModGmCRCM,         ONLY: UseGm
   use ModWaveDiff,       ONLY: UseWaveDiffusion,UseHiss,UseChorus,UseChorusUB, &
                                DiffStartT,HissWavesD, ChorusWavesD,ChorusUpperBandD, &
-                               testDiff_aa, testDiff_EE
+                               testDiff_aa, testDiff_EE, testDiff_aE
   use ModImSat,          ONLY: DtSatOut, DoWritePrerunSat, UsePrerunSat, &
        DtReadSat, DoWriteSats, ReadRestartSat
   use ModCrcmGrid
