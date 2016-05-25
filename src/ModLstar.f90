@@ -49,6 +49,7 @@
   Module ModLstar
 
 contains
+
   subroutine calc_Lstar1(Lstar,Lstar_max,rc)
 
   use ModNumConst, only:pi=>cPi
@@ -83,11 +84,10 @@ contains
         if (bo(i,j).lt.bo(i+1,j)) then
            B_island(i,j)=1          
            ii=i
-10         if(bo(ii-1,j).lt.bo(i+1,j)) then
+           do while ( bo(ii-1,j).lt.bo(i+1,j) .and. ii.gt.1)
              ii=ii-1
              B_island(ii,j)=1
-             go to 10
-           endif
+           enddo
            write(*,'(" bo(i,j) has a island at, j = ",i3,"  i = ",i3," -",i3 )'),j,ii,i
         endif
 20      continue
@@ -112,9 +112,11 @@ contains
            if (logBo.ge.logBo_i(1)) ii=1
            if (logBo.lt.logBo_i(iba(j))) ii=iba(j)
            if (j.eq.j0) ii=i
-           if (ii.lt.iba(j)) then
-30            ii1=ii+1
-              if(B_island(ii1,j).eq.1) go to 30
+           if (ii.le.iba(j)) then
+              ii1=ii+1
+              do while (ii1.lt.iba(j) .and. B_island(ii1,j).eq.1 ) 
+              ii1=ii1+1
+              enddo
               b2=logBo_i(ii1)-logBo
               b1=logBo-logBo_i(ii)
               xlat_i=(xlati(ii)*b2+xlati(ii1)*b1)/(b2+b1) ! interpolates xlati
@@ -132,10 +134,12 @@ contains
 
   ! Determines L* max
   Lstar_max=Lstar(iba(jnoon),jnoon) ! L* at noon magnetopause
-  do j=jdusk,jdawn                  ! find L* max from dawn to dusk
+  do j=jdawn,jdusk                  ! find L* max from dawn to dusk
      if (Lstar_max.gt.Lstar(iba(j),j)) Lstar_max=Lstar(iba(j),j)
   enddo
 
+write(*,'("L*max =",f8.2)') Lstar_max
+write(*,'("L* =",10f8.2)') (Lstar(i,1),i=1,ir)
   end subroutine calc_Lstar1
 
 !**************************************************************************
