@@ -51,6 +51,10 @@ real,parameter :: re_m=6.375e6                ! earth's radius (m)
 real,parameter :: e_mass=9.11e-31             ! electron mass in kg
 real,parameter :: epsilon0=8.8542e-12         ! permittivity of free space
 
+! For ae index
+real, allocatable :: TimeAeIndex_I(:), AeIndex_I(:)
+character(len=100) :: NameAeFile
+
 
 contains
 
@@ -821,8 +825,24 @@ end subroutine diffuse_aa
      enddo       ! end of i loop
    enddo         ! end of j loop
 
-end subroutine diffuse_EE
+ end subroutine diffuse_EE
+ 
+! !=============================================================================
+! subroutine read_ae_wdc_kyoto
+!   use ModImTime
+!   use ModTimeConvert, ONLY: time_int_to_real,time_real_to_int
+!   
+!   integer, parameter :: nHeader=15
+!   
+!   read(*,"(I5,1X,I2,1X,I2,1X,I2,1X,I2,1X,F5.3,1XI3,F13.2,F10.2,F10.2,F10.2)")&
+!        iYear,iMonth,iDay, iHour,iMinute,Second,iDoy,AE,AU,AL,AO
+ !     call time_int_to_real(iRecordTime_I,RecordTime)
+! end subroutine read_ae_wdc_kyoto
 
+!interpolation routine (tSimulation)
+! Currenttime=starttime+tSimulation
+!
+!
 !****************************************************************************
 !                             diffuse_aE
 !  Routine solves cross diffusion in ao and E.
@@ -1197,4 +1217,4 @@ end subroutine diffuse_EE
    enddo       ! end of j loop
 end subroutine diffuse_aE
 
-EndModule
+EndModule ModWaveDiff
