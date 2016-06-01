@@ -29,7 +29,8 @@ subroutine crcm_run(delta_t)
   use ModMpi
   use ModWaveDiff,    ONLY: UseWaveDiffusion,ReadDiffCoef,WavePower, & 
                             diffuse_aa,diffuse_EE,Diffuse_aE,DiffStartT, &
-                            testDiff_aa, testDiff_EE,testDiff_aE 
+                            testDiff_aa, testDiff_EE, testDiff_aE, &
+                            TimeAeIndex_I, AeIndex_I, interpolate_ae
   use ModLstar,       ONLY: calc_Lstar1,calc_Lstar2 
   implicit none
 
@@ -44,7 +45,7 @@ subroutine crcm_run(delta_t)
        fb(nspec,nt,nm,nk),rc
   integer iLat, iLon, iSpecies, iSat
   logical, save :: IsFirstCall =.true.
-  real  AE_temp  
+  real  AE_temp
   real Lstar_C(np,nt),Lstar_max,Lstarm(np,nt,nk),Lstar_maxm(nk)
 
   !Vars for mpi passing
@@ -73,7 +74,7 @@ subroutine crcm_run(delta_t)
   ! Update CurrentTime and iCurrentTime_I
   CurrentTime = StartTime+Time
   call time_real_to_int(CurrentTime,iCurrentTime_I)
-
+  
   ! do field line integration and determine vel, ekev, momentum (pp), etc.
   rc=(re_m+Hiono*1000.)/re_m        ! ionosphere distance in RE`
 
@@ -100,7 +101,7 @@ subroutine crcm_run(delta_t)
 
   !  read wave models 
  if (IsFirstCall) then
-  if (UseWaveDiffusion) call ReadDiffCoef(rc)
+    if (UseWaveDiffusion) call ReadDiffCoef(rc)
  endif
   
 
@@ -132,10 +133,14 @@ subroutine crcm_run(delta_t)
   ! calculate boundary flux (fb) at the CRCM outer boundary at the equator
   call boundaryIM(nspec,neng,np,nt,nm,nk,iba,irm,amu_I,xjac,energy,vel,fb)
 
-  ! calculate wave power for the first time; the second time is in the loop
-    AE_temp=200.
-    if (Time.ge.DiffStartT .and. UseWaveDiffusion) &
-         call WavePower(Time,AE_temp,iba)
+  
+  if (Time.ge.DiffStartT .and. UseWaveDiffusion) then
+
+     ! calculate wave power for the first time; the second time is in the loop
+     call interpolate_ae(CurrentTime, AE_temp)
+     call WavePower(Time,AE_temp,iba)
+
+  end if
   
   if (Time == 0.0 .and. nProc == 1 .and. DoSavePlot) then
      call timing_start('crcm_output')
@@ -200,34 +205,35 @@ subroutine crcm_run(delta_t)
           fb,f2,driftin,driftout,ib0)
      call sume_cimi(OpDrift_)
      call timing_stop('crcm_driftIM')
-
+     
      call timing_start('crcm_charexchange')
      call charexchangeIM(np,nt,nm,nk,nspec,iba,achar,f2)
      call sume_cimi(OpChargeEx_)
      call timing_stop('crcm_charexchange') 
+     
+     if (Time.ge.DiffStartT .and. UseWaveDiffusion) then
+        call timing_start('crcm_WaveDiffusion')
+        call diffuse_aa(f2,dt,xjac,iba,iw2)
+        call diffuse_EE(f2,dt,xmm,xjac,iw2,iba)
+        !   call diffuse_aE(f2,dt,xjac,iw2,iba,Time)
+        call sume_cimi(OpWaves_)
+        call timing_stop('crcm_WaveDiffusion')
+        call interpolate_ae(CurrentTime, AE_temp)
+        call WavePower(Time,AE_temp,iba)
+     endif
 
-    if (Time.ge.DiffStartT .and. UseWaveDiffusion) then
-    call timing_start('crcm_WaveDiffusion')
-    call diffuse_aa(f2,dt,xjac,iba,iw2)
-    call diffuse_EE(f2,dt,xmm,xjac,iw2,iba)
- !   call diffuse_aE(f2,dt,xjac,iw2,iba,Time)
-    call sume_cimi(OpWaves_)
-    call timing_stop('crcm_WaveDiffusion')
-    call WavePower(Time,AE_temp,iba)
-      endif
-
-      if (UseStrongDiff) then
-    call timing_start('crcm_StrongDiff')
-    call StrongDiff(iba)
-    call sume_cimi(OpStrongDiff_)
-    call timing_stop('crcm_StrongDiff')
-      endif
-
+     if (UseStrongDiff) then
+        call timing_start('crcm_StrongDiff')
+        call StrongDiff(iba)
+        call sume_cimi(OpStrongDiff_)
+        call timing_stop('crcm_StrongDiff')
+     endif
+     
      call timing_start('crcm_lossconeIM')
      call lossconeIM(np,nt,nm,nk,nspec,iba,alscone,f2)
      call sume_cimi(OpLossCone_)
      call timing_stop('crcm_lossconeIM')
-
+     
      Time = Time+dt
      ! Update CurrentTime and iCurrentTime_I
      CurrentTime = StartTime+Time

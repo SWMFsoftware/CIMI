@@ -18,8 +18,9 @@ subroutine CRCM_set_parameters(NameAction)
   use ModPrerunField,    ONLY: DoWritePrerun, UsePrerun, DtRead
   use ModGmCRCM,         ONLY: UseGm
   use ModWaveDiff,       ONLY: UseWaveDiffusion,UseHiss,UseChorus,UseChorusUB, &
-                               DiffStartT,HissWavesD, ChorusWavesD,ChorusUpperBandD, &
-                               testDiff_aa, testDiff_EE, testDiff_aE
+       DiffStartT,HissWavesD, ChorusWavesD,ChorusUpperBandD, &
+       testDiff_aa, testDiff_EE, testDiff_aE, &
+       NameAeFile, read_ae_wdc_kyoto
   use ModImSat,          ONLY: DtSatOut, DoWritePrerunSat, UsePrerunSat, &
        DtReadSat, DoWriteSats, ReadRestartSat
   use ModCrcmGrid
@@ -74,19 +75,19 @@ subroutine CRCM_set_parameters(NameAction)
            write(*,*)'IM WARNING:#STARTTIME command is ignored in the framework'
         end if
 
-       case ("#NGDC_INDICES")
-           cTempLines(1) = NameCommand
-           call read_var('NameNgdcFile', cTempLine)
-           cTempLines(2) = cTempLine
-           cTempLines(3) = " "
-           cTempLines(4) = "#END"
-
-           call IO_set_inputs(cTempLines)
-           call read_NGDC_Indices(iError)
-
-           if (iError /= 0) then 
-              write(*,*) "read indices was NOT successful (NOAA file)"
-           endif
+     case ("#NGDC_INDICES")
+        cTempLines(1) = NameCommand
+        call read_var('NameNgdcFile', cTempLine)
+        cTempLines(2) = cTempLine
+        cTempLines(3) = " "
+        cTempLines(4) = "#END"
+        
+        call IO_set_inputs(cTempLines)
+        call read_NGDC_Indices(iError)
+        
+        if (iError /= 0) then 
+           write(*,*) "read indices was NOT successful (NOAA file)"
+        endif
 
      case ("#MHD_INDICES")
         cTempLines(1) = NameCommand
@@ -225,14 +226,23 @@ subroutine CRCM_set_parameters(NameAction)
         
      case('#WAVEDIFFUSION')
         call read_var('UseWaveDiffusion',UseWaveDiffusion)
-        if(UseWaveDiffusion) call read_var('DiffStartT',  DiffStartT)
-        if(UseWaveDiffusion) call read_var('UseHiss',  UseHiss)
-        if(UseWaveDiffusion) call read_var('UseChorus',  UseChorus)
-        if(UseWaveDiffusion) call read_var('UseChorusUB',  UseChorusUB)
-        if(UseWaveDiffusion) call read_var('HissWavesD', HissWavesD)
-        if(UseWaveDiffusion) call read_var('ChorusWavesD', ChorusWavesD)
-        if(UseWaveDiffusion) call read_var('ChorusUpperBandD', ChorusUpperBandD)
+        if(UseWaveDiffusion) then
+           call read_var('DiffStartT',  DiffStartT)
+           call read_var('UseHiss',  UseHiss)
+           call read_var('UseChorus',  UseChorus)
+           call read_var('UseChorusUB',  UseChorusUB)
+           call read_var('HissWavesD', HissWavesD)
+           call read_var('ChorusWavesD', ChorusWavesD)
+           call read_var('ChorusUpperBandD', ChorusUpperBandD)
+           call read_var('NameAeFile',NameAeFile)
+           call read_ae_wdc_kyoto(iError)
 
+           if (iError /= 0) then
+              write(*,*) "read AE index was not successful "//&
+                   "(WDC Kyoto file; IAGA2002 Format)"
+           end if
+
+        end if
 
      case('#ENERGYGRID')
         call read_var('MinIonEnergy (in keV), MinElectronEnergy x10',&

@@ -54,7 +54,7 @@ real,parameter :: epsilon0=8.8542e-12         ! permittivity of free space
 ! For ae index
 real, allocatable :: TimeAeIndex_I(:), AeIndex_I(:)
 character(len=100) :: NameAeFile
-
+integer :: NumAeElements
 
 contains
 
@@ -827,22 +827,146 @@ end subroutine diffuse_aa
 
  end subroutine diffuse_EE
  
-! !=============================================================================
-! subroutine read_ae_wdc_kyoto
-!   use ModImTime
-!   use ModTimeConvert, ONLY: time_int_to_real,time_real_to_int
-!   
-!   integer, parameter :: nHeader=15
-!   
-!   read(*,"(I5,1X,I2,1X,I2,1X,I2,1X,I2,1X,F5.3,1XI3,F13.2,F10.2,F10.2,F10.2)")&
-!        iYear,iMonth,iDay, iHour,iMinute,Second,iDoy,AE,AU,AL,AO
- !     call time_int_to_real(iRecordTime_I,RecordTime)
-! end subroutine read_ae_wdc_kyoto
+!****************************************************************************
+!                         read_ae_wdc_kyoto
+!  Routine reads in the AE index file at simulation setup.
+!
+! *** NOTE ***
+! AE index file is to be in the WDC Kyoto IAGA2000 format.
+! 
+!****************************************************************************
+ subroutine read_ae_wdc_kyoto(iOutputError)
 
-!interpolation routine (tSimulation)
-! Currenttime=starttime+tSimulation
+   use ModImTime
+   use ModTimeConvert, ONLY: time_int_to_real
+   use ModIoUnit, ONLY: UnitTmp_
+
+   integer, intent(out) :: iOutputError
+
+   integer :: ierror
+   logical :: done
+
+   integer 	      :: AeLun_ = UnitTmp_
+   integer, parameter :: nHeader = 18
+   character(LEN=100) :: AE_fmt = &
+        "(I4,1X,I2,1X,I2,1X,I2,1X,I2,1X,I2,1X,I3,"//&
+        "1X,I3,F13.2,F10.2,F10.2,F10.2)"
+   character(len=100) :: line
+   integer :: iLine, nLines
+   integer  :: iYear, iMonth, iDay, &
+        iHour, iMinute, iSecond, imSecond, iDoy
+   real :: AE, AU, AL, AO, AE_RecordTime
+
+   ! Open AE index file
+   open(AeLun_, file=NameAeFile, status="old", iostat=ierror)
+
+   ! Check to see file exists, else returns
+   if (ierror.ne.0) then
+      iOutputError = 1
+      return
+   endif
+
+   done = .false.
+   nLines = 1
+
+   ! Cycles through the file once to determine its length.
+   do while ( .not. done )
+
+      read(AeLun_, '(a)', iostat = ierror ) line
+      if (ierror.ne.0) done = .true.
+   
+      nLines = nLines + 1
+      
+   end do
+
+   close(AeLun_)
+
+   ! Sets the number of elements in the global variable.
+   NumAeElements = nLines-nHeader-2
+   
+   ! Allocates AE Index and Time variables
+   ALLOCATE( TimeAeIndex_I( NumAeElements ) )
+   ALLOCATE( AeIndex_I( NumAeElements ) )
+
+!!$   write(*,*) "nLines: ", nLines
+!!$   write(*,*) "nHeader: ", nHeader
+!!$   write(*,*) "NumAeElements: ", NumAeElements
+
+   ! Opens file again to record entries
+   
+   open(AeLun_, file=NameAeFile, status="old", iostat=ierror)
+
+   do iLine = 1, nLines-2
+
+      ! Cycles through the header
+      if (iLine .le. nHeader) then
+      
+         read(AeLun_, '(a)', iostat = ierror ) line
+
+      else
+
+         ! Reads the AE values and stores them in temporaray variables.
+         read(AeLun_, TRIM(AE_fmt), iostat = ierror ) &
+              iYear, iMonth, iDay, &
+              iHour, iMinute, iSecond, imSecond, &
+              iDoy, AE, AU, AL, AO
+
+         ! Stores the AE values in the variable arrays.
+         if (ierror .ne. 0) then
+
+            iOutputError = 1
+            return
+            
+         else
+                  
+!!$            write(*,TRIM(AE_fmt))&
+!!$                 iYear, iMonth, iDay, &
+!!$                 iHour, iMinute, iSecond, imSecond, iDoy, &
+!!$                 AE, AU, AL, AO
+
+            ! Convert the read in time to reference time.
+            call time_int_to_real( (/iYear, iMonth, iDay, &
+                 iHour, iMinute, iSecond, imSecond /), &
+                 AE_RecordTime )
+!!$            write(*,*) AE_RecordTime
+
+            ! Stores the reference time and AE values in the
+            ! global variables.
+            
+            TimeAeIndex_I(iLine-nHeader) = AE_RecordTime
+            AeIndex_I(iLine-nHeader) = AE
+            
+         end if
+         
+      end if
+      
+   end do
+
+   ! Closes AE Index file.
+   close(AeLun_)
+
+ end subroutine read_ae_wdc_kyoto
+
+!****************************************************************************
 !
+!                            interpolate_ae
+!  Routine calculates AE index at the current simulation time.
 !
+!****************************************************************************
+subroutine interpolate_ae(CurrentTime, AE_interp)
+
+  use ModTimeConvert, ONLY: time_real_to_int
+
+  real, intent(in) :: CurrentTime
+  real, intent(out) :: AE_interp
+
+  call lintpIM( TimeAeIndex_I, AeIndex_I, NumAeElements, &
+       CurrentTime, AE_interp )
+
+  return
+
+end subroutine interpolate_ae
+
 !****************************************************************************
 !                             diffuse_aE
 !  Routine solves cross diffusion in ao and E.
