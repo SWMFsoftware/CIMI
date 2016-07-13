@@ -155,7 +155,7 @@ subroutine crcm_run(delta_t)
      call timing_stop('calc_Lstar1')
 
      call timing_start('calc_Lstar2')
-     call calc_Lstar2(Lstarm,Lstar_maxm,rc)
+    call calc_Lstar2(Lstarm,Lstar_maxm,rc)
      call timing_stop('calc_Lstar2')
 
      call timing_start('crcm_plot')
@@ -468,6 +468,11 @@ subroutine crcm_run(delta_t)
         call timing_start('calc_Lstar1')
         call calc_Lstar1(Lstar_C,Lstar_max,rc)
         call timing_stop('calc_Lstar1')
+        
+        call timing_start('calc_Lstar2')
+        call calc_Lstar2(Lstarm,Lstar_maxm,rc)
+        call timing_stop('calc_Lstar2')
+
         call timing_start('crcm_plot')
         call Crcm_plot(np,nt,xo,yo,Pressure_IC,PressurePar_IC,phot,Ppar_IC,Den_IC,&
              bo,ftv,pot,FAC_C,Time,dt,Lstar_C)
@@ -1301,7 +1306,7 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
   real rb,fb(nspec,nt,nm,nk),f2(nspec,np,nt,nm,nk)
   real f2d(np,nt),cmax,cl1,cp1,cmx,dt1,fb0(nt),fb1(nt),fo_log,fb_log,f_log
   real slope,cl(np,nt),cp(np,nt),fal(0:np,nt),fap(np,nt),fupl(0:np,nt),fupp(np,nt)
-  real driftin(nspec),driftout(nspec),dEner,dPart,dEnerLocal,dPartLocal
+  real driftin(nspec),driftout(nspec),dEner,dPart,dEnerLocal_C(nt),dPartLocal_C(nt)
   logical :: UseUpwind=.false.
 
   ! MPI status variable
@@ -1454,27 +1459,9 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
                     endif
                  enddo iloop
                  ! Calculate gain or loss at the outer boundary
-                 dPartLocal = -dt1/dlat(iba(j)) &
+                 dPartLocal_C(j) = -dt1/dlat(iba(j)) &
                       *vl(n,iba(j),j,k,m)*fal(iba(j),j)*d4Element_C(n,iba(j),k,m)
-                 dEnerLocal=ekev(n,iba(j),j,k,m)*dPartLocal
-                 !sum all dEner to root proc
-                 if(nProc>1) then
-                    call MPI_REDUCE (dPartLocal, dPart, 1, MPI_REAL, &
-                         MPI_SUM, 0, iComm, iError)
-                    call MPI_REDUCE (dEnerLocal, dEner, 1, MPI_REAL, &
-                         MPI_SUM, 0, iComm, iError)
-                 else
-                    dPart=dPartLocal
-                    dEner=dEnerLocal
-                 endif
-                 
-                 if(iProc==0) then
-                    if (dPart.gt.0.) driftin(n)=driftin(n)+dEner
-                    if (dPart.lt.0.) driftout(n)=driftout(n)+dEner
-                 else
-                    driftin(n)=0
-                    driftout(n)=0
-                 endif
+                 dEnerLocal_C(j)=ekev(n,iba(j),j,k,m)*dPartLocal_C(j)
               enddo jloop
 
               ! When regular scheme fails, try again with upwind scheme before 
@@ -1509,26 +1496,27 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
                        endif
                     enddo iLoopUpwind
                     ! Calculate gain or loss at the outer boundary
-                    dPartLocal=-dt1/dlat(iba(j))*vl(n,iba(j),j,k,m)*fupl(iba(j),j)*d4Element_C(n,iba(j),k,m)
-                    dEnerLocal=ekev(n,iba(j),j,k,m)*dPart
-                    !sum all dEner to root proc
-                    if(nProc>1) then
-                       call MPI_REDUCE (dPartLocal, dPart, 1, MPI_REAL, &
-                            MPI_SUM, 0, iComm, iError)
-                       call MPI_REDUCE (dEnerLocal, dEner, 1, MPI_REAL, &
-                            MPI_SUM, 0, iComm, iError)
-                    else
-                       dPart=dPartLocal
-                       dEner=dEnerLocal
-                    endif
-                    if(iProc==0) then
-                       if (dPart.gt.0.) driftin(n)=driftin(n)+dEner
-                       if (dPart.lt.0.) driftout(n)=driftout(n)+dEner
-                    else
-                       driftin(n)=0
-                       driftout(n)=0
-                    endif
+                    dPartLocal_C(j)=-dt1/dlat(iba(j))*vl(n,iba(j),j,k,m)*fupl(iba(j),j)*d4Element_C(n,iba(j),k,m)
+                    dEnerLocal_C(j)=ekev(n,iba(j),j,k,m)*dPartLocal_C(j)
                  enddo
+              endif
+              !sum all dEner to root proc
+              if(nProc>1) then
+                 call MPI_REDUCE (sum(dPartLocal_C(MinLonPar:MaxLonPar)), dPart, 1, MPI_REAL, &
+                      MPI_SUM, 0, iComm, iError)
+                 call MPI_REDUCE (sum(dEnerLocal_C(MinLonPar:MaxLonPar)), dEner, 1, MPI_REAL, &
+                      MPI_SUM, 0, iComm, iError)
+              else
+                 dPart=sum(dPartLocal_C)
+                 dEner=sum(dEnerLocal_C)
+              endif
+              
+              if(iProc==0) then
+                 if (dPart.gt.0.) driftin(n)=driftin(n)+dEner
+                 if (dPart.lt.0.) driftout(n)=driftout(n)+dEner
+              else
+                 driftin(n)=0
+                 driftout(n)=0
               endif
            enddo          ! end of do nn=1,nrun
            f2(n,1:np,1:nt,k,m)=f2d(1:np,1:nt)
@@ -1741,6 +1729,7 @@ subroutine sume_cimi(OperatorName)
                            ir=>nt,ip=>np,im=>nm,ik=>nk,je=>neng,Energy,Ebound
   use ModCrcmPlanet, ONLY: nspec
   use ModMPI
+  use ModWaveDiff,    ONLY: testDiff_aE 
 
   implicit none
 
