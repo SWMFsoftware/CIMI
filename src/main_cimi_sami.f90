@@ -47,7 +47,7 @@ program cimi_sami
   integer :: iError, iStep, iRank
   real    :: DtAdvance
   real    :: DtRestart = 300.0 ! currently set at 300s, should be read in later
-  real    :: DtMax = 5.0      ! maximum timestep
+  real    :: DtMax = 60.0      ! maximum timestep
   real    :: TimeMax,Time=0.0
   !---------------------------------------------------------------------------
 
@@ -149,6 +149,15 @@ program cimi_sami
      call init_mod_field_trace
   endif
   
+  
+  ! Set timing procs
+  If(IsCimiProc) then
+     ! Set the component name and PE number
+     call timing_comp_proc('CIMI',iProcGlobal) 
+  else
+     call timing_comp_proc('SAMI',iProcGlobal) 
+  endif
+
   ! Start Timing
   call timing_active(.true.)
   call timing_step(0)
@@ -186,9 +195,12 @@ program cimi_sami
 
   
 
-  if (iProcGlobal == 0)call timing_report_total
+!  if (iProcGlobal == 0)call timing_report_total
+  if (iProcGlobal == iProc0SAMI .or. iProcGlobal == iProc0CIMI) then 
+     call timing_report_total
+  endif
   call timing_reset('#all',3)
-
+  
   ! couple one time before timestepping
   if(IsCimiProc) then
      call cimi_send_to_sami
@@ -280,8 +292,16 @@ program cimi_sami
   ! Finalize timing commands
   call timing_stop('CIMI-SAMI')
 
-  if (iProcGlobal == 0) then
-     write(*,'(a)') 'Finished CIMI_SAMI run, (reporting timings)'
+  call MPI_BARRIER(iCommGlobal,iError)
+!  if (iProcGlobal == 0) then
+  if (iProcGlobal == iProc0SAMI) then 
+     write(*,'(a)') 'Finished CIMI_SAMI run, (reporting timings SAMI)'
+     write(*,'(a)') '--------------------------------------'
+     call timing_report
+  endif
+
+  if (iProcGlobal == iProc0CIMI) then 
+     write(*,'(a)') 'Finished CIMI_SAMI run, (reporting timings CIMI)'
      write(*,'(a)') '--------------------------------------'
      call timing_report
   endif
