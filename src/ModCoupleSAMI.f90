@@ -11,10 +11,14 @@ Module ModCoupleSami
     integer :: nLatSAMI, nLonSAMI
     
     ! sami plasmasphere on sami grid
-    real, allocatable :: PlasSAMI_C(:,:)
+    real, allocatable :: PlasSAMI_C(:,:),PlasHpSAMI_C(:,:),PlasHepSAMI_C(:,:),&
+         PlasOpSAMI_C(:,:)
     
     ! sami plasmasphere on cimi grid
     real, public, allocatable :: PlasSamiOnCimiGrid_C(:,:)
+    real, public, allocatable :: PlasHpSamiOnCimiGrid_C(:,:)
+    real, public, allocatable :: PlasHepSamiOnCimiGrid_C(:,:)
+    real, public, allocatable :: PlasOpSamiOnCimiGrid_C(:,:)
 
     !public methods
     public :: cimi_set_global_mpi
@@ -122,7 +126,13 @@ Module ModCoupleSami
 
       ! allocate arrays that hold data from sami
       allocate(PlasSAMI_C(nLatSAMI,nLonSAMI))
+      allocate(PlasHpSAMI_C(nLatSAMI,nLonSAMI))
+      allocate(PlasHepSAMI_C(nLatSAMI,nLonSAMI))
+      allocate(PlasOpSAMI_C(nLatSAMI,nLonSAMI))
       allocate(PlasSamiOnCimiGrid_C(nLat,nLon))      
+      allocate(PlasHpSamiOnCimiGrid_C(nLat,nLon))      
+      allocate(PlasHepSamiOnCimiGrid_C(nLat,nLon))      
+      allocate(PlasOpSamiOnCimiGrid_C(nLat,nLon))      
     end subroutine cimi_put_init_from_sami
     
     !==========================================================================
@@ -140,18 +150,40 @@ Module ModCoupleSami
       write(*,*) 'Starting cimi_get_from_sami on iProc=', iProc
       !if(iProc ==0) write(*,*) 'sami_get_from_cimi',nLatCIMI,nLonCIMI
       ! Send the starttime from cimi to sami
-      if(iProc ==0) call MPI_recv(PlasSAMI_C,nLatSAMI*nLonSAMI,MPI_REAL,&
-           iProc0SAMI,1,iCommGlobal,iStatus_I,iError)
+      if(iProc ==0) then
+         call MPI_recv(PlasSAMI_C,nLatSAMI*nLonSAMI,MPI_REAL,&
+              iProc0SAMI,1,iCommGlobal,iStatus_I,iError)
+         call MPI_recv(PlasHpSAMI_C,nLatSAMI*nLonSAMI,MPI_REAL,&
+              iProc0SAMI,1,iCommGlobal,iStatus_I,iError)
+         call MPI_recv(PlasHepSAMI_C,nLatSAMI*nLonSAMI,MPI_REAL,&
+              iProc0SAMI,1,iCommGlobal,iStatus_I,iError)
+         call MPI_recv(PlasOpSAMI_C,nLatSAMI*nLonSAMI,MPI_REAL,&
+              iProc0SAMI,1,iCommGlobal,iStatus_I,iError)
+      endif
       ! write out max and min of plas
-      if(iProc ==0) write(*,*) 'Max and min of SAMI Plas recv in CIMI: ', &
-           maxval(PlasSAMI_C), minval(PlasSAMI_C)
-      
+      if(iProc ==0) then
+         write(*,*) 'Max and min of SAMI Plas recv in CIMI: ', &
+              maxval(PlasSAMI_C), minval(PlasSAMI_C)
+         write(*,*) 'Max and min of SAMI H+ Plas recv in CIMI: ', &
+              maxval(PlasHpSAMI_C), minval(PlasHpSAMI_C)
+         write(*,*) 'Max and min of SAMI He+ Plas recv in CIMI: ', &
+              maxval(PlasHepSAMI_C), minval(PlasHepSAMI_C)
+         write(*,*) 'Max and min of SAMI O+ Plas recv in CIMI: ', &
+              maxval(PlasOpSAMI_C), minval(PlasOpSAMI_C)
+      endif
       ! interpolate sami plas to cimi grid
       if(iProc ==0) call interpolate_sami_to_cimi(TimeSimulation)
       
-      if(iProc ==0) write(*,*) 'Max and min of SAMI Plas on cimi Grid: ',&
-           maxval(PlasSamiOnCimiGrid_C), minval(PlasSamiOnCimiGrid_C)
-
+      if(iProc ==0) then
+         write(*,*) 'Max and min of SAMI Plas on cimi Grid: ',&
+              maxval(PlasSamiOnCimiGrid_C), minval(PlasSamiOnCimiGrid_C)
+         write(*,*) 'Max and min of SAMI H+ Plas on cimi Grid: ',&
+              maxval(PlasHpSamiOnCimiGrid_C), minval(PlasHpSamiOnCimiGrid_C)
+         write(*,*) 'Max and min of SAMI He+ Plas on cimi Grid: ',&
+              maxval(PlasHepSamiOnCimiGrid_C), minval(PlasHepSamiOnCimiGrid_C)
+         write(*,*) 'Max and min of SAMI O+ Plas on cimi Grid: ',&
+              maxval(PlasOpSamiOnCimiGrid_C), minval(PlasOpSamiOnCimiGrid_C)
+      endif
 !      write(*,*) iProc,'started send/recv of PlasSamiOnCimiGrid_C'
 !      call MPI_BARRIER(iComm,iError)
 !     if(iProc==0) then
@@ -164,8 +196,14 @@ Module ModCoupleSami
 !              0,1,iComm,iStatus_I,iError)
 !      endif
 !
-!      ! now bcast cimi potential on sami grid to all procs
+!      ! now bcast sami plas on cimi grid to all procs
       call MPI_bcast(PlasSamiOnCimiGrid_C,nLat*nLon, &
+           MPI_REAL,0,iComm,iError)
+      call MPI_bcast(PlasHpSamiOnCimiGrid_C,nLat*nLon, &
+           MPI_REAL,0,iComm,iError)
+      call MPI_bcast(PlasHepSamiOnCimiGrid_C,nLat*nLon, &
+           MPI_REAL,0,iComm,iError)
+      call MPI_bcast(PlasOpSamiOnCimiGrid_C,nLat*nLon, &
            MPI_REAL,0,iComm,iError)
       
       write(*,*) iProc,'finished send/recv of PlasSamiOnCimiGrid_C'
@@ -201,10 +239,22 @@ Module ModCoupleSami
        
             if (LatLon_D(1) > maxval(LatSami_C) .or. &
                  LatLon_D(1) < minval(LatSami_C) ) then
-               PlasSamiOnCimiGrid_C(iLat,iLon) = 0.0
+               PlasSamiOnCimiGrid_C(iLat,iLon)    = 0.0
+               PlasHpSamiOnCimiGrid_C(iLat,iLon)  = 0.0
+               PlasHepSamiOnCimiGrid_C(iLat,iLon) = 0.0
+               PlasOpSamiOnCimiGrid_C(iLat,iLon)  = 0.0
             else
                PlasSamiOnCimiGrid_C(iLat,iLon) = &
                     bilinear(PlasSAMI_C,1,nLatSAMI,1,nLonSAMI,LatLon_D, &
+                    LatSami_C,LonSami_C,DoExtrapolate=.true.)
+               PlasHpSamiOnCimiGrid_C(iLat,iLon) = &
+                    bilinear(PlasHpSAMI_C,1,nLatSAMI,1,nLonSAMI,LatLon_D, &
+                    LatSami_C,LonSami_C,DoExtrapolate=.true.)
+               PlasHepSamiOnCimiGrid_C(iLat,iLon) = &
+                    bilinear(PlasHepSAMI_C,1,nLatSAMI,1,nLonSAMI,LatLon_D, &
+                    LatSami_C,LonSami_C,DoExtrapolate=.true.)
+               PlasOpSamiOnCimiGrid_C(iLat,iLon) = &
+                    bilinear(PlasOpSAMI_C,1,nLatSAMI,1,nLonSAMI,LatLon_D, &
                     LatSami_C,LonSami_C,DoExtrapolate=.true.)
             endif
          enddo
@@ -212,7 +262,7 @@ Module ModCoupleSami
       
       !      ! add the ghost cell for potential
 !      PotCimiOnSamiGrid_C(:,nLonSami) = PotCimiOnSamiGrid_C(:,1) 
-      call plot_coupled_values
+      !call plot_coupled_values
       
 
     end subroutine interpolate_sami_to_cimi
@@ -266,28 +316,32 @@ Module ModCoupleSami
       
       open(UnitTmp_,FILE='SamiGridPlas.dat')
       write(UnitTmp_,'(a)') &
-           'VARIABLES = "Lat", "Lon", "Phi"'
+           'VARIABLES = "Lat", "Lon", "ePlas", "HpPlas", "HepPlas", "OpPlas"'
       write(UnitTmp_,'(a,i3,a,i3,a)') 'Zone I=', nLatSami, &
            ', J=', nLonSami-1,', DATAPACKING=POINT'
       
       do iLon = 1, nLonSami-1
          do iLat = 1, nLatSami
             write(UnitTmp_,"(100es18.10)") LatSami_C(iLat),&
-                 LonSami_C(iLon),PlasSAMI_C(iLat,iLon)
+                 LonSami_C(iLon),PlasSAMI_C(iLat,iLon),PlasHpSAMI_C(iLat,iLon),&
+                 PlasHepSAMI_C(iLat,iLon),PlasOpSAMI_C(iLat,iLon)
          enddo
       enddo
       close(UnitTmp_)
       
       open(UnitTmp_,FILE='CimiGridPlas.dat')
       write(UnitTmp_,'(a)') &
-           'VARIABLES = "Lat", "Lon", "Phi"'
+           'VARIABLES = "Lat", "Lon", "ePlas", "HpPlas", "HepPlas", "OpPlas"'
       write(UnitTmp_,'(a,i3,a,i3,a)') 'Zone I=', nLat, &
            ', J=', nLon,', DATAPACKING=POINT'
       
       do iLon = 1, nLon
          do iLat = 1, nLat
             write(UnitTmp_,"(100es18.10)") Lat_C(iLat),&
-                 Lon_C(iLon),PlasSamiOnCimiGrid_C(iLat,iLon)
+                 Lon_C(iLon),PlasSamiOnCimiGrid_C(iLat,iLon),&
+                 PlasHpSamiOnCimiGrid_C(iLat,iLon),&
+                 PlasHepSamiOnCimiGrid_C(iLat,iLon),&
+                 PlasOpSamiOnCimiGrid_C(iLat,iLon)
          enddo
       enddo
       close(UnitTmp_)
