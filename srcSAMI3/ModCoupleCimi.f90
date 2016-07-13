@@ -24,8 +24,14 @@ Module ModCoupleCimi
 
     ! Electron density at magnetic equator from SAMI3
     real,allocatable :: PlasEq_C(:,:)
-   
-
+    ! H+ density at magnetic equator from SAMI3
+    real,allocatable :: PlasHpEq_C(:,:)
+    ! He+ density at magnetic equator from SAMI3
+    real,allocatable :: PlasHepEq_C(:,:)
+    ! O+ density at magnetic equator from SAMI3
+    real,allocatable :: PlasOpEq_C(:,:)
+    
+    
     !public methods
     public :: sami_set_global_mpi
     public :: sami_put_init_from_cimi
@@ -108,8 +114,13 @@ Module ModCoupleCimi
       
       !if(iProc ==0) write(*,*) 'sami_get_from_cimi',nLatCIMI,nLonCIMI
       ! Send the starttime from cimi to sami
-      if(iProc ==0) call MPI_recv(PotCIMI_C,nLatCIMI*nLonCIMI,MPI_REAL,&
-           iProc0CIMI,1,iCommGlobal,iStatus_I,iError)
+      if(iProc ==0) then
+         call MPI_recv(PotCIMI_C,nLatCIMI*nLonCIMI,MPI_REAL,&
+              iProc0CIMI,1,iCommGlobal,iStatus_I,iError)
+         !KLUDGE temporarily overwrite CIMI potential with 0 to test rest of 
+         ! coupling
+         !PotCIMI_C(:,:)=0.0
+      endif
       ! write out max and min of pot
       if(iProc ==0) write(*,*) 'Max and min of CIMI Potential [V]: ', &
            maxval(PotCIMI_C), minval(PotCIMI_C)
@@ -169,7 +180,7 @@ Module ModCoupleCimi
       
       ! add the ghost cell for potential
       PotCimiOnSamiGrid_C(nLonSami,:) = PotCimiOnSamiGrid_C(1,:) 
-      call plot_coupled_values
+      !call plot_coupled_values
       
 
     end subroutine interpolate_cimi_to_sami
@@ -266,14 +277,28 @@ Module ModCoupleCimi
       !gather plasmaspheric densities for CIMI
       if (iProc == 0 .and. .not.allocated(PlasEq_C)) &
            allocate(PlasEq_C(nLatSami,nLonSami))
+      if (iProc == 0 .and. .not.allocated(PlasHpEq_C)) &
+           allocate(PlasHpEq_C(nLatSami,nLonSami))
+      if (iProc == 0 .and. .not.allocated(PlasHepEq_C)) &
+           allocate(PlasHepEq_C(nLatSami,nLonSami))
+      if (iProc == 0 .and. .not.allocated(PlasOpEq_C)) &
+           allocate(PlasOpEq_C(nLatSami,nLonSami))
       if(iProc ==0) write(*,*) 'iProc',iProc,'calling gather_dene'      
       call gather_dene
       !if(iProc ==0) PlasEq_C(:,:) =0.0
       if(iProc ==0) write(*,*) 'iProc',iProc,'finished gather_dene'      
       !if(iProc==0)  write(*,*) 'cimi_send_to_sami',nLat,nLon
       ! Send the starttime from cimi to sami
-      if(iProc ==0) call MPI_send(PlasEq_C,nLatSami*nLonSami,MPI_REAL, &
-           iProc0CIMI,1,iCommGlobal,iError)
+      if(iProc ==0) then
+         call MPI_send(PlasEq_C,nLatSami*nLonSami,MPI_REAL, &
+              iProc0CIMI,1,iCommGlobal,iError)
+         call MPI_send(PlasHpEq_C,nLatSami*nLonSami,MPI_REAL, &
+              iProc0CIMI,1,iCommGlobal,iError)
+         call MPI_send(PlasHepEq_C,nLatSami*nLonSami,MPI_REAL, &
+              iProc0CIMI,1,iCommGlobal,iError)
+         call MPI_send(PlasOpEq_C,nLatSami*nLonSami,MPI_REAL, &
+              iProc0CIMI,1,iCommGlobal,iError)
+      end if
       if(iProc ==0) write(*,*) 'SAMI3 iProc=',iProc,'sending PlasEq_C to cimi'
     end subroutine sami_send_to_cimi
 
@@ -395,12 +420,23 @@ Module ModCoupleCimi
                enddo
             enddo
          enddo
+         ! H+(ni =1), O+(ni=2), He+ (ni=5) see for instance ptop in param3 file 
          ! get2D plasmasphere density map on SAMI grid
          PlasEq_C(1:nLatSami,1:nLonSami-1) = denet(nz/2,1:nLatSami,1:nLonSami-1)
+         PlasHpEq_C(1:nLatSami,1:nLonSami-1) = &
+              denit(nz/2,1:nLatSami,1:nLonSami-1,pthp)
+         PlasHepEq_C(1:nLatSami,1:nLonSami-1) = &
+              denit(nz/2,1:nLatSami,1:nLonSami-1,pthep)
+         PlasOpEq_C(1:nLatSami,1:nLonSami-1) = &
+              denit(nz/2,1:nLatSami,1:nLonSami-1,ptop)
+         !fill ghost cells
          PlasEq_C(1:nLatSami,nLonSami) = denet(nz/2,1:nLatSami,1)
+         PlasHpEq_C(1:nLatSami,nLonSami)  = PlasHpEq_C(1:nLatSami,1)
+         PlasHepEq_C(1:nLatSami,nLonSami) = PlasHepEq_C(1:nLatSami,1)
+         PlasOpEq_C(1:nLatSami,nLonSami)  = PlasOpEq_C(1:nLatSami,1)
          ! deallocate 3D arrays to save memory
          deallocate(denit,denet)
-         call plot_2dplas
+         !call plot_2dplas
       endif
       
       
@@ -451,14 +487,15 @@ Module ModCoupleCimi
       
       open(UnitTmp_,FILE='Sami3PlasIn2D.dat')
       write(UnitTmp_,'(a)') &
-           'VARIABLES = "Lat", "Lon", "dens[/cc]"'
+           'VARIABLES = "Lat", "Lon", "edens[/cc]" "Hpdens[/cc]" "Hepdens[/cc]" "Opdens[/cc]"'
       write(UnitTmp_,'(a,i3,a,i3,a)') 'Zone I=', nLatSami, &
            ', J=', nLonSami-1,', DATAPACKING=POINT'
       
       do iLon = 1, nLonSami-1
          do iLat = 1, nLatSami
             write(UnitTmp_,"(100es18.10)") bLatSami(iLat,iLon),&
-                 bLonSami(iLat,iLon),PlasEq_C(iLat,iLon)
+                 bLonSami(iLat,iLon),PlasEq_C(iLat,iLon),PlasHpEq_C(iLat,iLon),&
+                 PlasHepEq_C(iLat,iLon),PlasOpEq_C(iLat,iLon)
          enddo
       enddo
       close(UnitTmp_)
