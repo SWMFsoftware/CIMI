@@ -358,9 +358,10 @@ c     Some local variables
        DtStop    = DtAdvance
        
        if(DoCoupleCimi) then
+          !temporarily remove this statement
 !     force hrinit to be consistant with CIMI start time
-          hrinit = real(iStartTime_I(4))+real(iStartTime_I(5))/60.0
-     &         +real(iStartTime_I(6))/3600.0
+!          hrinit = real(iStartTime_I(4))+real(iStartTime_I(5))/60.0
+!     &         +real(iStartTime_I(6))/3600.0
        endif
        
        if(taskid .eq. 0) then
@@ -742,7 +743,11 @@ C Now wait to receive back the results from each worker task
 !             u1(i,j,k) =  eph(i,j,k)
 !             u2(i,j,k) =  delph(i,j,k)
 !             u3(i,j,k) =  phihp(j,k)
-                   u4t(i,j,k) =   PotCimiOnSamiGrid_C(k,j)
+                     if(DoCoupleCimi)then
+                        u4t(i,j,k) =   PotCimiOnSamiGrid_C(k,j)
+                     else
+                        u4t(i,j,k) =   0.0
+                     endif
                  enddo
                enddo
              enddo
@@ -2659,9 +2664,11 @@ c endif for taskid > 0 initialization
         do i = 1,nz
           glonsij = glons(i,j,nll)
           if ( lcr )
+!            glons0(i,j,nll) = glons(i,j,nll)+15.*hrinit
      .      glonsij = glons0(i,j,nll) -
-     .                (hruti - hrinit) * 15.
-          glonsij = mod(glonsij,360.)
+     .                (hruti) * 15.
+!     .                (hruti - hrinit) * 15.
+            glonsij = mod(glonsij,360.)
           hrl   = mod(hruti + glonsij / 15.,24.)
           call msistim ( int(year),int(day),hrl,
      .                   glonsij,iyd,sec )
@@ -2688,7 +2695,8 @@ c endif for taskid > 0 initialization
           glonsij = glons(i,j,nll)
           if ( lcr )
      .      glonsij = glons0(i,j,nll) -
-     .                (hruti - hrinit) * 15.
+!     .                (hruti - hrinit) * 15.
+     .                (hruti) * 15.
           glonsij = mod(glonsij,360.)
           hrl     = mod(hruti + glonsij / 15.,24.)
           call msistim ( int(year),int(day),hrl,glonsij,iyd,sec )
@@ -2712,7 +2720,8 @@ c endif for taskid > 0 initialization
           glonsij = glons(i,j,nll)
           if ( lcr )
      .      glonsij = glons0(i,j,nll) -
-     .                (hrutf - hrinit) * 15.
+!     .                (hrutf - hrinit) * 15.
+     .                (hrutf) * 15.
           glonsij = mod(glonsij,360.)
           hrl   = mod(hrutf + glonsij / 15.,24.)
           call msistim ( int(year),int(day),hrl,
@@ -2741,7 +2750,8 @@ c endif for taskid > 0 initialization
           glonsij = glons(i,j,nll)
           if ( lcr )
      .      glonsij = glons0(i,j,nll) -
-     .                (hrutf - hrinit) * 15.
+     .                (hrutf) * 15.
+!     .                (hrutf - hrinit) * 15.
 
           glonsij = mod(glonsij,360.)
           hrl   = mod(hrutf + glonsij / 15.,24.)
@@ -5220,7 +5230,11 @@ c$$$     .                  0.5 * anu_drag0 * ( 1. - tanh(alpha_drag_n))
 
        do i = 1,nz
          hrl   = mod(hrut + glons(i,nfl,nll) / 15.,24.)
-         if ( lcr ) hrl = mod(hrinit+glons(i,nfl,nll) / 15.,24.)
+         if ( lcr ) then
+!            glons0(i,j,nll) = glons(i,j,nll)+15.*hrinit
+!            hrl = mod(hrinit+glons0(i,nfl,nll) / 15.,24.)
+            hrl = mod(glons(i,nfl,nll) / 15.,24.)
+         endif
          sdec          = rtod * asin (  sin (2.*pie*(day-dayve)/sidyr)
      .                                * sin (solinc/rtod)             )
          cossdec       = cos ( po180 * sdec )
@@ -6675,6 +6689,22 @@ c$$$     .                  0.5 * anu_drag0 * ( 1. - tanh(alpha_drag_n))
            te(nz,j,k)   = te(nzm1,j,k)
          enddo
        enddo
+
+!   fix at j = nf (interpolate) 
+ 
+      do ni = nion1,nion2 
+        do k = 2,nlm1 
+        j = nf 
+          do i = 1,nz 
+            slope  = (blatp(i,j,k) - blatp(i,j-1,k)  ) /
+     &            (90.          - blatp(i,j-1,k)) 
+            deni(i,j,k,ni) = deni(i,j-1,k,ni) +  
+     &           slope * (deni_mnp(i,ni) - deni(i,j-1,k,ni))  
+            deni(i,j,k,ni) = max(deni(i,j,k,ni),denmin)           
+          enddo 
+        enddo 
+      enddo 
+ 
 
        return
        end
