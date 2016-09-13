@@ -189,7 +189,7 @@ contains
        
        write(NameSatFile, '(a, i6.6, a)')                    &
             'IM/plots/'//'sat_'//trim(NameSat_I(iSatIn))// &
-            '_t',iStartTime, NameSpecies//'.sat'
+             NameSpecies//'flux_t',iStartTime,'.sat'
        
        ! Open file in appropriate mode.  Write header if necessary.
        inquire(file=NameSatFile, exist=IsExist)
