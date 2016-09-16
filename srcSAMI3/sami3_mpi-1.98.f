@@ -3987,10 +3987,10 @@ c$$$     .         * exp ( -.005*ne(i,nfl,nll)/deni(i,nfl,nll,ni) )
         sigmapic(i,nfl,nll) = sigpic
         sigmahic(i,nfl,nll) = sighic
         if (alts(i,nfl,nll) .ge. 1.e4) then
-          sigmap(i,nfl,nll)   = 0.001
-          sigmah(i,nfl,nll)   = 0.001
-          sigmapic(i,nfl,nll) = 0.001
-          sigmahic(i,nfl,nll) = 0.001
+          sigmap(i,nfl,nll)   = 0.00
+          sigmah(i,nfl,nll)   = 0.00
+          sigmapic(i,nfl,nll) = 0.00
+          sigmahic(i,nfl,nll) = 0.00
         endif
       enddo
 
@@ -4026,7 +4026,7 @@ c$$$     .         * exp ( -.005*ne(i,nfl,nll)/deni(i,nfl,nll,ni) )
      .                   sigmap(i,nfl,nll) * del / bms(i,nfl,nll) *
 !!     .                   dels(i,nfl,nll) * 
 !!     .                   0.25 / tan(bang)
-     .                   dels(i,nfl,nll) * ps(i,nfl,nll)
+     .                   dels(i,nfl,nll) 
 
 ! original hipcphi divided by p
 ! now it is divided by tan(bang)
@@ -4034,7 +4034,7 @@ c$$$     .         * exp ( -.005*ne(i,nfl,nll)/deni(i,nfl,nll,ni) )
         hipcphi(nfl,nll) = hipcphi(nfl,nll) +
      .                     sigmap(i,nfl,nll) / del / bms(i,nfl,nll) *
 !!     .                     dels(i,nfl,nll) * tan(bang)
-     .                     dels(i,nfl,nll) / ps(i,nfl,nll)
+     .                     dels(i,nfl,nll) 
 
 ! original hihcm
 ! now it is divided by 2
@@ -4100,6 +4100,10 @@ c$$$     .         * exp ( -.005*ne(i,nfl,nll)/deni(i,nfl,nll,ni) )
      .                  fdpv * dels(i,nfl,nll)    
 
       enddo
+
+        hipcp(nfl,nll)   = hipcp(nfl,nll)   * ps(nz/2,nfl,nll)
+        hipcphi(nfl,nll) = hipcphi(nfl,nll) / ps(nz/2,nfl,nll)
+
 
 ! calculate collisional ion velocity 
 ! not used; simply a diagnostic
