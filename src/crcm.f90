@@ -6,8 +6,11 @@ subroutine crcm_run(delta_t)
                             PressurePar_IC,FAC_C, Bmin_C, &
                             OpBfield_,OpDrift_,OpLossCone_, OpWaves_, &
                             OpChargeEx_, OpStrongDiff_,rbsumLocal,rbsumGlobal, &
-                            driftin, driftout, IsStandAlone,rcsumLocal,rcsumGlobal,&
-                            preP,preF,Eje1,UseStrongDiff
+                            driftin, driftout, IsStandAlone,&
+                            rcsumLocal,rcsumGlobal,&
+                            preP,preF,Eje1,UseStrongDiff,&
+                            eChangeOperator_VICI,nOperator,&
+                            eChangeLocal,eChangeGlobal
   use ModCrcmPlanet,  ONLY: re_m, dipmom, Hiono, nspec, amu_I, &
                             dFactor_I,tFactor_I
   use ModFieldTrace,  ONLY: fieldpara, brad=>ro, ftv=>volume, xo,yo,rb,irm,&
@@ -24,7 +27,7 @@ subroutine crcm_run(delta_t)
   use ModTimeConvert, ONLY: time_real_to_int
   use ModImSat,       ONLY: nImSats,write_im_sat, DoWriteSats, DtSatOut
   use ModCrcmGrid,    ONLY: iProc,nProc,iComm,nLonPar,nLonPar_P,nLonBefore_P, &
-                            MinLonPar, MaxLonPar
+                            MinLonPar,MaxLonPar,nt
   use ModCrcmBoundary,ONLY: crcm_set_boundary_mhd, crcm_set_boundary_empirical
   use ModMpi
   use ModWaveDiff,    ONLY: UseWaveDiffusion,ReadDiffCoef,WavePower, & 
@@ -43,7 +46,7 @@ subroutine crcm_run(delta_t)
   real achar(nspec,np,nt,nm,nk)
   real vl(nspec,0:np,nt,nm,nk),vp(nspec,np,nt,nm,nk),psd(nspec,np,nt,nm,nk),&
        fb(nspec,nt,nm,nk),rc
-  integer iLat, iLon, iSpecies, iSat
+  integer iLat, iLon, iSpecies, iSat, iOperator
   logical, save :: IsFirstCall =.true.
   real  AE_temp
   real Lstar_C(np,nt),Lstar_max,Lstarm(np,nt,nk),Lstar_maxm(nk)
@@ -428,30 +431,58 @@ subroutine crcm_run(delta_t)
         enddo
      enddo
   endif
-  
+
   if (nProc>1 .and. (DoSaveLog .and. &
           (floor((Time+1.0e-5)/DtLogOut))/=&
           floor((Time+1.0e-5-delta_t)/DtLogOut))) then
       do  iSpecies=1,nspec
-        do iEnergy=1,neng+2
-           BufferSend_C(:,:)=preP(iSpecies,:,:,iEnergy)
-           call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
-                  MPI_REAL, BufferRecv_C,iRecieveCount_P, iDisplacement_P, &
-                  MPI_REAL, 0, iComm, iError)
-           if (iProc==0) preP(iSpecies,:,:,iEnergy)=BufferRecv_C(:,:) 
-           BufferSend_C(:,:)=preF(iSpecies,:,:,iEnergy)  
-           call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
-                  MPI_REAL, BufferRecv_C,iRecieveCount_P, iDisplacement_P, &
-                  MPI_REAL, 0, iComm, iError)
-           if (iProc==0) preF(iSpecies,:,:,iEnergy)=BufferRecv_C(:,:)
-        enddo
+         do iEnergy=1,neng+2
+            BufferSend_C(:,:)=preP(iSpecies,:,:,iEnergy)
+            call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
+                 MPI_REAL, BufferRecv_C,iRecieveCount_P, iDisplacement_P, &
+                 MPI_REAL, 0, iComm, iError)
+            if (iProc==0) preP(iSpecies,:,:,iEnergy)=BufferRecv_C(:,:) 
+            BufferSend_C(:,:)=preF(iSpecies,:,:,iEnergy)  
+            call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
+                 MPI_REAL, BufferRecv_C,iRecieveCount_P, iDisplacement_P, &
+                 MPI_REAL, 0, iComm, iError)
+            if (iProc==0) preF(iSpecies,:,:,iEnergy)=BufferRecv_C(:,:)
+            do iOperator = 1,nOperator
+               BufferSend_C(:,:) = &
+                    eChangeOperator_VICI(iSpecies,:,:,iEnergy,iOperator)
+               call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount,&
+                    MPI_REAL, BufferRecv_C, iRecieveCount_P, iDisplacement_P, &
+                    MPI_REAL, 0, iComm, iError)
+               if (iProc==0) &
+                    eChangeOperator_VICI(iSpecies,:,:,iEnergy,iOperator)= &
+                    BufferRecv_C(:,:)
+            enddo ! Do loop over iOperator
+
+         enddo ! Do loop over iEnergy
+         
          BufferSend_C(:,:)=Eje1(iSpecies,:,:)
          call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
                   MPI_REAL, BufferRecv_C,iRecieveCount_P, iDisplacement_P, &
                   MPI_REAL, 0, iComm, iError)
          if (iProc==0) Eje1(iSpecies,:,:)=BufferRecv_C(:,:)
-      enddo
-  endif
+         ! This operation is redundant.  Unsure if eChangeLocal and
+         ! Global variables are even necessary. - Colin
+         do iOperator = 1,nOperator
+            call MPI_REDUCE(&
+                 eChangeLocal(iSpecies, iOperator),&
+                 eChangeGlobal(iSpecies, iOperator), 1, &
+                 MPI_REAL, MPI_SUM, 0, iComm, iError)
+            write(*,'(A,I1,A,I1,A,I1,A,ES13.5)') &
+                 "::COLIN::: POST-REDUCE nProc ", nProc, &
+                 " iOperator: ",iOperator, &
+                 " iSpecies: ",iSpecies, &
+                 " eChangeGlobal: ", &
+                 eChangeGlobal(iSpecies,iOperator)
+         enddo ! Do loop over iOperator
+         
+      enddo !Do loop over Species
+      
+   endif
 
   !Gather to root
   !    iSendCount = np*nLonPar
@@ -919,8 +950,10 @@ subroutine boundaryIM(nspec,neng,np,nt,nm,nk,iba,irm,amu_I,xjac,energy,vel,fb)
   ! Output: fb
   Use ModGmCrcm, ONLY:  Temp_IC, Temppar_IC, DoAnisoPressureGMCoupling
   use ModCrcm,        ONLY: MinLonPar,MaxLonPar, f2
+  use ModCrcmGrid, ONLY: MinLonPar,MaxLonPar
   use ModFieldTrace,  ONLY: sinA,ekev
   use ModCrcmBoundary,ONLY: BoundaryDens_IC,BoundaryTemp_IC,BoundaryTempPar_IC
+
   implicit none
 
   integer nspec,neng,np,nt,nm,nk,iba(nt),irm(nt),j,n,k,m,ib1
@@ -931,7 +964,7 @@ subroutine boundaryIM(nspec,neng,np,nt,nm,nk,iba,irm,amu_I,xjac,energy,vel,fb)
   real kappa,kappa_plus_one,kappa_minus_half,ln_gamma_diff,gamma_ratio
   real ln_gamma
   real e_min
-  
+
   kappa=3.
   kappa_plus_one=kappa+1.
   kappa_minus_half=kappa-0.5
@@ -947,14 +980,14 @@ subroutine boundaryIM(nspec,neng,np,nt,nm,nk,iba,irm,amu_I,xjac,energy,vel,fb)
   fb(1:nspec,MinLonPar:MaxLonPar,1:nm,1:nk)=0.
   do n=1,nspec
      e_min=0.
-     if (n.ge.4) e_min=0.5*energy(n,1)
+     if (n.ge.nspec) e_min=0.5*energy(n,1)
      xmass=amu_I(n)*1.673e-27
      chmass=1.6e-19/xmass
      do j=MinLonPar,MaxLonPar
         ib1=iba(j)+1
         if (ib1.gt.irm(j)) ib1=irm(j)
         if(DoAnisoPressureGMCoupling)then
-           ANISO_KAPPA_BOUNDARY: if (n.eq.4) then
+           ANISO_KAPPA_BOUNDARY: if (n .eq. nspec) then
               fb1=BoundaryDens_IC(n,j)*gamma_ratio/ &
                    (2.*pi*kappa*xmass*BoundaryTempPar_IC(n,j)*1.6e-19)**0.5/ &
                    (2.*pi*kappa*xmass*BoundaryTempPerp_IC(n,j)*1.6e-19)
@@ -964,14 +997,14 @@ subroutine boundaryIM(nspec,neng,np,nt,nm,nk,iba,irm,amu_I,xjac,energy,vel,fb)
                    (2.*pi*xmass*BoundaryTempPerp_IC(n,j)*1.6e-19)
            endif ANISO_KAPPA_BOUNDARY
         else
-           KAPPA_BOUNDARY: if (n.eq.4) then
+           KAPPA_BOUNDARY: if (n .eq. nspec) then
               fb1=BoundaryDens_IC(n,j)*gamma_ratio/ &
                    (2.*pi*kappa*xmass*BoundaryTemp_IC(n,j)*1.6e-19)**1.5
            else
               fb1=BoundaryDens_IC(n,j)/ &
                    (2.*pi*xmass*BoundaryTemp_IC(n,j)*1.6e-19)**1.5
            endif KAPPA_BOUNDARY
-        end if
+        endif
         do k=1,nm
            do m=1,nk
               fb_temp=0.
@@ -982,7 +1015,7 @@ subroutine boundaryIM(nspec,neng,np,nt,nm,nk,iba,irm,amu_I,xjac,energy,vel,fb)
                     velperp2 = (vel(n,ib1,j,k,m)*sinA(ib1,j,m))**2
                     velpar2 = vel(n,ib1,j,k,m)**2 - velperp2
                     
-                    ELECTRON_BI_KAPPA: if (n .eq. 4) then
+                    ELECTRON_BI_KAPPA: if (n .eq. nspec) then
                        vtchm = &
                             velpar2/(2*BoundaryTempPar_IC(n,j)*chmass*kappa) + &
                             velperp2/(2*BoundaryTempPerp_IC(n,j)*chmass*kappa)
@@ -992,7 +1025,7 @@ subroutine boundaryIM(nspec,neng,np,nt,nm,nk,iba,irm,amu_I,xjac,energy,vel,fb)
                             velperp2/(2*BoundaryTempPerp_IC(n,j)*chmass)
                     endif ELECTRON_BI_KAPPA
                  else
-                    ELECTRON_KAPPA: if (n .eq. 4) then
+                    ELECTRON_KAPPA: if (n .eq. nspec) then
                        vtchm =  vel(n,ib1,j,k,m)**2/ &
                             (2*BoundaryTemp_IC(n,j)*chmass*kappa)
                     else
@@ -1001,7 +1034,7 @@ subroutine boundaryIM(nspec,neng,np,nt,nm,nk,iba,irm,amu_I,xjac,energy,vel,fb)
                     end if ELECTRON_KAPPA
                  end if
 
-                 ELECTRON_BOUNDARY_DIST: if (n .eq. 4) then
+                 ELECTRON_BOUNDARY_DIST: if (n .eq. nspec) then
                     fb_temp=fb1/(1.+vtchm/kappa)**kappa_plus_one
                  else
                     if (vtchm.lt.500.) &
@@ -1009,11 +1042,14 @@ subroutine boundaryIM(nspec,neng,np,nt,nm,nk,iba,irm,amu_I,xjac,energy,vel,fb)
                  end if ELECTRON_BOUNDARY_DIST
               endif
               fb(n,j,k,m)=fb_temp*xjac(n,ib1,k)
+
            enddo		! end of m loop
         enddo			! end of k loop 
      enddo			! end of j loop
   enddo				! end of n loop
 
+  
+  
 end subroutine boundaryIM
 
 !-----------------------------------------------------------------------------
@@ -1292,10 +1328,10 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
   !
   ! Input: iw2,nspec,np,nt,nm,nk,iba,dt,dlat,dphi,brad,rb,vl,vp,fbi
   ! Input/Output: f2,ib0,driftin,driftout
-  use ModCrcmGrid, ONLY: iProc,nProc,iComm,MinLonPar,MaxLonPar, &
-       iProcLeft, iLonLeft, iProcRight, iLonRight, d4Element_C
+  use ModCrcmGrid, ONLY: MinLonPar, MaxLonPar
   use ModFieldTrace, ONLY: iba, ekev
-    
+  use ModCrcmGrid, ONLY: iProc,nProc,iComm,MinLonPar,MaxLonPar, &
+       iProcLeft, iLonLeft, iProcRight, iLonRight, d4Element_C    
   use ModMpi
   implicit none
 
@@ -1343,13 +1379,13 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
                  cmax=max(cmx,cmax)
               enddo
            enddo
-           
+
            !get same cmax on all procs
            if (nProc > 1) then
               call MPI_allgather(cmax,1,MPI_REAL,cmax_P,1,MPI_REAL,iComm,iError)
               cmax=maxval(cmax_P)
            endif
-           
+
            nrun=ifix(cmax/0.50)+1     ! nrun to limit the Courant number
            dt1=dt/nrun                ! new dt
            ! Setup boundary fluxes and Courant numbers
@@ -1721,9 +1757,11 @@ subroutine sume_cimi(OperatorName)
 !   eTimeAccumulatv=esum(ns,ir,ip,je+2) No need for additional dimention because
 !   it's total energy
 !!!!!!!!!!!!!!!!
-  use ModCrcm,       ONLY: f2,rbsum=>rbsumLocal,rbsumGlobal,rcsum=>rcsumLocal,rcsumGlobal,&
-                            xle=>eChangeOperator_VICI,ple=>pChangeOperator_VICI, &
-                            esum=>eTimeAccumult_ICI,psum=>pTimeAccumult_ICI
+  use ModCrcm,       ONLY: &
+       f2,rbsum=>rbsumLocal,rbsumGlobal,rcsum=>rcsumLocal,rcsumGlobal,&
+       xle=>eChangeOperator_VICI,ple=>pChangeOperator_VICI, &
+       eChangeGlobal,eChangeLocal, &
+       esum=>eTimeAccumult_ICI,psum=>pTimeAccumult_ICI
   use ModFieldTrace, ONLY: iba,ekev,ro,iw2
   use ModCrcmGrid,   ONLY: nProc,iProc,iComm, MinLonPar,MaxLonPar,d4Element_C, &
                            ir=>nt,ip=>np,im=>nm,ik=>nk,je=>neng,Energy,Ebound
@@ -1748,19 +1786,21 @@ subroutine sume_cimi(OperatorName)
     do n=1,nspec
        rbsum(n)=0.
        rcsum(n)=0.
-       e0(1:ir,MinLonPar:MaxLonPar,1:je+2)=esum(n,1:ir,MinLonPar:MaxLonPar,1:je+2)
-       p0(1:ir,MinLonPar:MaxLonPar,1:je+2)=psum(n,1:ir,MinLonPar:MaxLonPar,1:je+2)
+       e0(1:ir,MinLonPar:MaxLonPar,1:je+2)=&
+            esum(n,1:ir,MinLonPar:MaxLonPar,1:je+2)
+       p0(1:ir,MinLonPar:MaxLonPar,1:je+2)=&
+            psum(n,1:ir,MinLonPar:MaxLonPar,1:je+2)
        esum(n,1:ir,MinLonPar:MaxLonPar,1:je+2)=0.
        psum(n,1:ir,MinLonPar:MaxLonPar,1:je+2)=0.
        gride1(1:je)=Ebound(n,1:je)
 
-            do j=MinLonPar,MaxLonPar
-              do i=1,ir
-                if (i.le.iba(j)) then
+       do j=MinLonPar,MaxLonPar
+          do i=1,ir
+             if (i.le.iba(j)) then
                 do m=1,ik
                    do k=1,iw2(n,m)
                       ekev1=ekev(n,i,j,k,m)
-                       weight=d4Element_C(n,i,k,m)*f2(n,i,j,k,m)
+                      weight=d4Element_C(n,i,k,m)*f2(n,i,j,k,m)
                       weighte=ekev1*weight
                       psum(n,i,j,je+2)=psum(n,i,j,je+2)+weight
                       esum(n,i,j,je+2)=esum(n,i,j,je+2)+weighte
@@ -1779,13 +1819,19 @@ subroutine sume_cimi(OperatorName)
 
              do kk=1,je+2
                 dee=esum(n,i,j,kk)-e0(i,j,kk)
-                xle(OperatorName,n,i,j,kk)=xle(OperatorName,n,i,j,kk)+dee
+                xle(n,i,j,kk,OperatorName)=xle(n,i,j,kk,OperatorName)+dee
                 dpe=psum(n,i,j,kk)-p0(i,j,kk)
-                ple(OperatorName,n,i,j,kk)=ple(OperatorName,n,i,j,kk)+dpe
+                ple(n,i,j,kk,OperatorName)=ple(n,i,j,kk,OperatorName)+dpe
              enddo
           enddo                ! end of do i=1,ir
-       enddo                   ! end of do j=MinLatPar,MaxLatPar
-    enddo                      ! end of do n=1,ijs
+       enddo                   ! end of do j=MinLonPar,MaxLonPar
+
+       eChangeLocal(n,OperatorName) = &
+            SUM(xle(n,1:ir,MinLonPar:MaxLonPar,1:je+1,OperatorName))
+       if (nProc == 1) &
+            eChangeGlobal(n,OperatorName) = eChangeLocal(n,OperatorName) 
+
+    enddo                      ! end of do n=1,nSpecies
 
     if (testDiff_aE)   write(*,*) 'tot particles, el: ',psum(nspec,30,5,je+2)
 
@@ -2066,15 +2112,15 @@ area1=rc*rc*re_m*re_m*dphi
            Asec=area*dsec
            do j=MinLonPar,MaxLonPar
               do k=1,neng+2
-                 dlel=xlel(OpLossCone_,n,i,j,k)-xlel(OpLossCone0_,n,i,j,k)
-                dplel=plel(OpLossCone_,n,i,j,k)-plel(OpLossCone0_,n,i,j,k)
+                 dlel=xlel(n,i,j,k,OpLossCone_)-xlel(n,i,j,k,OpLossCone0_)
+                 dplel=plel(n,i,j,k,OpLossCone0_)-plel(n,i,j,k,OpLossCone0_)
                  if (dlel.lt.0..and.dplel.lt.0.) then
                     preF(n,i,j,k)=-dlel*1.6e-13/Asec           ! E flux in mW/m2
                     preP(n,i,j,k)=-dplel                       ! number of particles
                     if (k.eq.neng+1) Eje1(n,i,j)=dlel/dplel       ! meanE for E>gride(je)
                    
-                    xlel(OpLossCone0_,n,i,j,k) = xlel(OpLossCone_,n,i,j,k)
-                    plel(OpLossCone0_,n,i,j,k) = plel(OpLossCone_,n,i,j,k)
+                    xlel(n,i,j,k,OpLossCone0_) = xlel(n,i,j,k,OpLossCone0_)
+                    plel(n,i,j,k,OpLossCone0_) = plel(n,i,j,k,OpLossCone0_)
 
                  endif
               enddo

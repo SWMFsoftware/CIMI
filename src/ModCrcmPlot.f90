@@ -378,7 +378,7 @@ contains
              write(UnitTmp_,'(f7.2,f6.1,2f8.3,1pe11.3)') &
                   lat,xmlt(iLon),ro1,xmlt1,bo1
              do m=1,nm,2
-                write(UnitTmp_,'(1p,13e11.3)') &
+                write(UnitTmp_,'(1p,13es14.3E3)') &
                      (psd(n,iLat,iLon,m,k)*1e51* &
                      (cElectronCharge/cLightSpeed)**3,k=1,nk,2)
              enddo
@@ -603,17 +603,22 @@ contains
 
   !============================================================================
   subroutine crcm_plot_log(Time)
-    use ModCrcmPlanet,  ONLY:nSpecies=>nspec,NamePlotVarLog
+    use ModCrcmPlanet,  ONLY: nSpecies=>nspec,NamePlotVarLog
     use ModCrcmRestart, ONLY: IsRestart
     use ModIoUnit,      ONLY: UnitTmp_
     use ModCRCM,        ONLY: nOperator, eChangeOperator_VICI,driftin,driftout,&
-                              rbsumGlobal,dt
+         rbsumGlobal,dt,eChangeGlobal
+    use ModCrcmGrid,    ONLY: ir=>nt,ip=>np,im=>nm,ik=>nk,je=>neng,nproc
     implicit none
     
     real, intent(in) :: Time
+    real eChangeOperator_VI( nSpecies, nOperator )
     integer, parameter :: nLogVars = 8
     logical, save :: IsFirstCall=.true.
-    integer       :: iSpecies,iOperator
+    integer       :: iSpecies,iOperator, i, j, k 
+    integer*8       :: count
+    character(len=100) eChange_String
+    character(len=10) nLat_Format
     !--------------------------------------------------------------------------
 
     ! Open file and write header if no restart on first call
@@ -621,7 +626,7 @@ contains
        open(unit=UnitTmp_,file='IM/plots/CRCM.log',&
                   status='unknown')
        write(UnitTmp_,*) 'CRCM Logfile'
-       write(UnitTmp_,*) NamePlotVarLog
+       write(UnitTmp_,*) TRIM(NamePlotVarLog)
        IsFirstCall = .false.
     else
        open(unit=UnitTmp_,file='IM/plots/CRCM.log',&
@@ -634,18 +639,57 @@ contains
 
     ! write time 
     write(UnitTmp_,'(1es13.5)',ADVANCE='NO') time
+
+
+    ! write the echangeOperator variable at the current time step for
+    ! debugging purposes.  NOTE - Will remove after logfile
+    ! fixed. -Colin
+    write(eChange_String,'(A,I1,A4,I3.3,A4)') &
+         'IM/plots/CRCM_eChange_',nProc,'PE_t',nint(Time),'.dat'
+    write(*,*) "echange_string: ",echange_string
+    open(unit=1000,file=TRIM(eChange_String), &
+         status='replace',FORM='FORMATTED')
+    write(nLat_Format,'(A,I2,A)'),'(',ip,'ES13.5)'
+    write(*,*) "nLat_Format: ",nLat_Format
+    
+    do i=1,je
+       do j=1,ir
+          write(1000,nLat_Format) eChangeOperator_VICI(2,:,j,i,1)
+       enddo
+    enddo
+    close(1000)
     
   ! write out the operator changes
     do iSpecies=1,nSpecies
+       SUM_ECHANGE: do iOperator = 1, nOperator
+          eChangeOperator_VI(iSpecies, iOperator) = &
+               SUM(eChangeOperator_VICI(iSpecies,:,:,1:je+1,iOperator))
+          write(*,*) ""
+          write(*,'(A,I1,A,I1,A,I1,A,ES13.5)') &
+               "::COLIN::: POST-GATHER nProc ", nProc, &
+               " iOperator: ",iOperator, &
+               " iSpecies: ",iSpecies, &
+               " SUM(eChangeOperator_VICI(iOperator,iSpecies,:,1:je+1,:))",&
+               SUM(eChangeOperator_VICI(iSpecies,:,:,1:je+1,iOperator))
+          write(*,'(A,I1,A,I1,A,I1,A,ES13.5)') &
+               "::COLIN::: POST-REDUCE nProc ", nProc, &
+               " iOperator: ",iOperator, &
+               " iSpecies: ",iSpecies, &
+               " eChangeGlobal: ", &
+               eChangeGlobal(iSpecies,iOperator)
+       end do SUM_ECHANGE
+       
        if (iSpecies < nSpecies) then
-          write(UnitTmp_,'(8es13.5)',ADVANCE='NO') & 
-   !            rbsumglobal(iSpecies),eChangeOperator_IV(iSpecies,1:nOperator), &
+          write(UnitTmp_,'(10es16.5E3)',ADVANCE='NO') & 
                rbsumglobal(iSpecies), &
-               driftin(iSpecies),driftout(iSpecies)
+               eChangeOperator_VI(iSpecies,1:nOperator), &
+!!$               eChangeGlobal(iSpecies,1:nOperator), &
+               driftin(iSpecies), driftout(iSpecies)
        else
-          write(UnitTmp_,'(8es13.5)') & 
-   !            rbsumglobal(iSpecies),eChangeOperator_IV(iSpecies,1:nOperator),&
-                rbsumglobal(iSpecies),&        
+          write(UnitTmp_,'(10es16.5E3)') & 
+               rbsumglobal(iSpecies), &
+               eChangeOperator_VI(iSpecies,1:nOperator), &
+!!$               eChangeGlobal(iSpecies,1:nOperator), &
                driftin(iSpecies),driftout(iSpecies)
        endif
     enddo
