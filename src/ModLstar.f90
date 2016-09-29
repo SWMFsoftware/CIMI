@@ -88,7 +88,7 @@ contains
              ii=ii-1
              B_island(ii,j)=1
            enddo
-           write(*,'(" bo(i,j) has a island at, j = ",i3,"  i = ",i3," -",i3 )'),j,ii,i
+           write(*,'(" bo(i,j) has a island at, j = ",i3,"  i = ",i3," -",i3 )') j,ii,i
         endif
 20      continue
      enddo
@@ -185,7 +185,7 @@ write(*,'("L* =",10f8.2)') (Lstar(i,1),i=1,ir)
                 B_island(ii,j)=1
               go to 10
               endif
-              write(*,'(" bm(i,j,m) has a island at ,m,j = ",2i3,"  i = ",i3," -",i3 )'),m,j,ii,i
+              write(*,'(" bm(i,j,m) has a island at ,m,j = ",2i3,"  i = ",i3," -",i3 )') m,j,ii,i
            endif
 20         continue
         enddo

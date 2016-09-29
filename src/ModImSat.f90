@@ -223,7 +223,7 @@ contains
        write(UnitTmp_,'(i5,5(1X,i2.2),1X,i3.3)',ADVANCE='NO') &
             iCurrentTime_I
        write(UnitTmp_,'(3es13.5)',ADVANCE='NO') SatLoc_3I(1:3,1,iSatIn)
-       write(numChannels,'(I3)'),nEnergy*nAngle
+       write(numChannels,'(I3)') nEnergy*nAngle
        write(UnitTmp_,'('//numChannels//'es13.5)') &
             SatFlux_3I(iSpecies,:,:)!SatVar_I
        

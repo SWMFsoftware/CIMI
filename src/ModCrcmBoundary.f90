@@ -27,7 +27,8 @@ contains
     use ModFieldTrace,  ONLY: irm, iba
     integer :: iSpecies, iLon, iLat
     real, parameter :: cJouleToEv=6.2415e18  
-    real :: ib1, FactorTotalDens
+    real :: FactorTotalDens
+    integer :: ib1
     !---------------------------------------------------------------------------
 
     !set boundary density and temperature inside irm

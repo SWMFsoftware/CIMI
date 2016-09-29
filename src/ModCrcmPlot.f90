@@ -649,7 +649,7 @@ contains
     write(*,*) "echange_string: ",echange_string
     open(unit=1000,file=TRIM(eChange_String), &
          status='replace',FORM='FORMATTED')
-    write(nLat_Format,'(A,I2,A)'),'(',ip,'ES13.5)'
+    write(nLat_Format,'(A,I2,A)') '(',ip,'ES13.5)'
     write(*,*) "nLat_Format: ",nLat_Format
     
     do i=1,je
