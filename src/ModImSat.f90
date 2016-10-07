@@ -11,7 +11,7 @@ Module ModImSat
   character(len=100), allocatable :: NameSat_I(:)
 
   ! Variables for the Prerunsat output.
-  real :: DtReadSat
+  real :: DtReadSat=60.
   logical :: DoWritePrerunSat = .false., UsePrerunSat = .false.
 
 contains

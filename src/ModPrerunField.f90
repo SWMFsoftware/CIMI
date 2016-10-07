@@ -1,6 +1,6 @@
 Module ModPrerunField
   implicit none
-  real    :: DtRead
+  real    :: DtRead=60.
   logical :: DoWritePrerun = .false., UsePrerun=.false.
 contains
   !=============================================================================

@@ -14,7 +14,7 @@ subroutine crcm_run(delta_t)
   use ModCrcmPlanet,  ONLY: re_m, dipmom, Hiono, nspec, amu_I, &
                             dFactor_I,tFactor_I
   use ModFieldTrace,  ONLY: fieldpara, brad=>ro, ftv=>volume, xo,yo,rb,irm,&
-                            ekev,iba,bo,pp,Have, sinA, vel, alscone, iw2,xmlto
+                            ekev,iba,bo,pp,Have, sinA, vel, alscone, iw2,xmlto, bm
   use ModGmCrcm,      ONLY: Den_IC,UseGm
   use ModIeCrcm,      ONLY: UseWeimer, pot
   use ModCrcmPlot,    ONLY: Crcm_plot, Crcm_plot_fls, &
@@ -103,9 +103,9 @@ subroutine crcm_run(delta_t)
   endif
 
   !  read wave models 
- if (IsFirstCall) then
-    if (UseWaveDiffusion) call ReadDiffCoef(rc)
- endif
+  if (IsFirstCall) then
+     if (UseWaveDiffusion) call ReadDiffCoef(rc)
+  endif
   
 
   ! setup initial distribution
@@ -484,6 +484,21 @@ subroutine crcm_run(delta_t)
       
    endif
 
+   ! Gather bm to root for multiple processes for Lstar2 calculation.
+   if (nProc > 1 .and. &
+        DoSavePlot .and. &
+        (floor((Time+1.0e-5)/DtOutput))/=&
+        floor((Time+1.0e-5-delta_t)/DtOutput)) then
+
+      do iK = 1,nk
+         BufferSend_C(:,:)=bm(:,:,iK)
+         call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
+              MPI_REAL, BufferRecv_C,iRecieveCount_P, iDisplacement_P, &
+              MPI_REAL, 0, iComm, iError)
+         if (iProc==0) bm(:,:,iK)=BufferRecv_C(:,:)
+      end do      
+   endif
+   
   !Gather to root
   !    iSendCount = np*nLonPar
   !    iRecieveCount_P=np*nLonPar_P
@@ -922,8 +937,8 @@ subroutine initial_f2(nspec,np,nt,iba,amu_I,vel,xjac,ib0)
   end if
 
 ! Setup variables for energy gain/loss from each process
-  eChangeOperator_VICI(1:nOperator,1:nspec,1:np,1:nt,1:neng+2)=0.0
-  pChangeOperator_VICI(1:nOperator,1:nspec,1:np,1:nt,1:neng+2)=0.0
+  eChangeOperator_VICI(1:nspec,1:np,1:nt,1:neng+2,1:nOperator)=0.0
+  pChangeOperator_VICI(1:nspec,1:np,1:nt,1:neng+2,1:nOperator)=0.0
   eTimeAccumult_ICI(1:nspec,1:np,1:nt,1:neng+2)=0.0   ! check later if needed to be read for restart
   pTimeAccumult_ICI(1:nspec,1:np,1:nt,1:neng+2)=0.0   ! check later if needed to be read for restart
 
@@ -1967,17 +1982,19 @@ subroutine crcm_output(np,nt,nm,nk,nspec,neng,npit,iba,ftv,f2,ekev, &
 !!!! Map flux to fixed energy and pitch-angle grids (energy, sinAo)
            do k=1,neng
               do m=1,npit
-                 call lintp2aIM(ekev2D,sinA1D,flux2D,nm,nk,aloge(n,k),sinAo(m),flx_lo)
-                 flux(n,i,j,k,m)=10.**flx_lo
+                 call lintp2aIM(ekev2D,sinA1D,flux2D,nm,nk,aloge(n,k),&
+                      sinAo(m),flx_lo)
 
 !!!! Map radial drift to fixed energy and pitch-angle grids (energy, sinAo)
-                 
-                 call lintp2aIM(ekev2D,sinA1D,vl2D,nm,nk,aloge(n,k),sinAo(m),vl_lo)
-                 vlEa(n,i,j,k,m)=vl_lo
+                 call lintp2aIM(ekev2D,sinA1D,vl2D,nm,nk,aloge(n,k),&
+                      sinAo(m),vl_lo)
 
 !!!! Map poloidal drift to fixed energy and pitch-angle grids (energy, sinAo)
+                 call lintp2aIM(ekev2D,sinA1D,vp2D,nm,nk,aloge(n,k),&
+                      sinAo(m),vp_lo)
                  
-                 call lintp2aIM(ekev2D,sinA1D,vp2D,nm,nk,aloge(n,k),sinAo(m),vp_lo)
+                 flux(n,i,j,k,m)=10.**flx_lo
+                 vlEa(n,i,j,k,m)=vl_lo
                  vpEa(n,i,j,k,m)=re_m*ro(i,j)*1e-3*vp_lo
               enddo
            enddo
