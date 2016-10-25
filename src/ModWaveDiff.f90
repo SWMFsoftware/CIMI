@@ -4,6 +4,37 @@ implicit none
 real ::  density(ir,ip)=0.0
 end Module DensityTemp
 
+Module Psphere_simple
+use ModCrcmGrid,ONLY: ir=>np, ip=>nt
+use ModFieldTrace, ONLY: ro
+implicit none
+real :: den_simp(ir,ip)
+contains
+  subroutine pls_simp(Kp)
+  implicit none
+  real :: Kp,Lpp,L,nps,npt,nps_Lpp,npt_Lpp,coef
+  integer :: i,j
+  den_simp(ir,ip)=0.0
+  Lpp = 5.6-0.46*Kp
+  ! remove den jump at Lpp:
+  nps_Lpp=  10.**(-0.3145*Lpp+3.9043)
+  npt_Lpp= 124.*(3./Lpp)**3.
+  if (Lpp.lt.3) npt_Lpp=124.
+  coef=nps_Lpp/npt_Lpp
+  do j=1,ip
+   do i=1,ir
+   L=ro(ir,ip)
+   ! inside the plasmapause:
+   nps = 10.**(-0.3145*L+3.9043) ! Carpenter and Anderson [1992] model
+   ! outside the plasmapause:
+   npt = 124.*(3./L)**3.        !   Sheely et al. [2001] model ; valid only at L<3
+   if (L.lt.3) npt=124.
+   if (L.le.Lpp) den_simp(i,j)=nps
+   if (L.gt.Lpp) den_simp(i,j)=npt*coef
+    enddo
+   enddo
+  end subroutine pls_simp
+end Module Psphere_simple
 
 !!!!!!!!!!!!!!!!  Main wave module !!!!!!!!!!!!!1
 Module ModWaveDiff
@@ -254,7 +285,8 @@ contains
  ! use constants
  ! use cWpower
   use ModCrcmGrid,   ONLY: MinLonPar,MaxLonPar
-  use DensityTemp, ONLY: density
+!  use DensityTemp, ONLY: density
+   use Psphere_simple, ONLY: density=>den_simp
   implicit none
   integer iba(ip),iae,jae,i,j
   real t,AE,ro1,xmlt1
@@ -266,7 +298,6 @@ contains
 ! Determine AE level in chorus wave power data provided by Meredith
   if (AE.lt.100.) iae=1
   if (AE.ge.100..and.AE.lt.300.) iae=2
-  if (AE.ge.300.) iae=3
 
 ! Determine AE level in hiss wave power data provided by Meredith
   if (AE.lt.100.) jae=1
@@ -403,7 +434,8 @@ contains
 !!!!!!!!!!!!!!!!!!!   main  subroutine  for diffusion in pitch-angle !!!!!!!!!!!!
 
    subroutine diffuse_aa(f2,dt,xjac,iba,iw2)
-      use DensityTemp
+!      use DensityTemp
+      use Psphere_simple, ONLY: density=>den_simp
       use ModMPI
       use ModCrcmGrid,   ONLY: MinLonPar,MaxLonPar
       implicit none
@@ -634,7 +666,8 @@ end subroutine diffuse_aa
 !****************************************************************************
   subroutine diffuse_EE(f2,dt,xmm,xjac,iw2,iba)
 
-  use DensityTemp
+ ! use DensityTemp
+  use Psphere_simple, ONLY: density=>den_simp
   use ModMPI
   use ModCrcmGrid,   ONLY: MinLonPar,MaxLonPar
 
@@ -978,7 +1011,8 @@ end subroutine interpolate_ae
 ! will be washed away with other dominant processes like convection and
 ! precipitation.
   subroutine diffuse_aE(f2,dt,xjac,iw2,iba,time)
-     use DensityTemp, ONLY: density
+!     use DensityTemp, ONLY: density
+     use Psphere_simple, ONLY: density=>den_simp
      use ModMPI
      use ModCrcmGrid,   ONLY: MinLonPar,MaxLonPar
   implicit none

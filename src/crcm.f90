@@ -34,6 +34,7 @@ subroutine crcm_run(delta_t)
                             diffuse_aa,diffuse_EE,Diffuse_aE,DiffStartT, &
                             testDiff_aa, testDiff_EE, testDiff_aE, &
                             TimeAeIndex_I, AeIndex_I, interpolate_ae
+  use Psphere_simple, ONLY: pls_simp,den_simp
   use ModLstar,       ONLY: calc_Lstar1,calc_Lstar2 
   implicit none
 
@@ -48,7 +49,7 @@ subroutine crcm_run(delta_t)
        fb(nspec,nt,nm,nk),rc
   integer iLat, iLon, iSpecies, iSat, iOperator
   logical, save :: IsFirstCall =.true.
-  real  AE_temp
+  real  AE_temp,Kp_temp
   real Lstar_C(np,nt),Lstar_max,Lstarm(np,nt,nk),Lstar_maxm(nk)
 
   !Vars for mpi passing
@@ -141,8 +142,11 @@ subroutine crcm_run(delta_t)
 
      ! calculate wave power for the first time; the second time is in the loop
      call interpolate_ae(CurrentTime, AE_temp)
+     !!!!
+     Kp_temp=2.
+     call pls_simp(Kp_temp)
+     !!!
      call WavePower(Time,AE_temp,iba)
-
   end if
   
   if (Time == 0.0 .and. nProc == 1 .and. DoSavePlot) then
@@ -222,6 +226,7 @@ subroutine crcm_run(delta_t)
         call sume_cimi(OpWaves_)
         call timing_stop('crcm_WaveDiffusion')
         call interpolate_ae(CurrentTime, AE_temp)
+        call pls_simp(Kp_temp)
         call WavePower(Time,AE_temp,iba)
      endif
 
