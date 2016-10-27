@@ -29,8 +29,8 @@ contains
    ! outside the plasmapause:
    npt = 124.*(3./L)**3.        !   Sheely et al. [2001] model ; valid only at L<3
    if (L.lt.3) npt=124.
-   if (L.le.Lpp) den_simp(i,j)=nps
-   if (L.gt.Lpp) den_simp(i,j)=npt*coef
+   if (L.le.Lpp) den_simp(i,j)=nps*1.e+6
+   if (L.gt.Lpp) den_simp(i,j)=npt*coef*1.e+6
     enddo
    enddo
   end subroutine pls_simp
@@ -298,6 +298,7 @@ contains
 ! Determine AE level in chorus wave power data provided by Meredith
   if (AE.lt.100.) iae=1
   if (AE.ge.100..and.AE.lt.300.) iae=2
+  if (AE.ge.300.) iae=3
 
 ! Determine AE level in hiss wave power data provided by Meredith
   if (AE.lt.100.) jae=1
