@@ -40,8 +40,14 @@ Module ModCrcmPlanet
                                  Lstar_=21, Plas_=22, nVar=22
 
   !set Logplot parameters
-  character(len=300), parameter :: & 
-       NamePlotVarLog='it t RbSumH HpBfield HpDrift HpLossCone HpChargeEx HpStrongDiff HpDriftIn HpDriftOut '&
-       //'RbSume eBfield eDrift eLossCone eChargeEx eStrongDiff eDriftIn eDriftOut'
+  character(len=400), parameter :: & 
+       NamePlotVarLog=&
+       'it t '// &
+       'RbSumH HpDrift HpBfield HpChargeEx HpWaves '// &
+       'HpStrongDiff HpLossCone HpLossCone0 HpDriftIn HpDriftOut '// &
+       'RbSumO OpDrift OpBfield OpChargeEx OpWaves '// &
+       'OpStrongDiff OpLossCone OpLossCone0 OpDriftIn OpDriftOut '// &
+       'RbSume eDrift  eBfield  eChargeEx  eWaves  '// &
+       'eStrongDiff  eLossCone  eLossCone0  eDriftIn  eDriftOut'
 
 end Module ModCrcmPlanet
