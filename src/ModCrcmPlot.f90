@@ -606,13 +606,12 @@ contains
     use ModCrcmPlanet,  ONLY: nSpecies=>nspec,NamePlotVarLog
     use ModCrcmRestart, ONLY: IsRestart
     use ModIoUnit,      ONLY: UnitTmp_
-    use ModCRCM,        ONLY: nOperator, eChangeOperator_VICI,driftin,driftout,&
+    use ModCRCM,        ONLY: nOperator,driftin,driftout,&
          rbsumGlobal,dt,eChangeGlobal
     use ModCrcmGrid,    ONLY: ir=>nt,ip=>np,im=>nm,ik=>nk,je=>neng,nproc
     implicit none
     
     real, intent(in) :: Time
-    real eChangeOperator_VI( nSpecies, nOperator )
     integer, parameter :: nLogVars = 8
     logical, save :: IsFirstCall=.true.
     integer       :: iSpecies,iOperator, i, j, k 
@@ -640,56 +639,17 @@ contains
     ! write time 
     write(UnitTmp_,'(1es13.5)',ADVANCE='NO') time
 
-
-    ! write the echangeOperator variable at the current time step for
-    ! debugging purposes.  NOTE - Will remove after logfile
-    ! fixed. -Colin
-    write(eChange_String,'(A,I1,A4,I3.3,A4)') &
-         'IM/plots/CRCM_eChange_',nProc,'PE_t',nint(Time),'.dat'
-    write(*,*) "echange_string: ",echange_string
-    open(unit=1000,file=TRIM(eChange_String), &
-         status='replace',FORM='FORMATTED')
-    write(nLat_Format,'(A,I2,A)') '(',ip,'ES13.5)'
-    write(*,*) "nLat_Format: ",nLat_Format
-    
-    do i=1,je
-       do j=1,ir
-          write(1000,nLat_Format) eChangeOperator_VICI(2,:,j,i,1)
-       enddo
-    enddo
-    close(1000)
-    
   ! write out the operator changes
     do iSpecies=1,nSpecies
-       SUM_ECHANGE: do iOperator = 1, nOperator
-          eChangeOperator_VI(iSpecies, iOperator) = &
-               SUM(eChangeOperator_VICI(iSpecies,:,:,1:je+1,iOperator))
-          write(*,*) ""
-          write(*,'(A,I1,A,I1,A,I1,A,ES13.5)') &
-               "::COLIN::: POST-GATHER nProc ", nProc, &
-               " iOperator: ",iOperator, &
-               " iSpecies: ",iSpecies, &
-               " SUM(eChangeOperator_VICI(iOperator,iSpecies,:,1:je+1,:))",&
-               SUM(eChangeOperator_VICI(iSpecies,:,:,1:je+1,iOperator))
-          write(*,'(A,I1,A,I1,A,I1,A,ES13.5)') &
-               "::COLIN::: POST-REDUCE nProc ", nProc, &
-               " iOperator: ",iOperator, &
-               " iSpecies: ",iSpecies, &
-               " eChangeGlobal: ", &
-               eChangeGlobal(iSpecies,iOperator)
-       end do SUM_ECHANGE
-       
        if (iSpecies < nSpecies) then
           write(UnitTmp_,'(10es16.5E3)',ADVANCE='NO') & 
                rbsumglobal(iSpecies), &
-               eChangeOperator_VI(iSpecies,1:nOperator), &
-!!$               eChangeGlobal(iSpecies,1:nOperator), &
+               eChangeGlobal(iSpecies,1:nOperator), &
                driftin(iSpecies), driftout(iSpecies)
        else
           write(UnitTmp_,'(10es16.5E3)') & 
                rbsumglobal(iSpecies), &
-               eChangeOperator_VI(iSpecies,1:nOperator), &
-!!$               eChangeGlobal(iSpecies,1:nOperator), &
+               eChangeGlobal(iSpecies,1:nOperator), &
                driftin(iSpecies),driftout(iSpecies)
        endif
     enddo

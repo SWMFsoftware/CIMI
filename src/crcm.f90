@@ -13,8 +13,9 @@ subroutine crcm_run(delta_t)
                             eChangeLocal,eChangeGlobal
   use ModCrcmPlanet,  ONLY: re_m, dipmom, Hiono, nspec, amu_I, &
                             dFactor_I,tFactor_I
-  use ModFieldTrace,  ONLY: fieldpara, brad=>ro, ftv=>volume, xo,yo,rb,irm,&
-                            ekev,iba,bo,pp,Have, sinA, vel, alscone, iw2,xmlto, bm
+  use ModFieldTrace,  ONLY: &
+       fieldpara, brad=>ro, ftv=>volume, xo,yo,rb,irm,&
+       ekev,iba,bo,pp,Have, sinA, vel, alscone, iw2,xmlto, bm
   use ModGmCrcm,      ONLY: Den_IC,UseGm
   use ModIeCrcm,      ONLY: UseWeimer, pot
   use ModCrcmPlot,    ONLY: Crcm_plot, Crcm_plot_fls, &
@@ -38,7 +39,7 @@ subroutine crcm_run(delta_t)
   use ModLstar,       ONLY: calc_Lstar1,calc_Lstar2 
   implicit none
 
-
+  !regular variables
   integer n,nstep
   integer,save :: ib0(nt)
   real delta_t
@@ -108,7 +109,6 @@ subroutine crcm_run(delta_t)
      if (UseWaveDiffusion) call ReadDiffCoef(rc)
   endif
   
-
   ! setup initial distribution
   if (IsFirstCall .and. .not.IsRestart) then
      !set initial state when no restarting
@@ -137,7 +137,6 @@ subroutine crcm_run(delta_t)
   ! calculate boundary flux (fb) at the CRCM outer boundary at the equator
   call boundaryIM(nspec,neng,np,nt,nm,nk,iba,irm,amu_I,xjac,energy,vel,fb)
 
-  
   if (Time.ge.DiffStartT .and. UseWaveDiffusion) then
 
      ! calculate wave power for the first time; the second time is in the loop
@@ -275,7 +274,6 @@ subroutine crcm_run(delta_t)
        re_m,Hiono,vl,vp,flux,FAC_C,phot,Ppar_IC,Pressure_IC,PressurePar_IC,&
        vlEa,vpEa,psd)
   call timing_stop('crcm_output')
-
   
   ! When nProc >1 consolodate: phot, Ppar_IC, Pressure_IC, PressurePar_IC, fac and iba on iProc 0
   if (nProc>1) then    
@@ -452,17 +450,6 @@ subroutine crcm_run(delta_t)
                  MPI_REAL, BufferRecv_C,iRecieveCount_P, iDisplacement_P, &
                  MPI_REAL, 0, iComm, iError)
             if (iProc==0) preF(iSpecies,:,:,iEnergy)=BufferRecv_C(:,:)
-            do iOperator = 1,nOperator
-               BufferSend_C(:,:) = &
-                    eChangeOperator_VICI(iSpecies,:,:,iEnergy,iOperator)
-               call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount,&
-                    MPI_REAL, BufferRecv_C, iRecieveCount_P, iDisplacement_P, &
-                    MPI_REAL, 0, iComm, iError)
-               if (iProc==0) &
-                    eChangeOperator_VICI(iSpecies,:,:,iEnergy,iOperator)= &
-                    BufferRecv_C(:,:)
-            enddo ! Do loop over iOperator
-
          enddo ! Do loop over iEnergy
          
          BufferSend_C(:,:)=Eje1(iSpecies,:,:)
@@ -470,21 +457,6 @@ subroutine crcm_run(delta_t)
                   MPI_REAL, BufferRecv_C,iRecieveCount_P, iDisplacement_P, &
                   MPI_REAL, 0, iComm, iError)
          if (iProc==0) Eje1(iSpecies,:,:)=BufferRecv_C(:,:)
-         ! This operation is redundant.  Unsure if eChangeLocal and
-         ! Global variables are even necessary. - Colin
-         do iOperator = 1,nOperator
-            call MPI_REDUCE(&
-                 eChangeLocal(iSpecies, iOperator),&
-                 eChangeGlobal(iSpecies, iOperator), 1, &
-                 MPI_REAL, MPI_SUM, 0, iComm, iError)
-            write(*,'(A,I1,A,I1,A,I1,A,ES13.5)') &
-                 "::COLIN::: POST-REDUCE nProc ", nProc, &
-                 " iOperator: ",iOperator, &
-                 " iSpecies: ",iSpecies, &
-                 " eChangeGlobal: ", &
-                 eChangeGlobal(iSpecies,iOperator)
-         enddo ! Do loop over iOperator
-         
       enddo !Do loop over Species
       
    endif
@@ -807,9 +779,10 @@ subroutine initial_f2(nspec,np,nt,iba,amu_I,vel,xjac,ib0)
   !         (through common block cinitial_f2)
   use ModIoUnit, ONLY: UnitTmp_
   use ModGmCrcm, ONLY: Den_IC, Temp_IC, Temppar_IC, DoAnisoPressureGMCoupling
-  use ModCrcm,   ONLY: f2,eChangeOperator_VICI,nOperator,driftin,driftout, &
-                 pChangeOperator_VICI,eTimeAccumult_ICI,pTimeAccumult_ICI, &
-                 rbsumLocal,rbsumGlobal,rcsumLocal,rcsumGlobal
+  use ModCrcm,   ONLY: f2,nOperator,driftin,driftout, &
+       eChangeOperator_VICI, echangeLocal, eChangeGlobal, &
+       pChangeOperator_VICI,eTimeAccumult_ICI,pTimeAccumult_ICI, &
+       rbsumLocal,rbsumGlobal,rcsumLocal,rcsumGlobal
   use ModCrcmInitialize,   ONLY: IsEmptyInitial, IsDataInitial, IsRBSPData, &
        IsGmInitial
   use ModCrcmGrid,ONLY: nm,nk,MinLonPar,MaxLonPar,iProc,nProc,iComm,d4Element_C,neng
@@ -947,11 +920,9 @@ subroutine initial_f2(nspec,np,nt,iba,amu_I,vel,xjac,ib0)
   eTimeAccumult_ICI(1:nspec,1:np,1:nt,1:neng+2)=0.0   ! check later if needed to be read for restart
   pTimeAccumult_ICI(1:nspec,1:np,1:nt,1:neng+2)=0.0   ! check later if needed to be read for restart
 
-!  xleb(1:nspec)=0.          ! energy gain/loss due to changing B field        
-!  xled(1:nspec)=0.          ! energy gain/loss due to drift
-!  xlel(1:nspec)=0.          ! energy loss due to losscone 
-!  xlee(1:nspec)=0.          ! energy loss due to charge exchange         
-!  xles(1:nspec)=0.          ! energy loss due to strong diffusion 
+  eChangeLocal(1:nspec,1:nOperator) = 0.
+  eChangeGlobal(1:nspec,1:nOperator) = 0.
+
   driftin(1:nspec)=0.      ! energy gain due injection
   driftout(1:nspec)=0.     ! energy loss due drift-out loss
 
@@ -1449,8 +1420,8 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
                       iProcRight,4,iComm,iStatus_I,iError)
 
                  !send fb0 ghostcells
-                 call MPI_send(fb0(MinLonPar:MinLonPar+1),2,MPI_REAL,iProcLeft,&
-                      5,iComm,iError)
+                 call MPI_send(fb0(MinLonPar:MinLonPar+1),2,MPI_REAL,&
+                      iProcLeft,5,iComm,iError)
                  call MPI_send(fb0(MaxLonPar),1,MPI_REAL,iProcRight,&
                       6,iComm,iError)
                  !recieve fb0 from neigboring Procs
@@ -1460,8 +1431,8 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
                       6,iComm,iStatus_I,iError)
 
                  !send fb1 ghostcells
-                 call MPI_send(fb1(MinLonPar:MinLonPar+1),2,MPI_REAL,iProcLeft,&
-                      7,iComm,iError)
+                 call MPI_send(fb1(MinLonPar:MinLonPar+1),2,MPI_REAL,&
+                      iProcLeft,7,iComm,iError)
                  call MPI_send(fb1(MaxLonPar),1,MPI_REAL,iProcRight,&
                       8,iComm,iError)
                  !recieve fb1 from neigboring Procs
@@ -1552,7 +1523,8 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
                        endif
                     enddo iLoopUpwind
                     ! Calculate gain or loss at the outer boundary
-                    dPartLocal_C(j)=-dt1/dlat(iba(j))*vl(n,iba(j),j,k,m)*fupl(iba(j),j)*d4Element_C(n,iba(j),k,m)
+                    dPartLocal_C(j)=-dt1/dlat(iba(j))*&
+                         vl(n,iba(j),j,k,m)*fupl(iba(j),j)*d4Element_C(n,iba(j),k,m)
                     dEnerLocal_C(j)=ekev(n,iba(j),j,k,m)*dPartLocal_C(j)
                  enddo
               endif
@@ -1783,8 +1755,9 @@ subroutine sume_cimi(OperatorName)
        eChangeGlobal,eChangeLocal, &
        esum=>eTimeAccumult_ICI,psum=>pTimeAccumult_ICI
   use ModFieldTrace, ONLY: iba,ekev,ro,iw2
-  use ModCrcmGrid,   ONLY: nProc,iProc,iComm, MinLonPar,MaxLonPar,d4Element_C, &
-                           ir=>nt,ip=>np,im=>nm,ik=>nk,je=>neng,Energy,Ebound
+  use ModCrcmGrid,   ONLY: &
+       nProc,iProc,iComm, MinLonPar,MaxLonPar,d4Element_C, &
+       ip=>np,ir=>nt,im=>nm,ik=>nk,je=>neng,Energy,Ebound
   use ModCrcmPlanet, ONLY: nspec
   use ModMPI
   use ModWaveDiff,    ONLY: testDiff_aE 
@@ -1794,9 +1767,7 @@ subroutine sume_cimi(OperatorName)
   integer OperatorName   ! defined in ModCrcm
   real    :: weight,ekev1,weighte,dee,dpe
   integer n,i,j,k,m,iError,kk
-  real rbsumLocal0,xleChange,xleChangeLocal
-  real gride1(0:je+1),e0(ir,ip,je+2),p0(ir,ip,je+2)
-
+  real gride1(0:je+1),e0(ip,ir,je+2),p0(ip,ir,je+2)
 
 ! Set up gride1(0) and gride1(je+1)
       gride1(0)=0.
@@ -1806,17 +1777,17 @@ subroutine sume_cimi(OperatorName)
     do n=1,nspec
        rbsum(n)=0.
        rcsum(n)=0.
-       e0(1:ir,MinLonPar:MaxLonPar,1:je+2)=&
-            esum(n,1:ir,MinLonPar:MaxLonPar,1:je+2)
-       p0(1:ir,MinLonPar:MaxLonPar,1:je+2)=&
-            psum(n,1:ir,MinLonPar:MaxLonPar,1:je+2)
-       esum(n,1:ir,MinLonPar:MaxLonPar,1:je+2)=0.
-       psum(n,1:ir,MinLonPar:MaxLonPar,1:je+2)=0.
+       eChangeLocal(n, OperatorName) = 0.
+       e0(1:ip,MinLonPar:MaxLonPar,1:je+2)=&
+            esum(n,1:ip,MinLonPar:MaxLonPar,1:je+2)
+       p0(1:ip,MinLonPar:MaxLonPar,1:je+2)=&
+            psum(n,1:ip,MinLonPar:MaxLonPar,1:je+2)
+       esum(n,1:ip,MinLonPar:MaxLonPar,1:je+2)=0.
+       psum(n,1:ip,MinLonPar:MaxLonPar,1:je+2)=0.
        gride1(1:je)=Ebound(n,1:je)
 
        do j=MinLonPar,MaxLonPar
-          do i=1,ir
-             if (i.le.iba(j)) then
+          do i=1,iba(j)
                 do m=1,ik
                    do k=1,iw2(n,m)
                       ekev1=ekev(n,i,j,k,m)
@@ -1827,7 +1798,8 @@ subroutine sume_cimi(OperatorName)
                       rbsum(n)=rbsum(n)+weighte
                       if (ro(i,j).le.6.6) rcsum(n)=rcsum(n)+weighte
                       kkloop: do kk=1,je+1
-                         if (ekev1.gt.gride1(kk-1).and.ekev1.le.gride1(kk)) then
+                         if ( ekev1 .gt. gride1(kk-1) .and. &
+                              ekev1 .le. gride1(kk) ) then
                             psum(n,i,j,kk)=psum(n,i,j,kk)+weight
                             esum(n,i,j,kk)=esum(n,i,j,kk)+weighte
                             exit kkloop
@@ -1835,25 +1807,37 @@ subroutine sume_cimi(OperatorName)
                       enddo kkloop
                    enddo
                 enddo
-             endif
 
              do kk=1,je+2
-                dee=esum(n,i,j,kk)-e0(i,j,kk)
-                xle(n,i,j,kk,OperatorName)=xle(n,i,j,kk,OperatorName)+dee
+                dee = esum(n,i,j,kk) - e0(i,j,kk)
+                xle(n,i,j,kk,OperatorName) = &
+                     xle(n,i,j,kk,OperatorName) + dee
                 dpe=psum(n,i,j,kk)-p0(i,j,kk)
-                ple(n,i,j,kk,OperatorName)=ple(n,i,j,kk,OperatorName)+dpe
+                ple(n,i,j,kk,OperatorName) = &
+                     ple(n,i,j,kk,OperatorName) + dpe
              enddo
-          enddo                ! end of do i=1,ir
+
+             eChangeLocal(n, OperatorName) = &
+                  eChangeLocal(n, OperatorName) + &
+                  xle(n,i,j,je+2,OperatorName)
+             
+          enddo                ! end of do i=1,iba(j)
        enddo                   ! end of do j=MinLonPar,MaxLonPar
 
-       eChangeLocal(n,OperatorName) = &
-            SUM(xle(n,1:ir,MinLonPar:MaxLonPar,1:je+1,OperatorName))
-       if (nProc == 1) &
-            eChangeGlobal(n,OperatorName) = eChangeLocal(n,OperatorName) 
+       if (nProc > 1) then
+          call MPI_REDUCE(&
+               eChangeLocal(n, OperatorName),&
+               eChangeGlobal(n, OperatorName), 1, &
+               MPI_REAL, MPI_SUM, 0, iComm, iError)
+       else 
+          eChangeGlobal(n,OperatorName) = &
+               eChangeLocal(n,OperatorName)
+       endif
 
     enddo                      ! end of do n=1,nSpecies
 
-    if (testDiff_aE)   write(*,*) 'tot particles, el: ',psum(nspec,30,5,je+2)
+    if (testDiff_aE) &
+         write(*,*) 'tot particles, el: ',psum(nspec,30,5,je+2)
 
 end subroutine sume_cimi
 
@@ -1987,6 +1971,14 @@ subroutine crcm_output(np,nt,nm,nk,nspec,neng,npit,iba,ftv,f2,ekev, &
 !!!! Map flux to fixed energy and pitch-angle grids (energy, sinAo)
            do k=1,neng
               do m=1,npit
+!!$                 if ( aloge(n,k) < minval(ekev2D) &
+!!$                      .or. aloge(n,k) > maxval(ekev2D) &
+!!$                      .or. sinAo(m) < minval(sinA1D) &
+!!$                      .or. sinAo(m) > maxval(sinA1D) ) then
+!!$                    flx_lo=-50.0
+!!$                    vl_lo=0.0
+!!$                    vp_lo=0.0
+!!$                 else
                  call lintp2aIM(ekev2D,sinA1D,flux2D,nm,nk,aloge(n,k),&
                       sinAo(m),flx_lo)
 
