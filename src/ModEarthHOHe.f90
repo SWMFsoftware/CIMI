@@ -46,11 +46,13 @@ Module ModCrcmPlanet
   character(len=400), parameter :: & 
        NamePlotVarLog=&
        'it t '// &
-       'RbSumH HpDrift HpBfield HpChargeEx HpWaves '// &
-       'HpStrongDiff HpLossCone HpLossCone0 HpDriftIn HpDriftOut '// &
-       'RbSumO OpDrift OpBfield OpChargeEx OpWaves '// &
-       'OpStrongDiff OpLossCone OpLossCone0 OpDriftIn OpDriftOut '// &
+       'RbSumH  HpDrift HpBfield HpChargeEx HpWaves '// &
+       'HpStrongDiff HpLossCone HpDriftIn HpDriftOut '// &
+       'RbSumO  OpDrift OpBfield OpChargeEx OpWaves '// &
+       'OpStrongDiff OpLossCone OpDriftIn OpDriftOut '// &
+       'RbSumHe HeDrift HeBfield HeChargeEx HeWaves '// &
+       'HeStrongDiff HeLossCone HeDriftIn HeDriftOut '// &
        'RbSume eDrift  eBfield  eChargeEx  eWaves  '// &
-       'eStrongDiff  eLossCone  eLossCone0  eDriftIn  eDriftOut'
+       'eStrongDiff  eLossCone  eDriftIn  eDriftOut'
 
 end Module ModCrcmPlanet

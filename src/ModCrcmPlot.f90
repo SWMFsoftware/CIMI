@@ -624,8 +624,8 @@ contains
     If (IsFirstCall .and. .not.IsRestart) then
        open(unit=UnitTmp_,file='IM/plots/CRCM.log',&
                   status='unknown')
-       write(UnitTmp_,*) 'CRCM Logfile'
-       write(UnitTmp_,*) TRIM(NamePlotVarLog)
+       write(UnitTmp_,'(A)') 'CRCM Logfile'
+       write(UnitTmp_,'(A)') TRIM(NamePlotVarLog)
        IsFirstCall = .false.
     else
        open(unit=UnitTmp_,file='IM/plots/CRCM.log',&
@@ -642,14 +642,14 @@ contains
   ! write out the operator changes
     do iSpecies=1,nSpecies
        if (iSpecies < nSpecies) then
-          write(UnitTmp_,'(10es16.5E3)',ADVANCE='NO') & 
+          write(UnitTmp_,'(10es18.8E3)',ADVANCE='NO') & 
                rbsumglobal(iSpecies), &
-               eChangeGlobal(iSpecies,1:nOperator), &
+               eChangeGlobal(iSpecies,1:nOperator-1), &
                driftin(iSpecies), driftout(iSpecies)
        else
-          write(UnitTmp_,'(10es16.5E3)') & 
+          write(UnitTmp_,'(10es18.8E3)') & 
                rbsumglobal(iSpecies), &
-               eChangeGlobal(iSpecies,1:nOperator), &
+               eChangeGlobal(iSpecies,1:nOperator-1), &
                driftin(iSpecies),driftout(iSpecies)
        endif
     enddo
