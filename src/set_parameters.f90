@@ -9,7 +9,7 @@ subroutine CRCM_set_parameters(NameAction)
   use ModFieldTrace,     ONLY: UseEllipse, UseSmooth, UseCorotation, &
        UsePotential, SmoothWindow, imod
   use ModCrcm,           ONLY: UseMcLimiter, BetaLimiter, time, Pmin,&
-       IsStandAlone, UseStrongDiff
+       IsStandAlone, UseStrongDiff, dt, dtmax
   use ModCrcmRestart,    ONLY: IsRestart,DtSaveRestart
   use ModCrcmPlanet,     ONLY: nspec
   use ModImTime,         ONLY: iStartTime_I, TimeMax
@@ -249,6 +249,11 @@ subroutine CRCM_set_parameters(NameAction)
              MinIonEnergy)
         call read_var('MaxIonEnergy (in keV), MaxElectronEnergy x10',&
              MaxIonEnergy)
+        
+     case('#IMTIMESTEP')
+        call read_var('IMDeltaT [s]',dt)
+        call read_var('IMDeltaTMax [s]',dtmax)
+
         
      end select
      
