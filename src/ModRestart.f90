@@ -10,10 +10,10 @@ contains
 
   subroutine crcm_read_restart
     use ModCrcmPlanet,ONLY: nspec
-    use ModCrcmGrid,  ONLY: np,nt,nm,nk,d4Element_C
+    use ModCrcmGrid,  ONLY: np,nt,nm,nk,neng,d4Element_C
     use ModCrcm,      ONLY: f2, phot, Pressure_IC, PressurePar_IC, FAC_C, &
-         Ppar_IC, Bmin_C,eChangeOperator_VICI,driftin,driftout,rbsumlocal,  &
-         rbsumGlobal
+         Ppar_IC, Bmin_C, eTimeAccumult_ICI, eChangeOperator_VICI, &
+         driftin, driftout, rbsumGlobal, nOperator
     use ModFieldTrace,ONLY: iba,ekev
     use ModGmCrcm,    ONLY: Den_IC
     use ModIoUnit,    ONLY: UnitTmp_
@@ -26,7 +26,9 @@ contains
     !When nProc>1, proc0 reads and then bcasts restart infor
     !when only 1 proc is used then just read restart info
     if(iProc == 0)then
-       open(unit=UnitTmp_,file='IM/restartIN/data.restart',status='old',form='unformatted')
+       open(unit=UnitTmp_,file='IM/restartIN/data.restart',&
+            status='old',form='unformatted')
+
        read(UnitTmp_) f2  
        read(UnitTmp_) Den_IC
        read(UnitTmp_) phot
@@ -36,7 +38,9 @@ contains
        read(UnitTmp_) iba
        read(UnitTmp_) Ppar_IC
        read(UnitTmp_) Bmin_C
+       read(UnitTmp_) eTimeAccumult_ICI
        read(UnitTmp_) eChangeOperator_VICI
+       read(UnitTmp_) rbsumglobal
        read(UnitTmp_) driftin
        read(UnitTmp_) driftout
        close(UnitTmp_)
@@ -53,6 +57,13 @@ contains
        call MPI_bcast(iba, nt, MPI_INTEGER, 0, iComm, iError)
        call MPI_bcast(Ppar_IC, nspec*np*nt, MPI_REAL, 0, iComm, iError)
        call MPI_bcast(Bmin_C, np*nt, MPI_REAL, 0, iComm, iError)
+       call MPI_bcast(eTimeAccumult_ICI, nspec*np*nt*(neng+2), &
+            		MPI_REAL, 0, iComm, iError)
+       call MPI_bcast(eChangeOperator_VICI, nspec*np*nt*nOperator*(neng+2), &
+            		MPI_REAL, 0, iComm, iError)
+       call MPI_bcast(rbsumglobal, nspec, MPI_REAL, 0, iComm, iError)
+       call MPI_bcast(driftin, nspec, MPI_REAL, 0, iComm, iError)
+       call MPI_bcast(driftout, nspec, MPI_REAL, 0, iComm, iError)
     endif
 
     
@@ -62,9 +73,11 @@ contains
   !============================================================================
   subroutine crcm_write_restart
     use ModCrcmPlanet,ONLY: nspec
-    use ModCrcmGrid,  ONLY: np,nt,nm,nk,MinLonPar,MaxLonPar
+    use ModCrcmGrid,  ONLY: np,nt,nm,nk,neng,MinLonPar,MaxLonPar
     use ModCrcm,      ONLY: f2,time, phot, Pressure_IC, PressurePar_IC, &
-         FAC_C, Ppar_IC, Bmin_C,eChangeOperator_VICI,driftin,driftout
+         FAC_C, Ppar_IC, Bmin_C, &
+         eTimeAccumult_ICI, eChangeOperator_VICI, &
+         driftin, driftout, rbsumGlobal, nOperator
     use ModFieldTrace,ONLY: iba    
     use ModGmCrcm,    ONLY: Den_IC
     use ModIoUnit,    ONLY: UnitTmp_
@@ -72,7 +85,7 @@ contains
     use ModImSat,     ONLY: DoWriteSats,nImSats,NameSat_I,SatLoc_3I
     use ModMpi
 
-    integer ::iSendCount, iSpecies, iM, iK, iError
+    integer ::iSendCount, iSpecies, iM, iK, iError, iOperator, iEnergy
     real :: BufferSend_C(np,nt),BufferRecv_C(np,nt)
     integer :: BufferSend_I(nt),BufferRecv_I(nt)
     integer,allocatable :: iRecieveCount_P(:),iDisplacement_P(:)
@@ -93,7 +106,8 @@ contains
           do iM=1,nm
              do iK=1,nK
                 BufferSend_C(:,:)=f2(iSpecies,:,:,iM,iK)
-                call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
+                call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), &
+                     iSendCount, &
                      MPI_REAL, BufferRecv_C,iRecieveCount_P, iDisplacement_P, &
                      MPI_REAL, 0, iComm, iError)
                 if (iProc==0) f2(iSpecies,:,:,iM,iK)=BufferRecv_C(:,:)
@@ -103,55 +117,83 @@ contains
        
        !gather FAC
        BufferSend_C(:,:)=FAC_C(:,:)
-       call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, MPI_REAL, &
-            BufferRecv_C, iRecieveCount_P, iDisplacement_P, MPI_REAL, &
-            0, iComm, iError)
+       call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
+            MPI_REAL, BufferRecv_C, iRecieveCount_P, iDisplacement_P, &
+            MPI_REAL, 0, iComm, iError)
        if (iProc==0) FAC_C(:,:)=BufferRecv_C(:,:)
 
        !gather density and pressures
        do iSpecies=1,nspec
           BufferSend_C(:,:)=Den_IC(iSpecies,:,:)
           call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
-               MPI_REAL, BufferRecv_C,iRecieveCount_P, iDisplacement_P,MPI_REAL, &
-               0, iComm, iError)
+               MPI_REAL, BufferRecv_C,iRecieveCount_P, iDisplacement_P, &
+               MPI_REAL, 0, iComm, iError)
           if (iProc==0) Den_IC(iSpecies,:,:)=BufferRecv_C(:,:)
 
           BufferSend_C(:,:)=Pressure_IC(iSpecies,:,:)
           call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
-               MPI_REAL, BufferRecv_C,iRecieveCount_P, iDisplacement_P,MPI_REAL, &
-               0, iComm, iError)
+               MPI_REAL, BufferRecv_C,iRecieveCount_P, iDisplacement_P, &
+               MPI_REAL, 0, iComm, iError)
           if (iProc==0) Pressure_IC(iSpecies,:,:)=BufferRecv_C(:,:)
 
           BufferSend_C(:,:)=PressurePar_IC(iSpecies,:,:)
           call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
-               MPI_REAL, BufferRecv_C,iRecieveCount_P, iDisplacement_P,MPI_REAL, &
-               0, iComm, iError)
+               MPI_REAL, BufferRecv_C,iRecieveCount_P, iDisplacement_P, &
+               MPI_REAL, 0, iComm, iError)
           if (iProc==0) PressurePar_IC(iSpecies,:,:)=BufferRecv_C(:,:)
           
           BufferSend_C(:,:)=phot(iSpecies,:,:)
           call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
-               MPI_REAL, BufferRecv_C,iRecieveCount_P, iDisplacement_P,MPI_REAL, &
-               0, iComm, iError)
+               MPI_REAL, BufferRecv_C,iRecieveCount_P, iDisplacement_P, &
+               MPI_REAL, 0, iComm, iError)
           if (iProc==0) phot(iSpecies,:,:)=BufferRecv_C(:,:)
 
           BufferSend_C(:,:)=Ppar_IC(iSpecies,:,:)
           call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
-               MPI_REAL, BufferRecv_C,iRecieveCount_P, iDisplacement_P,MPI_REAL, &
-               0, iComm, iError)
+               MPI_REAL, BufferRecv_C,iRecieveCount_P, iDisplacement_P,&
+               MPI_REAL, 0, iComm, iError)
           if (iProc==0) Ppar_IC(iSpecies,:,:)=BufferRecv_C(:,:)
-       enddo
 
+          do iEnergy = 1, neng + 2
+                
+             !gather eTimeAccumult_ICI
+             BufferSend_C(:,:)=&
+                  eTimeAccumult_ICI(iSpecies,:,:,iEnergy)
+             call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
+                  MPI_REAL, BufferRecv_C, iRecieveCount_P, iDisplacement_P, &
+                  MPI_REAL, 0, iComm, iError)
+             if (iProc==0) &
+                  eTimeAccumult_ICI(iSpecies,:,:,iEnergy)=BufferRecv_C(:,:)
+
+             do iOperator = 1, nOperator
+
+                !gather eTimeAccumult_VICI
+                BufferSend_C(:,:)=&
+                     eChangeOperator_VICI(iSpecies,:,:,iEnergy,iOperator)
+                call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), &
+                     iSendCount, &
+                     MPI_REAL, BufferRecv_C, iRecieveCount_P, iDisplacement_P, &
+                     MPI_REAL, 0, iComm, iError)
+                if (iProc==0) &
+                     eChangeOperator_VICI(iSpecies,:,:,iEnergy,iOperator)=&
+                     	   BufferRecv_C(:,:)
+                
+             enddo ! end iOperator loop
+          enddo ! end iEnergy loop
+       enddo ! end iSpecies loop
+       
        !gather iba
        BufferSend_I(:)=iba(:)
-       call MPI_GATHERV(BufferSend_I(MinLonPar:MaxLonPar), nLonPar, MPI_INTEGER, &
-            BufferRecv_I, nLonPar_P, nLonBefore_P, MPI_INTEGER, 0, iComm, iError)
+       call MPI_GATHERV(BufferSend_I(MinLonPar:MaxLonPar), nLonPar, &
+            MPI_INTEGER, BufferRecv_I, nLonPar_P, nLonBefore_P, &
+            MPI_INTEGER, 0, iComm, iError)
        if (iProc==0) iba(:)=BufferRecv_I(:)
 
        !gather Bmin
        BufferSend_C(:,:)=Bmin_C(:,:)
        call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
-            MPI_REAL, BufferRecv_C,iRecieveCount_P, iDisplacement_P, MPI_REAL, &
-            0, iComm, iError)
+            MPI_REAL, BufferRecv_C,iRecieveCount_P, iDisplacement_P, &
+            MPI_REAL, 0, iComm, iError)
        if (iProc==0) Bmin_C(:,:)=BufferRecv_C(:,:)
     endif
 
@@ -166,7 +208,9 @@ contains
        write(UnitTmp_) iba                
        write(UnitTmp_) Ppar_IC
        write(UnitTmp_) Bmin_C
+       write(UnitTmp_) eTimeAccumult_ICI
        write(UnitTmp_) eChangeOperator_VICI
+       write(UnitTmp_) rbsumglobal
        write(UnitTmp_) driftin
        write(UnitTmp_) driftout
        close(UnitTmp_)

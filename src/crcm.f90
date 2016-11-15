@@ -4,8 +4,9 @@ subroutine crcm_run(delta_t)
   use ModCrcmInitialize
   use ModCrcm,        ONLY: f2,dt, Time, phot, Ppar_IC, Pressure_IC, &
                             PressurePar_IC,FAC_C, Bmin_C, &
-                            OpBfield_,OpDrift_,OpLossCone_, OpWaves_, &
-                            OpChargeEx_, OpStrongDiff_,rbsumLocal,rbsumGlobal, &
+                            OpDrift_, OpBfield_, OpChargeEx_, &
+                            OpWaves_, OpStrongDiff_, OpLossCone_, &
+                            rbsumLocal, rbsumGlobal, &
                             driftin, driftout, IsStandAlone,&
                             rcsumLocal,rcsumGlobal,&
                             preP,preF,Eje1,UseStrongDiff,&
@@ -119,20 +120,21 @@ subroutine crcm_run(delta_t)
      IsFirstCall=.false.
   endif
   
-  !Calculate rbsumLocal and Global on first time and get energy contribution from Bfield change 
-    call sume_cimi(OpBfield_) 
-    do n=1,nspec
-      if (nProc >0) then
-           call MPI_REDUCE (rbsumLocal(n), rbsumGlobal(n), 1, MPI_REAL, &
-                MPI_SUM, 0, iComm, iError)
-
-           call MPI_REDUCE (rcsumLocal(n), rcsumGlobal(n), 1, MPI_REAL, &
-                MPI_SUM, 0, iComm, iError)
-        else
-           rcsumGlobal(n)=rcsumLocal(n)
-           rbsumGlobal(n)=rbsumLocal(n)
-        endif
-    enddo
+  ! Calculate rbsumLocal and Global on first time and get energy
+  ! contribution from Bfield change
+  call sume_cimi(OpBfield_) 
+  do n=1,nspec
+     if (nProc >0) then
+        call MPI_REDUCE (rbsumLocal(n), rbsumGlobal(n), 1, MPI_REAL, &
+             MPI_SUM, 0, iComm, iError)
+        
+        call MPI_REDUCE (rcsumLocal(n), rcsumGlobal(n), 1, MPI_REAL, &
+             MPI_SUM, 0, iComm, iError)
+     else
+        rcsumGlobal(n)=rcsumLocal(n)
+        rbsumGlobal(n)=rbsumLocal(n)
+     endif
+  enddo
 
   ! calculate boundary flux (fb) at the CRCM outer boundary at the equator
   call boundaryIM(nspec,neng,np,nt,nm,nk,iba,irm,amu_I,xjac,energy,vel,fb)
@@ -161,7 +163,7 @@ subroutine crcm_run(delta_t)
      call timing_stop('calc_Lstar1')
 
      call timing_start('calc_Lstar2')
-    call calc_Lstar2(Lstarm,Lstar_maxm,rc)
+     call calc_Lstar2(Lstarm,Lstar_maxm,rc)
      call timing_stop('calc_Lstar2')
 
      call timing_start('crcm_plot')
@@ -260,13 +262,14 @@ subroutine crcm_run(delta_t)
      endif
   enddo
  
-! calculate precipitations accumulated over some time interval (DtLogOut in this case)
-     if( (floor((Time+1.0e-5)/DtLogOut))/=&
-          floor((Time+1.0e-5-delta_t)/DtLogOut)) then
-        call timing_start('crcm_precip_calc')
-        call crcm_precip_calc(rc,DtLogOut)
-        call  timing_stop('crcm_precip_calc')
-     endif
+  ! calculate precipitations accumulated over some time interval
+  ! (DtLogOut in this case)
+  if( (floor((Time+1.0e-5)/DtLogOut))/=&
+       floor((Time+1.0e-5-delta_t)/DtLogOut)) then
+     call timing_start('crcm_precip_calc')
+     call crcm_precip_calc(rc,DtLogOut)
+     call timing_stop('crcm_precip_calc')
+  endif
 
   call timing_start('crcm_output')
   call crcm_output(np,nt,nm,nk,nspec,neng,npit,iba,ftv,f2,ekev, &
@@ -275,7 +278,8 @@ subroutine crcm_run(delta_t)
        vlEa,vpEa,psd)
   call timing_stop('crcm_output')
   
-  ! When nProc >1 consolodate: phot, Ppar_IC, Pressure_IC, PressurePar_IC, fac and iba on iProc 0
+  ! When nProc >1 consolodate: phot, Ppar_IC, Pressure_IC,
+  ! PressurePar_IC, fac and iba on iProc 0
   if (nProc>1) then    
      if (.not.allocated(iRecieveCount_P)) &
           allocate(iRecieveCount_P(nProc), iDisplacement_P(nProc))       
@@ -284,53 +288,53 @@ subroutine crcm_run(delta_t)
      iRecieveCount_P=np*nLonPar_P
      iDisplacement_P = np*nLonBefore_P
      BufferSend_C(:,:) = FAC_C(:,:) 
-     call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, MPI_REAL, &
-          BufferRecv_C, iRecieveCount_P, iDisplacement_P, MPI_REAL, &
-          0, iComm, iError)
+     call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
+          MPI_REAL, BufferRecv_C, iRecieveCount_P, iDisplacement_P, &
+          MPI_REAL, 0, iComm, iError)
      if (iProc==0) FAC_C(:,:)=BufferRecv_C(:,:)
 
      do iSpecies=1,nspec
         BufferSend_C(:,:)=Pressure_IC(iSpecies,:,:)
         call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
-             MPI_REAL, BufferRecv_C,iRecieveCount_P, iDisplacement_P,MPI_REAL, &
-             0, iComm, iError)
+             MPI_REAL, BufferRecv_C, iRecieveCount_P, iDisplacement_P, &
+             MPI_REAL, 0, iComm, iError)
         if (iProc==0) Pressure_IC(iSpecies,:,:)=BufferRecv_C(:,:)
 
         BufferSend_C(:,:)=PressurePar_IC(iSpecies,:,:)
         call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
-             MPI_REAL, BufferRecv_C,iRecieveCount_P, iDisplacement_P,MPI_REAL, &
-             0, iComm, iError)
+             MPI_REAL, BufferRecv_C, iRecieveCount_P, iDisplacement_P, &
+             MPI_REAL, 0, iComm, iError)
         if (iProc==0) PressurePar_IC(iSpecies,:,:)=BufferRecv_C(:,:)
 
         BufferSend_C(:,:)=phot(iSpecies,:,:)
         call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
-             MPI_REAL, BufferRecv_C,iRecieveCount_P, iDisplacement_P,MPI_REAL, &
-             0, iComm, iError)
+             MPI_REAL, BufferRecv_C, iRecieveCount_P, iDisplacement_P, &
+             MPI_REAL, 0, iComm, iError)
         if (iProc==0) phot(iSpecies,:,:)=BufferRecv_C(:,:)
 
         BufferSend_C(:,:)=Ppar_IC(iSpecies,:,:)
         call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
-             MPI_REAL, BufferRecv_C,iRecieveCount_P, iDisplacement_P,MPI_REAL, &
-             0, iComm, iError)
+             MPI_REAL, BufferRecv_C, iRecieveCount_P, iDisplacement_P, &
+             MPI_REAL, 0, iComm, iError)
         if (iProc==0) Ppar_IC(iSpecies,:,:)=BufferRecv_C(:,:)
 
         BufferSend_C(:,:)=Den_IC(iSpecies,:,:)
         call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
-             MPI_REAL, BufferRecv_C,iRecieveCount_P, iDisplacement_P,MPI_REAL, &
-             0, iComm, iError)
+             MPI_REAL, BufferRecv_C, iRecieveCount_P, iDisplacement_P, &
+             MPI_REAL, 0, iComm, iError)
         if (iProc==0) Den_IC(iSpecies,:,:)=BufferRecv_C(:,:)
      enddo
 
      BufferSend_I(:) = iba(:)
-     call MPI_GATHERV(BufferSend_I(MinLonPar:MaxLonPar),nLonPar, MPI_INTEGER, &
-          BufferRecv_I, nLonPar_P, nLonBefore_P, MPI_INTEGER, &
-          0, iComm, iError)
+     call MPI_GATHERV(BufferSend_I(MinLonPar:MaxLonPar), nLonPar, &
+          MPI_INTEGER, BufferRecv_I, nLonPar_P, nLonBefore_P, &
+          MPI_INTEGER, 0, iComm, iError)
      if (iProc==0) iba(:)=BufferRecv_I(:)
 
      BufferSend_C(:,:) = Bmin_C(:,:)
-     call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, MPI_REAL, &
-          BufferRecv_C, iRecieveCount_P, iDisplacement_P, MPI_REAL, &
-          0, iComm, iError)
+     call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
+          MPI_REAL, BufferRecv_C, iRecieveCount_P, iDisplacement_P, &
+          MPI_REAL, 0, iComm, iError)
      if (iProc==0) Bmin_C(:,:)=BufferRecv_C(:,:)
      
   endif
@@ -347,46 +351,47 @@ subroutine crcm_run(delta_t)
 !          0, iComm, iError)
 
      BufferSend_C(:,:)=ftv(:,:)
-     call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, MPI_REAL, &
-          BufferRecv_C, iRecieveCount_P, iDisplacement_P, MPI_REAL, &
-          0, iComm, iError)
+     call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
+          MPI_REAL, BufferRecv_C, iRecieveCount_P, iDisplacement_P, &
+          MPI_REAL, 0, iComm, iError)
      if (iProc==0) ftv(:,:)=BufferRecv_C(:,:)
      BufferSend_C(:,:)=xo(:,:)
-     call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, MPI_REAL, &
-          BufferRecv_C, iRecieveCount_P, iDisplacement_P, MPI_REAL, &
-          0, iComm, iError)
+     call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
+          MPI_REAL, BufferRecv_C, iRecieveCount_P, iDisplacement_P, &
+          MPI_REAL, 0, iComm, iError)
      if (iProc==0) xo(:,:)=BufferRecv_C(:,:)
      BufferSend_C(:,:)=yo(:,:)
-     call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, MPI_REAL, &
-          BufferRecv_C, iRecieveCount_P, iDisplacement_P, MPI_REAL, &
-          0, iComm, iError)
+     call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
+          MPI_REAL, BufferRecv_C, iRecieveCount_P, iDisplacement_P, &
+          MPI_REAL, 0, iComm, iError)
      if (iProc==0) yo(:,:)=BufferRecv_C(:,:)
      BufferSend_C(:,:)=bo(:,:)
-     call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, MPI_REAL, &
-          BufferRecv_C, iRecieveCount_P, iDisplacement_P, MPI_REAL, &
-          0, iComm, iError)
+     call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
+          MPI_REAL, BufferRecv_C, iRecieveCount_P, iDisplacement_P, &
+          MPI_REAL, 0, iComm, iError)
      if (iProc==0) bo(:,:)=BufferRecv_C(:,:)
      BufferSend_C(:,:)=xmlto(:,:)
-     call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, MPI_REAL, &
-          BufferRecv_C, iRecieveCount_P, iDisplacement_P, MPI_REAL, &
-          0, iComm, iError)
+     call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
+          MPI_REAL, BufferRecv_C, iRecieveCount_P, iDisplacement_P, &
+          MPI_REAL, 0, iComm, iError)
      if (iProc==0) xmlto(:,:)=BufferRecv_C(:,:)
      BufferSend_C(:,:)=brad(:,:)
-     call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, MPI_REAL, &
-          BufferRecv_C, iRecieveCount_P, iDisplacement_P, MPI_REAL, &
-          0, iComm, iError)
+     call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
+          MPI_REAL, BufferRecv_C, iRecieveCount_P, iDisplacement_P, &
+          MPI_REAL, 0, iComm, iError)
      if (iProc==0) brad(:,:)=BufferRecv_C(:,:)
      BufferSend_I(:)=irm(:)
-     call MPI_GATHERV(BufferSend_I(MinLonPar:MaxLonPar), nLonPar, MPI_INTEGER, &
-          BufferRecv_I, nLonPar_P, nLonBefore_P, MPI_INTEGER, 0, iComm, iError)
+     call MPI_GATHERV(BufferSend_I(MinLonPar:MaxLonPar), nLonPar, &
+          MPI_INTEGER, BufferRecv_I, nLonPar_P, nLonBefore_P, &
+          MPI_INTEGER, 0, iComm, iError)
      if (iProc==0) irm(:)=BufferRecv_I(:)
   elseif (nProc > 1 .and. DoWriteSats .and. &
        (floor((Time+1.0e-5)/DtSatOut))/=&
        floor((Time+1.0e-5-delta_t)/DtSatOut)) then
      BufferSend_C(:,:)=bo(:,:)
-     call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, MPI_REAL, &
-          BufferRecv_C, iRecieveCount_P, iDisplacement_P, MPI_REAL, &
-          0, iComm, iError)     
+     call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
+          MPI_REAL, BufferRecv_C, iRecieveCount_P, iDisplacement_P, &
+          MPI_REAL, 0, iComm, iError)     
      if (iProc==0) bo(:,:)=BufferRecv_C(:,:)
   endif
 
@@ -497,8 +502,8 @@ subroutine crcm_run(delta_t)
         call timing_stop('calc_Lstar2')
 
         call timing_start('crcm_plot')
-        call Crcm_plot(np,nt,xo,yo,Pressure_IC,PressurePar_IC,phot,Ppar_IC,Den_IC,&
-             bo,ftv,pot,FAC_C,Time,dt,Lstar_C)
+        call Crcm_plot(np,nt,xo,yo,Pressure_IC,PressurePar_IC,phot,&
+             Ppar_IC,Den_IC,bo,ftv,pot,FAC_C,Time,dt,Lstar_C)
         call timing_stop('crcm_plot')
 
         if (DoSaveFlux) call Crcm_plot_fls(rc,flux,time,Lstar_C,Lstar_max)
@@ -1329,11 +1334,14 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
   integer nk,nspec,np,nt,nm,ib0(nt)
   integer n,i,j,k,m,j1,j_1,ibaj,ib,ibo,nrun,nn
   integer iw2(nspec,nk)
-  real dt,dlat(np),dphi,brad(np,nt),vl(nspec,0:np,nt,nm,nk),vp(nspec,np,nt,nm,nk)
+  real dt,dlat(np),dphi,brad(np,nt),&
+       vl(nspec,0:np,nt,nm,nk),vp(nspec,np,nt,nm,nk)
   real rb,fb(nspec,nt,nm,nk),f2(nspec,np,nt,nm,nk)
   real f2d(np,nt),cmax,cl1,cp1,cmx,dt1,fb0(nt),fb1(nt),fo_log,fb_log,f_log
-  real slope,cl(np,nt),cp(np,nt),fal(0:np,nt),fap(np,nt),fupl(0:np,nt),fupp(np,nt)
-  real driftin(nspec),driftout(nspec),dEner,dPart,dEnerLocal_C(nt),dPartLocal_C(nt)
+  real slope,cl(np,nt),cp(np,nt),fal(0:np,nt),fap(np,nt),&
+       fupl(0:np,nt),fupp(np,nt)
+  real driftin(nspec),driftout(nspec),dEner,dPart,&
+       dEnerLocal_C(nt),dPartLocal_C(nt)
   logical :: UseUpwind=.false.
 
   ! MPI status variable
@@ -1479,7 +1487,8 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
                           f2d(i,j)=0.
                        else
                           write(*,*)'IM WARNING: f2d < 0 in drift ',n,i,j,k,m
-                          write(*,*)'IM WARNING: Retrying step with upwind scheme'
+                          write(*,*)'IM WARNING: '//&
+                               'Retrying step with upwind scheme'
                           UseUpwind=.true.
                           exit jloop
                        endif
@@ -1487,7 +1496,8 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
                  enddo iloop
                  ! Calculate gain or loss at the outer boundary
                  dPartLocal_C(j) = -dt1/dlat(iba(j)) &
-                      *vl(n,iba(j),j,k,m)*fal(iba(j),j)*d4Element_C(n,iba(j),k,m)
+                      *vl(n,iba(j),j,k,m)*fal(iba(j),j)*&
+                      d4Element_C(n,iba(j),k,m)
                  dEnerLocal_C(j)=ekev(n,iba(j),j,k,m)*dPartLocal_C(j)
               enddo jloop
 
@@ -1514,8 +1524,10 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
                              ! should now have f2d(i,j)=0. but didnt before
 
                              write(*,*)'IM WARNING: f2d < 0 in drift ',n,i,j,k,m
-                             write(*,*)'IM WARNING: upwind scheme failed, making iba(j)=i'
-                             write(*,*)'IM WARNING: repeated failure may need to be examined'
+                             write(*,*)'IM WARNING: '//&
+                                  'upwind scheme failed, making iba(j)=i'
+                             write(*,*)'IM WARNING: '//&
+                                  'repeated failure may need to be examined'
                              f2d(i,j)=0.0
                              iba(j)=i
                              exit iLoopUpwind
@@ -1524,16 +1536,17 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
                     enddo iLoopUpwind
                     ! Calculate gain or loss at the outer boundary
                     dPartLocal_C(j)=-dt1/dlat(iba(j))*&
-                         vl(n,iba(j),j,k,m)*fupl(iba(j),j)*d4Element_C(n,iba(j),k,m)
+                         vl(n,iba(j),j,k,m)*fupl(iba(j),j)*&
+                         d4Element_C(n,iba(j),k,m)
                     dEnerLocal_C(j)=ekev(n,iba(j),j,k,m)*dPartLocal_C(j)
                  enddo
               endif
               !sum all dEner to root proc
               if(nProc>1) then
-                 call MPI_REDUCE (sum(dPartLocal_C(MinLonPar:MaxLonPar)), dPart, 1, MPI_REAL, &
-                      MPI_SUM, 0, iComm, iError)
-                 call MPI_REDUCE (sum(dEnerLocal_C(MinLonPar:MaxLonPar)), dEner, 1, MPI_REAL, &
-                      MPI_SUM, 0, iComm, iError)
+                 call MPI_REDUCE (sum(dPartLocal_C(MinLonPar:MaxLonPar)), &
+                      dPart, 1, MPI_REAL, MPI_SUM, 0, iComm, iError)
+                 call MPI_REDUCE (sum(dEnerLocal_C(MinLonPar:MaxLonPar)), &
+                      dEner, 1, MPI_REAL, MPI_SUM, 0, iComm, iError)
               else
                  dPart=sum(dPartLocal_C)
                  dEner=sum(dEnerLocal_C)
@@ -1543,8 +1556,8 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
                  if (dPart.gt.0.) driftin(n)=driftin(n)+dEner
                  if (dPart.lt.0.) driftout(n)=driftout(n)+dEner
               else
-                 driftin(n)=0
-                 driftout(n)=0
+                 driftin(n)=0.
+                 driftout(n)=0.
               endif
            enddo          ! end of do nn=1,nrun
            f2(n,1:np,1:nt,k,m)=f2d(1:np,1:nt)
@@ -1744,10 +1757,12 @@ subroutine sume_cimi(OperatorName)
 ! Input: f2,ekev,iba
 ! Input/Output: rbsum,xle
 
-! in CIMI: eChangeOperator=xle(ns,ir,ip,je+2) Here we create one array for all
-! operators (plus one dimension)
-!   eTimeAccumulatv=esum(ns,ir,ip,je+2) No need for additional dimention because
-!   it's total energy
+! in CIMI: eChangeOperator=xle(ns,ir,ip,nOperator,je+2) Here we create
+!   	one array for all operators (plus one dimension)
+!  
+! eTimeAccumultv=esum(ns,ir,ip,je+2) No need for additional dimension
+! 	because it's total energy
+!  
 !!!!!!!!!!!!!!!!
   use ModCrcm,       ONLY: &
        f2,rbsum=>rbsumLocal,rbsumGlobal,rcsum=>rcsumLocal,rcsumGlobal,&
@@ -2102,46 +2117,53 @@ end subroutine crcm_output
 
 subroutine crcm_precip_calc(rc,dsec)
 
-  use ModCrcm,       ONLY: preF,preP,Eje1,xlel=>eChangeOperator_VICI,plel=>pChangeOperator_VICI, &
-                           OpLossCone_,OpLossCone0_
-  use ModCrcmGrid,   ONLY: nProc,iProc,iComm,MinLonPar,MaxLonPar,nt,np,neng,xlatr,xmlt,dlat
+  use ModCrcm,       ONLY: &
+       preF, preP, Eje1, &
+       xlel=>eChangeOperator_VICI, plel=>pChangeOperator_VICI, &
+       OpLossCone_, OpLossCone0_
+  use ModFieldTrace, ONLY: iba
+  use ModCrcmGrid,   ONLY: &
+       nProc,iProc,iComm,MinLonPar,MaxLonPar,nt,np,neng,xlatr,xmlt,dlat
   use ModCrcmPlanet, ONLY: nspec,re_m
   use ModMPI
   use ModCrcmInitialize, ONLY: dphi
-
-implicit none
-
-real :: rc,dsec,dlel,dplel,area,area1,Asec
-integer :: n,i,j,k
-
-preF(1:nspec,1:np,1:nt,1:neng+2)=0.
-preP(1:nspec,1:np,1:nt,1:neng+2)=0.
-Eje1(1:nspec,1:np,1:nt)=0.
-
-area1=rc*rc*re_m*re_m*dphi
-
-    do n=1,nspec
-        do i=1,nt
+  
+  implicit none
+  
+  real :: rc,dsec,dlel,dplel,area,area1,Asec
+  integer :: n,i,j,k
+  
+  preF(1:nspec,1:np,1:nt,1:neng+2)=0.
+  preP(1:nspec,1:np,1:nt,1:neng+2)=0.
+  Eje1(1:nspec,1:np,1:nt)=0.
+  
+  area1=rc*rc*re_m*re_m*dphi
+  
+  do n=1,nspec
+     do j=MinLonPar,MaxLonPar
+        do i=1,iba(j)
            area=area1*cos(xlatr(i))*dlat(i)            ! area in m^2
            Asec=area*dsec
-           do j=MinLonPar,MaxLonPar
-              do k=1,neng+2
-                 dlel=xlel(n,i,j,k,OpLossCone_)-xlel(n,i,j,k,OpLossCone0_)
-                 dplel=plel(n,i,j,k,OpLossCone0_)-plel(n,i,j,k,OpLossCone0_)
-                 if (dlel.lt.0..and.dplel.lt.0.) then
-                    preF(n,i,j,k)=-dlel*1.6e-13/Asec           ! E flux in mW/m2
-                    preP(n,i,j,k)=-dplel                       ! number of particles
-                    if (k.eq.neng+1) Eje1(n,i,j)=dlel/dplel       ! meanE for E>gride(je)
-                   
-                    xlel(n,i,j,k,OpLossCone0_) = xlel(n,i,j,k,OpLossCone0_)
-                    plel(n,i,j,k,OpLossCone0_) = plel(n,i,j,k,OpLossCone0_)
-
-                 endif
-              enddo
+           do k=1,neng+2
+              dlel=xlel(n,i,j,k,OpLossCone_)-xlel(n,i,j,k,OpLossCone0_)
+              dplel=plel(n,i,j,k,OpLossCone_)-plel(n,i,j,k,OpLossCone0_)
+              if (dlel.lt.0..and.dplel.lt.0.) then
+                 preF(n,i,j,k)=-dlel*1.6e-13/Asec     ! E flux in mW/m2
+                 preP(n,i,j,k)=-dplel                 ! number of particles
+                 
+                 ! meanE for E>gride(je)
+                 if (k.eq.neng+1) Eje1(n,i,j)=dlel/dplel       
+                 
+              endif
            enddo
-       enddo
+        enddo
      enddo
+  enddo
 
+  ! Overwrites the OpLossCone0_ array with the current time information.
+  xlel(:,:,:,:,OpLossCone0_) = xlel(:,:,:,:,OpLossCone_)
+  plel(:,:,:,:,OpLossCone0_) = plel(:,:,:,:,OpLossCone_)
+  
 end subroutine crcm_precip_calc
 
 
