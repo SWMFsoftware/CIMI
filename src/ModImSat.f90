@@ -211,7 +211,7 @@ contains
           ! Write header
           write(UnitTmp_, '(2a)')'IM results for SWMF trajectory file ', &
                trim(NameSat_I(iSatIn))//NameSpecies
-          write(UnitTmp_,*) trim(HeadVar)
+          write(UnitTmp_,"(A)") trim(HeadVar)
        else
           open(unit=UnitTmp_, file=trim(NameSatFile), status='OLD',&
                position='append', iostat=iError)
