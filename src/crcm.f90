@@ -221,8 +221,8 @@ subroutine crcm_run(delta_t)
      
      if (Time.ge.DiffStartT .and. UseWaveDiffusion) then
         call timing_start('crcm_WaveDiffusion')
-        call diffuse_aa(f2,dt,xjac,iba,iw2)
-        call diffuse_EE(f2,dt,xmm,xjac,iw2,iba)
+       ! call diffuse_aa(f2,dt,xjac,iba,iw2)
+       ! call diffuse_EE(f2,dt,xmm,xjac,iw2,iba)
         !   call diffuse_aE(f2,dt,xjac,iw2,iba,Time)
         call sume_cimi(OpWaves_)
         call timing_stop('crcm_WaveDiffusion')
@@ -937,17 +937,20 @@ end subroutine initial_f2
 !-------------------------------------------------------------------------------
 subroutine boundaryIM(nspec,neng,np,nt,nm,nk,iba,irm,amu_I,xjac,energy,vel,fb)
   !-----------------------------------------------------------------------------
+  !  *Relativistic version of boundary PSD.*
   ! Routine setup the boundary distribution for the CRCM. Distribution
   ! at the boundary is assumed to be Maxwellian for ions and a kappa
   ! (kappa=3) distribution for electrons. Boundary temperature and
-  ! density are from MHD.
+  ! density are from MHD (or empirical models if Weimer/Tsyganenko fields are
+  ! used)
   !
   ! Input: nspec,np,nt,nm,nk,iba,irm,amu,xjac,Den_IC,Temp_IC,vel
   ! Output: fb
+  ! 
   Use ModGmCrcm, ONLY:  Temp_IC, Temppar_IC, DoAnisoPressureGMCoupling
   use ModCrcm,        ONLY: MinLonPar,MaxLonPar, f2
   use ModCrcmGrid, ONLY: MinLonPar,MaxLonPar
-  use ModFieldTrace,  ONLY: sinA,ekev
+  use ModFieldTrace,  ONLY: sinA,ekev,iw2,pp
   use ModCrcmBoundary,ONLY: BoundaryDens_IC,BoundaryTemp_IC,BoundaryTempPar_IC
 
   implicit none
@@ -955,99 +958,93 @@ subroutine boundaryIM(nspec,neng,np,nt,nm,nk,iba,irm,amu_I,xjac,energy,vel,fb)
   integer nspec,neng,np,nt,nm,nk,iba(nt),irm(nt),j,n,k,m,ib1
   real amu_I(nspec),energy(nspec,neng),xjac(nspec,np,nm)
   real vel(nspec,np,nt,nm,nk),fb(nspec,nt,nm,nk),pi,xmass,chmass,fb1,fb_temp,vtchm
-  real velperp2, velpar2
+  real velperp2, velpar2,fbb,fbb1,parE1,perE1,den1,temp32,y2,x2,Psq,Pper2,Ppar2
+  real erpp,Vsq,Vper2,Vpar2
   real BoundaryTempperp_IC(nspec,nt)
   real kappa,kappa_plus_one,kappa_minus_half,ln_gamma_diff,gamma_ratio
   real ln_gamma
   real e_min
 
   kappa=3.
+ ! zk1=zkappa+1.
   kappa_plus_one=kappa+1.
   kappa_minus_half=kappa-0.5
   ln_gamma_diff=ln_gamma(kappa_plus_one)-ln_gamma(kappa_minus_half)
   gamma_ratio=exp(ln_gamma_diff)
-  
+
   pi=acos(-1.)
 
-  if(DoAnisoPressureGMCoupling) &
+   !   defining Pperp and Ppar for both cases, anisotropic and isotropic.
+   !   Advantages: use the same form of Maxwellian/kappa dist
+   !   since in the case of isotropic PSD 
+  
+  if(DoAnisoPressureGMCoupling) then    !  
           BoundaryTempperp_IC(:,:) = &
-             (3*BoundaryTemp_IC(:,:) - BoundaryTempPar_IC(:,:))/2.
+             (3*BoundaryTemp_IC(:,:) - BoundaryTempPar_IC(:,:))/2
+  else
+         BoundaryTempperp_IC(:,:) =  BoundaryTemp_IC(:,:)
+         BoundaryTempPar_IC(:,:) = BoundaryTemp_IC(:,:)
+  endif
 
   fb(1:nspec,MinLonPar:MaxLonPar,1:nm,1:nk)=0.
   do n=1,nspec
      e_min=0.
-     if (n.ge.nspec) e_min=0.5*energy(n,1)
+     if (n==nspec) e_min=0.5*energy(n,1) 
      xmass=amu_I(n)*1.673e-27
-     chmass=1.6e-19/xmass
+     chmass=1.6e-19/xmass 
      do j=MinLonPar,MaxLonPar
-        ib1=iba(j)+1
+         parE1=BoundaryTempPar_IC(n,j)/1000.      ! characteristic in keV
+         perE1=BoundaryTempPerp_IC(n,j)/1000.     ! characteristic in keV
+         den1 =BoundaryDens_IC(n,j)                     ! density in m-3
+        temp32=sqrt(parE1)*perE1*1.6e-16**1.5
+        ib1=iba(j)+1   ! difference bewteen cimi standalone where ib1=iba(j)
         if (ib1.gt.irm(j)) ib1=irm(j)
-        if(DoAnisoPressureGMCoupling)then
-           ANISO_KAPPA_BOUNDARY: if (n .eq. nspec) then
-              fb1=BoundaryDens_IC(n,j)*gamma_ratio/ &
-                   (2.*pi*kappa*xmass*BoundaryTempPar_IC(n,j)*1.6e-19)**0.5/ &
-                   (2.*pi*kappa*xmass*BoundaryTempPerp_IC(n,j)*1.6e-19)
-           else
-              fb1=BoundaryDens_IC(n,j)/ &
-                   (2.*pi*xmass*BoundaryTempPar_IC (n,j)*1.6e-19)**0.5/ &
-                   (2.*pi*xmass*BoundaryTempPerp_IC(n,j)*1.6e-19)
-           endif ANISO_KAPPA_BOUNDARY
+        if (n .eq. nspec) then    !    kappa, for electrons only
+            fbb1=den1*gamma_ratio/temp32/(2.*pi*kappa*xmass)**1.5
         else
-           KAPPA_BOUNDARY: if (n .eq. nspec) then
-              fb1=BoundaryDens_IC(n,j)*gamma_ratio/ &
-                   (2.*pi*kappa*xmass*BoundaryTemp_IC(n,j)*1.6e-19)**1.5
-           else
-              fb1=BoundaryDens_IC(n,j)/ &
-                   (2.*pi*xmass*BoundaryTemp_IC(n,j)*1.6e-19)**1.5
-           endif KAPPA_BOUNDARY
-        endif
-        do k=1,nm
-           do m=1,nk
-              fb_temp=0.
+            fbb1=den1/temp32/(2.*pi*xmass)**1.5 ! Maxwellian
+        endif       
+
+  !      do k=1,nm   ! magnetic moment
+          do m=1,nk   ! K invariant 
+              y2=sinA(ib1,j,m)*sinA(ib1,j,m)
+              x2=1.-y2
+            do k=1,iw2(n,m)   ! magnetic moment            
+              fbb=0.
               if ((ekev(n,ib1,j,k,m) .gt. e_min) .and. &
                    (BoundaryDens_IC(n,j).gt.0.)) then
-                 
-                 if(DoAnisoPressureGMCoupling)then
-                    velperp2 = (vel(n,ib1,j,k,m)*sinA(ib1,j,m))**2
-                    velpar2 = vel(n,ib1,j,k,m)**2 - velperp2
-                    
-                    ELECTRON_BI_KAPPA: if (n .eq. nspec) then
-                       vtchm = &
-                            velpar2/(2*BoundaryTempPar_IC(n,j)*chmass*kappa) + &
-                            velperp2/(2*BoundaryTempPerp_IC(n,j)*chmass*kappa)
-                    else
-                       vtchm = &
-                            velpar2/(2*BoundaryTempPar_IC(n,j)*chmass) + &
-                            velperp2/(2*BoundaryTempPerp_IC(n,j)*chmass)
-                    endif ELECTRON_BI_KAPPA
-                 else
-                    ELECTRON_KAPPA: if (n .eq. nspec) then
-                       vtchm =  vel(n,ib1,j,k,m)**2/ &
-                            (2*BoundaryTemp_IC(n,j)*chmass*kappa)
-                    else
-                       vtchm = vel(n,ib1,j,k,m)**2/ &
-                            (2*BoundaryTemp_IC(n,j)*chmass)
-                    end if ELECTRON_KAPPA
-                 end if
 
-                 ELECTRON_BOUNDARY_DIST: if (n .eq. nspec) then
-                    fb_temp=fb1/(1.+vtchm/kappa)**kappa_plus_one
-                 else
-                    if (vtchm.lt.500.) &
-                         fb_temp=fb1/exp(vtchm)
-                 end if ELECTRON_BOUNDARY_DIST
-              endif
-              fb(n,j,k,m)=fb_temp*xjac(n,ib1,k)
+               if (n .eq. nspec) then   ! KAPPA FOR ELECTRONS
+                  Psq=pp(n,ib1,j,k,m)*pp(n,ib1,j,k,m)
+                  Ppar2=Psq*x2
+                  Pper2=Psq*y2
+                  erpp=(Ppar2/parE1+Pper2/perE1)/2./xmass/1.6e-16
+                  fbb=fbb1/(1.+erpp/kappa)**kappa_plus_one                    
 
-           enddo		! end of m loop
-        enddo			! end of k loop 
-     enddo			! end of j loop
-  enddo				! end of n loop
+                                 else ! MAXWELLIAN OTHERWISE:
+                  Vsq=vel(n,ib1,j,k,m)*vel(n,ib1,j,k,m)
+                  Vpar2=Vsq*x2
+                  Vper2=Vsq*y2
+                  erpp=(Vpar2/parE1+Vper2/perE1)/2./1000./chmass
+                  fbb=0.
+                  if (erpp.lt.500.) fbb=fbb1/exp(erpp)                      
+               endif 
+             endif      ! end of ekev(n,ib,j,k,m).gt.e_min.and.den1.gt.0
 
-  
-  
+
+              fb(n,j,k,m)=fbb*xjac(n,ib1,k)
+ !        if ((n.eq.nspec).and.(j.eq.1).and.(m.eq.10)) write(*,*) fbb,xjac(n,ib1,k), &
+ !        ekev(n,ib1,j,k,m), vel(n,ib1,j,k,m),xmass,chmass, &
+ !        Psq,Ppar2,Vsq,Vpar2, 'f,jac,e,vel,m,chm,Psq,Ppar,Vsq,Vpar'   !   NB Jan 20 2017
+           enddo                ! end of m loop
+        enddo                   ! end of k loop
+     enddo                      ! end of j loop
+  enddo                         ! end of n loop
+
+
+
 end subroutine boundaryIM
-
+   
 !-----------------------------------------------------------------------------
 function ln_gamma(xx)
 !-----------------------------------------------------------------------------
