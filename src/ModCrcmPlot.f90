@@ -607,7 +607,7 @@ contains
     use ModCrcmRestart, ONLY: IsRestart
     use ModIoUnit,      ONLY: UnitTmp_
     use ModCRCM,        ONLY: nOperator,driftin,driftout,&
-         rbsumGlobal,dt,eChangeGlobal
+         rbsumGlobal,rcsumGlobal,dt,eChangeGlobal
     use ModCrcmGrid,    ONLY: ir=>nt,ip=>np,im=>nm,ik=>nk,je=>neng,nproc
     implicit none
     
@@ -642,15 +642,15 @@ contains
   ! write out the operator changes
     do iSpecies=1,nSpecies
        if (iSpecies < nSpecies) then
-          write(UnitTmp_,'(10es18.8E3)',ADVANCE='NO') & 
-               rbsumglobal(iSpecies), &
+          write(UnitTmp_,'(11es18.8E3)',ADVANCE='NO') & 
+               rbsumglobal(iSpecies), rcsumglobal(iSpecies), &
                eChangeGlobal(iSpecies,1:nOperator-1), &
                driftin(iSpecies), driftout(iSpecies)
        else
-          write(UnitTmp_,'(10es18.8E3)') & 
-               rbsumglobal(iSpecies), &
+          write(UnitTmp_,'(11es18.8E3)') & 
+               rbsumglobal(iSpecies), rcsumglobal(iSpecies), &
                eChangeGlobal(iSpecies,1:nOperator-1), &
-               driftin(iSpecies),driftout(iSpecies)
+               driftin(iSpecies), driftout(iSpecies)
        endif
     enddo
 

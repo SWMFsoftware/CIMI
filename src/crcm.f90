@@ -7,8 +7,8 @@ subroutine crcm_run(delta_t)
                             OpDrift_, OpBfield_, OpChargeEx_, &
                             OpWaves_, OpStrongDiff_, OpLossCone_, &
                             rbsumLocal, rbsumGlobal, &
-                            driftin, driftout, IsStandAlone,&
                             rcsumLocal,rcsumGlobal,&
+                            driftin, driftout, IsStandAlone,&
                             preP,preF,Eje1,UseStrongDiff,&
                             eChangeOperator_VICI,nOperator,&
                             eChangeLocal,eChangeGlobal
@@ -123,18 +123,6 @@ subroutine crcm_run(delta_t)
   ! Calculate rbsumLocal and Global on first time and get energy
   ! contribution from Bfield change
   call sume_cimi(OpBfield_) 
-  do n=1,nspec
-     if (nProc >0) then
-        call MPI_REDUCE (rbsumLocal(n), rbsumGlobal(n), 1, MPI_REAL, &
-             MPI_SUM, 0, iComm, iError)
-        
-        call MPI_REDUCE (rcsumLocal(n), rcsumGlobal(n), 1, MPI_REAL, &
-             MPI_SUM, 0, iComm, iError)
-     else
-        rcsumGlobal(n)=rcsumLocal(n)
-        rbsumGlobal(n)=rbsumLocal(n)
-     endif
-  enddo
 
   ! calculate boundary flux (fb) at the CRCM outer boundary at the equator
   call boundaryIM(nspec,neng,np,nt,nm,nk,iba,irm,amu_I,xjac,energy,vel,fb)
@@ -170,6 +158,11 @@ subroutine crcm_run(delta_t)
      call Crcm_plot(np,nt,xo,yo,Pressure_IC,PressurePar_IC,phot,Ppar_IC,Den_IC,&
           bo,ftv,pot,FAC_C,Time,dt,Lstar_C)
      call timing_stop('crcm_plot')
+
+     call timing_start('crcm_plot_log')
+     call crcm_plot_log(Time)
+     call timing_stop('crcm_plot_log')
+
      if (DoSaveFlux) call Crcm_plot_fls(rc,flux,time,Lstar_C,Lstar_max)
      if (DoSavePSD) call Crcm_plot_psd(rc,psd,xmm,xk,time)
      if (DoSaveFlux.or.DoSavePSD) call &
@@ -249,19 +242,6 @@ subroutine crcm_run(delta_t)
      call time_real_to_int(CurrentTime,iCurrentTime_I)
   enddo
 
-  ! After time loop sum rbsumLocal tp rbsumglobal; rcsumLocal to rcsumGlobal
-  do n=1,nspec
-     if (nProc >0) then
-        call MPI_REDUCE (rbsumLocal(n), rbsumGlobal(n), 1, MPI_REAL, &
-               MPI_SUM, 0, iComm, iError)
-        call MPI_REDUCE (rcsumLocal(n), rcsumGlobal(n), 1, MPI_REAL, &
-               MPI_SUM, 0, iComm, iError)
-     else
-        rbsumGlobal(n)=rbsumLocal(n)
-        rcsumGlobal(n)=rcsumLocal(n)
-     endif
-  enddo
- 
   ! calculate precipitations accumulated over some time interval
   ! (DtLogOut in this case)
   if( (floor((Time+1.0e-5)/DtLogOut))/=&
@@ -784,10 +764,10 @@ subroutine initial_f2(nspec,np,nt,iba,amu_I,vel,xjac,ib0)
   !         (through common block cinitial_f2)
   use ModIoUnit, ONLY: UnitTmp_
   use ModGmCrcm, ONLY: Den_IC, Temp_IC, Temppar_IC, DoAnisoPressureGMCoupling
-  use ModCrcm,   ONLY: f2,nOperator,driftin,driftout, &
+  use ModCrcm,   ONLY: f2, nOperator, driftin, driftout, &
        eChangeOperator_VICI, echangeLocal, eChangeGlobal, &
-       pChangeOperator_VICI,eTimeAccumult_ICI,pTimeAccumult_ICI, &
-       rbsumLocal,rbsumGlobal,rcsumLocal,rcsumGlobal
+       pChangeOperator_VICI, eTimeAccumult_ICI, pTimeAccumult_ICI, &
+       rbsumLocal, rbsumGlobal, rcsumLocal, rcsumGlobal
   use ModCrcmInitialize,   ONLY: IsEmptyInitial, IsDataInitial, IsRBSPData, &
        IsGmInitial
   use ModCrcmGrid,ONLY: nm,nk,MinLonPar,MaxLonPar,iProc,nProc,iComm,d4Element_C,neng
@@ -922,11 +902,19 @@ subroutine initial_f2(nspec,np,nt,iba,amu_I,vel,xjac,ib0)
 ! Setup variables for energy gain/loss from each process
   eChangeOperator_VICI(1:nspec,1:np,1:nt,1:neng+2,1:nOperator)=0.0
   pChangeOperator_VICI(1:nspec,1:np,1:nt,1:neng+2,1:nOperator)=0.0
-  eTimeAccumult_ICI(1:nspec,1:np,1:nt,1:neng+2)=0.0   ! check later if needed to be read for restart
-  pTimeAccumult_ICI(1:nspec,1:np,1:nt,1:neng+2)=0.0   ! check later if needed to be read for restart
+  eTimeAccumult_ICI(1:nspec,1:np,1:nt,1:neng+2) = 0.0
+  pTimeAccumult_ICI(1:nspec,1:np,1:nt,1:neng+2) = 0.0
 
-  eChangeLocal(1:nspec,1:nOperator) = 0.
-  eChangeGlobal(1:nspec,1:nOperator) = 0.
+  eChangeLocal(1:nspec, 1:nOperator) = 0.
+  eChangeGlobal(1:nspec, 1:nOperator) = 0.
+
+  ! Total energy for the simulation domain
+  rbsumLocal(1:nspec) = 0. 
+  rbsumGlobal(1:nspec) = 0.
+
+  ! Total energy for L < 6.6 R_E
+  rcsumLocal(1:nspec) = 0.
+  rcsumGlobal(1:nspec) = 0.
 
   driftin(1:nspec)=0.      ! energy gain due injection
   driftout(1:nspec)=0.     ! energy loss due drift-out loss
@@ -1766,7 +1754,7 @@ subroutine sume_cimi(OperatorName)
        xle=>eChangeOperator_VICI,ple=>pChangeOperator_VICI, &
        eChangeGlobal,eChangeLocal, &
        esum=>eTimeAccumult_ICI,psum=>pTimeAccumult_ICI
-  use ModFieldTrace, ONLY: iba,ekev,ro,iw2
+  use ModFieldTrace, ONLY: iba,irm,ekev,ro,iw2
   use ModCrcmGrid,   ONLY: &
        nProc,iProc,iComm, MinLonPar,MaxLonPar,d4Element_C, &
        ip=>np,ir=>nt,im=>nm,ik=>nk,je=>neng,Energy,Ebound
@@ -1787,8 +1775,6 @@ subroutine sume_cimi(OperatorName)
 
 ! Calculate esum, psum, etc.
     do n=1,nspec
-       rbsum(n)=0.
-       rcsum(n)=0.
        eChangeLocal(n, OperatorName) = 0.
        e0(1:ip,MinLonPar:MaxLonPar,1:je+2)=&
             esum(n,1:ip,MinLonPar:MaxLonPar,1:je+2)
@@ -1799,7 +1785,7 @@ subroutine sume_cimi(OperatorName)
        gride1(1:je)=Ebound(n,1:je)
 
        do j=MinLonPar,MaxLonPar
-          do i=1,iba(j)
+          do i=1,irm(j)
                 do m=1,ik
                    do k=1,iw2(n,m)
                       ekev1=ekev(n,i,j,k,m)
@@ -1838,10 +1824,18 @@ subroutine sume_cimi(OperatorName)
 
        if (nProc > 1) then
           call MPI_REDUCE(&
+               rbsum(n), rbsumGlobal(n), 1, &
+               MPI_REAL, MPI_SUM, 0, iComm, iError)
+          call MPI_REDUCE(&
+               rcsum(n), rcsumGlobal(n), 1, &
+               MPI_REAL, MPI_SUM, 0, iComm, iError)
+          call MPI_REDUCE(&
                eChangeLocal(n, OperatorName),&
                eChangeGlobal(n, OperatorName), 1, &
                MPI_REAL, MPI_SUM, 0, iComm, iError)
        else 
+          rbsumGlobal(n) = rbsum(n)
+          rcsumGlobal(n) = rcsum(n)
           eChangeGlobal(n,OperatorName) = &
                eChangeLocal(n,OperatorName)
        endif
