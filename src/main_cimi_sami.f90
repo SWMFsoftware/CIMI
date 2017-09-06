@@ -31,8 +31,10 @@ program cimi_sami
   implicit none
  
 
-  ! This is hardcoded for now, CIMI runs on 2 procs and SAMI on 9 so 11 total
-  integer,parameter :: nProcCIMItmp = 2, nProcSAMItmp = 9
+  ! This is hardcoded for now, CIMI runs on 24 procs and SAMI on 24 so 48 total
+  integer,parameter :: nProcCIMItmp = 24, nProcSAMItmp = 24
+!!$  integer,parameter :: nProcCIMItmp = 8, nProcSAMItmp = 9
+!!$  integer,parameter :: nProcCIMItmp = 1, nProcSAMItmp = 9
 
   !set some mpi parameters
   integer :: iProcsCIMI_I(nProcCIMItmp),iProcsSAMI_I(nProcSAMItmp)

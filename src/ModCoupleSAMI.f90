@@ -80,8 +80,9 @@ Module ModCoupleSami
       
       if(iProc==0) write(*,*) 'cimi_send_to_sami',nLat,nLon
       ! Send the starttime from cimi to sami
-      if(iProc ==0) call MPI_send(pot,nLat*nLon,MPI_REAL,iProc0SAMI,&
-           1,iCommGlobal,iError)
+      if(iProc ==0) &
+           call MPI_send(pot,nLat*nLon,MPI_REAL,iProc0SAMI,1,iCommGlobal,iError)
+      if(iProc==0) write(*,*) 'Max and Min of pot: ', MAXVAL(pot), MINVAL(pot)
       if(iProc==0) write(*,*) 'cimi_send_to_sami done'
     end subroutine cimi_send_to_sami
     
@@ -222,7 +223,8 @@ Module ModCoupleSami
       real, intent(in) :: TimeSimulation
       integer :: iLat, iLon
       real :: LatLon_D(2)
-      
+      real, parameter :: DensityMin=0.1 !/cc
+
       do iLon = 1, nLon
          do iLat = 1, nLat
             !write(*,*) 'iLat,iLon,cDegToRad',iLat,iLon,cDegToRad
@@ -235,16 +237,22 @@ Module ModCoupleSami
             !     LatLon_D(1), LatLon_D(2))
             LatLon_D(1) = Lat_C(iLat)
             LatLon_D(2) = modulo(Lon_C(iLon)+cPi,cTwoPi)
-            
-       
+
             if (LatLon_D(1) > maxval(LatSami_C) .or. &
                  LatLon_D(1) < minval(LatSami_C) ) then
+!!$               PlasSamiOnCimiGrid_C(iLat,iLon)    = DensityMin
+!!$               PlasHpSamiOnCimiGrid_C(iLat,iLon)  = 1E-6
+!!$               PlasHepSamiOnCimiGrid_C(iLat,iLon) = 1E-7
+!!$               PlasOpSamiOnCimiGrid_C(iLat,iLon)  = 1E-6
                PlasSamiOnCimiGrid_C(iLat,iLon)    = 0.0
                PlasHpSamiOnCimiGrid_C(iLat,iLon)  = 0.0
                PlasHepSamiOnCimiGrid_C(iLat,iLon) = 0.0
                PlasOpSamiOnCimiGrid_C(iLat,iLon)  = 0.0
             else
-               PlasSamiOnCimiGrid_C(iLat,iLon) = &
+!!$               PlasSamiOnCimiGrid_C(iLat,iLon) = &
+!!$                    max(bilinear(PlasSAMI_C,1,nLatSAMI,1,nLonSAMI,LatLon_D, &
+!!$                    LatSami_C,LonSami_C,DoExtrapolate=.true.),DensityMin)
+               PlasSSWamiOnCimiGrid_C(iLat,iLon) = &
                     bilinear(PlasSAMI_C,1,nLatSAMI,1,nLonSAMI,LatLon_D, &
                     LatSami_C,LonSami_C,DoExtrapolate=.true.)
                PlasHpSamiOnCimiGrid_C(iLat,iLon) = &

@@ -31,6 +31,8 @@ Module ModFieldTrace
 
   integer :: imod=3
 
+  real :: NonMonoLength, NonMonoLengthThresh
+  
   real :: DtUpdateB ! update frequency of Bfield 
 contains
   subroutine init_mod_field_trace
@@ -65,7 +67,7 @@ contains
     ! uncomment when T04 Tracing fixed
     common/geopack/aa(10),sps,cps,bb(3),ps,cc(11),kk(2),dd(8)
     external tsyndipoleSM,MHD_B
-    
+
     real :: aa,sps,cps,bb,ps,cc,dd
     integer :: kk
     integer :: iday1
@@ -87,12 +89,12 @@ contains
     real    :: dssm,rm1,rme,rl,cost,bsn,bsndss,dssp,bsp,ss,ss1,ss2,bm_n
     real    :: bnibm_n,sim,bmmx,rmm, bs_n,tya33,h33,xmass,c2mo,c4mo2,ro2,pp1
     real    :: pijkm,pc,c2m,e,q,tcone1,tcone2,x,DeltaRMax
-    integer :: iLatTest = -1, iLonTest=-1
-!    integer :: iLatTest = 51, iLonTest=27
+    integer :: iLatTest = -1, iLonTest = -1
+!!$    integer :: iLatTest = 51, iLonTest = 27
 
     integer :: imax
     real :: R_12,R_24,xmltr,xBoundary(ip),BufferSend_I(ip),MajorAxis,MinorAxis,&
-            MajorAxis2,MinorAxis2,sin2,Req2,xo1,xc,xCenter,rell2
+         MajorAxis2,MinorAxis2,sin2,Req2,xo1,xc,xCenter,rell2
     real, parameter :: LengthMax = 50.0
     integer :: iError
     real :: bmin
@@ -122,14 +124,17 @@ contains
     !DeltaRMax = 0.5
     !DeltaRMax = 0.75
 
+    NonMonoLengthThresh = 1. ! Sets the non-Monotonicity length
+    ! threshold (in R_E)
+
     ! Save irm0
     irm0(1:ip)=irm(1:ip)
 
-! uncomment when T04 Tracing fixed
+    ! uncomment when T04 Tracing fixed
     if (imod <= 2) then
        !  Determine parmod
        call TsyParmod(parmod)
-       
+
        !  Call recalc to calculate the dipole tilt
        iday1=julianday(iCurrentTime_I(1),iCurrentTime_I(2),iCurrentTime_I(3)) 
        if (imod.le.2) then     
@@ -158,6 +163,7 @@ contains
 
 
           if (i==iLatTest .and. j==iLonTest) then
+             write(*,*) "npf1,xlati1*180.0/3.14,xmlt1,ro1"
              write(*,*) npf1,xlati1*180.0/3.14,xmlt1,ro1
              call IM_plot_fieldline(npf1,i,j,dssa,ra,bba) 
           endif
@@ -183,11 +189,11 @@ contains
           !yo(i,j)=ya(ieq)
           !if (iout.ge.1) gridoc(i,j)=0.
           !if (iout.eq.0) gridoc(i,j)=1.
-!          if (j==25)then
-!             write(*,*) '!!!i,j',i,j
-!             write(*,*) 'npf1,xmlt1,irm(j)',npf1,xmlt1,irm(j)
-!             if (i==51) call con_stop('')
-!          endif
+          !          if (j==25)then
+          !             write(*,*) '!!!i,j',i,j
+          !             write(*,*) 'npf1,xmlt1,irm(j)',npf1,xmlt1,irm(j)
+          !             if (i==51) call con_stop('')
+          !          endif
           if (npf1.eq.0) then             ! open field line
              irm(j)=i-1
              exit LATITUDE                   ! do next j                 
@@ -198,7 +204,7 @@ contains
              irm(j)=i-1
              exit LATITUDE
           endif
-          
+
           ! Excessively long lines are considered open 
           if (dssa(npf1) > LengthMax) then
              irm(j)=i-1
@@ -213,15 +219,35 @@ contains
              endif
           endif
 
-          dss2=dssa(npf1)/2.      ! find the middle point
-          !write(*,*) '!!! start1, iLat,iLon,npf1',i,j,npf1
-          call locate1IM(dssa,npf1,dss2,im)
-          !write(*,*) '!!! end1'
-          im1=im
-          if ((dssa(im+1)-dss2).lt.(dss2-dssa(im))) im1=im+1
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!  							!!!!!!!!!
+!!!!!!!!!  							!!!!!!!!!
+!!!!!!!!!		BUG DISCOVERED BY COLIN			!!!!!!!!!
+!!!!!!!!!  OLD Version determined im1 (mirror point) at the  	!!!!!!!!!
+!!!!!!!!!  half-length of the field line.			!!!!!!!!!
+!!!!!!!!!  							!!!!!!!!!
+!!!!!!!!!  							!!!!!!!!!
+!!!!!!!!!  NEW VERSION: Sets im1 to the index corresponding to 	!!!!!!!!!
+!!!!!!!!!  minimum B value along fieldline.			!!!!!!!!!
+!!!!!!!!!  							!!!!!!!!!
+!!!!!!!!!  							!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!!$          dss2=dssa(npf1)/2.      ! find the middle point
+!!$          !write(*,*) '!!! start1, iLat,iLon,npf1',i,j,npf1
+!!$          call locate1IM(dssa,npf1,dss2,im)
+!!$
+!!$          !write(*,*) '!!! end1'
+!!$          im1=im
+!!$          if ((dssa(im+1)-dss2).lt.(dss2-dssa(im))) im1=im+1
+
+          im1 = MINLOC(bba( 1:npf1 ), 1)
 
           npf=n5           ! make sure B decreases to bba(im1) and rises
           dssm=0.
+          NonMonoLength=0.
           do m=1,npf1
              if (m.lt.npf1) dssm=dssm+(dssa(m+1)-dssa(m))
              igood=-1
@@ -237,8 +263,18 @@ contains
                 if (m.lt.npf1) dss(npf)=dssm
                 dssm=0.                      ! reset dssm
                 if (m.eq.im1) im2=npf        ! new im1
+             else
+                NonMonoLength = &
+                     NonMonoLength + ( dssa( m + 1 ) - dssa( m ) )
              endif
           enddo
+
+          if ( NonMonoLength .gt. NonMonoLengthThresh ) then
+
+             irm(j)=i-1
+             exit LATITUDE
+
+          endif
 
           do m=1,n5               ! Add n5 points below rc
              rm1=rc-m*dre
@@ -353,15 +389,15 @@ contains
           si3(im2)=0.               ! equatorially mirroring
           tya3(im2)=tya3(im2-1)
           h3(im2)=hden(rm(im2))
-         ! bmin=bm1(im2)
+          ! bmin=bm1(im2)
 
           ! Calculate y, rmir (dist. of mirror point), T(y), bounced average [H]
-           do m=0,ik+1 
+          do m=0,ik+1 
              !write(*,*) '!!! iLat,iLon',i,j
              sim=si(m)                 ! get Bm @ given K & location
              call lintpIM(si3,bm1,im2,sim,bmmx)
              if (m.ge.1.and.m.le.ik) bm(i,j,m)=bmmx
-           !  sinA(i,j,m)=sqrt(bmin/bmmx)
+             !  sinA(i,j,m)=sqrt(bmin/bmmx)
              sinA(i,j,m)=sqrt(bo(i,j)/bmmx) 
              if (sinA(i,j,m).gt.1.) sinA(i,j,m)=1.
              call lintpIM(si3,rm,im2,sim,rmm)
@@ -421,7 +457,7 @@ contains
                       if (x.le.80.) alscone(n,i,j,k,m)=exp(-x)
                    endif
                 enddo
-                
+
              enddo
           enddo
        enddo
@@ -431,7 +467,7 @@ contains
     do j=MinLonPar,MaxLonPar
        irm(j)=irm(j)-1
     enddo
-    
+
     ! Find iba
     xBoundary = 0.0
     if (UseEllipse) then
@@ -472,7 +508,7 @@ contains
              elseif(xmlto(i,j) == 12.0) then
                 rell2 = R_12**2.0
              endif
-                
+
              if (Req2.le.rell2) then
                 iba(j)=i
                 exit find_ib
@@ -493,23 +529,23 @@ contains
     ! Find iw2(m) (max invariant grid that fits in output energy grid)
     ! Set for midnight
     if (iProc==iProcMidnight) then
-     do n=1,nspec
-       do m=1,ik
-          iw2(n,m)=iw
-          find_iw2: do k=1,iw
-             !if (ekev(irm(1),1,k,m).gt.energy(neng)) then
-             if (ekev(n,irm(iLonMidnight),iLonMidnight,k,m).gt.energy(n,neng)) then
-                iw2(n,m)=k
-                exit find_iw2
-             endif
-          enddo find_iw2
-       enddo
-     enddo ! nspec
+       do n=1,nspec
+          do m=1,ik
+             iw2(n,m)=iw
+             find_iw2: do k=1,iw
+                !if (ekev(irm(1),1,k,m).gt.energy(neng)) then
+                if (ekev(n,irm(iLonMidnight),iLonMidnight,k,m).gt.energy(n,neng)) then
+                   iw2(n,m)=k
+                   exit find_iw2
+                endif
+             enddo find_iw2
+          enddo
+       enddo ! nspec
     endif
     ! When nProc>1 broadcast iw2 to all processors
     ! For somereason this bcast fails for 2 procs but works for >2procs...
-  !  if (nProc>1) call MPI_bcast(iw2,ik,MPI_INTEGER,iProcMidnight,iComm,iError)
-     if (nProc>1) call MPI_bcast(iw2,ik*nspec,MPI_INTEGER,iProcMidnight,iComm,iError)
+    !  if (nProc>1) call MPI_bcast(iw2,ik,MPI_INTEGER,iProcMidnight,iComm,iError)
+    if (nProc>1) call MPI_bcast(iw2,ik*nspec,MPI_INTEGER,iProcMidnight,iComm,iError)
 
   end subroutine fieldpara
 

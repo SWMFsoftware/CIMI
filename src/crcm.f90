@@ -47,7 +47,7 @@ subroutine crcm_run(delta_t)
   real flux(nspec,np,nt,neng,npit),&
        vlEa(nspec,np,nt,neng,npit),vpEa(nspec,np,nt,neng,npit)
   real achar(nspec,np,nt,nm,nk)
-  real vl(nspec,0:np,nt,nm,nk),vp(nspec,np,nt,nm,nk),psd(nspec,np,nt,nm,nk),&
+  real :: vl(nspec,0:np,nt,nm,nk)=0.0,vp(nspec,np,nt,nm,nk)=0.0,psd(nspec,np,nt,nm,nk),&
        fb(nspec,nt,nm,nk),rc
   integer iLat, iLon, iSpecies, iSat, iOperator
   logical, save :: IsFirstCall =.true.
@@ -132,8 +132,8 @@ subroutine crcm_run(delta_t)
      ! calculate wave power for the first time; the second time is in the loop
      call interpolate_ae(CurrentTime, AE_temp)
      !!!!
-     Kp_temp=2.
-     call pls_simp(Kp_temp)
+!!$     Kp_temp=2.
+!!$     call pls_simp(Kp_temp)
      !!!
      call WavePower(Time,AE_temp,iba)
   end if
@@ -213,14 +213,35 @@ subroutine crcm_run(delta_t)
      call timing_stop('crcm_charexchange') 
      
      if (Time.ge.DiffStartT .and. UseWaveDiffusion) then
+
         call timing_start('crcm_WaveDiffusion')
-       ! call diffuse_aa(f2,dt,xjac,iba,iw2)
-       ! call diffuse_EE(f2,dt,xmm,xjac,iw2,iba)
-        !   call diffuse_aE(f2,dt,xjac,iw2,iba,Time)
+        
+        call timing_start('crcm_Diffuse_aa')
+        call diffuse_aa(f2,dt,xjac,iba,iw2)
+        call timing_stop('crcm_Diffuse_aa')
+
+        call timing_start('crcm_Diffuse_EE')
+        call diffuse_EE(f2,dt,xmm,xjac,iw2,iba)
+        call timing_stop('crcm_Diffuse_EE')
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!        
+!!!                                                  !!!
+!!!     THIS NEEDS TO BE UNCOMMENTED ONCE            !!!
+!!!     CROSS-DIFFUSION IS FIXED.  :::COLIN:::       !!!
+!!!                                                  !!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!        
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        
+!!$        call timing_start('crcm_Diffuse_aE')
+!!$        call diffuse_aE(f2,dt,xjac,iw2,iba,Time)
+!!$        call timing_stop('crcm_Diffuse_aE')
+
         call sume_cimi(OpWaves_)
         call timing_stop('crcm_WaveDiffusion')
+        
         call interpolate_ae(CurrentTime, AE_temp)
-        call pls_simp(Kp_temp)
+!!$        call pls_simp(Kp_temp)
         call WavePower(Time,AE_temp,iba)
      endif
 
@@ -2361,6 +2382,7 @@ subroutine lintp2aIM(x,y,v,nx,ny,x1,y1,v1)
   q01=(1.-a1)*b
   q10=a*(1.-b)
   q11=a1*b
+
   v1=q00*v(i,j)+q01*v(i2,j1)+q10*v(i1,j)+q11*v(i3,j1)
 
 end subroutine lintp2aIM
