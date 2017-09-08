@@ -680,7 +680,7 @@ contains
   subroutine diffuse_EE(f2,dt,xmm,xjac,iw2,iba)
     
     use DensityTemp
-!!$  use Psphere_simple, ONLY: density=>den_simp
+!!$    use Psphere_simple, ONLY: density=>den_simp
     use ModMPI
     use ModCrcmGrid,   ONLY: MinLonPar,MaxLonPar
     

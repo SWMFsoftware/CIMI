@@ -252,7 +252,7 @@ Module ModCoupleSami
 !!$               PlasSamiOnCimiGrid_C(iLat,iLon) = &
 !!$                    max(bilinear(PlasSAMI_C,1,nLatSAMI,1,nLonSAMI,LatLon_D, &
 !!$                    LatSami_C,LonSami_C,DoExtrapolate=.true.),DensityMin)
-               PlasSSWamiOnCimiGrid_C(iLat,iLon) = &
+               PlasSamiOnCimiGrid_C(iLat,iLon) = &
                     bilinear(PlasSAMI_C,1,nLatSAMI,1,nLonSAMI,LatLon_D, &
                     LatSami_C,LonSami_C,DoExtrapolate=.true.)
                PlasHpSamiOnCimiGrid_C(iLat,iLon) = &
