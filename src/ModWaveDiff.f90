@@ -1,42 +1,63 @@
 Module DensityTemp
-use ModCrcmGrid,ONLY: ir=>np, ip=>nt, ik=>nk
-implicit none
-real ::  density(ir,ip)=0.0
-end Module DensityTemp
 
-Module Psphere_simple
-use ModCrcmGrid,ONLY: ir=>np, ip=>nt
-use ModFieldTrace, ONLY: ro
-implicit none
-real :: den_simp(ir,ip)
-contains
-  subroutine pls_simp(Kp)
+  use ModCrcmGrid, ONLY: ir=>np, ip=>nt !, ik=>nk
+
   implicit none
-  real :: Kp,Lpp,L,nps,npt,nps_Lpp,npt_Lpp,coef
-  integer :: i,j
-  den_simp(ir,ip)=0.0
-  Lpp = 5.6-0.46*Kp
-  ! remove den jump at Lpp:
-  nps_Lpp=  10.**(-0.3145*Lpp+3.9043)
-  npt_Lpp= 124.*(3./Lpp)**3.
-  if (Lpp.lt.3) npt_Lpp=124.
-  coef=nps_Lpp/npt_Lpp
-  do j=1,ip
-   do i=1,ir
-   L=ro(ir,ip)
-   !add checkl when ro=0. this happens when on open fieldline so just set L to large value
-   if (L<1e-10) L=20
-   ! inside the plasmapause:
-   nps = 10.**(-0.3145*L+3.9043) ! Carpenter and Anderson [1992] model
-   ! outside the plasmapause:
-   npt = 124.*(3./L)**3.        !   Sheely et al. [2001] model ; valid only at L<3
-   if (L.lt.3) npt=124.
-   if (L.le.Lpp) den_simp(i,j)=nps*1.e+6
-   if (L.gt.Lpp) den_simp(i,j)=npt*coef*1.e+6
-    enddo
-   enddo
-  end subroutine pls_simp
-end Module Psphere_simple
+  
+  real 			:: 	density(ir, ip) = 0.0
+  
+  !public method
+  public :: simple_plasmasphere
+  
+contains
+  
+  subroutine simple_plasmasphere(Kp)
+
+!    use DensityTemp, ONLY: density
+    use ModCrcmGrid, ONLY:  MinLonPar, MaxLonPar
+    use ModFieldTrace, ONLY: ro, iba
+    
+    implicit none
+    
+    real, INTENT(in) 	::	Kp
+    real		::	Lpp, L, nps, npt, nps_Lpp, npt_Lpp, coef
+    integer 		::	i, j
+    
+    density(ir,ip) = 0.0
+    Lpp = 5.6 - 0.46 * Kp
+    ! remove den jump at Lpp:
+    nps_Lpp =  10.**(-0.3145*Lpp+3.9043)
+    npt_Lpp = 124.*(3./Lpp)**3.
+    if ( Lpp .lt. 3 ) npt_Lpp = 124.
+    coef = nps_Lpp / npt_Lpp
+
+    do j=MinLonPar,MaxLonpar
+       do i=1,iba(j)
+
+          L=ro(ir,ip)
+          
+          !add checkl when ro=0. this happens when on open fieldline
+          !so just set L to large value
+
+          if (L<1e-10) L=20
+          ! inside the plasmapause, use
+          ! Carpenter and Anderson [1992] model
+          nps = 10.**(-0.3145*L+3.9043) 
+          ! outside the plasmapause, use
+          ! Sheely et al. [2001] model ; valid only at L<3
+          npt = 124.*(3./L)**3.        !   
+
+          if (L.lt.3) npt=124.
+          if (L.le.Lpp) density(i,j)=nps*1.e+6
+          if (L.gt.Lpp) density(i,j)=npt*coef*1.e+6
+
+       enddo ! End Latitude loop
+       
+    enddo ! End Longitude loop
+    
+  end subroutine simple_plasmasphere
+
+end Module DensityTemp
 
 !!!!!!!!!!!!!!!!  Main wave module !!!!!!!!!!!!!1
 Module ModWaveDiff
@@ -288,7 +309,7 @@ contains
  ! use cWpower
   use ModCrcmGrid,   ONLY: MinLonPar,MaxLonPar
   use DensityTemp, ONLY: density
-!!$  use Psphere_simple, ONLY: density=>den_simp
+
   implicit none
   integer iba(ip),iae,jae,i,j
   real t,AE,ro1,xmlt1
@@ -438,10 +459,11 @@ contains
 
    subroutine diffuse_aa(f2,dt,xjac,iba,iw2)
       use DensityTemp
-!!$      use Psphere_simple, ONLY: density=>den_simp
       use ModMPI
       use ModCrcmGrid,   ONLY: MinLonPar,MaxLonPar
+
       implicit none
+
       integer,parameter :: ie=40 ! diffusion subroutine has its own energy grid
       integer i,j,m,k,irun,n,nn,ier
       integer iba(ip),iw2(nspec,ik)
@@ -680,7 +702,6 @@ contains
   subroutine diffuse_EE(f2,dt,xmm,xjac,iw2,iba)
     
     use DensityTemp
-!!$    use Psphere_simple, ONLY: density=>den_simp
     use ModMPI
     use ModCrcmGrid,   ONLY: MinLonPar,MaxLonPar
     
@@ -1013,21 +1034,20 @@ subroutine interpolate_ae(CurrentTime, AE_interp)
 end subroutine interpolate_ae
 
 !****************************************************************************
-!                             diffuse_aE
-!  Routine solves cross diffusion in ao and E.
-!****************************************************************************
-! The version from April 19, 2016 starts to be unstable after ~15-20 time steps
-! with dt=5 sec and constant Dae=0.05
-! Dae=0.05 is considered to be large in comparison with realistic values. 
-! Therefore, it is expected that in realistic simulations the accumulative error and instability
-! will be washed away with other dominant processes like convection and
-! precipitation.
+! diffuse_aE Routine solves cross diffusion in ao and E.
+! ****************************************************************************
+! The version from April 19, 2016 starts to be unstable after ~15-20
+! time steps with dt=5 sec and constant Dae=0.05 Dae=0.05 is
+! considered to be large in comparison with realistic values.
+! Therefore, it is expected that in realistic simulations the
+! accumulative error and instability will be washed away with other
+! dominant processes like convection and precipitation.
   subroutine diffuse_aE(f2,dt,xjac,iw2,iba,time)
      use DensityTemp, ONLY: density
-!!$     use Psphere_simple, ONLY: density=>den_simp
      use ModMPI
      use ModCrcmGrid,   ONLY: MinLonPar,MaxLonPar
-  implicit none
+
+     implicit none
   integer,parameter :: ie=40
   integer i,j,m,k,k1,k2,nrun,n,ier,iww,nn
   integer iba(ip),iw2(nspec,ik),nrun2

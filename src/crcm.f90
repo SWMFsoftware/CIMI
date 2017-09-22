@@ -27,16 +27,18 @@ subroutine crcm_run(delta_t)
   use ModCrcmRestart, ONLY: IsRestart
   use ModImTime
   use ModTimeConvert, ONLY: time_real_to_int
-  use ModImSat,       ONLY: nImSats,write_im_sat, DoWriteSats, DtSatOut
+  use ModImSat,       ONLY: nImSats, write_im_sat, DoWriteSats, DtSatOut
   use ModCrcmGrid,    ONLY: iProc,nProc,iComm,nLonPar,nLonPar_P,nLonBefore_P, &
                             MinLonPar,MaxLonPar,nt
   use ModCrcmBoundary,ONLY: crcm_set_boundary_mhd, crcm_set_boundary_empirical
   use ModMpi
-  use ModWaveDiff,    ONLY: UseWaveDiffusion,ReadDiffCoef,WavePower, & 
-                            diffuse_aa,diffuse_EE,Diffuse_aE,DiffStartT, &
+  use ModWaveDiff,    ONLY: UseWaveDiffusion, ReadDiffCoef, WavePower, & 
+                            diffuse_aa, diffuse_EE, diffuse_aE, DiffStartT, &
                             testDiff_aa, testDiff_EE, testDiff_aE, &
                             TimeAeIndex_I, AeIndex_I, interpolate_ae
-  use Psphere_simple, ONLY: pls_simp,den_simp
+  use ModCoupleSami,  ONLY: DoCoupleSami
+  use DensityTemp,    ONLY: density, simple_plasmasphere
+
   use ModLstar,       ONLY: calc_Lstar1,calc_Lstar2 
   implicit none
 
@@ -47,8 +49,8 @@ subroutine crcm_run(delta_t)
   real flux(nspec,np,nt,neng,npit),&
        vlEa(nspec,np,nt,neng,npit),vpEa(nspec,np,nt,neng,npit)
   real achar(nspec,np,nt,nm,nk)
-  real :: vl(nspec,0:np,nt,nm,nk)=0.0,vp(nspec,np,nt,nm,nk)=0.0,psd(nspec,np,nt,nm,nk),&
-       fb(nspec,nt,nm,nk),rc
+  real :: vl(nspec,0:np,nt,nm,nk)=0.0, vp(nspec,np,nt,nm,nk)=0.0, &
+       psd(nspec,np,nt,nm,nk), fb(nspec,nt,nm,nk), rc
   integer iLat, iLon, iSpecies, iSat, iOperator
   logical, save :: IsFirstCall =.true.
   real  AE_temp,Kp_temp
@@ -131,10 +133,13 @@ subroutine crcm_run(delta_t)
 
      ! calculate wave power for the first time; the second time is in the loop
      call interpolate_ae(CurrentTime, AE_temp)
-     !!!!
-!!$     Kp_temp=2.
-!!$     call pls_simp(Kp_temp)
-     !!!
+
+     ! Determines if the simple plasmasphere model needs to be used.
+     if ( .not. DoCoupleSami ) then
+        Kp_temp=2.
+        call simple_plasmasphere(Kp_temp)
+     end if
+
      call WavePower(Time,AE_temp,iba)
   end if
   
@@ -241,7 +246,12 @@ subroutine crcm_run(delta_t)
         call timing_stop('crcm_WaveDiffusion')
         
         call interpolate_ae(CurrentTime, AE_temp)
-!!$        call pls_simp(Kp_temp)
+
+        if ( .not. DoCoupleSami ) then
+           Kp_temp=2.
+           call simple_plasmasphere(Kp_temp)
+        end if
+
         call WavePower(Time,AE_temp,iba)
      endif
 
