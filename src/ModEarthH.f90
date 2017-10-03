@@ -25,11 +25,11 @@ Module ModCrcmPlanet
 
   !set plot parameters
   character(len=300), parameter :: & 
-       NamePlotVar='x y P[nP] HpP[nP] eP[nP] Phot[nP] '&
-       //'Ppar[nP] HpPpar[nP] ePpar[nP] '&
-       //'HpPhot[nP] ePhot[nP] Pparhot[nP] HpPparhot[nP] ePparhot[nP] '&
-       // 'N[/m3] HpN[/m3] eN[/m3] Beq[T] Vol[m3/Wb] Pot[Volts] FAC[Amp/m2]'& 
-       // 'Lstar Plas g rbody'
+       NamePlotVar='x y P[nP] HpP[nP] eP[nP] Phot[nP] ' &
+       //'Ppar[nP] HpPpar[nP] ePpar[nP] ' &
+       //'HpPhot[nP] ePhot[nP] Pparhot[nP] HpPparhot[nP] ePparhot[nP] ' &
+       // 'N[/m3] HpN[/m3] eN[/m3] Beq[T] Vol[m3/Wb] Pot[Volts] FAC[Amp/m2] ' & 
+       // 'Lstar[Re] Plas[/m3] g rbody'
 
   integer, dimension(nspec+1) :: iPplot_I    =(/1,2,3/) 
   integer, dimension(nspec+1) :: iPparplot_I =(/4,5,6/)

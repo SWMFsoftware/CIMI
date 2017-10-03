@@ -4,7 +4,7 @@ Module DensityTemp
 
   implicit none
   
-  real 			:: 	density(ir, ip) = 0.0
+  real 			:: 	density( ir, ip ) = 0.0
   
   !public method
   public :: simple_plasmasphere
@@ -13,48 +13,63 @@ contains
   
   subroutine simple_plasmasphere(Kp)
 
-!    use DensityTemp, ONLY: density
-    use ModCrcmGrid, ONLY:  MinLonPar, MaxLonPar
+    use ModCrcmGrid,    ONLY: MinLonPar, MaxLonPar
     use ModFieldTrace, ONLY: ro, iba
     
     implicit none
     
-    real, INTENT(in) 	::	Kp
-    real		::	Lpp, L, nps, npt, nps_Lpp, npt_Lpp, coef
-    integer 		::	i, j
-    
-    density(ir,ip) = 0.0
+    real, INTENT(in) 	 ::	Kp
+    real		 ::	Lpp, L, nps, npt, nps_Lpp, npt_Lpp, coef
+    integer 		 ::	i, j
+
     Lpp = 5.6 - 0.46 * Kp
+
     ! remove den jump at Lpp:
-    nps_Lpp =  10.**(-0.3145*Lpp+3.9043)
-    npt_Lpp = 124.*(3./Lpp)**3.
-    if ( Lpp .lt. 3 ) npt_Lpp = 124.
+    nps_Lpp =  10. ** ( -0.3145 * Lpp + 3.9043 )
+
+    npt_Lpp = 124. * ( 3. / Lpp ) ** 4.
+       
     coef = nps_Lpp / npt_Lpp
 
-    do j=MinLonPar,MaxLonpar
-       do i=1,iba(j)
+    do j = MinLonPar, MaxLonPar
 
-          L=ro(ir,ip)
-          
+       do i = 1, iba(j)
+
           !add checkl when ro=0. this happens when on open fieldline
           !so just set L to large value
 
-          if (L<1e-10) L=20
+          if ( ro( i, j ) < 1e-10 ) then
+
+             L = 20
+             
+          else
+
+             L = ro( i, j )
+                
+          endif
+                       
           ! inside the plasmapause, use
           ! Carpenter and Anderson [1992] model
-          nps = 10.**(-0.3145*L+3.9043) 
+          nps = 10. ** ( -0.3145 * L + 3.9043 ) 
+          
           ! outside the plasmapause, use
-          ! Sheely et al. [2001] model ; valid only at L<3
-          npt = 124.*(3./L)**3.        !   
+          ! Sheely et al. [2001] model ; valid only at L > 3
+          npt = 124. * ( 3. / L ) ** 4.
 
-          if (L.lt.3) npt=124.
-          if (L.le.Lpp) density(i,j)=nps*1.e+6
-          if (L.gt.Lpp) density(i,j)=npt*coef*1.e+6
+          if ( L .le. Lpp ) then
+                
+             density( i, j ) = nps * 1E6
+             
+          else
+                
+             density( i, j ) = npt * coef * 1E6
+             
+          endif
 
        enddo ! End Latitude loop
        
     enddo ! End Longitude loop
-    
+
   end subroutine simple_plasmasphere
 
 end Module DensityTemp
