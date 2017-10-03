@@ -38,7 +38,7 @@ subroutine crcm_run(delta_t)
                             TimeAeIndex_I, AeIndex_I, interpolate_ae
   use ModCoupleSami,  ONLY: DoCoupleSami
   use DensityTemp,    ONLY: density, simple_plasmasphere
-
+  use ModIndicesInterfaces
   use ModLstar,       ONLY: calc_Lstar1,calc_Lstar2 
   implicit none
 
@@ -136,8 +136,10 @@ subroutine crcm_run(delta_t)
 
      ! Determines if the simple plasmasphere model needs to be used.
      if ( .not. DoCoupleSami ) then
-        Kp_temp=2.
+        call timing_start('crcm_simp_psphere')
+        call get_kp(CurrentTime, Kp_temp, iError)        
         call simple_plasmasphere(Kp_temp)
+        call timing_stop('crcm_simp_psphere')
      end if
 
      call WavePower(Time,AE_temp,iba)
@@ -248,8 +250,10 @@ subroutine crcm_run(delta_t)
         call interpolate_ae(CurrentTime, AE_temp)
 
         if ( .not. DoCoupleSami ) then
-           Kp_temp=2.
+           call timing_start('crcm_simp_psphere')
+           call get_kp(CurrentTime, Kp_temp, iError)        
            call simple_plasmasphere(Kp_temp)
+           call timing_stop('crcm_simp_psphere')
         end if
 
         call WavePower(Time,AE_temp,iba)
@@ -391,6 +395,15 @@ subroutine crcm_run(delta_t)
           MPI_REAL, BufferRecv_C, iRecieveCount_P, iDisplacement_P, &
           MPI_REAL, 0, iComm, iError)
      if (iProc==0) brad(:,:)=BufferRecv_C(:,:)
+     if ( .not. DoCoupleSami ) then
+
+        BufferSend_C(:,:) = density(:,:)
+        call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
+             MPI_REAL, BufferRecv_C, iRecieveCount_P, iDisplacement_P, &
+             MPI_REAL, 0, iComm, iError)
+        if (iProc==0) density(:,:) = BufferRecv_C(:,:)
+        
+     end if
      BufferSend_I(:)=irm(:)
      call MPI_GATHERV(BufferSend_I(MinLonPar:MaxLonPar), nLonPar, &
           MPI_INTEGER, BufferRecv_I, nLonPar_P, nLonBefore_P, &
