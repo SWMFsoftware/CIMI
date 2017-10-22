@@ -246,6 +246,8 @@ test_check_Prerun:
 		output/CRCMeq.outs.Prerun \
 		> test_eq_Prerun.diff
 
+PDF:
+	@cd doc/Tex; make PDF
 
 clean:
 	@touch ${INSTALLFILES}
