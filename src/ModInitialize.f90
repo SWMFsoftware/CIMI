@@ -1,5 +1,5 @@
 Module ModCrcmInitialize
-  use ModCrcmGrid
+  use ModCrcmGrid ,ONLY: nm, nk, neng,npit1,np1
   use ModCrcmPlanet,ONLY: nspec
   implicit none
   

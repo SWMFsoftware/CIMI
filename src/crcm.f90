@@ -1,7 +1,7 @@
  
 subroutine crcm_run(delta_t)
   use ModConst,       ONLY: cLightSpeed, cElectronCharge
-  use ModCrcmInitialize
+  use ModCrcmInitialize, ONLY: xmm,xk,dphi,dmm,dk,delE,dmu, xjac
   use ModCrcm,        ONLY: f2,dt, Time, phot, Ppar_IC, Pressure_IC, &
                             PressurePar_IC,FAC_C, Bmin_C, &
                             OpDrift_, OpBfield_, OpChargeEx_, &
@@ -29,7 +29,8 @@ subroutine crcm_run(delta_t)
   use ModTimeConvert, ONLY: time_real_to_int
   use ModImSat,       ONLY: nImSats, write_im_sat, DoWriteSats, DtSatOut
   use ModCrcmGrid,    ONLY: iProc,nProc,iComm,nLonPar,nLonPar_P,nLonBefore_P, &
-                            MinLonPar,MaxLonPar,nt
+                            MinLonPar,MaxLonPar,nt,np,neng,npit,nm,nk,dlat,&
+                            energy,phi,sinao,xlat,xmlt
   use ModCrcmBoundary,ONLY: crcm_set_boundary_mhd, crcm_set_boundary_empirical
   use ModMpi
   use ModWaveDiff,    ONLY: UseWaveDiffusion, ReadDiffCoef, WavePower, & 
@@ -589,7 +590,10 @@ subroutine crcm_init
   use ModCrcmRestart, ONLY: IsRestart, crcm_read_restart
   use ModImTime
   use ModCrcmGrid,    ONLY: iProcLeft, iProcRight, iLonLeft, iLonRight, &
-       d4Element_C, MinIonEnergy, MaxIonEnergy
+       d4Element_C, MinIonEnergy, MaxIonEnergy, iProc,nLonPar, nt, nProc,&
+       nLonBefore_P, nLonPar_P, MinLonPar, MaxLonPar, nLonPar_P, &
+       iLonMidnight, iProcMidnight, nLonPar_P, np, xlatr, sinao, npit, energy, &
+       dLat,ebound, iComm, phi, xlat,xlat_data,xmlt 
   use ModTimeConvert, ONLY: time_int_to_real,time_real_to_int
   use ModMpi
 
