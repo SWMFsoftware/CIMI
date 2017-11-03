@@ -1,3 +1,6 @@
+#ECHO
+T
+
 #STARTTIME
 2009		iYear
 07		iMonth
@@ -62,3 +65,6 @@ F		IsRestart
 #TIMESIMULATION
 0.0		Time
 
+#IMTIMESTEP
+30.		IMDeltaT [s]
+30.		IMDeltaTMax [s]

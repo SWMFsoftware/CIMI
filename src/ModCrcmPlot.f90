@@ -251,7 +251,7 @@ contains
                   status='old', position='append')
           endif
        endif
-       write(UnitTmp_,'(2f8.3,10f9.2,"    ! hour,  parmod")') &
+       write(UnitTmp_,'(2f8.3,10f9.2,"    ! hour, L*max, parmod")') &
             time/3600.,Lstar_max,parmod(1:10)
        do iLat=2,nLat             ! Write fluxes @ fixed E & y grids
           do iLon=1,nLon

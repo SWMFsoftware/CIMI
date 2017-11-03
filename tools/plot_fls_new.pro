@@ -201,7 +201,7 @@ IF (Spe eq '_e') then species='e-'
 ; setup arrays
 plsfluxk=fltarr(ntime,nr,nmlt+1,je)    &  anisok=plsfluxk
 plsfluxa=fltarr(ntime,nr,nmlt+1)       &  anisoa=plsfluxa
-roa=fltarr(ntime,nr,nmlt+1)   &  mltoa=roa   
+roa=fltarr(ntime,nr,nmlt+1)   &  mltoa=roa   & lstar=roa
 irm=intarr(ntime,nmlt)        &  iba=irm
 ro=fltarr(nr,nmlt+1)          &  mlto=ro     &   plsflux=ro      &  aniso=ro
 houra=fltarr(ntime)
@@ -236,13 +236,16 @@ for n=0,ntime-1 do begin
     print,n,hour
     for i=0,nr-1 do begin
         for j=0,nmlt-1 do begin
-            readf,2,lat1,mlt,ro1,mlto1,bo  ;,irm1,iba1
+            readf,2,lat1,mlt,ro1,mlto1,bo,lstar1 ;,irm1,iba1
 ;           irm(n,j)=irm1
-          ; iba(n,j)=iba1
+;           iba(n,j)=iba1
             roa(n,i,j)=ro1
             mltoa(n,i,j)=mlto1
+            lstar(n,i,j)=lstar1
             for k=0,je-1 do begin
-                readf,2,fy
+               readf,2,fy
+               print,fy
+               stop
                 ; calculate pitch-angle (PA) averaged flux and PA anisotropy
                 plsfluxk(n,i,j,k)=0.
                 anisok(n,i,j,k)=0.
@@ -263,6 +266,7 @@ for n=0,ntime-1 do begin
     ; periodic boundary condition
     roa(n,*,nmlt)=roa(n,*,0)
     mltoa(n,*,nmlt)=mltoa(n,*,0)
+    lstar(n,*,nmlt)=lstar(n,*,0)
     plsfluxk(n,*,nmlt,*)=plsfluxk(n,*,0,*)
     anisok(n,*,nmlt,*)=anisok(n,*,0,*)
 endfor

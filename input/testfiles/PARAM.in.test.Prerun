@@ -1,3 +1,6 @@
+#ECHO
+T
+
 #STARTTIME
 2012		iYear
 11		iMonth
@@ -32,7 +35,7 @@ F		UseWeimer
 10.0		DtSavePlot
 T		DoSaveFlux
 F		DoSaveDrifts
-F		DoSavePSD
+T		DoSavePSD
 F		UseSeparatePlotFiles
 
 #SAVELOG
@@ -64,3 +67,7 @@ F		IsRestart
 F		DoWritePrerun
 T		UsePrerun
 60.		DtRead
+
+#IMTIMESTEP
+30.		IMDeltaT [s]
+30.		IMDeltaTMax [s]
