@@ -66,90 +66,90 @@ test:
 	ls -l test_*.diff
 
 test_all:
-	@echo "test_compile..." > test.diff
+	@echo "test_compile..." > test_cimi.diff
 	make   test_compile
-	@echo "test_rundir..." >> test.diff
+	@echo "test_rundir..." >> test_cimi.diff
 	make   test_rundir
-	@echo "test_run..."    >> test.diff
+	@echo "test_run..."    >> test_cimi.diff
 	make   test_run
-	@echo "test_check..."  >> test.diff
+	@echo "test_check..."  >> test_cimi.diff
 	make   test_check
-	@echo "test_rundir_WAVES..." >> test.diff
+	@echo "test_rundir_WAVES..." >> test_cimi.diff
 	make   test_rundir_WAVES
-	@echo "test_run..."    >> test.diff
+	@echo "test_run..."    >> test_cimi.diff
 	make   test_run
-	@echo "test_check_WAVES..."  >> test.diff
+	@echo "test_check_WAVES..."  >> test_cimi.diff
 	make   test_check_WAVES
-	@echo "test_rundir_dipole..." >> test.diff
+	@echo "test_rundir_dipole..." >> test_cimi.diff
 	make   test_rundir_dipole
-	@echo "test_run..."    >> test.diff
+	@echo "test_run..."    >> test_cimi.diff
 	make   test_run
-	@echo "test_check_dipole..."  >> test.diff
+	@echo "test_check_dipole..."  >> test_cimi.diff
 	make   test_check_dipole
-	@echo "test_rundir_Prerun..." >> test.diff
+	@echo "test_rundir_Prerun..." >> test_cimi.diff
 	make   test_rundir_Prerun
-	@echo "test_run..."    >> test.diff
+	@echo "test_run..."    >> test_cimi.diff
 	make   test_run
-	@echo "test_check_Prerun..."  >> test.diff
+	@echo "test_check_Prerun..."  >> test_cimi.diff
 	make   test_check_Prerun
 	ls -l test_*.diff
 
 test_WAVES:
-	@echo "test_compile..." > test.diff
+	@echo "test_compile..." > test_cimi.diff
 	make   test_compile
-	@echo "test_rundir_WAVES..." >> test.diff
+	@echo "test_rundir_WAVES..." >> test_cimi.diff
 	make   test_rundir_WAVES
-	@echo "test_run..."    >> test.diff
+	@echo "test_run..."    >> test_cimi.diff
 	make   test_run
-	@echo "test_check_WAVES..."  >> test.diff
+	@echo "test_check_WAVES..."  >> test_cimi.diff
 	make   test_check_WAVES
 	ls -l test_*.diff
 
 test_dipole:
-	@echo "test_compile..." > test.diff
+	@echo "test_compile..." > test_cimi.diff
 	make   test_compile
-	@echo "test_rundir_dipole..." >> test.diff
+	@echo "test_rundir_dipole..." >> test_cimi.diff
 	make   test_rundir_dipole
-	@echo "test_run..."    >> test.diff
+	@echo "test_run..."    >> test_cimi.diff
 	make   test_run
-	@echo "test_check_dipole..."  >> test.diff
+	@echo "test_check_dipole..."  >> test_cimi.diff
 	make   test_check_dipole
 	ls -l test_*.diff
 
 test_flux:
-	@echo "test_compile..." > test.diff
+	@echo "test_compile..." > test_cimi.diff
 	make   test_compile
-	@echo "test_rundir_flux..." >> test.diff
+	@echo "test_rundir_flux..." >> test_cimi.diff
 	make   test_rundir_flux
-	@echo "test_run..."    >> test.diff
+	@echo "test_run..."    >> test_cimi.diff
 	make   test_run
-	@echo "test_check_flux..."  >> test.diff
+	@echo "test_check_flux..."  >> test_cimi.diff
 	make   test_check_flux
-	@echo "test_check_eq..."  >> test.diff
+	@echo "test_check_eq..."  >> test_cimi.diff
 	make   test_check_eq
 	ls -l test_*.diff
 
 test_drift:
-	@echo "test_compile..." > test.diff
+	@echo "test_compile..." > test_cimi.diff
 	make   test_compile
-	@echo "test_rundir_drift..." >> test.diff
+	@echo "test_rundir_drift..." >> test_cimi.diff
 	make   test_rundir_drift
-	@echo "test_run..."    >> test.diff
+	@echo "test_run..."    >> test_cimi.diff
 	make   test_run
-	@echo "test_check_eq..."  >> test.diff
+	@echo "test_check_eq..."  >> test_cimi.diff
 	make   test_check_eq
-	@echo "test_check_drift..."  >> test.diff
+	@echo "test_check_drift..."  >> test_cimi.diff
 	make   test_check_drift
 	ls -l test_*.diff
 
 test_Prerun:
-	@echo "test_compile..." > test.diff
+	@echo "test_compile..." > test_cimi.diff
 	make   test_compile
-	@echo "test_rundir_Prerun..." >> test.diff
+	@echo "test_rundir_Prerun..." >> test_cimi.diff
 	make   test_rundir_Prerun
-	@echo "test_run..."    >> test.diff
+	@echo "test_run..."    >> test_cimi.diff
 	make   test_run
-	@echo "test_check_Prerun..."  >> test.diff
+	@echo "test_check_Prerun..."  >> test_cimi.diff
 	make   test_check_Prerun
 	ls -l test_*.diff
 
@@ -209,125 +209,125 @@ test_check_WAVES:
 	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CimiFlux_e.fls \
 		output/CimiFlux_e.fls.WAVES \
-		> test_e_fls_WAVES.diff
+		> test_cimi_e_fls_WAVES.diff
 	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CimiPSD_e.psd \
 		output/CimiPSD_e.psd.WAVES \
-		> test_e_psd_WAVES.diff
+		> test_cimi_e_psd_WAVES.diff
 	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CIMIeq.outs \
 		output/CIMIeq.outs.WAVES \
-		> test_eq_WAVES.diff
+		> test_cimi_eq_WAVES.diff
 	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CIMI.log \
 		output/CIMI.log.WAVES \
-		> test_log_WAVES.diff
+		> test_cimi_log_WAVES.diff
 
 test_check_flux:
 	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CimiFlux_h.fls \
 		output/CimiFlux_h.fls \
-		> test_h_fls.diff
+		> test_cimi_h_fls.diff
 	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CimiFlux_o.fls \
 		output/CimiFlux_o.fls \
-		> test_o_fls.diff
+		> test_cimi_o_fls.diff
 	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CimiFlux_e.fls \
 		output/CimiFlux_e.fls \
-		> test_e_fls.diff
+		> test_cimi_e_fls.diff
 
 test_check_psd:
 	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CimiPSD_h.psd \
 		output/CimiPSD_h.psd \
-		> test_h_psd.diff
+		> test_cimi_h_psd.diff
 	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CimiPSD_o.psd \
 		output/CimiPSD_o.psd \
-		> test_o_psd.diff
+		> test_cimi_o_psd.diff
 	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CimiPSD_e.psd \
 		output/CimiPSD_e.psd \
-		> test_e_psd.diff
+		> test_cimi_e_psd.diff
 
 test_check_drift:
 	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CimiDrift_h.vp \
 		output/CimiDrift_h.vp \
-		> test_h_vp.diff
+		> test_cimi_h_vp.diff
 	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CimiDrift_o.vp \
 		output/CimiDrift_o.vp \
-		> test_o_vp.diff
+		> test_cimi_o_vp.diff
 	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CimiDrift_e.vp \
 		output/CimiDrift_e.vp \
-		> test_e_vp.diff
+		> test_cimi_e_vp.diff
 
 test_check_dipole:
 	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CimiDrift_h.vp \
 		output/CimiDrift_h.vp.dipole \
-		> test_h_vp_dipole.diff
+		> test_cimi_h_vp_dipole.diff
 	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CimiDrift_o.vp \
 		output/CimiDrift_o.vp.dipole \
-		> test_o_vp_dipole.diff
+		> test_cimi_o_vp_dipole.diff
 	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CimiDrift_e.vp \
 		output/CimiDrift_e.vp.dipole \
-		> test_e_vp_dipole.diff
+		> test_cimi_e_vp_dipole.diff
 	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CIMI.log \
 		output/CIMI.log.dipole \
-		> test_log_dipole.diff
+		> test_cimi_log_dipole.diff
 
 test_check_eq:
 	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CIMIeq.outs \
 		output/CIMIeq.outs \
-		> test_eq.diff
+		> test_cimi.diff
 
 test_check_log:
 	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CIMI.log \
 		output/CIMI.log \
-		> test_log.diff
+		> test_cimi_log.diff
 
 test_check_Prerun:
 	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CimiFlux_h.fls \
 		output/CimiFlux_h.fls.Prerun \
-		> test_h_fls_Prerun.diff
+		> test_cimi_h_fls_Prerun.diff
 	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CimiFlux_o.fls \
 		output/CimiFlux_o.fls.Prerun \
-		> test_o_fls_Prerun.diff
+		> test_cimi_o_fls_Prerun.diff
 	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CimiFlux_e.fls \
 		output/CimiFlux_e.fls.Prerun \
-		> test_e_fls_Prerun.diff
+		> test_cimi_e_fls_Prerun.diff
 	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CimiPSD_h.psd \
 		output/CimiPSD_h.psd.Prerun \
-		> test_h_psd_Prerun.diff
+		> test_cimi_h_psd_Prerun.diff
 	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CimiPSD_o.psd \
 		output/CimiPSD_o.psd.Prerun \
-		> test_o_psd_Prerun.diff
+		> test_cimi_o_psd_Prerun.diff
 	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CimiPSD_e.psd \
 		output/CimiPSD_e.psd.Prerun \
-		> test_e_psd_Prerun.diff
+		> test_cimi_e_psd_Prerun.diff
 	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CIMIeq.outs \
 		output/CIMIeq.outs.Prerun \
-		> test_eq_Prerun.diff
+		> test_cimi_eq_Prerun.diff
 	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CIMI.log \
 		output/CIMI.log.Prerun \
-		> test_log_Prerun.diff
+		> test_cimi_log_Prerun.diff
 
 
 PDF:
