@@ -1,6 +1,6 @@
 !******************************************************************************
 !
-!                               crcm_main.f90
+!                               cimi_main.f90
 !  Created on 2 Sept 2014 by Alex Glocer and Mei-Ching Fok, Code 673, NASA GSFC.
 !
 !  Contact: Alex Glocer   at alex.glocer-1@nasa.gov,   301-286-9475.
@@ -8,19 +8,19 @@
 !
 !******************************************************************************
 
-program crcm
-  use ModCrcmGrid,    ONLY: iProc,nProc,iComm
-  use ModCRCM,        ONLY: IsStandalone
+program cimi
+  use ModCimiGrid,    ONLY: iProc,nProc,iComm
+  use ModCIMI,        ONLY: IsStandalone
   use ModMpi
-  use ModCrcm,        ONLY: init_mod_crcm, Time
+  use ModCimi,        ONLY: init_mod_cimi, Time
   use ModFieldTrace,  ONLY: init_mod_field_trace
   use ModImTime,      ONLY: TimeMax
-  use ModCrcmRestart, ONLY: DtSaveRestart,crcm_write_restart
+  use ModCimiRestart, ONLY: DtSaveRestart,cimi_write_restart
   use ModReadParam
   use ModPrerunField, ONLY: UsePrerun, read_prerun, read_prerun_IE, DtRead
   use ModImSat,       ONLY: UsePrerunSat, read_prerun_sat, DtReadSat, &
        IsFirstWrite
-  use ModIeCrcm,      ONLY: UseWeimer
+  use ModIeCimi,      ONLY: UseWeimer
   use CON_planet, ONLY: init_planet_const, set_planet_defaults
 !  use ModPrerunField, ONLY: UsePrerun, read_prerun, read_prerun_IE
  
@@ -51,7 +51,7 @@ program crcm
   ! Initial setup for the rbe model
   call read_file('PARAM.in',iComm)
   call read_init('  ',iSessionIn=1,iLineIn=0)
-  call CRCM_set_parameters('READ')
+  call CIMI_set_parameters('READ')
 
   !if (usePrerun) call read_prerun(t)
   !if (usePrerun .and. iConvect==2) call read_prerun_IE(t)
@@ -65,22 +65,22 @@ program crcm
   !****************************************************************************
   ! Initialize the model
   !****************************************************************************
-  call init_mod_crcm
+  call init_mod_cimi
   call init_mod_field_trace
   
   ! Start Timing
   call timing_active(.true.)
   call timing_step(0)
-  call timing_start('CRCM')
+  call timing_start('CIMI')
 
   !read initial prerun field
   if (UsePrerun) call read_prerun(Time)
   if (UsePrerun .and. .not.UseWeimer) call read_prerun_IE(Time)
 
   ! init model
-  call timing_start('crcm_init')
-  call crcm_init
-  call timing_stop('crcm_init')
+  call timing_start('cimi_init')
+  call cimi_init
+  call timing_stop('cimi_init')
   
   if (iProc == 0)call timing_report_total
   call timing_reset('#all',3)
@@ -112,16 +112,16 @@ program crcm
         if (UsePrerunSat) call read_prerun_sat(Time+DtAdvance)
      endif
 
-     ! Call crcm_run to advance the Timestep
+     ! Call cimi_run to advance the Timestep
      call timing_step(iStep)
-     call timing_start('crcm_run')     
-     call crcm_run(DtAdvance)
-     call timing_stop('crcm_run')
+     call timing_start('cimi_run')     
+     call cimi_run(DtAdvance)
+     call timing_stop('cimi_run')
      
      ! Save restart at DtSaveRestart or TimeMax
      if (floor((Time+1.0e-5)/DtSaveRestart) /= &
           floor((Time+1.0e-5-DtAdvance)/DtSaveRestart)) then
-        call crcm_write_restart
+        call cimi_write_restart
      endif
      
      ! Read new prerun file if using prerun fields and it is time to read
@@ -136,13 +136,13 @@ program crcm
   end do TIMELOOP
 
   ! Save restart at TimeMax
-  call crcm_write_restart
+  call cimi_write_restart
 
   ! Finalize timing commands
-  call timing_stop('CRCM')
+  call timing_stop('CIMI')
 
   if (iProc == 0) then
-     write(*,'(a)') 'Finished CRCM run, (reporting timings)'
+     write(*,'(a)') 'Finished CIMI run, (reporting timings)'
      write(*,'(a)') '--------------------------------------'
      call timing_report
   endif
@@ -150,11 +150,11 @@ program crcm
   ! Finalize MPI
   call MPI_FINALIZE(iError)
 
-end program crcm
+end program cimi
 !============================================================================
 subroutine CON_stop(StringError)
-  use ModCrcmGrid,    ONLY: iProc,nProc,iComm
-  use ModCrcm,        ONLY: Time
+  use ModCimiGrid,    ONLY: iProc,nProc,iComm
+  use ModCimi,        ONLY: Time
   use ModMpi
   implicit none
   character (len=*), intent(in) :: StringError

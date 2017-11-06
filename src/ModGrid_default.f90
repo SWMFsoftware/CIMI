@@ -1,17 +1,17 @@
-Module ModCrcmGrid
+Module ModCimiGrid
  
-  use ModCrcmPlanet,   ONLY: nspec
+  use ModCimiPlanet,   ONLY: nspec
 
   implicit none
   
-  ! define dimensions of CRCM grids
+  ! define dimensions of CIMI grids
   integer,parameter :: np1=51,nt1=48,npit1=18!,nspec1=1  
-  integer,parameter :: nm=48,nk=29 ! dimension of CRCM magnetic moment and K
+  integer,parameter :: nm=48,nk=29 ! dimension of CIMI magnetic moment and K
 
-  integer,parameter :: np=51    ! dimension of the CRCM latitude grid
-  integer,parameter :: nt=48    ! dimension of the CRCM local-time grid
-  integer,parameter :: neng=15  ! dimension of the CRCM energy grid
-  integer,parameter :: npit=18  ! dimension of the CRCM pitch-angle grid
+  integer,parameter :: np=51    ! dimension of the CIMI latitude grid
+  integer,parameter :: nt=48    ! dimension of the CIMI local-time grid
+  integer,parameter :: neng=15  ! dimension of the CIMI energy grid
+  integer,parameter :: npit=18  ! dimension of the CIMI pitch-angle grid
 
   ! These have to be initialized so that IM_set_grid does not fail on non-IM PEs
   real:: xlat(np) = 0.0, phi(nt1)=0.0
@@ -40,6 +40,6 @@ Module ModCrcmGrid
 
   real :: MinIonEnergy=0.1, MaxIonEnergy=316.22777
   
-end Module ModCrcmGrid
+end Module ModCimiGrid
 
 

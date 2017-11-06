@@ -1,6 +1,6 @@
 subroutine trace_dipoleIM(Re,LatStart,nStep,nStepInside,&
      LineLength_I,Bfield_I,RadialDist_I,L)
-  use ModCrcmPlanet,  ONLY: MagCoef => dipmom
+  use ModCimiPlanet,  ONLY: MagCoef => dipmom
   implicit none
   
   integer,intent(in) :: nStep, nStepInside

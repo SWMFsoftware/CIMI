@@ -1,11 +1,11 @@
-module ModCrcmPlot
+module ModCimiPlot
 
   implicit none
 
   private ! except
-  public :: Crcm_plot, Crcm_plot_fls, Crcm_plot_psd, &
-       crcm_plot_log, crcm_plot_precip, &
-       Crcm_plot_vl, Crcm_plot_vp, Crcm_plot_Lstar
+  public :: Cimi_plot, Cimi_plot_fls, Cimi_plot_psd, &
+       cimi_plot_log, cimi_plot_precip, &
+       Cimi_plot_vl, Cimi_plot_vp, Cimi_plot_Lstar
   character(len=5),  public    :: TypePlot   = 'ascii'
   logical,           public    :: DoSavePlot = .false.
   logical,           public    :: DoSaveFlux = .false.
@@ -17,20 +17,20 @@ module ModCrcmPlot
   real,              public    :: DtLogout   = 10.0
   
 
-  character(len=*), parameter :: NameHeader = 'CRCM output'
+  character(len=*), parameter :: NameHeader = 'CIMI output'
 
 contains
-  subroutine Crcm_plot(nLat,nLon, X_C,Y_C,Pressure_IC,PressurePar_IC,&
+  subroutine Cimi_plot(nLat,nLon, X_C,Y_C,Pressure_IC,PressurePar_IC,&
        PressureHot_IC,PparHot_IC, Den_IC, Beq_C,Volume_C,Potential_C,FAC_C, &
        Time,Dt,Lstar_C)
 
     use ModIoUnit,     ONLY: UnitTmp_
     use ModPlotFile,   ONLY: save_plot_file
-    use ModCrcmRestart, ONLY: IsRestart
-    use ModCrcmPlanet,   ONLY: nspec,NamePlotVar,iPplot_I,iPparplot_I, &
+    use ModCimiRestart, ONLY: IsRestart
+    use ModCimiPlanet,   ONLY: nspec,NamePlotVar,iPplot_I,iPparplot_I, &
                                iPhotplot_I,iPparhotplot_I, iNplot_I,   &
                                Beq_,Vol_,Pot_,FAC_,Lstar_, Plas_,nVar
-    use ModCrcmGrid,   ONLY: PhiIono_C => phi, LatIono_C => xlatr
+    use ModCimiGrid,   ONLY: PhiIono_C => phi, LatIono_C => xlatr
     use ModFieldTrace, ONLY: iba
     use DensityTemp, ONLY: density
     integer, intent(in) :: nLat, nLon
@@ -48,8 +48,8 @@ contains
     integer             :: iLat,iLon,iSpecies
     integer, parameter  :: x_=1, y_=2, nDim=2
     real                :: Theta, Phi
-    character(len=20)   :: NamePlotEq  = 'IM/plots/CRCMeq.outs'
-    character(len=22)   :: NamePlotIono= 'IM/plots/CRCMiono.outs'
+    character(len=20)   :: NamePlotEq  = 'IM/plots/CIMIeq.outs'
+    character(len=22)   :: NamePlotIono= 'IM/plots/CIMIiono.outs'
     character(len=6)    :: TypePosition  ! 'rewind' or 'append'
     real, parameter     :: Gamma = 5./3., rBody = 1.0
     logical,save             :: IsFirstCall = .true.
@@ -168,16 +168,16 @@ contains
     
     deallocate(Coord_DII, CoordIono_DII, PlotState_IIV)
 
-  end subroutine Crcm_plot
+  end subroutine Cimi_plot
   !============================================================================
 
-  subroutine Crcm_plot_fls(rc,flux,time,Lstar_C,Lstar_max)
+  subroutine Cimi_plot_fls(rc,flux,time,Lstar_C,Lstar_max)
     use ModIoUnit,    ONLY: UnitTmp_
-    use ModCrcmGrid,  ONLY:nLat=>np, nLon=>nt, nEnergy=>neng, nPitchAng=>npit,&
+    use ModCimiGrid,  ONLY:nLat=>np, nLon=>nt, nEnergy=>neng, nPitchAng=>npit,&
                            energy,sinAo,xlat,xmlt,Ebound
-    use ModCrcmPlanet,ONLY:nSpecies=>nspec
+    use ModCimiPlanet,ONLY:nSpecies=>nspec
     use ModFieldTrace,ONLY:ro,bo,xmlto,irm
-    use ModCrcmRestart, ONLY: IsRestart
+    use ModCimiRestart, ONLY: IsRestart
     use ModImTime,    ONLY:iCurrentTime_I
     real, intent(in) :: rc,flux(nSpecies,nLat,nLon,nEnergy,nPitchAng),time,&
                         Lstar_C(nLat,nLon),Lstar_max
@@ -219,16 +219,16 @@ contains
        else
           if (IsFirstCall .and. .not. IsRestart) then
              if (n==1) &
-                  open(unit=UnitTmp_,file='IM/plots/CrcmFlux_h.fls',&
+                  open(unit=UnitTmp_,file='IM/plots/CimiFlux_h.fls',&
                   status='unknown')
              if (n==2 .and. n /= nSpecies) &
-                  open(unit=UnitTmp_,file='IM/plots/CrcmFlux_o.fls',&
+                  open(unit=UnitTmp_,file='IM/plots/CimiFlux_o.fls',&
                   status='unknown')
              if (n==3 .and. n /= nSpecies) &
-                  open(unit=UnitTmp_,file='IM/plots/CrcmFlux_he.fls',&
+                  open(unit=UnitTmp_,file='IM/plots/CimiFlux_he.fls',&
                   status='unknown')
              if (n==nSpecies) &
-                  open(unit=UnitTmp_,file='IM/plots/CrcmFlux_e.fls',&
+                  open(unit=UnitTmp_,file='IM/plots/CimiFlux_e.fls',&
                   status='unknown')
              write(UnitTmp_,"(f10.6,5i6,6x,'! rc in Re,nr,ip,je,ig,ntime')") &
                   rc,nLat-1,nLon,nEnergy,nPitchAng,nprint
@@ -238,16 +238,16 @@ contains
              write(UnitTmp_,'(10f8.3)') (xlat(i),i=2,nLat)
           else
              if (n==1) &
-                  open(unit=UnitTmp_,file='IM/plots/CrcmFlux_h.fls',&
+                  open(unit=UnitTmp_,file='IM/plots/CimiFlux_h.fls',&
                   status='old', position='append')
              if (n==2 .and. n /= nSpecies)&
-                  open(unit=UnitTmp_,file='IM/plots/CrcmFlux_o.fls',&
+                  open(unit=UnitTmp_,file='IM/plots/CimiFlux_o.fls',&
                   status='old', position='append')
              if (n==3 .and. n /= nSpecies)&
-                  open(unit=UnitTmp_,file='IM/plots/CrcmFlux_he.fls',&
+                  open(unit=UnitTmp_,file='IM/plots/CimiFlux_he.fls',&
                   status='old', position='append')
              if (n==nSpecies)&
-                  open(unit=UnitTmp_,file='IM/plots/CrcmFlux_e.fls', &
+                  open(unit=UnitTmp_,file='IM/plots/CimiFlux_e.fls', &
                   status='old', position='append')
           endif
        endif
@@ -277,19 +277,19 @@ contains
     IsFirstCall=.false.
     
 
-  end subroutine Crcm_plot_fls
+  end subroutine Cimi_plot_fls
 
   !============================================================================
 
-  subroutine Crcm_plot_psd(rc,psd,xmm,xk,time)
+  subroutine Cimi_plot_psd(rc,psd,xmm,xk,time)
     use ModIoUnit,	ONLY: UnitTmp_
-    use ModCrcmGrid,	ONLY: nLat=>np, nLon=>nt, &
+    use ModCimiGrid,	ONLY: nLat=>np, nLon=>nt, &
          nEnergy=>neng, nPitchAng=>npit,&
          nm, nk, &
          energy,sinAo,xlat,xmlt,Ebound
-    use ModCrcmPlanet,	ONLY: nSpecies=>nspec,re_m
+    use ModCimiPlanet,	ONLY: nSpecies=>nspec,re_m
     use ModFieldTrace,	ONLY: ro,bo,xmlto,irm
-    use ModCrcmRestart,	ONLY: IsRestart
+    use ModCimiRestart,	ONLY: IsRestart
     use ModImTime,	ONLY: iCurrentTime_I
     use ModConst,	ONLY: cElectronCharge, cLightSpeed
 
@@ -332,16 +332,16 @@ contains
        else
           if (IsFirstCall .and. .not. IsRestart) then
              if (n==1) &
-                  open(unit=UnitTmp_,file='IM/plots/CrcmPSD_h.psd',&
+                  open(unit=UnitTmp_,file='IM/plots/CimiPSD_h.psd',&
                   status='unknown')
              if (n==2 .and. n /= nSpecies) &
-                  open(unit=UnitTmp_,file='IM/plots/CrcmPSD_o.psd',&
+                  open(unit=UnitTmp_,file='IM/plots/CimiPSD_o.psd',&
                   status='unknown')
              if (n==3 .and. n /= nSpecies) &
-                  open(unit=UnitTmp_,file='IM/plots/CrcmPSD_he.psd',&
+                  open(unit=UnitTmp_,file='IM/plots/CimiPSD_he.psd',&
                   status='unknown')
              if (n==nSpecies) &
-                  open(unit=UnitTmp_,file='IM/plots/CrcmPSD_e.psd',&
+                  open(unit=UnitTmp_,file='IM/plots/CimiPSD_e.psd',&
                   status='unknown')
              write(UnitTmp_,"(f10.6,5i6,6x,'! rc in Re,nr,ip,nm,nk,ntime')") &
                   rc,nLat-1,nLon,nint(nm/2.),nint(nk/2.),nprint
@@ -350,16 +350,16 @@ contains
              write(UnitTmp_,'(10f8.3)') (xlat(i),i=2,nLat)
           else
              if (n==1) &
-                  open(unit=UnitTmp_,file='IM/plots/CrcmPSD_h.psd',&
+                  open(unit=UnitTmp_,file='IM/plots/CimiPSD_h.psd',&
                   status='old', position='append')
              if (n==2 .and. n /= nSpecies)&
-                  open(unit=UnitTmp_,file='IM/plots/CrcmPSD_o.psd',&
+                  open(unit=UnitTmp_,file='IM/plots/CimiPSD_o.psd',&
                   status='old', position='append')
              if (n==3 .and. n /= nSpecies)&
-                  open(unit=UnitTmp_,file='IM/plots/CrcmPSD_he.psd',&
+                  open(unit=UnitTmp_,file='IM/plots/CimiPSD_he.psd',&
                   status='old', position='append')
              if (n==nSpecies)&
-                  open(unit=UnitTmp_,file='IM/plots/CrcmPSD_e.psd', &
+                  open(unit=UnitTmp_,file='IM/plots/CimiPSD_e.psd', &
                   status='old', position='append')
           endif
        endif
@@ -388,15 +388,15 @@ contains
     enddo
     IsFirstCall=.false.
 
-  end subroutine Crcm_plot_psd
+  end subroutine Cimi_plot_psd
 
-  subroutine Crcm_plot_vl(rc,vlEa,time)
+  subroutine Cimi_plot_vl(rc,vlEa,time)
     use ModIoUnit,    ONLY: UnitTmp_
-    use ModCrcmGrid,  ONLY:nLat=>np, nLon=>nt, nEnergy=>neng, nPitchAng=>npit,&
+    use ModCimiGrid,  ONLY:nLat=>np, nLon=>nt, nEnergy=>neng, nPitchAng=>npit,&
          energy,sinAo,xlat,xmlt,Ebound
-    use ModCrcmPlanet,ONLY:nSpecies=>nspec
+    use ModCimiPlanet,ONLY:nSpecies=>nspec
     use ModFieldTrace,ONLY:ro,bo,xmlto,irm
-    use ModCrcmRestart, ONLY: IsRestart
+    use ModCimiRestart, ONLY: IsRestart
     use ModImTime,    ONLY:iCurrentTime_I
     real, intent(in) :: rc,vlEa(nSpecies,nLat,nLon,nEnergy,nPitchAng),time
     
@@ -436,16 +436,16 @@ contains
        else
           if (IsFirstCall .and. .not. IsRestart) then
              if (n==1) &
-                  open(unit=UnitTmp_,file='IM/plots/CrcmDrift_h.vl',&
+                  open(unit=UnitTmp_,file='IM/plots/CimiDrift_h.vl',&
                   status='unknown')
              if (n==2 .and. n /= nSpecies) &
-                  open(unit=UnitTmp_,file='IM/plots/CrcmDrift_o.vl',&
+                  open(unit=UnitTmp_,file='IM/plots/CimiDrift_o.vl',&
                   status='unknown')
              if (n==3 .and. n /= nSpecies) &
-                  open(unit=UnitTmp_,file='IM/plots/CrcmDrift_he.vl',&
+                  open(unit=UnitTmp_,file='IM/plots/CimiDrift_he.vl',&
                   status='unknown')
              if (n==nSpecies) &
-                  open(unit=UnitTmp_,file='IM/plots/CrcmDrift_e.vl',&
+                  open(unit=UnitTmp_,file='IM/plots/CimiDrift_e.vl',&
                   status='unknown')
              write(UnitTmp_,"(f10.6,5i6,6x,'! rc in Re,nr,ip,je,ig,ntime')") &
                   rc,nLat-1,nLon,nEnergy,nPitchAng,nprint
@@ -455,16 +455,16 @@ contains
              write(UnitTmp_,'(10f8.3)') (xlat(i),i=2,nLat)
           else
              if (n==1) &
-                  open(unit=UnitTmp_,file='IM/plots/CrcmDrift_h.vl',&
+                  open(unit=UnitTmp_,file='IM/plots/CimiDrift_h.vl',&
                   status='old', position='append')
              if (n==2 .and. n /= nSpecies)&
-                  open(unit=UnitTmp_,file='IM/plots/CrcmDrift_o.vl',&
+                  open(unit=UnitTmp_,file='IM/plots/CimiDrift_o.vl',&
                   status='old', position='append')
              if (n==3 .and. n /= nSpecies)&
-                  open(unit=UnitTmp_,file='IM/plots/CrcmDrift_he.vl',&
+                  open(unit=UnitTmp_,file='IM/plots/CimiDrift_he.vl',&
                   status='old', position='append')
              if (n==nSpecies)&
-                  open(unit=UnitTmp_,file='IM/plots/CrcmDrift_e.vl', &
+                  open(unit=UnitTmp_,file='IM/plots/CimiDrift_e.vl', &
                   status='old', position='append')
           endif
        endif
@@ -493,15 +493,15 @@ contains
     IsFirstCall=.false.
     
 
-  end subroutine Crcm_plot_vl
+  end subroutine Cimi_plot_vl
 
-  subroutine Crcm_plot_vp(rc,vpEa,time)
+  subroutine Cimi_plot_vp(rc,vpEa,time)
     use ModIoUnit,    ONLY: UnitTmp_
-    use ModCrcmGrid,  ONLY:nLat=>np, nLon=>nt, nEnergy=>neng, nPitchAng=>npit,&
+    use ModCimiGrid,  ONLY:nLat=>np, nLon=>nt, nEnergy=>neng, nPitchAng=>npit,&
          energy,sinAo,xlat,xmlt,Ebound
-    use ModCrcmPlanet,ONLY:nSpecies=>nspec
+    use ModCimiPlanet,ONLY:nSpecies=>nspec
     use ModFieldTrace,ONLY:ro,bo,xmlto,irm
-    use ModCrcmRestart, ONLY: IsRestart
+    use ModCimiRestart, ONLY: IsRestart
     use ModImTime,    ONLY:iCurrentTime_I
     real, intent(in) :: rc,vpEa(nSpecies,nLat,nLon,nEnergy,nPitchAng),time
     
@@ -542,16 +542,16 @@ contains
        else
           if (IsFirstCall .and. .not. IsRestart) then
              if (n==1) &
-                  open(unit=UnitTmp_,file='IM/plots/CrcmDrift_h.vp',&
+                  open(unit=UnitTmp_,file='IM/plots/CimiDrift_h.vp',&
                   status='unknown')
              if (n==2 .and. n /= nSpecies) &
-                  open(unit=UnitTmp_,file='IM/plots/CrcmDrift_o.vp',&
+                  open(unit=UnitTmp_,file='IM/plots/CimiDrift_o.vp',&
                   status='unknown')
              if (n==3 .and. n /= nSpecies) &
-                  open(unit=UnitTmp_,file='IM/plots/CrcmDrift_he.vp',&
+                  open(unit=UnitTmp_,file='IM/plots/CimiDrift_he.vp',&
                   status='unknown')
              if (n==nSpecies) &
-                  open(unit=UnitTmp_,file='IM/plots/CrcmDrift_e.vp',&
+                  open(unit=UnitTmp_,file='IM/plots/CimiDrift_e.vp',&
                   status='unknown')
              write(UnitTmp_,"(f10.6,5i6,6x,'! rc in Re,nr,ip,je,ig,ntime')") &
                   rc,nLat-1,nLon,nEnergy,nPitchAng,nprint
@@ -561,16 +561,16 @@ contains
              write(UnitTmp_,'(10f8.3)') (xlat(i),i=2,nLat)
           else
              if (n==1) &
-                  open(unit=UnitTmp_,file='IM/plots/CrcmDrift_h.vp',&
+                  open(unit=UnitTmp_,file='IM/plots/CimiDrift_h.vp',&
                   status='old', position='append')
              if (n==2 .and. n /= nSpecies)&
-                  open(unit=UnitTmp_,file='IM/plots/CrcmDrift_o.vp',&
+                  open(unit=UnitTmp_,file='IM/plots/CimiDrift_o.vp',&
                   status='old', position='append')
              if (n==3 .and. n /= nSpecies)&
-                  open(unit=UnitTmp_,file='IM/plots/CrcmDrift_he.vp',&
+                  open(unit=UnitTmp_,file='IM/plots/CimiDrift_he.vp',&
                   status='old', position='append')
              if (n==nSpecies)&
-                  open(unit=UnitTmp_,file='IM/plots/CrcmDrift_e.vp', &
+                  open(unit=UnitTmp_,file='IM/plots/CimiDrift_e.vp', &
                   status='old', position='append')
           endif
        endif
@@ -599,16 +599,16 @@ contains
     IsFirstCall=.false.
     
 
-  end subroutine Crcm_plot_vp
+  end subroutine Cimi_plot_vp
 
   !============================================================================
-  subroutine crcm_plot_log(Time)
-    use ModCrcmPlanet,  ONLY: nSpecies=>nspec,NamePlotVarLog
-    use ModCrcmRestart, ONLY: IsRestart
+  subroutine cimi_plot_log(Time)
+    use ModCimiPlanet,  ONLY: nSpecies=>nspec,NamePlotVarLog
+    use ModCimiRestart, ONLY: IsRestart
     use ModIoUnit,      ONLY: UnitTmp_
-    use ModCRCM,        ONLY: nOperator,driftin,driftout,&
+    use ModCIMI,        ONLY: nOperator,driftin,driftout,&
          rbsumGlobal,rcsumGlobal,dt,eChangeGlobal
-    use ModCrcmGrid,    ONLY: ir=>nt,ip=>np,im=>nm,ik=>nk,je=>neng,nproc
+    use ModCimiGrid,    ONLY: ir=>nt,ip=>np,im=>nm,ik=>nk,je=>neng,nproc
     implicit none
     
     real, intent(in) :: Time
@@ -622,13 +622,13 @@ contains
 
     ! Open file and write header if no restart on first call
     If (IsFirstCall .and. .not.IsRestart) then
-       open(unit=UnitTmp_,file='IM/plots/CRCM.log',&
+       open(unit=UnitTmp_,file='IM/plots/CIMI.log',&
                   status='unknown')
-       write(UnitTmp_,'(A)') 'CRCM Logfile'
+       write(UnitTmp_,'(A)') 'CIMI Logfile'
        write(UnitTmp_,'(A)') TRIM(NamePlotVarLog)
        IsFirstCall = .false.
     else
-       open(unit=UnitTmp_,file='IM/plots/CRCM.log',&
+       open(unit=UnitTmp_,file='IM/plots/CIMI.log',&
                   status='old', position='append')      
        IsFirstCall = .false.
     endif
@@ -656,19 +656,19 @@ contains
 
     close(UnitTmp_)
 
-  end subroutine crcm_plot_log
+  end subroutine cimi_plot_log
    
-  subroutine crcm_plot_precip(rc,time)
+  subroutine cimi_plot_precip(rc,time)
    use ModDstOutput,   ONLY: DstOutput 
    use ModIoUnit,      ONLY: UnitTmp_
-   use ModCrcmGrid,    ONLY:nLat=>np, nLon=>nt, nEnergy=>neng,&
+   use ModCimiGrid,    ONLY:nLat=>np, nLon=>nt, nEnergy=>neng,&
                             energy,xlat,xmlt
-   use ModCrcmPlanet,  ONLY: nSpecies=>nspec,re_m
+   use ModCimiPlanet,  ONLY: nSpecies=>nspec,re_m
    use ModFieldTrace,  ONLY:ro,bo,xmlto,irm
-   use ModCrcmRestart, ONLY: IsRestart
+   use ModCimiRestart, ONLY: IsRestart
    use ModImTime,      ONLY:iCurrentTime_I   ! for separate files only do need right now
-   use ModCrcmInitialize, ONLY: dphi
-   use ModCrcm, ONLY:  Eje1,preP,preF
+   use ModCimiInitialize, ONLY: dphi
+   use ModCimi, ONLY:  Eje1,preP,preF
 
    implicit none
 
@@ -687,16 +687,16 @@ contains
      energy_temp(1:nEnergy) = energy(n,1:nEnergy)
      if (IsFirstCall .and. .not. IsRestart) then
              if (n==1) &
-                  open(unit=UnitTmp_,file='IM/plots/CrcmFlux_h.preci',&
+                  open(unit=UnitTmp_,file='IM/plots/CimiFlux_h.preci',&
                   status='unknown')
              if (n==2 .and. n /= nSpecies) &
-                  open(unit=UnitTmp_,file='IM/plots/CrcmFlux_o.preci',&
+                  open(unit=UnitTmp_,file='IM/plots/CimiFlux_o.preci',&
                   status='unknown')
              if (n==3 .and. n /= nSpecies) &
-                  open(unit=UnitTmp_,file='IM/plots/CrcmFlux_he.preci',&
+                  open(unit=UnitTmp_,file='IM/plots/CimiFlux_he.preci',&
                   status='unknown')
              if (n==nSpecies) &
-                  open(unit=UnitTmp_,file='IM/plots/CrcmFlux_e.preci',&
+                  open(unit=UnitTmp_,file='IM/plots/CimiFlux_e.preci',&
                   status='unknown')
              write(UnitTmp_,"(f10.6,4i6,6x,'! rc in Re,nr,ip,je,ntime')") &
                   rc,nLat,nLon,nEnergy,nprint
@@ -705,16 +705,16 @@ contains
              write(UnitTmp_,'(10f8.3)') (energy_temp(k),k=1,nEnergy)
           else
              if (n==1) &
-                  open(unit=UnitTmp_,file='IM/plots/CrcmFlux_h.preci',&
+                  open(unit=UnitTmp_,file='IM/plots/CimiFlux_h.preci',&
                   status='old', position='append')
              if (n==2 .and. n /= nSpecies)&
-                  open(unit=UnitTmp_,file='IM/plots/CrcmFlux_o.preci',&
+                  open(unit=UnitTmp_,file='IM/plots/CimiFlux_o.preci',&
                   status='old', position='append')
              if (n==3 .and. n /= nSpecies)&
-                  open(unit=UnitTmp_,file='IM/plots/CrcmFlux_he.preci',&
+                  open(unit=UnitTmp_,file='IM/plots/CimiFlux_he.preci',&
                   status='old', position='append')
              if (n==nSpecies)&
-                  open(unit=UnitTmp_,file='IM/plots/CrcmFlux_e.preci', &
+                  open(unit=UnitTmp_,file='IM/plots/CimiFlux_e.preci', &
                   status='old', position='append')
           endif
 
@@ -733,17 +733,17 @@ contains
       enddo  ! species loop
 
     IsFirstCall=.false.
-  end subroutine crcm_plot_precip 
+  end subroutine cimi_plot_precip 
 
   !============================================================================
 
-  subroutine Crcm_plot_Lstar(rc,xk,time,Lstarm,Lstar_maxm)
+  subroutine Cimi_plot_Lstar(rc,xk,time,Lstarm,Lstar_maxm)
     use ModIoUnit,	ONLY: UnitTmp_
-    use ModCrcmGrid,	ONLY: nLat=>np, nLon=>nt, &
+    use ModCimiGrid,	ONLY: nLat=>np, nLon=>nt, &
          nm, nk, xlat,xmlt
-    use ModCrcmPlanet,	ONLY: nSpecies=>nspec,re_m
+    use ModCimiPlanet,	ONLY: nSpecies=>nspec,re_m
     use ModFieldTrace,	ONLY: ro,bm,xmlto,irm
-    use ModCrcmRestart,	ONLY: IsRestart
+    use ModCimiRestart,	ONLY: IsRestart
 
     real, intent(in) :: rc,xk(nk),time,Lstarm(nLat,nLon,nk),Lstar_maxm(nk)
     
@@ -755,13 +755,13 @@ contains
     nprint=ifix(time/DtOutput)
           
     if (IsFirstCall .and. .not. IsRestart) then
-       open(unit=UnitTmp_,file='IM/plots/Crcm.lstar',status='unknown')
+       open(unit=UnitTmp_,file='IM/plots/Cimi.lstar',status='unknown')
        write(UnitTmp_,"(f10.6,5i6,6x,'! rc in Re,nr,ip,nm,nk,ntime')") &
             rc,nLat-1,nLon,nint(nk/2.),nprint
        write(UnitTmp_,'(1p,7e11.3)') (xk(k)*sqrt(1.e9)/re_m,k=1,nk,2)
        write(UnitTmp_,'(10f8.3)') (xlat(i),i=2,nLat)
     else
-       open(unit=UnitTmp_,file='IM/plots/Crcm.lstar',status='old',&
+       open(unit=UnitTmp_,file='IM/plots/Cimi.lstar',status='old',&
            position='append')
     endif
     write(UnitTmp_,'(10f8.3)') &
@@ -785,7 +785,7 @@ contains
     close(UnitTmp_)
     IsFirstCall=.false.
 
-  end subroutine Crcm_plot_Lstar
+  end subroutine Cimi_plot_Lstar
 
-end module ModCrcmPlot
+end module ModCimiPlot
 

@@ -1,4 +1,4 @@
-Module ModCrcmPlanet
+Module ModCimiPlanet
   implicit none
 
   real :: re_m, dipmom
@@ -57,4 +57,4 @@ Module ModCrcmPlanet
        'RbSume  RcSume  eDrift  eBfield  eChargeEx  eWaves  '// &
        'eStrongDiff  eLossCone  eDriftIn  eDriftOut'
 
-end Module ModCrcmPlanet
+end Module ModCimiPlanet

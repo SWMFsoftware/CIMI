@@ -3,7 +3,7 @@ use strict;
 our @Arguments       = @ARGV;
 our $MakefileDefOrig = "src/Makefile.def";
 our $Component = "IM";
-our $Code      = "CRCM";
+our $Code      = "CIMI";
 our $Show;
 our $Help;
 our $ERROR;
@@ -148,24 +148,24 @@ sub show_settings{
 ############################################################################
 
 sub print_help{
-    print "Additional options for CRCM/Config.pl:
+    print "Additional options for CIMI/Config.pl:
 
--EarthHOHe       Configure CRCM for Earth with H+,O+,He+,e. 
+-EarthHOHe       Configure CIMI for Earth with H+,O+,He+,e. 
 
--EarthHO         Configure CRCM for Earth with H+,O+,e. 
+-EarthHO         Configure CIMI for Earth with H+,O+,e. 
 
--EarthH          Configure CRCM for Earth with H+,e. 
+-EarthH          Configure CIMI for Earth with H+,e. 
 
--GridDefault     Configure CRCM with the default grid
+-GridDefault     Configure CIMI with the default grid
 
--GridExpanded    Configure CRCM with a grid expanded to higher lat
+-GridExpanded    Configure CIMI with a grid expanded to higher lat
 
 These flags are case insensitive.
 
 In the future, other ions could be added, or other planets such as Jupiter or 
 Saturn could be included.
 
-EXAMPLE: Reconfigure CRCM for EarthH and show selected planet:
+EXAMPLE: Reconfigure CIMI for EarthH and show selected planet:
 
     Config.pl -EarthH -s
 ";

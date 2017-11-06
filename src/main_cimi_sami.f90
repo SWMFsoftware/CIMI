@@ -11,20 +11,20 @@
 
 program cimi_sami
   use ModSAMI,        ONLY: iProcSAMI=>iProc,nProcSAMI=>nProc,iCommSAMI=>iComm
-  use ModCrcmGrid,    ONLY: iProcCIMI=>iProc,nProcCIMI=>nProc,iCommCIMI=>iComm
+  use ModCimiGrid,    ONLY: iProcCIMI=>iProc,nProcCIMI=>nProc,iCommCIMI=>iComm
   use ModCoupleSami,  ONLY: cimi_set_global_mpi,cimi_get_init_for_sami, &
        cimi_send_to_sami,cimi_put_init_from_sami,cimi_get_from_sami
   use ModCoupleCimi,  ONLY: sami_set_global_mpi,sami_put_init_from_cimi, &
        sami_get_from_cimi,sami_send_to_cimi,sami_get_init_for_cimi
-  use ModCRCM,        ONLY: IsStandalone,TimeCIMI=>time
+  use ModCIMI,        ONLY: IsStandalone,TimeCIMI=>time
   use ModMpi
-  use ModCrcm,        ONLY: init_mod_crcm
+  use ModCimi,        ONLY: init_mod_cimi
   use ModFieldTrace,  ONLY: init_mod_field_trace
   use ModImTime,      ONLY: TimeMaxCIMI=>TimeMax
-  use ModCrcmRestart, ONLY: DtSaveRestart,crcm_write_restart
+  use ModCimiRestart, ONLY: DtSaveRestart,cimi_write_restart
   use ModReadParam
   use ModPrerunField, ONLY: UsePrerun, read_prerun, read_prerun_IE, DtRead
-  use ModIeCrcm,      ONLY: UseWeimer
+  use ModIeCimi,      ONLY: UseWeimer
   use CON_planet, ONLY: init_planet_const, set_planet_defaults
 !  use ModPrerunField, ONLY: UsePrerun, read_prerun, read_prerun_IE
  
@@ -119,7 +119,7 @@ program cimi_sami
      ! Initial setup for CIMI model and read PARAM.in
      call read_file('PARAM.in',iCommCIMI)
      call read_init('  ',iSessionIn=1,iLineIn=0)
-     call CRCM_set_parameters('READ')
+     call CIMI_set_parameters('READ')
      
      !if (usePrerun) call read_prerun(t)
      !if (usePrerun .and. iConvect==2) call read_prerun_IE(t)
@@ -147,7 +147,7 @@ program cimi_sami
   ! Initialize the model
   !****************************************************************************
   If(IsCimiProc) then
-     call init_mod_crcm
+     call init_mod_cimi
      call init_mod_field_trace
   endif
   
@@ -171,9 +171,9 @@ program cimi_sami
      if (UsePrerun .and. .not.UseWeimer) call read_prerun_IE(Time)
   
      ! init CIMI model
-     call timing_start('crcm_init')
-     call crcm_init
-     call timing_stop('crcm_init')
+     call timing_start('cimi_init')
+     call cimi_init
+     call timing_stop('cimi_init')
   else
      !init SAMI model
      call timing_start('sami_init')
@@ -236,13 +236,13 @@ program cimi_sami
      endif
      
      If(IsCimiProc) then
-        ! Call crcm_run to advance the Timestep
+        ! Call cimi_run to advance the Timestep
         call timing_step(iStep)
-        call timing_start('crcm_run')     
-        call crcm_run(DtAdvance)
-        call timing_stop('crcm_run')
+        call timing_start('cimi_run')     
+        call cimi_run(DtAdvance)
+        call timing_stop('cimi_run')
      else
-        ! Call crcm_run to advance the Timestep
+        ! Call cimi_run to advance the Timestep
         call timing_step(iStep)
         call timing_start('sami_run')     
         call sami_run(DtAdvance)
@@ -264,7 +264,7 @@ program cimi_sami
      if (floor((Time+1.0e-5)/DtSaveRestart) /= &
           floor((Time+1.0e-5-DtAdvance)/DtSaveRestart)) then
         If(IsCimiProc) then
-           call crcm_write_restart
+           call cimi_write_restart
         else
            !call sami_write_restart
         endif
@@ -286,7 +286,7 @@ program cimi_sami
 
   ! Save restart at TimeMax
   If(IsCimiProc) then 
-     call crcm_write_restart
+     call cimi_write_restart
   else
      !call sami_write_restart
   endif
@@ -316,8 +316,8 @@ program cimi_sami
 end program cimi_sami
 !============================================================================
 subroutine CON_stop(StringError)
-  use ModCrcmGrid,    ONLY: iProc,nProc
-  use ModCrcm,        ONLY: Time
+  use ModCimiGrid,    ONLY: iProc,nProc
+  use ModCimi,        ONLY: Time
   use ModMpi
   implicit none
   character (len=*), intent(in) :: StringError

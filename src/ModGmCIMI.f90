@@ -1,7 +1,7 @@
-Module ModGmCrcm
+Module ModGmCimi
 
-  use ModCrcmGrid,  ONLY: nLat => np, nLon => nt
-  use ModCrcmPlanet,ONLY: nspec
+  use ModCimiGrid,  ONLY: nLat => np, nLon => nt
+  use ModCimiPlanet,ONLY: nspec
 
   implicit none
 
@@ -23,4 +23,4 @@ Module ModGmCrcm
   logical :: DoMultiFluidGMCoupling = .false.
   logical :: DoAnisoPressureGMCoupling      = .false.
 
-end Module ModGmCrcm
+end Module ModGmCimi

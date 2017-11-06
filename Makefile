@@ -1,4 +1,4 @@
-default : CRCM
+default : CIMI
 
 include Makefile.def
 
@@ -17,7 +17,7 @@ install:
 #       General Housekeeping
 #
 
-CRCM:
+CIMI:
 	@cd ${SHAREDIR};  	make LIB
 	@cd ${NOMPIDIR};	make LIB
 	@cd ${TIMINGDIR}; 	make LIB 
@@ -25,7 +25,7 @@ CRCM:
 	@cd ${EMPIRICALGMDIR};	make LIB
 	@cd ${DATAREADINDICESDIR};make LIB
 	@cd src;	make LIB
-	@cd src;	make CRCM
+	@cd src;	make CIMI
 
 CIMI_SAMI:
 	@cd ${SHAREDIR};  	make LIB
@@ -138,7 +138,7 @@ test_Prerun:
 
 test_compile:
 	./Config.pl -EarthHO -GridDefault -show
-	make CRCM
+	make CIMI
 
 test_rundir:
 	rm -rf ${TESTDIR}
@@ -173,7 +173,7 @@ test_rundir_Prerun:
 	cp input/testfiles/PARAM.in.test.Prerun ${TESTDIR}/PARAM.in
 
 test_run:
-	cd ${TESTDIR}; ./crcm.exe > runlog 
+	cd ${TESTDIR}; ./cimi.exe > runlog 
 
 test_check:
 	make test_check_flux
@@ -182,68 +182,68 @@ test_check:
 
 test_check_flux:
 	${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
-		${TESTDIR}/IM/plots/CrcmFlux_h.fls \
-		output/CrcmFlux_h.fls \
+		${TESTDIR}/IM/plots/CimiFlux_h.fls \
+		output/CimiFlux_h.fls \
 		> test_h_fls.diff
 	${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
-		${TESTDIR}/IM/plots/CrcmFlux_o.fls \
-		output/CrcmFlux_o.fls \
+		${TESTDIR}/IM/plots/CimiFlux_o.fls \
+		output/CimiFlux_o.fls \
 		> test_o_fls.diff
 	${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
-		${TESTDIR}/IM/plots/CrcmFlux_e.fls \
-		output/CrcmFlux_e.fls \
+		${TESTDIR}/IM/plots/CimiFlux_e.fls \
+		output/CimiFlux_e.fls \
 		> test_e_fls.diff
 
 test_check_drift:
 	${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
-		${TESTDIR}/IM/plots/CrcmDrift_h.vp \
-		output/CrcmDrift_h.vp \
+		${TESTDIR}/IM/plots/CimiDrift_h.vp \
+		output/CimiDrift_h.vp \
 		> test_h_vp.diff
 	${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
-		${TESTDIR}/IM/plots/CrcmDrift_o.vp \
-		output/CrcmDrift_o.vp \
+		${TESTDIR}/IM/plots/CimiDrift_o.vp \
+		output/CimiDrift_o.vp \
 		> test_o_vp.diff
 	${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
-		${TESTDIR}/IM/plots/CrcmDrift_e.vp \
-		output/CrcmDrift_e.vp \
+		${TESTDIR}/IM/plots/CimiDrift_e.vp \
+		output/CimiDrift_e.vp \
 		> test_e_vp.diff
 
 test_check_dipole:
 	${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
-		${TESTDIR}/IM/plots/CrcmDrift_h.vp \
-		output/CrcmDrift_h.vp.dipole \
+		${TESTDIR}/IM/plots/CimiDrift_h.vp \
+		output/CimiDrift_h.vp.dipole \
 		> test_h_vp_dipole.diff
 	${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
-		${TESTDIR}/IM/plots/CrcmDrift_o.vp \
-		output/CrcmDrift_o.vp.dipole \
+		${TESTDIR}/IM/plots/CimiDrift_o.vp \
+		output/CimiDrift_o.vp.dipole \
 		> test_o_vp_dipole.diff
 	${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
-		${TESTDIR}/IM/plots/CrcmDrift_e.vp \
-		output/CrcmDrift_e.vp.dipole \
+		${TESTDIR}/IM/plots/CimiDrift_e.vp \
+		output/CimiDrift_e.vp.dipole \
 		> test_e_vp_dipole.diff
 
 test_check_eq:
 	${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
-		${TESTDIR}/IM/plots/CRCMeq.outs \
-		output/CRCMeq.outs \
+		${TESTDIR}/IM/plots/CIMIeq.outs \
+		output/CIMIeq.outs \
 		> test_eq.diff
 
 test_check_Prerun:
 	${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
-		${TESTDIR}/IM/plots/CrcmFlux_h.fls \
-		output/CrcmFlux_h.fls.Prerun \
+		${TESTDIR}/IM/plots/CimiFlux_h.fls \
+		output/CimiFlux_h.fls.Prerun \
 		> test_h_fls_Prerun.diff
 	${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
-		${TESTDIR}/IM/plots/CrcmFlux_o.fls \
-		output/CrcmFlux_o.fls.Prerun \
+		${TESTDIR}/IM/plots/CimiFlux_o.fls \
+		output/CimiFlux_o.fls.Prerun \
 		> test_o_fls_Prerun.diff
 	${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
-		${TESTDIR}/IM/plots/CrcmFlux_e.fls \
-		output/CrcmFlux_e.fls.Prerun \
+		${TESTDIR}/IM/plots/CimiFlux_e.fls \
+		output/CimiFlux_e.fls.Prerun \
 		> test_e_fls_Prerun.diff
 	${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
-		${TESTDIR}/IM/plots/CRCMeq.outs \
-		output/CRCMeq.outs.Prerun \
+		${TESTDIR}/IM/plots/CIMIeq.outs \
+		output/CIMIeq.outs.Prerun \
 		> test_eq_Prerun.diff
 
 PDF:
@@ -281,7 +281,7 @@ rundir:
 		mkdir plots restartIN restartOUT
 	@(if [ "$(STANDALONE)" != "NO" ]; then \
 		cd ${RUNDIR} ; \
-		ln -s ${BINDIR}/crcm.exe .   ; \
+		ln -s ${BINDIR}/cimi.exe .   ; \
 		touch core ; chmod 444 core;\
 	fi);
 

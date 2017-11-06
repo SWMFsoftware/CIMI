@@ -21,9 +21,9 @@ contains
     use ModIoUnit,      ONLY: io_unit_new, UnitTmp_
     use ModInterpolate, ONLY: bilinear, trilinear
     use ModNumConst,    ONLY: cDegToRad,cRadToDeg
-    use ModCrcm,        ONLY: t=>time
-    use ModCrcmPlanet,  ONLY: nSpecies=>nspec
-    use ModCrcmGrid,    ONLY: LonGrid_I=>phi, LatGrid_I=>xlat, &
+    use ModCimi,        ONLY: t=>time
+    use ModCimiPlanet,  ONLY: nSpecies=>nspec
+    use ModCimiGrid,    ONLY: LonGrid_I=>phi, LatGrid_I=>xlat, &
                               AngleGrid_I=>sinAo
     use ModFieldTrace,  ONLY: BfieldEq_C => bo, iba
     use ModImTime,      ONLY: iCurrentTime_I
@@ -242,7 +242,7 @@ contains
 
   subroutine save_prerun_sat(tSimulation)
 
-    use ModGmCrcm
+    use ModGmCimi
     use ModIoUnit,  ONLY: UnitTmp_
     real, intent(in) :: tSimulation
     integer          :: iTimeOut,iSat,iRow
@@ -278,7 +278,7 @@ contains
 
   subroutine read_prerun_sat(tSimulation)
 
-    use ModGmCrcm
+    use ModGmCimi
     use ModIoUnit,  ONLY: UnitTmp_
     real, intent(in) :: tSimulation
     integer          :: iTimeOut,iSat,iRow

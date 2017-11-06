@@ -53,9 +53,9 @@ contains
   subroutine calc_Lstar1(Lstar,Lstar_max,rc)
 
   use ModNumConst, only:pi=>cPi
-  use ModCrcmPlanet, only:re_m,xme=>dipmom
+  use ModCimiPlanet, only:re_m,xme=>dipmom
   use ModFieldTrace,only: bo,ro,iba,rb
-  use ModCrcmGrid, only:xlati=>xlatr,ir=>np,ip=>nt,xmlt
+  use ModCimiGrid, only:xlati=>xlatr,ir=>np,ip=>nt,xmlt
   implicit none
 
   real BE,Bflux(ir,ip),logBo,dBdlat(ir),Lstar(ir,ip),Lstar_max,rc,&
@@ -149,9 +149,9 @@ write(*,'("L* =",10f8.2)') (Lstar(i,1),i=1,ir)
 !**************************************************************************
 
   use ModNumConst, only:pi=>cPi
-  use ModCrcmPlanet, only:re_m,xme=>dipmom
+  use ModCimiPlanet, only:re_m,xme=>dipmom
   use ModFieldTrace,only: bm,ro,iba,rb
-  use ModCrcmGrid, only:xlati=>xlatr,ir=>np,ip=>nt,xmlt,ik=>nk
+  use ModCimiGrid, only:xlati=>xlatr,ir=>np,ip=>nt,xmlt,ik=>nk
   implicit none
 
   real BE,Bflux(ir,ip),dBdlat(ir),Lstar(ir,ip,ik),Lstar_max(ik),rc,&

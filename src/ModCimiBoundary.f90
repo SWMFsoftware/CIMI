@@ -1,14 +1,14 @@
-Module ModCrcmBoundary
-  use ModCrcmGrid,    ONLY: MinLonPar,MaxLonPar,nt,np
-  use ModCrcmPlanet,  ONLY: nspec, amu_I, dFactor_I, tFactor_I
+Module ModCimiBoundary
+  use ModCimiGrid,    ONLY: MinLonPar,MaxLonPar,nt,np
+  use ModCimiPlanet,  ONLY: nspec, amu_I, dFactor_I, tFactor_I
   implicit none
   
   SAVE
 
   private ! EXCEPT:
 
-  public :: crcm_set_boundary_mhd
-  public :: crcm_set_boundary_empirical
+  public :: cimi_set_boundary_mhd
+  public :: cimi_set_boundary_empirical
   
   !when in standalone mode which boundary type do you use for the RC?
   logical,public :: UseBoundaryEbihara =.true.
@@ -20,8 +20,8 @@ Module ModCrcmBoundary
 
 contains
   !============================================================================
-  subroutine crcm_set_boundary_mhd
-    use ModGmCrcm,      ONLY: Den_IC,Temp_IC,Temppar_IC,StateBmin_IIV,&
+  subroutine cimi_set_boundary_mhd
+    use ModGmCimi,      ONLY: Den_IC,Temp_IC,Temppar_IC,StateBmin_IIV,&
          AveP_,AvePpar_,AveDens_, AveDen_I,AveP_I,iLatMin,&
          DoMultiFluidGMCoupling,DoAnisoPressureGMCoupling
     use ModFieldTrace,  ONLY: irm, iba
@@ -159,14 +159,14 @@ contains
   endif
 
 
-  end subroutine crcm_set_boundary_mhd
+  end subroutine cimi_set_boundary_mhd
 
 
   !============================================================================
-  subroutine crcm_set_boundary_empirical
+  subroutine cimi_set_boundary_empirical
     use ModImTime,    ONLY: CurrentTime, TimeLagBoundary
     use ModFieldTrace,ONLY: iba, ro, xmlto, irm
-    use ModGmCrcm,      ONLY: Den_IC,Temp_IC
+    use ModGmCimi,      ONLY: Den_IC,Temp_IC
     use ModIndicesInterfaces
     use ModNumConst,       ONLY: cPi
 
@@ -228,7 +228,7 @@ contains
        BoundaryTemp_IC(iSpecies,1:nt) = tFactor_I(iSpecies)*xkt1(1:nt)
     end do
  
- end subroutine crcm_set_boundary_empirical
+ end subroutine cimi_set_boundary_empirical
 
  !============================================================================
  real function get_OtoH_young(F107, Kp) result(O_H_ratio)
@@ -296,4 +296,4 @@ contains
    
  end subroutine get_tsy_plasma
  
-end Module ModCrcmBoundary
+end Module ModCimiBoundary

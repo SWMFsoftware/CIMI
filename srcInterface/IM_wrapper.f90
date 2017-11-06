@@ -4,7 +4,7 @@
 
 module IM_wrapper
 
-  ! Wrapper for CRCM Internal Magnetosphere (IM) component
+  ! Wrapper for CIMI Internal Magnetosphere (IM) component
 
   implicit none
 
@@ -38,9 +38,9 @@ contains
     use ModUtilities
     use ModReadParam
     use CON_coupler, ONLY: Couple_CC, GM_, IM_, IE_
-    use ModGmCrcm,  ONLY: UseGm
-    use ModIeCrcm,  ONLY: UseIE
-    use ModCrcmGrid, ONLY: iProc,nProc,iComm
+    use ModGmCimi,  ONLY: UseGm
+    use ModIeCimi,  ONLY: UseIE
+    use ModCimiGrid, ONLY: iProc,nProc,iComm
     implicit none
 
     character (len=*), intent(in)     :: TypeAction ! which action to perform
@@ -64,7 +64,7 @@ contains
     case('VERSION')
        call put(CompInfo,                                     &
             Use=.true.,                                       &
-            NameVersion='CRCM, M. Fok and A. Glocer', &
+            NameVersion='CIMI, M. Fok and A. Glocer', &
             Version=1.0)
     case('MPI')
        call get(CompInfo, iComm=iComm, iProc=iProc, nProc=nProc)
@@ -76,7 +76,7 @@ contains
        !call get(CompInfo,iUnitOut=iUnitOut)
        !StringPrefix=''
     case('READ')
-       call CRCM_set_parameters('READ')
+       call CIMI_set_parameters('READ')
     case('CHECK')
        ! We should check and correct parameters here
        !if(iProc==0)then
@@ -93,7 +93,7 @@ contains
   !============================================================================
   subroutine IM_set_grid
 
-    use ModCrcmGrid,      ONLY: np, nt, xlat, phi
+    use ModCimiGrid,      ONLY: np, nt, xlat, phi
     use ModNumConst,      ONLY: cDegToRad
     use CON_coupler,      ONLY: set_grid_descriptor, is_proc, IM_
 
@@ -144,8 +144,8 @@ contains
 
   subroutine IM_init_session(iSession, TimeSimulation)
 
-    use ModCrcmGrid,      ONLY: np, xlat
-    use ModCrcm,          ONLY: init_mod_crcm, Time
+    use ModCimiGrid,      ONLY: np, xlat
+    use ModCimi,          ONLY: init_mod_cimi, Time
     use ModFieldTrace,    ONLY: init_mod_field_trace
     use ModImTime
     use ModTimeConvert,   ONLY: time_real_to_int
@@ -159,9 +159,9 @@ contains
     character(len=*), parameter :: NameSub='IM_init_session'
     !------------------------------------------------------------------------
     ! GM info needed before initialization just set up latitude/longitude grid
-    call init_mod_crcm
+    call init_mod_cimi
     call init_mod_field_trace
-    call crcm_init
+    call cimi_init
 
     call get_time(tStartOut = StartTime)
     Time = TimeSimulation
@@ -175,7 +175,7 @@ contains
   subroutine IM_run(TimeSimulation,TimeSimulationLimit)
 
     use CON_time,   ONLY: DoTimeAccurate
-    use ModCrcm,    ONLY: Time, dt, dtmax,iProc
+    use ModCimi,    ONLY: Time, dt, dtmax,iProc
 
     implicit none
 
@@ -188,18 +188,18 @@ contains
     !------------------------------------------------------------------------
 
     if (.not. IsInitiallized) then
-       call crcm_init
+       call cimi_init
        IsInitiallized = .true.
     endif
 
     if( .not. DoTimeAccurate)then
        ! steady state mode
        dt = dtmax
-       call crcm_run(2*dt)
+       call cimi_run(2*dt)
     else
        ! time accurate mode
        dt = min(dtmax, 0.5*(TimeSimulationLimit - TimeSimulation))
-       call crcm_run(TimeSimulationLimit - TimeSimulation)
+       call cimi_run(TimeSimulationLimit - TimeSimulation)
        ! return time at the end of the time step to CON
        TimeSimulation   = TimeSimulationLimit
     end if
@@ -224,23 +224,23 @@ contains
   !===========================================================================
 
   subroutine IM_save_restart(TimeSimulation)
-    use ModCrcmRestart, ONLY: crcm_write_restart
+    use ModCimiRestart, ONLY: cimi_write_restart
     implicit none
 
     real,     intent(in) :: TimeSimulation   ! seconds from start time
     character(len=*), parameter :: NameSub='IM_save_restart'
 
     !-------------------------------------------------------------------------
-    call crcm_write_restart
+    call cimi_write_restart
 
   end subroutine IM_save_restart
   !===========================================================================
 
   subroutine IM_put_from_gm_crcm(Buffer_IIV,iSizeIn,jSizeIn,nVarIn,&
        BufferLine_VI,nVarLine,nPointLine,NameVar,tSimulation)
-    use ModGmCRCM
-    use ModCrcmGrid,  ONLY: nLat => np, nLon => nt, iProc, nProc
-    use ModCrcmPlanet,ONLY: rEarth => re_m
+    use ModGmCIMI
+    use ModCimiGrid,  ONLY: nLat => np, nLon => nt, iProc, nProc
+    use ModCimiPlanet,ONLY: rEarth => re_m
     use ModTsyInput,  ONLY: xnswa,vswa,bxw,byw,bzw,nsw,iyear,iday,UseSmooth
     use ModPrerunField,ONLY: DoWritePrerun, save_prerun
     use ModIoUnit, ONLY: UnitTmp_
@@ -409,7 +409,7 @@ contains
 
     character (len=*),parameter :: NameSub='IM_put_from_gm_line'
 
-    call CON_stop(NameSub//' should not be called for IM/CRCM')
+    call CON_stop(NameSub//' should not be called for IM/CIMI')
 
   end subroutine IM_put_from_gm_line
   !============================================================================
@@ -421,7 +421,7 @@ contains
 
     character (len=*),parameter :: NameSub = 'IM_put_from_gm'
 
-    call CON_stop(NameSub//' should not be called for IM/CRCM')
+    call CON_stop(NameSub//' should not be called for IM/CIMI')
 
   end subroutine IM_put_from_gm
   !============================================================================
@@ -432,7 +432,7 @@ contains
 
     character(len=*), parameter   :: NameSub='IM_put_from_ie_mpi'
 
-    call CON_stop(NameSub//' cannot be used by CRCM!')
+    call CON_stop(NameSub//' cannot be used by CIMI!')
 
   end subroutine IM_put_from_ie_mpi
 
@@ -443,7 +443,7 @@ contains
     use ModImSat, ONLY: nImSats, DoWriteSats, ReadRestartSat, &
          NameSat_I, SatLoc_3I
     use ModNumConst,   ONLY: cDegToRad
-    use ModCrcmGrid,   ONLY: iProc
+    use ModCimiGrid,   ONLY: iProc
     use ModIoUnit,     ONLY: UnitTmp_
 
     implicit none
@@ -516,12 +516,12 @@ contains
   subroutine IM_get_for_gm(Buffer_IIV,iSizeIn,jSizeIn,nVar,NameVar)
 
     !use CON_time, ONLY : get_time
-    use ModCrcmGrid,  ONLY: iSize=>np, jSize=>nt, iProc
-    use ModCrcm,      ONLY: Pressure_IC, PressurePar_IC, Bmin_C, Time, Pmin
-    use ModGmCrcm,    ONLY: Den_IC, iLatMin, DoMultiFluidGMCoupling, &
+    use ModCimiGrid,  ONLY: iSize=>np, jSize=>nt, iProc
+    use ModCimi,      ONLY: Pressure_IC, PressurePar_IC, Bmin_C, Time, Pmin
+    use ModGmCimi,    ONLY: Den_IC, iLatMin, DoMultiFluidGMCoupling, &
          DoAnisoPressureGMCoupling
     use ModFieldTrace,ONLY: iba
-    use ModCrcmPlanet,ONLY: nspec,amu_I
+    use ModCimiPlanet,ONLY: nspec,amu_I
     use ModNumConst,  ONLY: cRadToDeg
     use ModConst,     ONLY: cProtonMass
     use ModIoUnit, ONLY: UnitTmp_
@@ -703,9 +703,9 @@ contains
 
   subroutine IM_put_from_ie(nPoint,iPointStart,Index,Weight,DoAdd,Buff_V,nVar)
 
-    use ModCrcmGrid,  ONLY: np, nt
+    use ModCimiGrid,  ONLY: np, nt
     use CON_router,   ONLY: IndexPtrType, WeightPtrType
-    use ModIeCrcm,    ONLY: Pot!, birk_mhd, iSize, jSize, sigmaH_mhd,sigmaP_mhd
+    use ModIeCimi,    ONLY: Pot!, birk_mhd, iSize, jSize, sigmaH_mhd,sigmaP_mhd
     
     implicit none
     character(len=*), parameter   :: NameSub='IM_put_from_ie'
@@ -754,10 +754,10 @@ contains
   !============================================================================
 
   subroutine IM_put_from_ie_complete
-    use ModCrcmGrid,  ONLY: np,nt,iComm, iProc
-    use ModIeCrcm,    ONLY: Pot
+    use ModCimiGrid,  ONLY: np,nt,iComm, iProc
+    use ModIeCimi,    ONLY: Pot
     use ModPrerunField,ONLY: DoWritePrerun, save_prerun_IE
-    use ModCrcm,    ONLY: Time
+    use ModCimi,    ONLY: Time
 
     use ModMpi
     implicit none
@@ -780,7 +780,7 @@ contains
     ! indexes stored in Index and weights stored in Weight
     ! The variables should be put into Buff_V
 
-    use ModCrcm,      ONLY: FAC_C, nLat=>np, nLon=>nt
+    use ModCimi,      ONLY: FAC_C, nLat=>np, nLon=>nt
     use CON_router,   ONLY: IndexPtrType, WeightPtrType
     implicit none
     character(len=*), parameter :: NameSub='IM_get_for_ie'

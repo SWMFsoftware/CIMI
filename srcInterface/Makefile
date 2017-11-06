@@ -28,10 +28,10 @@ LIB:	DEPEND
 	@echo ${MY_LIB} has been brought up to date.
 	@echo
 
-CRCM_LIB = ../src/libCRCM.a 
+CIMI_LIB = ../src/libCIMI.a 
 
-${MY_LIB}: ${CRCM_LIB} ${OBJECTS}
-	cp -f ${CRCM_LIB} ${MY_LIB}
+${MY_LIB}: ${CIMI_LIB} ${OBJECTS}
+	cp -f ${CIMI_LIB} ${MY_LIB}
 	${AR} ${MY_LIB} ${OBJECTS}
 
 distclean: clean

@@ -1,29 +1,29 @@
-subroutine CRCM_set_parameters(NameAction)
+subroutine CIMI_set_parameters(NameAction)
 
   use ModIoUnit,         ONLY: UnitTmp_, io_unit_new
   use ModReadParam
-  use ModCrcmInitialize, ONLY: IsEmptyInitial,IsDataInitial,IsRBSPData, &
+  use ModCimiInitialize, ONLY: IsEmptyInitial,IsDataInitial,IsRBSPData, &
        IsGmInitial
-  use ModCrcmPlot,       ONLY: DtOutput, DoSavePlot, DoSaveFlux, DoSaveDrifts,&
+  use ModCimiPlot,       ONLY: DtOutput, DoSavePlot, DoSaveFlux, DoSaveDrifts,&
        DoSaveLog, UseSeparatePlotFiles, DtLogOut,DoSavePSD
   use ModFieldTrace,     ONLY: UseEllipse, UseSmooth, UseCorotation, &
        UsePotential, SmoothWindow, imod
-  use ModCrcm,           ONLY: UseMcLimiter, BetaLimiter, time, Pmin,&
+  use ModCimi,           ONLY: UseMcLimiter, BetaLimiter, time, Pmin,&
        IsStandAlone, UseStrongDiff, dt, dtmax
-  use ModCrcmRestart,    ONLY: IsRestart,DtSaveRestart
-  use ModCrcmPlanet,     ONLY: nspec
+  use ModCimiRestart,    ONLY: IsRestart,DtSaveRestart
+  use ModCimiPlanet,     ONLY: nspec
   use ModImTime,         ONLY: iStartTime_I, TimeMax
-  use ModCrcmBoundary,   ONLY: UseBoundaryEbihara,UseYoungEtAl
-  use ModIeCrcm,         ONLY: UseWeimer
+  use ModCimiBoundary,   ONLY: UseBoundaryEbihara,UseYoungEtAl
+  use ModIeCimi,         ONLY: UseWeimer
   use ModPrerunField,    ONLY: DoWritePrerun, UsePrerun, DtRead
-  use ModGmCRCM,         ONLY: UseGm
+  use ModGmCIMI,         ONLY: UseGm
   use ModWaveDiff,       ONLY: UseWaveDiffusion,UseHiss,UseChorus,UseChorusUB, &
        DiffStartT,HissWavesD, ChorusWavesD,ChorusUpperBandD, &
        testDiff_aa, testDiff_EE, testDiff_aE, &
        NameAeFile, read_ae_wdc_kyoto
   use ModImSat,          ONLY: DtSatOut, DoWritePrerunSat, UsePrerunSat, &
        DtReadSat, DoWriteSats, ReadRestartSat
-  use ModCrcmGrid
+  use ModCimiGrid
   
   implicit none
 
@@ -32,7 +32,7 @@ subroutine CRCM_set_parameters(NameAction)
   character (len=*), intent(in) :: NameAction
   character (len=7)             :: TypeBoundary
   character (len=3)             :: NameModel
-  character (len=*), parameter  :: NameSub = 'CRCM_set_parameters'
+  character (len=*), parameter  :: NameSub = 'CIMI_set_parameters'
 
   character (len=100) :: cTempLine
   character (len=100), dimension(100) :: cTempLines
@@ -41,7 +41,7 @@ subroutine CRCM_set_parameters(NameAction)
   real :: DensitySW, VelSW, BxSW, BySW,BzSW
   !\
   ! Description:
-  ! This subroutine gets the inputs for CRCM
+  ! This subroutine gets the inputs for CIMI
   !/
 
   !---------------------------------------------------------------------------
@@ -259,4 +259,4 @@ subroutine CRCM_set_parameters(NameAction)
      
   enddo
 
-end subroutine CRCM_set_parameters
+end subroutine CIMI_set_parameters

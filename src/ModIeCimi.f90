@@ -1,5 +1,5 @@
-module ModIeCrcm
-  use ModCrcmGrid,ONLY: np, nt
+module ModIeCimi
+  use ModCimiGrid,ONLY: np, nt
   implicit none 
   
   real :: pot(np,nt)
@@ -7,10 +7,10 @@ module ModIeCrcm
   logical :: UseWeimer =.false.
 contains
 
-  subroutine init_mod_iecrcm
+  subroutine init_mod_iecimi
     
     pot = 0.0
 
-  end subroutine init_mod_iecrcm
+  end subroutine init_mod_iecimi
 
-end module ModIeCrcm
+end module ModIeCimi

@@ -9,21 +9,21 @@ include Makefile.RULES
 
 OBJECTS = \
         ModPlanet.o\
-	ModCrcm.o\
-	ModCrcmPlot.o\
+	ModCimi.o\
+	ModCimiPlot.o\
 	ModFieldTrace.o\
-	ModGmCRCM.o\
+	ModGmCIMI.o\
 	ModGrid.o\
 	ModCoupleSAMI.o\
-	ModIeCrcm.o\
+	ModIeCimi.o\
 	ModImSat.o\
 	ModImTime.o\
 	ModInitialize.o\
 	ModRestart.o\
-	ModCrcmBoundary.o\
+	ModCimiBoundary.o\
 	ModTsyInput.o\
 	ModPrerunField.o\
-	crcm.o\
+	cimi.o\
 	set_parameters.o\
 	plot_fieldline.o\
 	trace_dipole.o\
@@ -35,7 +35,7 @@ DEPEND:
 	@${SCRIPTDIR}/depend.pl ${SEARCHDIR} ${OBJECTS}
 
 
-MY_LIB = libCRCM.a
+MY_LIB = libCIMI.a
 
 LIB: DEPEND
 	make ${MY_LIB}
@@ -48,7 +48,7 @@ ${MY_LIB}: ${OBJECTS}
 	${AR} ${MY_LIB} ${OBJECTS} 
 
 # Object files not included into the library
-OBJECTS_EXE = crcm_main.o
+OBJECTS_EXE = cimi_main.o
 
 # Other requireed libraries
 LIBSHARE  = ${LIBDIR}/libSHARE.a
@@ -61,9 +61,9 @@ LIBSAMI3 = ${LIBDIR}/libSAMI3.a
 # Libraries should be compiled first, because modules are used in main
 ${OBJECTS_EXE}: ${LIBSHARE} ${LIBTIMING} ${MY_LIB}   
 
-EXE = ${BINDIR}/crcm.exe
+EXE = ${BINDIR}/cimi.exe
 
-CRCM:
+CIMI:
 	@echo ' '
 	@make ${EXE}
 	@echo "Program ${EXE} has been brought up to date."
@@ -81,8 +81,8 @@ ${EXE}: ${OBJECTS_EXE}
 	${LINK.f90} -o ${EXE} ${OBJECTS_EXE} Tmp_/*.o ${LBLAS} ${Lflag1}
 	rm -rf Tmp_
 
-CRCM_orig:
-	${COMPILE.f90} ${Lflag1} -o ${EXE} crcm_main.f90 ${OBJECTS} \
+CIMI_orig:
+	${COMPILE.f90} ${Lflag1} -o ${EXE} cimi_main.f90 ${OBJECTS} \
 	-L${LIBDIR} -lTIMING -lSHARE -lNOMPI -lINDICES
 
 #SAMI-CIMI targets

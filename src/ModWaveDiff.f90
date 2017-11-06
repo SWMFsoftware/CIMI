@@ -1,6 +1,6 @@
 Module DensityTemp
 
-  use ModCrcmGrid, ONLY: ir=>np, ip=>nt !, ik=>nk
+  use ModCimiGrid, ONLY: ir=>np, ip=>nt !, ik=>nk
 
   implicit none
   
@@ -13,7 +13,7 @@ contains
   
   subroutine simple_plasmasphere(Kp)
 
-    use ModCrcmGrid,    ONLY: MinLonPar, MaxLonPar
+    use ModCimiGrid,    ONLY: MinLonPar, MaxLonPar
     use ModFieldTrace, ONLY: ro, iba
     
     implicit none
@@ -77,8 +77,8 @@ end Module DensityTemp
 !!!!!!!!!!!!!!!!  Main wave module !!!!!!!!!!!!!1
 Module ModWaveDiff
 
-use ModCrcmGrid,ONLY: ir=>np, ip=>nt, iw=>nm , ik=>nk  
-use ModCrcmPlanet,ONLY: nspec
+use ModCimiGrid,ONLY: ir=>np, ip=>nt, iw=>nm , ik=>nk  
+use ModCimiPlanet,ONLY: nspec
 use ModFieldTrace, ONLY: ekev,tya,y=>sinA,Bo,ro,xmlto,lintpIM,bm
 use ModNumConst,       ONLY: pi => cPi
 
@@ -135,7 +135,7 @@ contains
 !  use waveDiffCoef
 !  use cWpower
 
-  use ModCrcmPlanet,  ONLY: xme=>dipmom
+  use ModCimiPlanet,  ONLY: xme=>dipmom
   use ModIoUnit, ONLY: UnitTmp_
 
   implicit none
@@ -322,7 +322,7 @@ contains
 
  ! use constants
  ! use cWpower
-  use ModCrcmGrid,   ONLY: MinLonPar,MaxLonPar
+  use ModCimiGrid,   ONLY: MinLonPar,MaxLonPar
   use DensityTemp, ONLY: density
 
   implicit none
@@ -353,7 +353,7 @@ contains
      do i=1,iba(j)
         if (density(i,j).eq.0.) then
            write(*,*) 'Error: density(i,j).eq.0, t,iba(j),i,j ',t,iba(j),i,j
-           call CON_STOP('CRCM dies in WavePower')
+           call CON_STOP('CIMI dies in WavePower')
         endif
         ompe(i,j)=sqrt(density(i,j)*e_mass/epsilon0)/bo(i,j)    ! fpe/fce
         ro1=ro(i,j)
@@ -475,7 +475,7 @@ contains
    subroutine diffuse_aa(f2,dt,xjac,iba,iw2)
       use DensityTemp
       use ModMPI
-      use ModCrcmGrid,   ONLY: MinLonPar,MaxLonPar
+      use ModCimiGrid,   ONLY: MinLonPar,MaxLonPar
 
       implicit none
 
@@ -718,7 +718,7 @@ contains
     
     use DensityTemp
     use ModMPI
-    use ModCrcmGrid,   ONLY: MinLonPar,MaxLonPar
+    use ModCimiGrid,   ONLY: MinLonPar,MaxLonPar
     
     !  use constants
     !  use cimigrid_dim CHECK je and ig
@@ -1060,7 +1060,7 @@ end subroutine interpolate_ae
   subroutine diffuse_aE(f2,dt,xjac,iw2,iba,time)
      use DensityTemp, ONLY: density
      use ModMPI
-     use ModCrcmGrid,   ONLY: MinLonPar,MaxLonPar
+     use ModCimiGrid,   ONLY: MinLonPar,MaxLonPar
 
      implicit none
   integer,parameter :: ie=40

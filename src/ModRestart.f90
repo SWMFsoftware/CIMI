@@ -1,4 +1,4 @@
-Module ModCrcmRestart
+Module ModCimiRestart
   implicit none
   
   SAVE
@@ -8,16 +8,16 @@ Module ModCrcmRestart
 contains
   !============================================================================
 
-  subroutine crcm_read_restart
-    use ModCrcmPlanet,ONLY: nspec
-    use ModCrcmGrid,  ONLY: np,nt,nm,nk,neng,d4Element_C
-    use ModCrcm,      ONLY: f2, phot, Pressure_IC, PressurePar_IC, FAC_C, &
+  subroutine cimi_read_restart
+    use ModCimiPlanet,ONLY: nspec
+    use ModCimiGrid,  ONLY: np,nt,nm,nk,neng,d4Element_C
+    use ModCimi,      ONLY: f2, phot, Pressure_IC, PressurePar_IC, FAC_C, &
          Ppar_IC, Bmin_C, eTimeAccumult_ICI, eChangeOperator_VICI, &
          driftin, driftout, rbsumGlobal, nOperator
     use ModFieldTrace,ONLY: iba,ekev
-    use ModGmCrcm,    ONLY: Den_IC
+    use ModGmCimi,    ONLY: Den_IC
     use ModIoUnit,    ONLY: UnitTmp_
-    use ModCrcmGrid,  ONLY: iProc,nProc,iComm
+    use ModCimiGrid,  ONLY: iProc,nProc,iComm
     use ModMpi
 
     real :: weight
@@ -67,21 +67,21 @@ contains
     endif
 
     
-  end subroutine crcm_read_restart
+  end subroutine cimi_read_restart
   
 
   !============================================================================
-  subroutine crcm_write_restart
-    use ModCrcmPlanet,ONLY: nspec
-    use ModCrcmGrid,  ONLY: np,nt,nm,nk,neng,MinLonPar,MaxLonPar
-    use ModCrcm,      ONLY: f2,time, phot, Pressure_IC, PressurePar_IC, &
+  subroutine cimi_write_restart
+    use ModCimiPlanet,ONLY: nspec
+    use ModCimiGrid,  ONLY: np,nt,nm,nk,neng,MinLonPar,MaxLonPar
+    use ModCimi,      ONLY: f2,time, phot, Pressure_IC, PressurePar_IC, &
          FAC_C, Ppar_IC, Bmin_C, &
          eTimeAccumult_ICI, eChangeOperator_VICI, &
          driftin, driftout, rbsumGlobal, nOperator
     use ModFieldTrace,ONLY: iba    
-    use ModGmCrcm,    ONLY: Den_IC
+    use ModGmCimi,    ONLY: Den_IC
     use ModIoUnit,    ONLY: UnitTmp_
-    use ModCrcmGrid,  ONLY: iProc,nProc,iComm,nLonPar,nLonPar_P,nLonBefore_P
+    use ModCimiGrid,  ONLY: iProc,nProc,iComm,nLonPar,nLonPar_P,nLonBefore_P
     use ModImSat,     ONLY: DoWriteSats,nImSats,NameSat_I,SatLoc_3I
     use ModMpi
 
@@ -247,6 +247,6 @@ contains
        end if
        
     endif
-  end subroutine crcm_write_restart
+  end subroutine cimi_write_restart
 
-end Module ModCrcmRestart
+end Module ModCimiRestart

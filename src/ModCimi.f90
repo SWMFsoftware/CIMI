@@ -1,11 +1,11 @@
-Module ModCrcm
-  use ModCrcmGrid
-  use ModCrcmPlanet,ONLY: nspec
+Module ModCimi
+  use ModCimiGrid
+  use ModCimiPlanet,ONLY: nspec
   implicit none
 
   SAVE
 
-  real    :: dt=1., dtmax=1. ! typical time step of crcm
+  real    :: dt=1., dtmax=1. ! typical time step of cimi
   real    :: Time = 0.0
   logical :: UseMcLimiter=.false.,UseStrongDiff=.false.
   real    :: BetaLimiter = 1.5
@@ -41,7 +41,7 @@ Module ModCrcm
   logical :: IsStandAlone=.false.
 contains
 
-  subroutine init_mod_crcm
+  subroutine init_mod_cimi
 
     if(allocated(f2)) RETURN
 
@@ -75,6 +75,6 @@ contains
     allocate(preP(nspec,np,nt,neng+2), preF(nspec,np,nt,neng+2), &
          Eje1(nspec,np,nt))
 
-  end subroutine init_mod_crcm
+  end subroutine init_mod_cimi
 
-end Module ModCrcm
+end Module ModCimi

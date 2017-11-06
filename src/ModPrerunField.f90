@@ -5,7 +5,7 @@ Module ModPrerunField
 contains
   !=============================================================================
   subroutine save_prerun(tSimulation)
-    use ModGmCrcm
+    use ModGmCimi
     use ModTsyInput, ONLY: xnswa, vswa,bxw,byw,bzw 
     use ModIoUnit,  ONLY: UnitTmp_
     real, intent(in) :: tSimulation
@@ -43,7 +43,7 @@ contains
     
   !=============================================================================
   subroutine read_prerun(tSimulation)
-    use ModGmCrcm
+    use ModGmCimi
     use ModTsyInput, ONLY: xnswa, vswa, bxw, byw, bzw
     use ModIoUnit,  ONLY: UnitTmp_
     real, intent(in) :: tSimulation
@@ -114,9 +114,9 @@ contains
 
   !=============================================================================
   subroutine save_prerun_IE(tSimulation)
-    use ModIeCrcm, ONLY: Potential_II => Pot
+    use ModIeCimi, ONLY: Potential_II => Pot
     use ModIoUnit,  ONLY: UnitTmp_
-    use ModCrcmGrid,    ONLY: nLat => np, nLon => nt
+    use ModCimiGrid,    ONLY: nLat => np, nLon => nt
     real, intent(in) :: tSimulation
     Character(len=100) :: NameFile             !output file name
     integer :: iTimeOut, iLat, iLon
@@ -139,9 +139,9 @@ contains
   
   !=============================================================================
   subroutine read_prerun_IE(tSimulation)
-    use ModIeCrcm, ONLY: Potential_II => Pot,UseIe
+    use ModIeCimi, ONLY: Potential_II => Pot,UseIe
     use ModIoUnit,   ONLY: UnitTmp_
-    use ModCrcmGrid,    ONLY: nLat => np, nLon => nt
+    use ModCimiGrid,    ONLY: nLat => np, nLon => nt
 
     real, intent(in) :: tSimulation
     integer          :: iTimeOut

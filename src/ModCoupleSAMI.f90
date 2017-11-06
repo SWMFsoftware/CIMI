@@ -41,7 +41,7 @@ Module ModCoupleSami
     !==========================================================================
     ! only call by proc 0
     subroutine cimi_get_init_for_sami
-      use ModCrcmGrid, ONLY: xlatr, nLat=>np, phi, nLon=>nt
+      use ModCimiGrid, ONLY: xlatr, nLat=>np, phi, nLon=>nt
       use ModImTime,   ONLY: iStartTime_I
       use ModMPI
       integer :: iError
@@ -71,8 +71,8 @@ Module ModCoupleSami
     !==========================================================================
     ! 
     subroutine cimi_send_to_sami
-      use ModCrcmGrid, ONLY: nLat=>np, phi, nLon=>nt, iProc
-      use ModIeCrcm,   ONLY: pot
+      use ModCimiGrid, ONLY: nLat=>np, phi, nLon=>nt, iProc
+      use ModIeCimi,   ONLY: pot
       use ModMPI
       integer :: iError
       integer :: iStatus_I(MPI_STATUS_SIZE)
@@ -88,7 +88,7 @@ Module ModCoupleSami
     
     !========================================================================
     subroutine cimi_put_init_from_sami
-      use ModCrcmGrid, ONLY: iProc,iComm, nLat=>np, nLon=>nt
+      use ModCimiGrid, ONLY: iProc,iComm, nLat=>np, nLon=>nt
       use ModMpi
       use ModNumConst,    ONLY: cDegToRad
       integer :: iStatus_I(MPI_STATUS_SIZE)
@@ -140,7 +140,7 @@ Module ModCoupleSami
     ! 
     subroutine cimi_get_from_sami(TimeSimulation)
       use ModMPI
-      use ModCrcmGrid, ONLY: iProc, nProc, iComm, nLat=>np, nLon=>nt      
+      use ModCimiGrid, ONLY: iProc, nProc, iComm, nLat=>np, nLon=>nt      
       use DensityTemp,    ONLY: density
       
       real, intent(in) :: TimeSimulation
@@ -216,7 +216,7 @@ Module ModCoupleSami
 
     !==========================================================================
     subroutine interpolate_sami_to_cimi(TimeSimulation)
-      use ModCrcmGrid, ONLY: nLat=>np, nLon=>nt,Lat_C=>xlatr,Lon_C=>phi      
+      use ModCimiGrid, ONLY: nLat=>np, nLon=>nt,Lat_C=>xlatr,Lon_C=>phi      
       use ModInterpolate, ONLY: bilinear
       use ModNumConst,    ONLY: cDegToRad,cPi,cTwoPi
       
@@ -317,7 +317,7 @@ Module ModCoupleSami
     end subroutine convert_cimi_to_sami_lat_lon
     !===========================================================================
     subroutine plot_coupled_values
-      use ModCrcmGrid, ONLY: nLat=>np, nLon=>nt,Lat_C=>xlatr,Lon_C=>phi      
+      use ModCimiGrid, ONLY: nLat=>np, nLon=>nt,Lat_C=>xlatr,Lon_C=>phi      
       use ModIoUnit,    ONLY: UnitTmp_
       use ModNumConst, ONLY: cDegToRad, cRadToDeg
       integer :: iLat, iLon

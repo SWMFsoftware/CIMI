@@ -4,10 +4,10 @@ EndModule ModDstOutput
 
 
 Module ModFieldTrace
-  use ModCrcmGrid,ONLY: ir=>np, ip=>nt, iw=>nm , ik=>nk, neng, energy, &
+  use ModCimiGrid,ONLY: ir=>np, ip=>nt, iw=>nm , ik=>nk, neng, energy, &
        UseExpandedGrid,MinLonPar,MaxLonPar,iProc,iComm,iProcMidnight,nProc,&
        iLonMidnight,nLonPar,nLonPar_P,nLonBefore_P
-  use ModCrcmPlanet,ONLY: nspec, amu_I
+  use ModCimiPlanet,ONLY: nspec, amu_I
   implicit none
   real, allocatable :: &
        bo(:,:), ro(:,:), xmlto(:,:), sinA(:,:,:), &
@@ -57,9 +57,9 @@ contains
   subroutine fieldpara(t,dt,c,q,rc,re,xlati,xmlt,phi,si,&
        xme)
     !use ModTsyInput, ONLY: imod
-    use ModCrcmPlanet,   ONLY: nspec
+    use ModCimiPlanet,   ONLY: nspec
     use ModNumConst,       ONLY: pi => cPi, cDegToRad
-    use ModCrcmInitialize, ONLY: xmm
+    use ModCimiInitialize, ONLY: xmm
     use ModMpi
     use ModImTime,         ONLY: iCurrentTime_I
     use ModDstOutput,      ONLY: DstOutput
@@ -146,7 +146,7 @@ contains
        endif
     endif
     !  Start field line tracing.  
-    call timing_start('crcm_trace')
+    call timing_start('cimi_trace')
     LONGITUDE: do j=MinLonPar,MaxLonPar
        irm(j)=ir
        LATITUDE: do i=1,ir
@@ -308,7 +308,7 @@ contains
 
 
           ! Field line integration using Taylor expansion method
-          call timing_start('crcm_taylor')
+          call timing_start('cimi_taylor')
           sumBn(0:nTaylor)=0.
           sumhBn(0:nTaylor)=0.
           do m=im2-1,1,-1 !im2 = middle of field line
@@ -384,7 +384,7 @@ contains
              h3(m)=ss2/ss1
           enddo
 
-          call timing_stop('crcm_taylor')
+          call timing_stop('cimi_taylor')
 
           si3(im2)=0.               ! equatorially mirroring
           tya3(im2)=tya3(im2-1)
@@ -418,7 +418,7 @@ contains
           yo(i,j)=yo(irm(j),j)
        enddo
     end do
-    call timing_stop('crcm_trace')
+    call timing_stop('cimi_trace')
 
     ! Peridic boundary condition
     !do i=1,ir        
@@ -922,7 +922,7 @@ contains
   subroutine mhd_trace_IM (Lat,Lon,re,iLat,iLon,np, &
        nAlt,FieldLength_I,Bfield_I,volume1,ro1,xmlt1,bo1,RadialDist_I)
 
-    use ModGmCrcm
+    use ModGmCimi
     use ModNumConst, ONLY: cPi
 
     integer,intent(in)  :: iLat,iLon,np

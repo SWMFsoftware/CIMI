@@ -1,8 +1,8 @@
  
-subroutine crcm_run(delta_t)
+subroutine cimi_run(delta_t)
   use ModConst,       ONLY: cLightSpeed, cElectronCharge
-  use ModCrcmInitialize, ONLY: xmm,xk,dphi,dmm,dk,delE,dmu, xjac
-  use ModCrcm,        ONLY: f2,dt, Time, phot, Ppar_IC, Pressure_IC, &
+  use ModCimiInitialize, ONLY: xmm,xk,dphi,dmm,dk,delE,dmu, xjac
+  use ModCimi,        ONLY: f2,dt, Time, phot, Ppar_IC, Pressure_IC, &
                             PressurePar_IC,FAC_C, Bmin_C, &
                             OpDrift_, OpBfield_, OpChargeEx_, &
                             OpWaves_, OpStrongDiff_, OpLossCone_, &
@@ -12,26 +12,26 @@ subroutine crcm_run(delta_t)
                             preP,preF,Eje1,UseStrongDiff,&
                             eChangeOperator_VICI,nOperator,&
                             eChangeLocal,eChangeGlobal
-  use ModCrcmPlanet,  ONLY: re_m, dipmom, Hiono, nspec, amu_I, &
+  use ModCimiPlanet,  ONLY: re_m, dipmom, Hiono, nspec, amu_I, &
                             dFactor_I,tFactor_I
   use ModFieldTrace,  ONLY: &
        fieldpara, brad=>ro, ftv=>volume, xo,yo,rb,irm,&
        ekev,iba,bo,pp,Have, sinA, vel, alscone, iw2,xmlto, bm
-  use ModGmCrcm,      ONLY: Den_IC,UseGm
-  use ModIeCrcm,      ONLY: UseWeimer, pot
-  use ModCrcmPlot,    ONLY: Crcm_plot, Crcm_plot_fls, &
-       			    Crcm_plot_psd,Crcm_plot_vl,Crcm_plot_vp, &
-                            crcm_plot_log, crcm_plot_precip, Crcm_plot_Lstar,&
+  use ModGmCimi,      ONLY: Den_IC,UseGm
+  use ModIeCimi,      ONLY: UseWeimer, pot
+  use ModCimiPlot,    ONLY: Cimi_plot, Cimi_plot_fls, &
+       			    Cimi_plot_psd,Cimi_plot_vl,Cimi_plot_vp, &
+                            cimi_plot_log, cimi_plot_precip, Cimi_plot_Lstar,&
                             DtOutput, DtLogOut,DoSavePlot, &
                             DoSaveFlux, DoSavePSD, DoSaveDrifts, DoSaveLog
-  use ModCrcmRestart, ONLY: IsRestart
+  use ModCimiRestart, ONLY: IsRestart
   use ModImTime
   use ModTimeConvert, ONLY: time_real_to_int
   use ModImSat,       ONLY: nImSats, write_im_sat, DoWriteSats, DtSatOut
-  use ModCrcmGrid,    ONLY: iProc,nProc,iComm,nLonPar,nLonPar_P,nLonBefore_P, &
+  use ModCimiGrid,    ONLY: iProc,nProc,iComm,nLonPar,nLonPar_P,nLonBefore_P, &
                             MinLonPar,MaxLonPar,nt,np,neng,npit,nm,nk,dlat,&
                             energy,phi,sinao,xlat,xmlt
-  use ModCrcmBoundary,ONLY: crcm_set_boundary_mhd, crcm_set_boundary_empirical
+  use ModCimiBoundary,ONLY: cimi_set_boundary_mhd, cimi_set_boundary_empirical
   use ModMpi
   use ModWaveDiff,    ONLY: UseWaveDiffusion, ReadDiffCoef, WavePower, & 
                             diffuse_aa, diffuse_EE, diffuse_aE, DiffStartT, &
@@ -87,10 +87,10 @@ subroutine crcm_run(delta_t)
   ! do field line integration and determine vel, ekev, momentum (pp), etc.
   rc=(re_m+Hiono*1000.)/re_m        ! ionosphere distance in RE`
 
-  call timing_start('crcm_fieldpara')
+  call timing_start('cimi_fieldpara')
   call fieldpara(Time,dt,cLightSpeed,cElectronCharge,rc,re_m,xlat,xmlt,phi,xk,&
                  dipmom)
-  call timing_stop('crcm_fieldpara')
+  call timing_stop('cimi_fieldpara')
 
   ! get Bmin, needs to be passed to GM for anisotropic pressure coupling
   Bmin_C = bo
@@ -98,9 +98,9 @@ subroutine crcm_run(delta_t)
   ! set the boundary and temperature and density (also sets the interior 
   ! density and temperature for I.C. but that is only if initial_f2 is called)
   if(.not.UseGm) then
-     call crcm_set_boundary_empirical
+     call cimi_set_boundary_empirical
   else
-     call crcm_set_boundary_mhd
+     call cimi_set_boundary_mhd
   endif
 
   ! Bcast DoWriteSats on firstcall
@@ -127,7 +127,7 @@ subroutine crcm_run(delta_t)
   ! contribution from Bfield change
   call sume_cimi(OpBfield_) 
 
-  ! calculate boundary flux (fb) at the CRCM outer boundary at the equator
+  ! calculate boundary flux (fb) at the CIMI outer boundary at the equator
   call boundaryIM(nspec,neng,np,nt,nm,nk,iba,irm,amu_I,xjac,energy,vel,fb)
 
   if (Time.ge.DiffStartT .and. UseWaveDiffusion) then
@@ -137,22 +137,22 @@ subroutine crcm_run(delta_t)
 
      ! Determines if the simple plasmasphere model needs to be used.
      if ( .not. DoCoupleSami ) then
-        call timing_start('crcm_simp_psphere')
+        call timing_start('cimi_simp_psphere')
         call get_kp(CurrentTime, Kp_temp, iError)        
         call simple_plasmasphere(Kp_temp)
-        call timing_stop('crcm_simp_psphere')
+        call timing_stop('cimi_simp_psphere')
      end if
 
      call WavePower(Time,AE_temp,iba)
   end if
   
   if (Time == 0.0 .and. nProc == 1 .and. DoSavePlot) then
-     call timing_start('crcm_output')
-     call crcm_output(np,nt,nm,nk,nspec,neng,npit,iba,ftv,f2,ekev, &
+     call timing_start('cimi_output')
+     call cimi_output(np,nt,nm,nk,nspec,neng,npit,iba,ftv,f2,ekev, &
           sinA,energy,sinAo,delE,dmu,amu_I,xjac,pp,xmm,dmm,dk,xlat,dphi, &
           re_m,Hiono,vp,vL,flux,FAC_C,phot,Ppar_IC,Pressure_IC,PressurePar_IC, &
           vlEa,vpEa,psd)
-     call timing_stop('crcm_output')
+     call timing_stop('cimi_output')
      
      call timing_start('calc_Lstar1')
      call calc_Lstar1(Lstar_C,Lstar_max,rc)
@@ -162,75 +162,75 @@ subroutine crcm_run(delta_t)
      call calc_Lstar2(Lstarm,Lstar_maxm,rc)
      call timing_stop('calc_Lstar2')
 
-     call timing_start('crcm_plot')
-     call Crcm_plot(np,nt,xo,yo,Pressure_IC,PressurePar_IC,phot,Ppar_IC,Den_IC,&
+     call timing_start('cimi_plot')
+     call Cimi_plot(np,nt,xo,yo,Pressure_IC,PressurePar_IC,phot,Ppar_IC,Den_IC,&
           bo,ftv,pot,FAC_C,Time,dt,Lstar_C)
-     call timing_stop('crcm_plot')
+     call timing_stop('cimi_plot')
 
-     call timing_start('crcm_plot_log')
-     call crcm_plot_log(Time)
-     call timing_stop('crcm_plot_log')
+     call timing_start('cimi_plot_log')
+     call cimi_plot_log(Time)
+     call timing_stop('cimi_plot_log')
 
-     if (DoSaveFlux) call Crcm_plot_fls(rc,flux,time,Lstar_C,Lstar_max)
-     if (DoSavePSD) call Crcm_plot_psd(rc,psd,xmm,xk,time)
+     if (DoSaveFlux) call Cimi_plot_fls(rc,flux,time,Lstar_C,Lstar_max)
+     if (DoSavePSD) call Cimi_plot_psd(rc,psd,xmm,xk,time)
      if (DoSaveFlux.or.DoSavePSD) call &
-        Crcm_plot_Lstar(rc,xk,time,Lstarm,Lstar_maxm)
+        Cimi_plot_Lstar(rc,xk,time,Lstarm,Lstar_maxm)
      if (DoSaveDrifts) then
-        call Crcm_plot_vl(rc,vlEa,time)
-        call Crcm_plot_vp(rc,vpEa,time)
+        call Cimi_plot_vl(rc,vlEa,time)
+        call Cimi_plot_vp(rc,vpEa,time)
      endif
   endif
   
   ! calculate the ionospheric potential (if not using MHD potential)
   if (UseWeimer) then
-     call timing_start('set_crcm_potential')
-     call set_crcm_potential(CurrentTime,rc) 
-     call timing_stop('set_crcm_potential')
+     call timing_start('set_cimi_potential')
+     call set_cimi_potential(CurrentTime,rc) 
+     call timing_stop('set_cimi_potential')
   endif
 
   ! calculate the drift velocity
-  call timing_start('crcm_driftV')
+  call timing_start('cimi_driftV')
   call driftV(nspec,np,nt,nm,nk,irm,re_m,Hiono,dipmom,dphi,xlat, &
        dlat,ekev,pot,vl,vp)
-  call timing_stop('crcm_driftV')
+  call timing_stop('cimi_driftV')
 
   ! calculate the depreciation factor, achar, due to charge exchange loss
-  call timing_start('crcm_ceparaIM')
+  call timing_start('cimi_ceparaIM')
   call ceparaIM(nspec,np,nt,nm,nk,irm,dt,vel,ekev,Have,achar)
-  call timing_stop('crcm_ceparaIM')
+  call timing_stop('cimi_ceparaIM')
 
   if (UseStrongDiff) then
      ! Calculate the strong diffusion lifetime for electrons
-     call timing_start('crcm_StDiTime')
+     call timing_start('cimi_StDiTime')
      call StDiTime(dt,vel,ftv,rc,re_m,dipmom,iba)
-     call timing_stop('crcm_StDiTime')
+     call timing_stop('cimi_StDiTime')
   endif
   
   ! time loop
   do n=1,nstep
 
-     call timing_start('crcm_driftIM')
+     call timing_start('cimi_driftIM')
      call driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
           fb,f2,driftin,driftout,ib0)
      call sume_cimi(OpDrift_)
-     call timing_stop('crcm_driftIM')
+     call timing_stop('cimi_driftIM')
      
-     call timing_start('crcm_charexchange')
+     call timing_start('cimi_charexchange')
      call charexchangeIM(np,nt,nm,nk,nspec,iba,achar,f2)
      call sume_cimi(OpChargeEx_)
-     call timing_stop('crcm_charexchange') 
+     call timing_stop('cimi_charexchange') 
      
      if (Time.ge.DiffStartT .and. UseWaveDiffusion) then
 
-        call timing_start('crcm_WaveDiffusion')
+        call timing_start('cimi_WaveDiffusion')
         
-        call timing_start('crcm_Diffuse_aa')
+        call timing_start('cimi_Diffuse_aa')
         call diffuse_aa(f2,dt,xjac,iba,iw2)
-        call timing_stop('crcm_Diffuse_aa')
+        call timing_stop('cimi_Diffuse_aa')
 
-        call timing_start('crcm_Diffuse_EE')
+        call timing_start('cimi_Diffuse_EE')
         call diffuse_EE(f2,dt,xmm,xjac,iw2,iba)
-        call timing_stop('crcm_Diffuse_EE')
+        call timing_stop('cimi_Diffuse_EE')
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!        
@@ -241,36 +241,36 @@ subroutine crcm_run(delta_t)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!        
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         
-!!$        call timing_start('crcm_Diffuse_aE')
+!!$        call timing_start('cimi_Diffuse_aE')
 !!$        call diffuse_aE(f2,dt,xjac,iw2,iba,Time)
-!!$        call timing_stop('crcm_Diffuse_aE')
+!!$        call timing_stop('cimi_Diffuse_aE')
 
         call sume_cimi(OpWaves_)
-        call timing_stop('crcm_WaveDiffusion')
+        call timing_stop('cimi_WaveDiffusion')
         
         call interpolate_ae(CurrentTime, AE_temp)
 
         if ( .not. DoCoupleSami ) then
-           call timing_start('crcm_simp_psphere')
+           call timing_start('cimi_simp_psphere')
            call get_kp(CurrentTime, Kp_temp, iError)        
            call simple_plasmasphere(Kp_temp)
-           call timing_stop('crcm_simp_psphere')
+           call timing_stop('cimi_simp_psphere')
         end if
 
         call WavePower(Time,AE_temp,iba)
      endif
 
      if (UseStrongDiff) then
-        call timing_start('crcm_StrongDiff')
+        call timing_start('cimi_StrongDiff')
         call StrongDiff(iba)
         call sume_cimi(OpStrongDiff_)
-        call timing_stop('crcm_StrongDiff')
+        call timing_stop('cimi_StrongDiff')
      endif
      
-     call timing_start('crcm_lossconeIM')
+     call timing_start('cimi_lossconeIM')
      call lossconeIM(np,nt,nm,nk,nspec,iba,alscone,f2)
      call sume_cimi(OpLossCone_)
-     call timing_stop('crcm_lossconeIM')
+     call timing_stop('cimi_lossconeIM')
      
      Time = Time+dt
      ! Update CurrentTime and iCurrentTime_I
@@ -282,17 +282,17 @@ subroutine crcm_run(delta_t)
   ! (DtLogOut in this case)
   if( (floor((Time+1.0e-5)/DtLogOut))/=&
        floor((Time+1.0e-5-delta_t)/DtLogOut)) then
-     call timing_start('crcm_precip_calc')
-     call crcm_precip_calc(rc,DtLogOut)
-     call timing_stop('crcm_precip_calc')
+     call timing_start('cimi_precip_calc')
+     call cimi_precip_calc(rc,DtLogOut)
+     call timing_stop('cimi_precip_calc')
   endif
 
-  call timing_start('crcm_output')
-  call crcm_output(np,nt,nm,nk,nspec,neng,npit,iba,ftv,f2,ekev, &
+  call timing_start('cimi_output')
+  call cimi_output(np,nt,nm,nk,nspec,neng,npit,iba,ftv,f2,ekev, &
        sinA,energy,sinAo,delE,dmu,amu_I,xjac,pp,xmm,dmm,dk,xlat,dphi, &
        re_m,Hiono,vl,vp,flux,FAC_C,phot,Ppar_IC,Pressure_IC,PressurePar_IC,&
        vlEa,vpEa,psd)
-  call timing_stop('crcm_output')
+  call timing_stop('cimi_output')
   
   ! When nProc >1 consolodate: phot, Ppar_IC, Pressure_IC,
   ! PressurePar_IC, fac and iba on iProc 0
@@ -526,16 +526,16 @@ subroutine crcm_run(delta_t)
         call calc_Lstar2(Lstarm,Lstar_maxm,rc)
         call timing_stop('calc_Lstar2')
 
-        call timing_start('crcm_plot')
-        call Crcm_plot(np,nt,xo,yo,Pressure_IC,PressurePar_IC,phot,&
+        call timing_start('cimi_plot')
+        call Cimi_plot(np,nt,xo,yo,Pressure_IC,PressurePar_IC,phot,&
              Ppar_IC,Den_IC,bo,ftv,pot,FAC_C,Time,dt,Lstar_C)
-        call timing_stop('crcm_plot')
+        call timing_stop('cimi_plot')
 
-        if (DoSaveFlux) call Crcm_plot_fls(rc,flux,time,Lstar_C,Lstar_max)
-        if (DoSavePSD) call Crcm_plot_psd(rc,psd,xmm,xk,time)
+        if (DoSaveFlux) call Cimi_plot_fls(rc,flux,time,Lstar_C,Lstar_max)
+        if (DoSavePSD) call Cimi_plot_psd(rc,psd,xmm,xk,time)
         if (DoSaveDrifts) then
-           call Crcm_plot_vl(rc,vlEa,time)
-           call Crcm_plot_vp(rc,vpEa,time)
+           call Cimi_plot_vl(rc,vlEa,time)
+           call Cimi_plot_vp(rc,vpEa,time)
         endif
      endif
   
@@ -544,9 +544,9 @@ subroutine crcm_run(delta_t)
           (floor((Time+1.0e-5)/DtSatOut))/=&
           floor((Time+1.0e-5-delta_t)/DtSatOut))then
         do iSat=1,nImSats
-           call timing_start('crcm_write_im_sat')
+           call timing_start('cimi_write_im_sat')
            call write_im_sat(iSat,np,nt,neng,npit,flux)
-           call timing_stop('crcm_write_im_sat')
+           call timing_stop('cimi_write_im_sat')
         enddo
      endif
 
@@ -554,28 +554,28 @@ subroutine crcm_run(delta_t)
      if(DoSaveLog .and. &
           (floor((Time+1.0e-5)/DtLogOut))/=&
           floor((Time+1.0e-5-delta_t)/DtLogOut))then
-        call timing_start('crcm_plot_log')
-        call crcm_plot_log(Time)
-        call timing_stop('crcm_plot_log')
+        call timing_start('cimi_plot_log')
+        call cimi_plot_log(Time)
+        call timing_stop('cimi_plot_log')
      endif
 
      ! Write precipitation file
      if(DoSaveLog .and. &
           (floor((Time+1.0e-5)/DtLogOut))/=&
           floor((Time+1.0e-5-delta_t)/DtLogOut))then
-        call timing_start('crcm_plot_precip')
-        call crcm_plot_precip(rc,Time)
-        call timing_stop('crcm_plot_precip')
+        call timing_start('cimi_plot_precip')
+        call cimi_plot_precip(rc,Time)
+        call timing_stop('cimi_plot_precip')
      endif
 
   endif
 
-end subroutine Crcm_run
+end subroutine Cimi_run
 
 !-----------------------------------------------------------------------------
-subroutine crcm_init
+subroutine cimi_init
   !---------------------------------------------------------------------------
-  ! Routine does CRCM initialization: fill arrays
+  ! Routine does CIMI initialization: fill arrays
   !
   ! Input: np,nt,neng,npit,nspec,re_m,dipmom,Hiono
   ! Output: xlat,xmlt,energy,sinAo (through augments)
@@ -585,11 +585,11 @@ subroutine crcm_init
   use ModPlanetConst, ONLY: Earth_,DipoleStrengthPlanet_I,rPlanet_I
   use ModConst,       ONLY: cElectronCharge
   use ModNumConst,    ONLY: cDegToRad,cRadToDeg,cPi
-  use ModCrcmPlanet,  ONLY: re_m, dipmom, Hiono, amu_I, nspec
-  use ModCrcmInitialize
-  use ModCrcmRestart, ONLY: IsRestart, crcm_read_restart
+  use ModCimiPlanet,  ONLY: re_m, dipmom, Hiono, amu_I, nspec
+  use ModCimiInitialize
+  use ModCimiRestart, ONLY: IsRestart, cimi_read_restart
   use ModImTime
-  use ModCrcmGrid,    ONLY: iProcLeft, iProcRight, iLonLeft, iLonRight, &
+  use ModCimiGrid,    ONLY: iProcLeft, iProcRight, iLonLeft, iLonRight, &
        d4Element_C, MinIonEnergy, MaxIonEnergy, iProc,nLonPar, nt, nProc,&
        nLonBefore_P, nLonPar_P, MinLonPar, MaxLonPar, nLonPar_P, &
        iLonMidnight, iProcMidnight, nLonPar_P, np, xlatr, sinao, npit, energy, &
@@ -667,7 +667,7 @@ subroutine crcm_init
   re_m = rPlanet_I(Earth_)                            ! earth's radius (m)
   dipmom=abs(DipoleStrengthPlanet_I(Earth_)*re_m**3)  ! earth's dipole moment
   
-  ! CRCM xlat and xmlt grids
+  ! CIMI xlat and xmlt grids
   do i=1,np
      xlat(i)=xlat_data(i)
      dlat(i)=0.5*(xlat_data(i+1)-xlat_data(i-1))*cDegToRad    ! dlat in radian
@@ -679,9 +679,9 @@ subroutine crcm_init
      xmlt(i)=mod(phi(i)*12.0/cPi + 12.0,24.0)   
   enddo
 
-  ! CRCM output grids: energy, sinAo, delE1, dmu1
+  ! CIMI output grids: energy, sinAo, delE1, dmu1
 
-!!$  Replacing old grids in CRCM with those of Mei-Ching's standalone CIMI.
+!!$  Replacing old grids in CIMI with those of Mei-Ching's standalone CIMI.
 !!$  -Colin 07/23/2015.
   
 !!$  energy_ion=(/1.0000,1.6795,2.8209,4.7378,7.9574,13.365, &
@@ -742,7 +742,7 @@ subroutine crcm_init
      Ebound(n,neng)=energy(n,neng)*energy(n,neng)/Ebound(n,neng-1)
   enddo
 
-  ! CRCM magnetic moment, xmm1
+  ! CIMI magnetic moment, xmm1
  do n=1,nspec
   xmm(n,1)=energy(n,1)*cElectronCharge/(dipmom/(2*re_m)**3.0)
 !  dmm(n,1)=xmm(n,1)*2.              
@@ -760,7 +760,7 @@ subroutine crcm_init
       xmm(n,nm+1)=xmm(n,nm)*rw
  enddo
 
-  ! CRCM K, xk
+  ! CIMI K, xk
   rsi=1.47
   xk(1)=40.*rsi
   rs1=(rsi-1.)/sqrt(rsi) ! in following sutup: xk(i+0.5)=sqrt(xk(i)*xk(i+1))
@@ -797,10 +797,10 @@ subroutine crcm_init
 
   if(IsRestart) then
      !set initial state when restarting
-     call crcm_read_restart
+     call cimi_read_restart
   endif
 
-end subroutine crcm_init
+end subroutine cimi_init
 
 !-------------------------------------------------------------------------------
 subroutine initial_f2(nspec,np,nt,iba,amu_I,vel,xjac,ib0)
@@ -811,14 +811,14 @@ subroutine initial_f2(nspec,np,nt,iba,amu_I,vel,xjac,ib0)
   ! Output: ib0,f2,rbsum,xleb,xled,xlel,xlee,xles,driftin,driftout
   !         (through common block cinitial_f2)
   use ModIoUnit, ONLY: UnitTmp_
-  use ModGmCrcm, ONLY: Den_IC, Temp_IC, Temppar_IC, DoAnisoPressureGMCoupling
-  use ModCrcm,   ONLY: f2, nOperator, driftin, driftout, &
+  use ModGmCimi, ONLY: Den_IC, Temp_IC, Temppar_IC, DoAnisoPressureGMCoupling
+  use ModCimi,   ONLY: f2, nOperator, driftin, driftout, &
        eChangeOperator_VICI, echangeLocal, eChangeGlobal, &
        pChangeOperator_VICI, eTimeAccumult_ICI, pTimeAccumult_ICI, &
        rbsumLocal, rbsumGlobal, rcsumLocal, rcsumGlobal
-  use ModCrcmInitialize,   ONLY: IsEmptyInitial, IsDataInitial, IsRBSPData, &
+  use ModCimiInitialize,   ONLY: IsEmptyInitial, IsDataInitial, IsRBSPData, &
        IsGmInitial
-  use ModCrcmGrid,ONLY: nm,nk,MinLonPar,MaxLonPar,iProc,nProc,iComm,d4Element_C,neng
+  use ModCimiGrid,ONLY: nm,nk,MinLonPar,MaxLonPar,iProc,nProc,iComm,d4Element_C,neng
   use ModFieldTrace, ONLY: sinA,ro, ekev,pp,iw2,irm
   use ModMpi
   use ModWaveDiff, ONLY:  testDiff_aa,testDiff_EE,testDiff_aE
@@ -826,7 +826,7 @@ subroutine initial_f2(nspec,np,nt,iba,amu_I,vel,xjac,ib0)
   implicit none
 
   integer,parameter :: np1=51,nt1=48,nspec1=1  
-  !integer,parameter :: nm=35,nk=28 ! dimension of CRCM magnetic moment and K
+  !integer,parameter :: nm=35,nk=28 ! dimension of CIMI magnetic moment and K
  
   integer nspec,np,nt,iba(nt),ib0(nt),n,j,i,k,m, iError
   real amu_I(nspec),vel(nspec,np,nt,nm,nk)
@@ -918,7 +918,7 @@ subroutine initial_f2(nspec,np,nt,iba,amu_I,vel,xjac,ib0)
         ei(:)=log10(ei(:))                      ! take log of ei         
         fi(:,:)=log10(fi(:,:))                  ! take log of fi
         
-        !interpolate data from quiet.fin files to CRCM grid
+        !interpolate data from quiet.fin files to CIMI grid
         do j=MinLonPar,MaxLonPar
            do i=1,irm(j)
               roii=ro(i,j)
@@ -974,7 +974,7 @@ end subroutine initial_f2
 subroutine boundaryIM(nspec,neng,np,nt,nm,nk,iba,irm,amu_I,xjac,energy,vel,fb)
   !-----------------------------------------------------------------------------
   !  *Relativistic version of boundary PSD.*
-  ! Routine setup the boundary distribution for the CRCM. Distribution
+  ! Routine setup the boundary distribution for the CIMI. Distribution
   ! at the boundary is assumed to be Maxwellian for ions and a kappa
   ! (kappa=3) distribution for electrons. Boundary temperature and
   ! density are from MHD (or empirical models if Weimer/Tsyganenko fields are
@@ -983,11 +983,11 @@ subroutine boundaryIM(nspec,neng,np,nt,nm,nk,iba,irm,amu_I,xjac,energy,vel,fb)
   ! Input: nspec,np,nt,nm,nk,iba,irm,amu,xjac,Den_IC,Temp_IC,vel
   ! Output: fb
   ! 
-  Use ModGmCrcm, ONLY:  Temp_IC, Temppar_IC, DoAnisoPressureGMCoupling
-  use ModCrcm,        ONLY: MinLonPar,MaxLonPar, f2
-  use ModCrcmGrid, ONLY: MinLonPar,MaxLonPar
+  Use ModGmCimi, ONLY:  Temp_IC, Temppar_IC, DoAnisoPressureGMCoupling
+  use ModCimi,        ONLY: MinLonPar,MaxLonPar, f2
+  use ModCimiGrid, ONLY: MinLonPar,MaxLonPar
   use ModFieldTrace,  ONLY: sinA,ekev,iw2,pp
-  use ModCrcmBoundary,ONLY: BoundaryDens_IC,BoundaryTemp_IC,BoundaryTempPar_IC
+  use ModCimiBoundary,ONLY: BoundaryDens_IC,BoundaryTemp_IC,BoundaryTempPar_IC
 
   implicit none
 
@@ -1114,8 +1114,8 @@ subroutine ceparaIM(nspec,np,nt,nm,nk,irm,dt,vel,ekev,Have,achar)
   !
   ! Input: irm,nspec,np,nt,nm,nk,dt,vel,ekev,Have     ! Have: bounce-ave [H]
   ! Output: achar
-  use ModCrcmPlanet,  ONLY: a0_I,a1_I,a2_I,a3_I,a4_I
-  use ModCrcm,       ONLY: MinLonPar,MaxLonPar
+  use ModCimiPlanet,  ONLY: a0_I,a1_I,a2_I,a3_I,a4_I
+  use ModCimi,       ONLY: MinLonPar,MaxLonPar
   
   implicit none
 
@@ -1144,12 +1144,12 @@ subroutine ceparaIM(nspec,np,nt,nm,nk,irm,dt,vel,ekev,Have,achar)
 end subroutine ceparaIM
 
 !-------------------------------------------------------------------------------
-subroutine set_crcm_potential(CurrentTime,rc)
+subroutine set_cimi_potential(CurrentTime,rc)
   !-----------------------------------------------------------------------------
   ! Routine sets the ionospheric potentials from weimer when not using MHD input
   !
-  use ModCrcmGrid, ONLY: xlatr, xmlt, np, nt
-  use ModIeCrcm,   ONLY: pot
+  use ModCimiGrid, ONLY: xlatr, xmlt, np, nt
+  use ModIeCimi,   ONLY: pot
 !  use ModTsyInput, ONLY: xnswa,vswa,bxw,byw,bzw
   use ModMpi 
   use EIE_ModWeimer, ONLY: setmodel00, boundarylat00, epotval00
@@ -1207,7 +1207,7 @@ subroutine set_crcm_potential(CurrentTime,rc)
      
      if (iError /= 0) then
         call con_stop&
-             ("IM_ERROR: Problem setting solar wind in set_crcm_potential")
+             ("IM_ERROR: Problem setting solar wind in set_cimi_potential")
      end if
 !  endif
   angle=atan2(by,bz)*180./cPi       ! degrees from northward toward +Y
@@ -1230,7 +1230,7 @@ subroutine set_crcm_potential(CurrentTime,rc)
      enddo
   enddo
   
-end subroutine set_crcm_potential
+end subroutine set_cimi_potential
   
 
 
@@ -1242,7 +1242,7 @@ subroutine driftV(nspec,np,nt,nm,nk,irm,re_m,Hiono,dipmom,dphi,xlat, &
   !
   ! Input: re_m,Hiono,dipmom,dphi,xlat,dlat,ekev,pot,nspec,np,nt,nm,nk,irm
   ! Output: vl,vp
-  use ModCrcmGrid, ONLY: iProc,nProc,iComm,MinLonPar,MaxLonPar, &
+  use ModCimiGrid, ONLY: iProc,nProc,iComm,MinLonPar,MaxLonPar, &
        iProcLeft, iLonLeft, iProcRight, iLonRight
   use ModMpi
   use ModFieldTrace, ONLY: UseCorotation
@@ -1357,9 +1357,9 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
   !
   ! Input: iw2,nspec,np,nt,nm,nk,iba,dt,dlat,dphi,brad,rb,vl,vp,fbi
   ! Input/Output: f2,ib0,driftin,driftout
-  use ModCrcmGrid, ONLY: MinLonPar, MaxLonPar
+  use ModCimiGrid, ONLY: MinLonPar, MaxLonPar
   use ModFieldTrace, ONLY: iba, ekev
-  use ModCrcmGrid, ONLY: iProc,nProc,iComm,MinLonPar,MaxLonPar, &
+  use ModCimiGrid, ONLY: iProc,nProc,iComm,MinLonPar,MaxLonPar, &
        iProcLeft, iLonLeft, iProcRight, iLonRight, d4Element_C    
   use ModMpi
   implicit none
@@ -1550,7 +1550,7 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
                              f2d(i,j)=0.
                           else
                              !write(*,*)'IM ERROR: f2d < 0 in drift ',n,i,j,k,m
-                             !call CON_STOP('CRCM dies in driftIM')
+                             !call CON_STOP('CIMI dies in driftIM')
                              !write(*,*)'IM WARNING: f2d < 0 in drift ',n,i,j,k,m
                              !write(*,*)'IM WARNING: upwind scheme failed, setting f2d(i,j)=0.0'
                              !write(*,*)'IM WARNING: repeated failure may need to be examined'
@@ -1611,7 +1611,7 @@ subroutine charexchangeIM(np,nt,nm,nk,nspec,iba,achar,f2)
   !
   ! Input: np,nt,nm,nk,nspec,achar   ! charge exchange depreciation of H+ 
   ! Input/Output: f2
-  use ModCrcm,       ONLY: MinLonPar,MaxLonPar
+  use ModCimi,       ONLY: MinLonPar,MaxLonPar
   implicit none
 
   integer np,nt,nm,nk,nspec,iba(nt),n,i,j
@@ -1632,9 +1632,9 @@ end subroutine charexchangeIM
 !  Routine calculate the strong diffusion lifetime for electrons.     
 !*****************************************************************************
 subroutine StDiTime(dt,vel,volume,rc,re_m,xme,iba)
-  use ModCrcm,       ONLY: SDtime
-  use ModCrcmGrid,   ONLY: np,nt,nm,nk, xlatr,MinLonPar,MaxLonPar
-  use ModCrcmPlanet, ONLY: nspec
+  use ModCimi,       ONLY: SDtime
+  use ModCimiGrid,   ONLY: np,nt,nm,nk, xlatr,MinLonPar,MaxLonPar
+  use ModCimiPlanet, ONLY: nspec
   real vel(nspec,np,nt,nm,nk),volume(np,nt)
   integer iba(nt)
   
@@ -1668,9 +1668,9 @@ end subroutine StDiTime
 !  Routine calculate the change of electron psd (f2) by strong diffusion  
 !***********************************************************************        
 subroutine StrongDiff(iba)                               
-  use ModCrcm,       ONLY: SDtime,f2
-  use ModCrcmGrid,   ONLY: np,nt,nm,nk,MinLonPar,MaxLonPar
-  use ModCrcmPlanet, ONLY: nspec  
+  use ModCimi,       ONLY: SDtime,f2
+  use ModCimiGrid,   ONLY: np,nt,nm,nk,MinLonPar,MaxLonPar
+  use ModCimiPlanet, ONLY: nspec  
   implicit none
   integer iba(nt),i,j,k,m
   
@@ -1696,7 +1696,7 @@ subroutine lossconeIM(np,nt,nm,nk,nspec,iba,alscone,f2)
   ! 
   ! Input: np,nt,nm,nk,nspec,iba,alscone
   ! Input/Output: f2
-  use ModCrcm,       ONLY: MinLonPar,MaxLonPar
+  use ModCimi,       ONLY: MinLonPar,MaxLonPar
   implicit none
 
   integer np,nt,nm,nk,nspec,iba(nt),n,i,j,k,m
@@ -1725,10 +1725,10 @@ subroutine sume(xle)
 ! 
 ! Input: f2,ekev,iba
 ! Input/Output: rbsum,xle
-  use ModCrcm,       ONLY: rbsumLocal
+  use ModCimi,       ONLY: rbsumLocal
   use ModFieldTrace, ONLY: iba
-  use ModCrcmGrid,   ONLY: nProc,iProc,iComm
-  use ModCrcmPlanet, ONLY: nspec
+  use ModCimiGrid,   ONLY: nProc,iProc,iComm
+  use ModCimiPlanet, ONLY: nspec
   use ModMPI
   implicit none
   
@@ -1759,8 +1759,8 @@ end subroutine sume
 !==============================================================================
 
 subroutine calc_rbsumlocal(iSpecies)
-  use ModCrcm,       ONLY: f2,rbsumLocal
-  use ModCrcmGrid,   ONLY: np,nm,nk,MinLonPar,MaxLonPar,d4Element_C
+  use ModCimi,       ONLY: f2,rbsumLocal
+  use ModCimiGrid,   ONLY: np,nm,nk,MinLonPar,MaxLonPar,d4Element_C
   use ModFieldTrace, ONLY: iba, ekev
   implicit none
 
@@ -1797,22 +1797,22 @@ subroutine sume_cimi(OperatorName)
 ! 	because it's total energy
 !  
 !!!!!!!!!!!!!!!!
-  use ModCrcm,       ONLY: &
+  use ModCimi,       ONLY: &
        f2,rbsum=>rbsumLocal,rbsumGlobal,rcsum=>rcsumLocal,rcsumGlobal,&
        xle=>eChangeOperator_VICI,ple=>pChangeOperator_VICI, &
        eChangeGlobal,eChangeLocal, &
        esum=>eTimeAccumult_ICI,psum=>pTimeAccumult_ICI
   use ModFieldTrace, ONLY: iba,irm,ekev,ro,iw2
-  use ModCrcmGrid,   ONLY: &
+  use ModCimiGrid,   ONLY: &
        nProc,iProc,iComm, MinLonPar,MaxLonPar,d4Element_C, &
        ip=>np,ir=>nt,im=>nm,ik=>nk,je=>neng,Energy,Ebound
-  use ModCrcmPlanet, ONLY: nspec
+  use ModCimiPlanet, ONLY: nspec
   use ModMPI
   use ModWaveDiff,    ONLY: testDiff_aE 
 
   implicit none
 
-  integer OperatorName   ! defined in ModCrcm
+  integer OperatorName   ! defined in ModCimi
   real    :: weight,ekev1,weighte,dee,dpe
   integer n,i,j,k,m,iError,kk
   real gride1(0:je+1),e0(ip,ir,je+2),p0(ip,ir,je+2)
@@ -1898,21 +1898,21 @@ end subroutine sume_cimi
 
 !==============================================================================
 
-subroutine crcm_output(np,nt,nm,nk,nspec,neng,npit,iba,ftv,f2,ekev, &
+subroutine cimi_output(np,nt,nm,nk,nspec,neng,npit,iba,ftv,f2,ekev, &
      sinA,energy,sinAo,delE,dmu,amu_I,xjac,pp,xmm, &
      dmm,dk,xlat,dphi,re_m,Hiono,vl,vp, &
      flux,fac,phot,Ppar_IC,Pressure_IC,PressurePar_IC,vlEa,vpEa,psd)
   !-----------------------------------------------------------------------------
-  ! Routine calculates CRCM output, flux, fac and phot from f2
+  ! Routine calculates CIMI output, flux, fac and phot from f2
   ! Routine also converts the particle drifts from (m,K) space to (E,a) space
   !
   ! Input: np,nt,nm,nk,nspec,neng,npit,iba,ftv,f2,ekev,sinA,energy,sinAo,xjac
   !        delE,dmu,amu_I,xjac,pp,xmm,dmm,dk,xlat,dphi,re_m,Hiono,vl,vp
   ! Output: flux,fac,phot,Ppar_IC,Den_IC,Temp_IC,vlEa,vpEa,psd
-  Use ModGmCrcm, ONLY: Den_IC, Temp_IC
+  Use ModGmCimi, ONLY: Den_IC, Temp_IC
   use ModConst,   ONLY: cProtonMass
   use ModNumConst,ONLY: cPi, cDegToRad
-  use ModCrcmGrid,ONLY: iProc,nProc,iComm,MinLonPar,MaxLonPar,&
+  use ModCimiGrid,ONLY: iProc,nProc,iComm,MinLonPar,MaxLonPar,&
        iProcLeft, iLonLeft, iProcRight, iLonRight
   use ModMpi
   use ModFieldTrace, ONLY: ro
@@ -1952,7 +1952,7 @@ subroutine crcm_output(np,nt,nm,nk,nspec,neng,npit,iba,ftv,f2,ekev, &
 !  delEE=delE*sqrt(energy)
   xlatr=xlat*cDegToRad
 
-  ! Calculate CRCM ion density (m^-3), Den_IC, and flux (cm^-2 s^-1 keV^-1 sr^-1)
+  ! Calculate CIMI ion density (m^-3), Den_IC, and flux (cm^-2 s^-1 keV^-1 sr^-1)
   ! at fixed energy & pitch-angle grids 
 
  ! aloge=log10(energy)
@@ -2151,21 +2151,21 @@ subroutine crcm_output(np,nt,nm,nk,nspec,neng,npit,iba,ftv,f2,ekev, &
   else
      fac(:,:)=0.0
   endif
-end subroutine crcm_output
+end subroutine cimi_output
 
 
-subroutine crcm_precip_calc(rc,dsec)
+subroutine cimi_precip_calc(rc,dsec)
 
-  use ModCrcm,       ONLY: &
+  use ModCimi,       ONLY: &
        preF, preP, Eje1, &
        xlel=>eChangeOperator_VICI, plel=>pChangeOperator_VICI, &
        OpLossCone_, OpLossCone0_
   use ModFieldTrace, ONLY: iba
-  use ModCrcmGrid,   ONLY: &
+  use ModCimiGrid,   ONLY: &
        nProc,iProc,iComm,MinLonPar,MaxLonPar,nt,np,neng,xlatr,xmlt,dlat
-  use ModCrcmPlanet, ONLY: nspec,re_m
+  use ModCimiPlanet, ONLY: nspec,re_m
   use ModMPI
-  use ModCrcmInitialize, ONLY: dphi
+  use ModCimiInitialize, ONLY: dphi
   
   implicit none
   
@@ -2203,7 +2203,7 @@ subroutine crcm_precip_calc(rc,dsec)
   xlel(:,:,:,:,OpLossCone0_) = xlel(:,:,:,:,OpLossCone_)
   plel(:,:,:,:,OpLossCone0_) = plel(:,:,:,:,OpLossCone_)
   
-end subroutine crcm_precip_calc
+end subroutine cimi_precip_calc
 
 
 !-------------------------------------------------------------------------------
@@ -2214,8 +2214,8 @@ subroutine FLS_2D(np,nt,iba,fb0,fb1,cl,cp,f2d,fal,fap,fupl,fupp)
   !
   !  Input: np,nt,iba,fb0,fb1,cl,cp,f2d
   !  Output: fal,fap
-  use ModCrcm, ONLY: UseMcLimiter, BetaLimiter
-  use ModCrcm,       ONLY: MinLonPar,MaxLonPar
+  use ModCimi, ONLY: UseMcLimiter, BetaLimiter
+  use ModCimi,       ONLY: MinLonPar,MaxLonPar
   implicit none
 
   integer np,nt,iba(nt),i,j,j_1,j1,j2,ib
@@ -2470,12 +2470,12 @@ subroutine locate1IM(xx,n,x,j)
      if (xx(n).gt.xx(1).and.xx(i).lt.xx(i-1)) then
         write(*,*) ' locate1IM: xx is not increasing monotonically '
         write(*,*) n, (xx(j),j=1,n)
-        call CON_STOP('CRCM stopped in locate1IM')
+        call CON_STOP('CIMI stopped in locate1IM')
      endif
      if (xx(n).lt.xx(1).and.xx(i).gt.xx(i-1)) then
         write(*,*) ' locate1IM: xx is not decreasing monotonically '
         write(*,*) ' n, xx  ',n,xx
-        call CON_STOP('CRCM stopped in locate1IM')
+        call CON_STOP('CIMI stopped in locate1IM')
      endif
   enddo
 

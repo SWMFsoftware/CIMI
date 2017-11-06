@@ -1,6 +1,6 @@
 <!-- The syntax is described by share/Scripts/CheckParam.pl and the manual -->
 
-<commandList name="CRCM: IM Component">
+<commandList name="CIMI: IM Component">
 
 List of IM commands used in the PARAM.in file
 
@@ -58,7 +58,7 @@ time.
 #SAVELOG
 10		DtSaveLog
 
-When this command is set, a log file for CRCM is written out. The log file 
+When this command is set, a log file for CIMI is written out. The log file 
 saves the change in ring current energy content for each species resulting 
 from each operator. A new entry in the log is written out every DtSaveLog 
 seconds of simulation time.
