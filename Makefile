@@ -338,6 +338,7 @@ clean:
 	@cd src; make clean
 	@cd srcSAMI3; make clean
 	@cd srcInterface; make clean
+	@cd doc/Tex; make clean
 	@(if [ -d util ];  then cd util;  make clean; fi);
 	@(if [ -d share ]; then cd share; make clean; fi);
 
