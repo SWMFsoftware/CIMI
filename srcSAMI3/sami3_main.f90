@@ -42,7 +42,7 @@ program sami3
   ! Initial setup for the SAMI3 model
 !  call read_file('PARAM.in',iComm)
 !  call read_init('  ',iSessionIn=1,iLineIn=0)
-!  call CRCM_set_parameters('READ')
+!  call CIMI_set_parameters('READ')
 
   !if (usePrerun) call read_prerun(t)
   !if (usePrerun .and. iConvect==2) call read_prerun_IE(t)
@@ -56,7 +56,7 @@ program sami3
   !****************************************************************************
   ! Initialize the model
   !****************************************************************************
-  !call init_mod_crcm
+  !call init_mod_cimi
   !call init_mod_field_trace
   
 
@@ -95,7 +95,7 @@ program sami3
      
      write(*,*) 'calling sami_run at time', Time,'iProc=',iProc,'DtAdvance=',DtAdvance
     
-     ! Call crcm_run to advance the Timestep
+     ! Call sami_run to advance the Timestep
      call timing_step(iStep)
      call timing_start('sami_run')     
      call sami_run(DtAdvance)

@@ -74,6 +74,12 @@ test_all:
 	make   test_run
 	@echo "test_check..."  >> test.diff
 	make   test_check
+	@echo "test_rundir_WAVES..." >> test.diff
+	make   test_rundir_WAVES
+	@echo "test_run..."    >> test.diff
+	make   test_run
+	@echo "test_check_WAVES..."  >> test.diff
+	make   test_check_WAVES
 	@echo "test_rundir_dipole..." >> test.diff
 	make   test_rundir_dipole
 	@echo "test_run..."    >> test.diff
@@ -86,6 +92,17 @@ test_all:
 	make   test_run
 	@echo "test_check_Prerun..."  >> test.diff
 	make   test_check_Prerun
+	ls -l test_*.diff
+
+test_WAVES:
+	@echo "test_compile..." > test.diff
+	make   test_compile
+	@echo "test_rundir_WAVES..." >> test.diff
+	make   test_rundir_WAVES
+	@echo "test_run..."    >> test.diff
+	make   test_run
+	@echo "test_check_WAVES..."  >> test.diff
+	make   test_check_WAVES
 	ls -l test_*.diff
 
 test_dipole:
@@ -144,7 +161,13 @@ test_rundir:
 	rm -rf ${TESTDIR}
 	make rundir RUNDIR=${TESTDIR} STANDALONE=YES IMDIR=`pwd`
 	cp input/testfiles/*.dat ${TESTDIR}/
-	cp input/testfiles/PARAM.in ${TESTDIR}/PARAM.in
+	cp input/testfiles/PARAM.in.test.NOWAVES ${TESTDIR}/PARAM.in
+
+test_rundir_WAVES:
+	rm -rf ${TESTDIR}
+	make rundir RUNDIR=${TESTDIR} STANDALONE=YES IMDIR=`pwd`
+	cp input/testfiles/*.dat ${TESTDIR}/
+	cp input/testfiles/PARAM.in.test.WAVES ${TESTDIR}/PARAM.in
 
 test_rundir_flux:
 	rm -rf ${TESTDIR}
@@ -169,7 +192,7 @@ test_rundir_Prerun:
 	make rundir RUNDIR=${TESTDIR} STANDALONE=YES IMDIR=`pwd`
 	cp input/testfiles/imf.dat.Prerun ${TESTDIR}/imf.dat
 	cp input/testfiles/Indices.dat.Prerun ${TESTDIR}/Indices.dat
-	cp input/testfiles/Prerun/*.dat ${TESTDIR}/IM/.
+	cp input/testfiles/Prerun/* ${TESTDIR}/IM/.
 	cp input/testfiles/PARAM.in.test.Prerun ${TESTDIR}/PARAM.in
 
 test_run:
@@ -177,8 +200,28 @@ test_run:
 
 test_check:
 	make test_check_flux
+	make test_check_psd
 	make test_check_eq
 	make test_check_drift
+	make test_check_log
+
+test_check_WAVES:
+	${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+		${TESTDIR}/IM/plots/CimiFlux_e.fls \
+		output/CimiFlux_e.fls.WAVES \
+		> test_e_fls_WAVES.diff
+	${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+		${TESTDIR}/IM/plots/CimiPSD_e.psd \
+		output/CimiPSD_e.psd.WAVES \
+		> test_e_psd_WAVES.diff
+	${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+		${TESTDIR}/IM/plots/CIMIeq.outs \
+		output/CIMIeq.outs.WAVES \
+		> test_eq_WAVES.diff
+	${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+		${TESTDIR}/IM/plots/CIMI.log \
+		output/CIMI.log.WAVES \
+		> test_log_WAVES.diff
 
 test_check_flux:
 	${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
@@ -193,6 +236,20 @@ test_check_flux:
 		${TESTDIR}/IM/plots/CimiFlux_e.fls \
 		output/CimiFlux_e.fls \
 		> test_e_fls.diff
+
+test_check_psd:
+	${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+		${TESTDIR}/IM/plots/CimiPSD_h.psd \
+		output/CimiPSD_h.psd \
+		> test_h_psd.diff
+	${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+		${TESTDIR}/IM/plots/CimiPSD_o.psd \
+		output/CimiPSD_o.psd \
+		> test_o_psd.diff
+	${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+		${TESTDIR}/IM/plots/CimiPSD_e.psd \
+		output/CimiPSD_e.psd \
+		> test_e_psd.diff
 
 test_check_drift:
 	${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
@@ -221,12 +278,22 @@ test_check_dipole:
 		${TESTDIR}/IM/plots/CimiDrift_e.vp \
 		output/CimiDrift_e.vp.dipole \
 		> test_e_vp_dipole.diff
+	${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+		${TESTDIR}/IM/plots/CIMI.log \
+		output/CIMI.log.dipole \
+		> test_log_dipole.diff
 
 test_check_eq:
 	${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CIMIeq.outs \
 		output/CIMIeq.outs \
 		> test_eq.diff
+
+test_check_log:
+	${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+		${TESTDIR}/IM/plots/CIMI.log \
+		output/CIMI.log \
+		> test_log.diff
 
 test_check_Prerun:
 	${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
@@ -242,9 +309,26 @@ test_check_Prerun:
 		output/CimiFlux_e.fls.Prerun \
 		> test_e_fls_Prerun.diff
 	${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+		${TESTDIR}/IM/plots/CimiPSD_h.psd \
+		output/CimiPSD_h.psd.Prerun \
+		> test_h_psd_Prerun.diff
+	${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+		${TESTDIR}/IM/plots/CimiPSD_o.psd \
+		output/CimiPSD_o.psd.Prerun \
+		> test_o_psd_Prerun.diff
+	${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+		${TESTDIR}/IM/plots/CimiPSD_e.psd \
+		output/CimiPSD_e.psd.Prerun \
+		> test_e_psd_Prerun.diff
+	${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CIMIeq.outs \
 		output/CIMIeq.outs.Prerun \
 		> test_eq_Prerun.diff
+	${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+		${TESTDIR}/IM/plots/CIMI.log \
+		output/CIMI.log.Prerun \
+		> test_log_Prerun.diff
+
 
 PDF:
 	@cd doc/Tex; make PDF
@@ -297,7 +381,7 @@ rundir_cimi_sami:
 		mkdir plots restartIN restartOUT plotsSAMI3
 	@(if [ "$(STANDALONE)" != "NO" ]; then \
 		cp input/testfiles/*.dat ${RUNDIR}/ ;\
-		cp input/testfiles/PARAM.in ${RUNDIR}/;\
+		cp input/testfiles/PARAM.in.test.WAVES ${RUNDIR}/;\
 		cp srcSAMI3/sami3_mpi-1.98.namelist ${RUNDIR}/ ;\
 		cp srcSAMI3/*.inp ${RUNDIR}/ ;\
 		cd ${RUNDIR} ; \
