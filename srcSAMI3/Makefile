@@ -76,6 +76,7 @@ SAMI3_orig: ${OBJECTS_EXE}
 	${COMPILE.f90} ${Lflag1} -o ${EXE} sami3_main.f90 ${OBJECTS} \
 	-L${LIBDIR} -lTIMING
 
+clean: cleanfiles
 
 distclean: clean
 

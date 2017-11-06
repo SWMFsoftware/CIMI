@@ -116,6 +116,7 @@ CIMI_SAMI_orig:
 	${COMPILE.f90} ${Lflag1} -o ${EXE} main_cimi_sami.f90 ${OBJECTS} \
 	-L${LIBDIR} -lTIMING -lSHARE -lNOMPI -lINDICES -lSAMI3
 
+clean: cleanfiles
 
 distclean: clean
 	rm -f ModPlanet.f90 ModGrid.f90
