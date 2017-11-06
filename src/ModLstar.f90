@@ -112,10 +112,10 @@ contains
            if (logBo.ge.logBo_i(1)) ii=1
            if (logBo.lt.logBo_i(iba(j))) ii=iba(j)
            if (j.eq.j0) ii=i
-           if (ii.le.iba(j)) then
+           if (ii.lt.iba(j)) then
               ii1=ii+1
               do while (ii1.lt.iba(j) .and. B_island(ii1,j).eq.1 ) 
-              ii1=ii1+1
+                 ii1=ii1+1
               enddo
               b2=logBo_i(ii1)-logBo
               b1=logBo-logBo_i(ii)
