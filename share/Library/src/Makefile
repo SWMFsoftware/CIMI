@@ -1,4 +1,5 @@
-#  Copyright (C) 2002 Regents of the University of Michigan, portions used with permission 
+#  Copyright (C) 2002 Regents of the University of Michigan, 
+#  portions used with permission 
 #  For more information, see http://csem.engin.umich.edu/tools/swmf
 
 include ../../../Makefile.def
@@ -14,13 +15,14 @@ include Makefile.RULES
 MPIINTERFACE:
 	${SCRIPTDIR}/CreateModMpi.pl
 
-MODULES = \
+OBJECTS = \
 	${BLAS}\
 	ModBlasLapack.o\
 	ModConst.o\
 	ModCoordTransform.o\
 	ModExactRS.o\
 	ModFreq.o\
+	ModHyperGeometric.o\
 	ModInitialState.o\
 	ModInterpolate.o\
 	ModInterpolateAMR.o\
@@ -37,13 +39,14 @@ MODULES = \
 	ModPlanetConst.o\
 	ModPlotFile.o\
 	ModProcessVarName.o\
+	ModRandomNumber.o\
 	ModReadParam.o\
 	ModSort.o\
 	ModSpice.o\
 	ModTimeConvert.o\
 	ModTriangulate.o\
 	ModTriangulateSpherical.o\
-	ModUtilities.o\
+	ModUtility.o\
 	CON_axes.o\
 	CON_geopack.o\
 	CON_line_extract.o\
@@ -52,7 +55,7 @@ MODULES = \
 	CON_ray_trace.o
 
 DEPEND:
-	@perl ${SCRIPTDIR}/depend.pl ${MODULES}
+	@perl ${SCRIPTDIR}/depend.pl ${OBJECTS} PostIDL.o
 
 MY_LIB = ${LIBDIR}/libSHARE.a
 
@@ -62,10 +65,29 @@ LIB:	DEPEND
 	@echo ${MY_LIB} has been brought up to date.
 	@echo
 
-${MY_LIB}: ${MODULES}
+${MY_LIB}: ${OBJECTS} ModUtility_c.o
 	rm -f ${MY_LIB}
-	${AR} ${MY_LIB} ${MODULES}
+	${AR} ${MY_LIB} ${OBJECTS} ModUtility_c.o
 
+LIB_NO_C:DEPEND
+	perl -pi -e 's/(iError = make_dir_c)/\!$$1/' ModUtility.f90
+	${MAKE} LIB_NO_C_
+	perl -pi -e 's/.(iError = make_dir_c)/$$1/' ModUtility.f90
+	@echo
+	@echo ${MY_LIB} has been brought up to date.
+	@echo
+
+LIB_NO_C_: ${OBJECTS}
+	rm -f ${MY_LIB}
+	${AR} ${MY_LIB} ${OBJECTS}
+
+${BINDIR}/PostIDL.exe: PostIDL.o ${MY_LIB}
+	${LINK.f90} -o ${BINDIR}/PostIDL.exe PostIDL.o -L${LIBDIR} -lSHARE ${Lflag2}
+
+PIDL: DEPEND
+	make ${BINDIR}/PostIDL.exe
+
+clean: cleanfiles
 
 distclean: clean
 	rm -f Makefile.DEPEND ModHdf5Utils.f90 ModSpice.f90

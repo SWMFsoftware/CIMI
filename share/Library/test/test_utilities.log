@@ -4,6 +4,12 @@ check_dir returned successfully
 check directory "xxx/"
 ERROR: check_dir ERROR: Cannot find/write into directory xxx/
 Do not actually stop in the test
+testing make_dir
+make directory "xxx/"
+make xxx/ directory again (should not produce an error)
+ 0
+testing open_file and close_file
+testing touch_file and remove_file
 
 testing fix_dir_name
 fixed empty string=
@@ -48,3 +54,11 @@ testing upper_case and lower_case
 mixed case string=abCD 123:
 upper case string=ABCD 123:
 lower case string=abcd 123:
+
+testing string_to_char_array
+C character array: it's a string
+
+testing char_array_to_string
+Fortran string   : it's a string
+
+testing greatest_common_divisor

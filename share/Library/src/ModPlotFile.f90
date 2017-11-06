@@ -50,7 +50,9 @@ module ModPlotFile
   public:: save_plot_file
   public:: test_plot_file
 
-  integer, parameter :: MaxDim = 3
+  integer, parameter, public:: lStringPlotFile = 500
+
+  integer, parameter:: MaxDim = 3
 
 contains
 
@@ -64,15 +66,18 @@ contains
        CoordMinIn_D, CoordMaxIn_D, &
        Coord1In_I, Coord2In_I, Coord3In_I, &
        CoordIn_I, CoordIn_DII, CoordIn_DIII,&
+       VarIn_I,  VarIn_II,  VarIn_III,  &
        VarIn_VI, VarIn_VII, VarIn_VIII, &
-       VarIn_IV, VarIn_IIV, VarIn_IIIV, iCommIn)
+       VarIn_IV, VarIn_IIV, VarIn_IIIV, &
+       StringFormatIn, iCommIn)
 
-    use ModUtilities, ONLY: split_string, join_string
+    use ModUtilities, ONLY: split_string, join_string, open_file, close_file
 
     character(len=*),           intent(in):: NameFile       ! Name of plot file
     character(len=*), optional, intent(in):: TypePositionIn !asis/rewind/append
     character(len=*), optional, intent(in):: TypeFileIn     ! ascii/real8/real4
     character(len=*), optional, intent(in):: StringHeaderIn ! header line
+    character(len=*), optional, intent(in):: StringFormatIn ! format for ascii
     integer,          optional, intent(in):: nStepIn        ! number of steps
     real,             optional, intent(in):: TimeIn         ! simulation time  
     real,             optional, intent(in):: ParamIn_I(:)   ! parameters
@@ -89,6 +94,9 @@ contains
     real,             optional, intent(in):: Coord3In_I(:)  ! coords for axis 3
     real,             optional, intent(in):: CoordMinIn_D(:)! min coordinates
     real,             optional, intent(in):: CoordMaxIn_D(:)! max coordinates
+    real,             optional, intent(in):: VarIn_I(:)     ! variable  in 1D
+    real,             optional, intent(in):: VarIn_II(:,:)               ! 2D
+    real,             optional, intent(in):: VarIn_III(:,:,:)            ! 3D
     real,             optional, intent(in):: VarIn_VI(:,:)  ! variables in 1D
     real,             optional, intent(in):: VarIn_VII(:,:,:)            ! 2D
     real,             optional, intent(in):: VarIn_VIII(:,:,:,:)         ! 3D
@@ -101,8 +109,9 @@ contains
     character(len=10)  :: TypeStatus
     character(len=20), allocatable  :: NameVar_I(:)
     character(len=20)  :: TypeFile
-    character(len=500) :: StringHeader
-    character(len=500) :: NameVar,NameUnits
+    character(len=lStringPlotFile) :: StringHeader
+    character(len=40)  :: StringFormat
+    character(len=lStringPlotFile) :: NameVar,NameUnits
     integer :: nStep, nDim, nParam, nVar, n1, n2, n3
     integer :: nCellsPerBlock(3), iBlk, nBlocks
     integer :: nBlocksXYZ(3), iG,jG,kG
@@ -114,7 +123,7 @@ contains
     real(Real4_), allocatable:: Param4_I(:), Coord4_ID(:,:), Var4_I(:)
 
     integer :: n_D(0:MaxDim),ii,jj,kk
-    integer :: i, j, k, i_D(3), iDim, iVar, n, nDimOut, iError
+    integer :: i, j, k, i_D(3), iDim, iVar, n, nDimOut
     logical  :: IsSplitSuccessfull
 
     character(len=*), parameter:: NameSub = 'save_plot_file'
@@ -130,6 +139,8 @@ contains
     if(present(TypeFileIn)) TypeFile = TypeFileIn
     StringHeader = 'No header info'
     if(present(StringHeaderIn)) StringHeader = StringHeaderIn
+    StringFormat = '(100es18.10)'
+    if(present(StringFormatIn)) StringFormat = StringFormatIn
     nStep = 0
     if(present(nStepIn)) nStep = nStepIn
     Time = 0.0
@@ -142,10 +153,18 @@ contains
     else
        nParam = 0
     end if
-    ! Figure out grid dimensions and number of variables       
+    ! Figure out grid dimensions and number of variables. Default is 1.
     n_D = 1
-    ! For VI, VII, VIII types
-    if(present(VarIn_VI))then
+    if(present(VarIn_I))then
+       nDim = 1
+       n_D(1:1) = shape(VarIn_I)
+    elseif(present(VarIn_II)) then
+       nDim = 2
+       n_D(1:2) = shape(VarIn_II)
+    elseif(present(VarIn_III)) then
+       nDim = 3
+       n_D(1:3) = shape(VarIn_III)
+    elseif(present(VarIn_VI))then
        nDim = 1
        n_D(0:1) = shape(VarIn_VI)
     elseif(present(VarIn_VII))then
@@ -169,7 +188,7 @@ contains
        n_D = cshift(n_D, -1)        ! shift nVar/n_D(3) to n_D(0)
     else
        call CON_stop(NameSub // &
-            'none of VarIn_VI/VarIn_IV,VarIn_VII/VarIn_IIV,VarIn_VIII/VarIn_IIIV are present')
+            ': none of the VarIn_* variables are present')
     endif
     ! Extract information
     nVar = n_D(0)
@@ -216,7 +235,7 @@ contains
 
     ! Create a variable name array
     allocate(NameVar_I(nDim + nVar + nParam))
-    call split_string(NameVar, NameVar_I, i)
+    call split_string(NameVar, NameVar_I, i, UseArraySyntaxIn=.true.)
     if(i /= nDim + nVar + nParam)then
        write(*,*) NameSub,': NameFile=', trim(NameFile)
        write(*,*) NameSub,': NameVar=', trim(NameVar)
@@ -288,18 +307,25 @@ contains
              iG = (ii - 1)*nCellsPerBlock(1) + i
              jG = (jj - 1)*nCellsPerBlock(2) + j
              kG = (kk - 1)*nCellsPerBlock(3) + k
-             if(present(VarIn_VI)) &
-                  VarHdf5Output(i,1,1,iBlk,1:nVar) = VarIn_VI(1:nVar,iG)
-             if(present(VarIn_VII)) &
-                  VarHdf5Output(i,j,1,iBlk,1:nVar) = VarIn_VII(1:nVar,iG,jG)
-             if(present(VarIn_VIII)) &
-                  VarHdf5Output(i,j,k,iBlk,1:nVar)= VarIn_VIII(1:nVar,iG,jG,kG)
-             if(present(VarIn_IV)) &
-                  VarHdf5Output(i,1,1,iBlk,1:nVar) = VarIn_IV(iG,1:nVar)
-             if(present(VarIn_IIV)) &
-                  VarHdf5Output(i,j,1,iBlk,1:nVar) = VarIn_IIV(iG,jG,1:nVar)
-             if(present(VarIn_IIIV)) &
-                  VarHdf5Output(i,j,k,iBlk,1:nVar)= VarIn_IIIV(iG,jG,kG,1:nVar)
+             if(present(VarIn_I)) then
+                VarHdf5Output(i,1,1,iBlk,1)      = VarIn_I(iG)
+             elseif(present(VarIn_II)) then
+                VarHdf5Output(i,j,1,iBlk,1)      = VarIn_II(iG,jG)
+             elseif(present(VarIn_III)) then
+                VarHdf5Output(i,j,k,iBlk,1)      = VarIn_III(iG,jG,kG)
+             elseif(present(VarIn_VI)) then
+                VarHdf5Output(i,1,1,iBlk,1:nVar) = VarIn_VI(1:nVar,iG)
+             elseif(present(VarIn_VII)) then
+                VarHdf5Output(i,j,1,iBlk,1:nVar) = VarIn_VII(1:nVar,iG,jG)
+             elseif(present(VarIn_VIII)) then
+                VarHdf5Output(i,j,k,iBlk,1:nVar)= VarIn_VIII(1:nVar,iG,jG,kG)
+             elseif(present(VarIn_IV)) then
+                VarHdf5Output(i,1,1,iBlk,1:nVar) = VarIn_IV(iG,1:nVar)
+             elseif(present(VarIn_IIV)) then
+                VarHdf5Output(i,j,1,iBlk,1:nVar) = VarIn_IIV(iG,jG,1:nVar)
+             elseif(present(VarIn_IIIV)) then
+                VarHdf5Output(i,j,k,iBlk,1:nVar)= VarIn_IIIV(iG,jG,kG,1:nVar)
+             endif
           end do; end do; end do;
           do n = 1, nDim
              if(n==1) then
@@ -326,17 +352,17 @@ contains
           do k = 1, n3; do j = 1, n2; do i = 1, n1
              n = n + 1
              Coord = huge(1.0)
+             if(present(CoordMinIn_D)) then
+                i_D = (/i, j, k/)
+                Coord = CoordMinIn_D(iDim) + (i_D(iDim)-1)* &
+                     ((CoordMaxIn_D(iDim) - CoordMinIn_D(iDim))/max(1,n_D(iDim)-1))
+             end if
              if(present(CoordIn_I))    Coord = CoordIn_I(i)
              if(present(CoordIn_DII))  Coord = CoordIn_DII(iDim,i,j)
              if(present(CoordIn_DIII)) Coord = CoordIn_DIII(iDim,i,j,k)
              if(present(Coord1In_I) .and. iDim==1) Coord = Coord1In_I(i)
              if(present(Coord2In_I) .and. iDim==2) Coord = Coord2In_I(j)
              if(present(Coord3In_I) .and. iDim==3) Coord = Coord3In_I(k)
-             if(present(CoordMinIn_D)) then
-                i_D = (/i, j, k/)
-                Coord = CoordMinIn_D(iDim) + (i_D(iDim)-1)* &
-                     ((CoordMaxIn_D(iDim) - CoordMinIn_D(iDim))/(n_D(iDim)-1))
-             end if
              Coord_ID(n, iDim) = Coord
           end do; end do; end do; 
        end do
@@ -351,6 +377,9 @@ contains
           n = 0
           do k = 1, n3; do j = 1, n2; do i = 1,n1
              n = n + 1
+             if(present(VarIn_I))    Var_IV(n,iVar) = VarIn_I(i)
+             if(present(VarIn_II))   Var_IV(n,iVar) = VarIn_II(i,j)
+             if(present(VarIn_III))  Var_IV(n,iVar) = VarIn_III(i,j,k)
              if(present(VarIn_VI))   Var_IV(n,iVar) = VarIn_VI(iVar,i)
              if(present(VarIn_VII))  Var_IV(n,iVar) = VarIn_VII(iVar,i,j)
              if(present(VarIn_VIII)) Var_IV(n,iVar) = VarIn_VIII(iVar,i,j,k)
@@ -384,55 +413,49 @@ contains
        deallocate(XYZMinMax)
        deallocate(MinimumBlockIjk)
     case('tec')
-       open(UnitTmp_, file=NameFile, &
-            position=TypePosition, status=TypeStatus, iostat=iError)
-       if(iError /= 0)call CON_stop(NameSub // &
-            ' could not open tecplot file=' // trim(NameFile))
+       call open_file(FILE=NameFile, POSITION=TypePosition, STATUS=TypeStatus)
        write(UnitTmp_, "(a)", ADVANCE="NO") 'VARIABLES='
-       if(nDim == 3) write(UnitTmp_, "(a)", ADVANCE="NO") '"K", '
-       if(nDim >= 2) write(UnitTmp_, "(a)", ADVANCE="NO") '"J", '
-       write(UnitTmp_, "(a)", ADVANCE="NO") '"I", '
-       call join_string(NameVar_I(1:nDim+nVar), NameVar, '", "')
-       write(UnitTmp_, "(a)") '"'//trim(NameVar)//'"'
+       if(n3 > 1) write(UnitTmp_, "(a)", ADVANCE="NO") '"K", '
+       if(n2 > 1) write(UnitTmp_, "(a)", ADVANCE="NO") '"J", '
+       if(n1 > 1) write(UnitTmp_, "(a)", ADVANCE="NO") '"I", '
+       if(StringHeader(1:11)=="VARIABLES =")then
+          write(UnitTmp_, "(a)") StringHeader(12:len_trim(StringHeader))
+       else
+          call join_string(NameVar_I(1:nDim+nVar), NameVar, '", "')
+          write(UnitTmp_, "(a)") '"'//trim(NameVar)//'"'
+       end if
        write(UnitTmp_,'(a,i6,a,i6,a,i6,a)') &
-            'ZONE T="'//trim(StringHeader)// &
-            '", I=',n1,', J=',n2,', K=',n3,', F=POINT'
-       write(UnitTmp_,'(a,i8,a)') 'AUXDATA ITER="', nStep, '"'
+            'ZONE T="STRUCTURED GRID", I=', &
+            n1,', J=',n2,', K=',n3,', F=POINT'
+       write(UnitTmp_,'(a,i8,a)')      'AUXDATA ITER="', nStep, '"'
        write(UnitTmp_,'(a,es18.10,a)') 'AUXDATA TIMESIM="', Time, '"'
+       write(UnitTmp_,'(a,i3,a)')      'AUXDATA NDIM="', nDimOut, '"'
+       write(UnitTmp_,'(a,i3,a)')      'AUXDATA NPARAM="', nParam, '"'
+       write(UnitTmp_,'(a,i3,a)')      'AUXDATA NVAR="', nVar, '"'
        do i = 1, nParam
-          write(UnitTmp_,'(a,100es18.10,a)') &
-               'AUXDATA '//trim(NameVar_I(nDim+nVar+i))//'="', Param_I(i)
+          write(UnitTmp_,'(a,es18.10,a)') &
+               'AUXDATA '//trim(NameVar_I(nDim+nVar+i))//'="', Param_I(i), '"'
        end do
-       select case(nDim)
-       case(1)
-          do i = 1, n1
-             write(UNITTMP_,'(i8,100es18.10)') &
-                  i, Coord_ID(n,:), Var_IV(n,:)
-          end do
-       case(2)
-          do i = 1, n1; do j = 1, n2
-             n = i + n1*(j-1)
-             write(UNITTMP_,'(2i6,100es18.10)') &
-                  j, i, Coord_ID(n,:), Var_IV(n, :)
-          end do; end do
-       case(3)
-          do i = 1, n1; do j = 1, n2; do k = 1, n3
-             n = i + n1*(j-1) + n1*n2*(k-1)
-             write(UNITTMP_,'(3i6,100es18.10)') &
-                  k, j, i, Coord_ID(n,:), Var_IV(n, :)
-          end do; end do; end do
-       end select
-       close(UnitTmp_)
+
+       ! write out coordinates and variables line by line
+       n = 0
+       do k = 1, n3; do j = 1, n2; do i = 1, n1
+          if(n3 > 1)write(UnitTmp_, "(i6)", ADVANCE="NO") k
+          if(n2 > 1)write(UnitTmp_, "(i6)", ADVANCE="NO") j
+          if(n1 > 1)write(UnitTmp_, "(i8)", ADVANCE="NO") i
+          n = n + 1
+          write(UnitTmp_, StringFormat) Coord_ID(n,:), Var_IV(n, :) 
+       end do; end do; end do
+
+       call close_file
     case('formatted', 'ascii')
-       open(UnitTmp_, file=NameFile, &
-            position = TypePosition, status=TypeStatus, iostat=iError)
-       if(iError /= 0)call CON_stop(NameSub // &
-            ' could not open ascii file=' // trim(NameFile))
+       call open_file(FILE=NameFile, POSITION=TypePosition, STATUS=TypeStatus)
 
        write(UnitTmp_, "(a)")             trim(StringHeader)
        write(UnitTmp_, "(i7,es18.10,3i3)") nStep, Time, nDimOut, nParam, nVar
        write(UnitTmp_, "(3i8)")           n_D(1:nDim)
-       if(nParam > 0) write(UnitTmp_, "(100es18.10)")     Param_I
+       if(nParam > 0) &
+            write(UnitTmp_, StringFormat) Param_I
        write(UnitTmp_, "(a)")             trim(NameVar)
 
        where(abs(Var_IV) < 1d-99) Var_IV = 0.0
@@ -441,14 +464,12 @@ contains
        n = 0
        do k = 1, n3; do j = 1, n2; do i = 1, n1
           n = n + 1
-          write(UnitTmp_, "(100es18.10)") Coord_ID(n,:), Var_IV(n, :) 
+          write(UnitTmp_, StringFormat) Coord_ID(n,:), Var_IV(n, :) 
        end do; end do; end do
-       close(UnitTmp_)
+       call close_file
     case('real8')
-       open(UnitTmp_, file=NameFile, form='unformatted', &
-            position=TypePosition, status=TypeStatus, iostat=iError)
-       if(iError /= 0)call CON_stop(NameSub // &
-            ' could not open real8 file=' // trim(NameFile))
+       call open_file(FILE=NameFile, FORM='unformatted', &
+            POSITION=TypePosition, STATUS=TypeStatus)
        write(UnitTmp_) StringHeader
        write(UnitTmp_) nStep, Time, nDimOut, nParam, nVar
        write(UnitTmp_) n_D(1:nDim)
@@ -460,12 +481,10 @@ contains
        do iVar = 1, nVar
           write(UnitTmp_) Var_IV(:,iVar)
        end do
-       close(UnitTmp_)
+       call close_file
     case('real4')
-       open(UnitTmp_, file=NameFile, form='unformatted', &
-            position = TypePosition, status=TypeStatus, iostat=iError)
-       if(iError /= 0)call CON_stop(NameSub // &
-            ' could not open real4 file=' // trim(NameFile))
+       call open_file(FILE=NameFile, FORM='unformatted', &
+            POSITION=TypePosition, STATUS=TypeStatus)
 
        write(UnitTmp_) StringHeader
        write(UnitTmp_) nStep, real(Time, Real4_), nDimOut, nParam, nVar
@@ -488,7 +507,7 @@ contains
           write(UnitTmp_) Var4_I
        end do
        deallocate(Var4_I)
-       close(UnitTmp_)
+       call close_file
     case default
        call CON_stop(NameSub // ' unknown TypeFile =' // trim(TypeFile))
     end select
@@ -512,6 +531,7 @@ contains
        CoordOut_DI,                                    &
        Coord1Out_I, Coord2Out_I, Coord3Out_I,          &
        CoordOut_I, CoordOut_DII, CoordOut_DIII,        &
+       VarOut_I,  VarOut_II,  VarOut_III,              &
        VarOut_VI, VarOut_VII, VarOut_VIII,             &
        VarOut_IV, VarOut_IIV, VarOut_IIIV,             &
        iErrorOut)
@@ -541,6 +561,9 @@ contains
     real,             optional, intent(out):: CoordOut_I(:)          ! 1D
     real,             optional, intent(out):: CoordOut_DII(:,:,:)    ! 2D
     real,             optional, intent(out):: CoordOut_DIII(:,:,:,:) ! 3D
+    real,             optional, intent(out):: VarOut_I(:)    ! variable  in 1D
+    real,             optional, intent(out):: VarOut_II(:,:)       !        2D
+    real,             optional, intent(out):: VarOut_III(:,:,:)    !        3D
     real,             optional, intent(out):: VarOut_VI(:,:) ! variables in 1D
     real,             optional, intent(out):: VarOut_VII(:,:,:)    !        2D
     real,             optional, intent(out):: VarOut_VIII(:,:,:,:) !        3D
@@ -552,15 +575,16 @@ contains
     integer            :: iUnit
     character(len=20)  :: TypeFile
     logical            :: DoReadHeader = .true.
-    character(len=500) :: StringHeader
-    character(len=500) :: NameVar
+    character(len=lStringPlotFile) :: StringHeader
+    character(len=lStringPlotFile) :: NameVar
     integer            :: nStep, nDim, nParam, nVar, n1, n2, n3, n_D(MaxDim)
     real               :: Time, Coord
     real(Real4_)       :: Time4
     logical            :: IsCartesian
     real(Real4_), allocatable:: Param4_I(:), Coord4_ID(:,:), Var4_IV(:,:)
     real,         allocatable:: Param_I(:),  Coord_ID(:,:),  Var_IV(:,:)
-
+    real    :: TecIndex_I(3)
+    integer :: nTecIndex
     integer :: i, j, k, iDim, iVar, n
 
     ! Remember these values after reading header
@@ -580,9 +604,18 @@ contains
     DoReadHeader = .false.
 
     ! No data is read. Leave file open !
-    if(.not. (present(VarOut_VI) .or. present(VarOut_VII) &
+    if(.not. (present(VarOut_I) .or. present(VarOut_II) &
+         .or. present(VarOut_III) &
+         .or. present(VarOut_VI) .or. present(VarOut_VII) &
          .or. present(VarOut_VIII).or. present(VarOut_IV)&
          .or. present(VarOut_IIV).or. present(VarOut_IIIV))) RETURN
+
+    if((present(VarOut_I) .or. present(VarOut_II) .or. present(VarOut_III)) &
+         .and. nVar /= 1)then
+       write(*,*) NameSub,': the number of variables is ', nVar, &
+            ' (larger than 1) in file ', NameFile
+       call CON_stop(NameSub//' called with scalar variable argument')
+    end if
 
     ! If data is read, next header needs to be read
     DoReadHeader = .true.
@@ -590,6 +623,14 @@ contains
     ! Read coordinates and variables into suitable 2D arrays
     allocate(Coord_ID(n1*n2*n3, nDim), Var_IV(n1*n2*n3, nVar))
     select case(TypeFile)
+    case('tec')
+       nTecIndex = count(n_D>1, 1)
+       n = 0
+       do k = 1, n3; do j = 1, n2; do i = 1, n1
+          n = n + 1
+          read(iUnit, *, ERR=77, END=77) &
+               TecIndex_I(1:nTecIndex), Coord_ID(n, :), Var_IV(n, :)
+       end do; end do; end do
     case('ascii', 'formatted')
        n = 0
        do k = 1, n3; do j = 1, n2; do i = 1, n1
@@ -644,12 +685,15 @@ contains
        n = 0
        do k = 1, n3; do j = 1, n2; do i = 1, n1
           n = n + 1
-          if(present(VarOut_VI))   VarOut_VI(iVar, n)      = Var_IV(n, iVar)
-          if(present(VarOut_VII))  VarOut_VII(iVar,i,j)    = Var_IV(n, iVar)
-          if(present(VarOut_VIII)) VarOut_VIII(iVar,i,j,k) = Var_IV(n, iVar)
-          if(present(VarOut_IV))   VarOut_IV(i,iVar)       = Var_IV(n, iVar)
-          if(present(VarOut_IIV))  VarOut_IIV(i,j,iVar)    = Var_IV(n, iVar)
-          if(present(VarOut_IIIV)) VarOut_IIIV(i,j,k,iVar) = Var_IV(n, iVar)
+          if(present(VarOut_I))    VarOut_I(n)             = Var_IV(n,iVar)
+          if(present(VarOut_II))   VarOut_II(i,j)          = Var_IV(n,iVar)
+          if(present(VarOut_III))  VarOut_III(i,j,k)       = Var_IV(n,iVar)
+          if(present(VarOut_VI))   VarOut_VI(iVar,n)       = Var_IV(n,iVar)
+          if(present(VarOut_VII))  VarOut_VII(iVar,i,j)    = Var_IV(n,iVar)
+          if(present(VarOut_VIII)) VarOut_VIII(iVar,i,j,k) = Var_IV(n,iVar)
+          if(present(VarOut_IV))   VarOut_IV(i,iVar)       = Var_IV(n,iVar)
+          if(present(VarOut_IIV))  VarOut_IIV(i,j,iVar)    = Var_IV(n,iVar)
+          if(present(VarOut_IIIV)) VarOut_IIIV(i,j,k,iVar) = Var_IV(n,iVar)
 
        end do; end do; end do
     end do
@@ -669,6 +713,8 @@ contains
   contains
     !==========================================================================
     subroutine read_header
+      character(len=100):: StringMisc
+      logical:: DoAddSpace
 
       n_D = 1
       select case(TypeFile)
@@ -683,6 +729,48 @@ contains
             read(iUnit, *    , ERR=77, END=77) Param_I
          end if
          read(iUnit, '(a)', ERR=77, END=77) NameVar
+      case('tec')
+         open(iUnit, file=NameFile, status='old', ERR=66)
+         ! read NameVar into StringHeader 
+         read(iUnit,'(a)') StringHeader
+         ! read n_D
+         read(iUnit,'(a28,i6)', ADVANCE="NO")StringMisc, n_D(1)
+         read(iUnit, '(a4,i6)', ADVANCE="NO")StringMisc, n_D(2)
+         read(iUnit, '(a4,i6)'              )StringMisc, n_D(3)
+         ! read nStep, Time, nDim, nParam, nVar
+         read(iUnit,'(a14,i8)')     StringMisc, nStep
+         read(iUnit,'(a17,es18.10)')StringMisc, Time
+         read(iUnit,'(a14,i3)')     StringMisc, nDim
+         read(iUnit,'(a16,i3)')     StringMisc, nParam
+         read(iUnit,'(a14,i3)')     StringMisc, nVar
+         ! read Param_I
+         do i = 1, nParam
+            read(iUnit,'(a)') StringMisc
+            read(StringMisc(len_trim(StringMisc)-19:len_trim(StringMisc)-1),&
+                 '(es18.10)') Param_I(i)
+         end do
+
+         ! NameVar is stored in the header => process it
+         DoAddSpace = .false.
+         NameVar = ''
+         n = 11 + 5 * count(n_D>1, 1)
+         do i = n, len_trim(StringHeader)
+            select case(StringHeader(i:i))
+            case('"',' ',',')
+               DoAddSpace = .true.
+            case default
+               if(DoAddSpace)then
+                  NameVar = trim(NameVar)//' '//StringHeader(i:i)
+                  DoAddSpace = .false.
+               else
+                  NameVar = trim(NameVar)//StringHeader(i:i)
+               end if
+            end select
+         end do
+
+         ! reset header
+         StringHeader = ''
+
       case('real8')
          open(iUnit, file=NameFile, status='old', form='unformatted', ERR=66)
 
@@ -699,14 +787,15 @@ contains
 
          read(iUnit, ERR=77, END=77) StringHeader
          read(iUnit, ERR=77, END=77) nStep, Time4, nDim, nParam, nVar
+
          Time = Time4
          read(iUnit, ERR=77, END=77) n_D(1:abs(nDim))
          if(nParam > 0)then
             allocate(Param_I(nParam), Param4_I(nParam))
             read(iUnit, ERR=77, END=77) Param4_I
             Param_I = Param4_I
+            deallocate(Param4_I)
          end if
-         deallocate(Param4_I)
          read(iUnit, ERR=77, END=77) NameVar
       case default
          call CON_stop(NameSub // ' unknown TypeFile =' // trim(TypeFile))
@@ -726,7 +815,10 @@ contains
       if(present(n1Out))           n1Out           = n1
       if(present(n2Out))           n2Out           = n2
       if(present(n3Out))           n3Out           = n3
-      if(present(nOut_D))          nOut_D(1:nDim)  = n_D(1:nDim)
+      if(present(nOut_D))then
+         nOut_D          = 1
+         nOut_D(1:nDim)  = n_D(1:nDim)
+      end if
       if(present(IsCartesianOut))  IsCartesianOut  = IsCartesian
       if(present(ParamOut_I) .and. nParam > 0) &
            ParamOut_I(1:nParam) = Param_I
@@ -737,7 +829,7 @@ contains
 
 66    if(.not.present(iErrorOut)) call CON_stop(NameSub // &
            ' could not open '//trim(TypeFile)//' file=' // trim(NameFile))
-      
+
       iErrorOut = 1
       RETURN
 

@@ -1,10 +1,12 @@
 # C language related part of Makefile.conf: Makefile.mpxlc
+C_COMPILER_NAME=mpxlc
 
 COMPILE.c     = mpxlc
 COMPILE.mpicc = mpxlc
 COMPILE.mpicxx= mpxlC
 
-DEBUGC = 
+CPPLIB = -lstdc++ -lmpi_cxx
+
 #DEBUGC = -g
 
 .SUFFIXES: .c .cpp

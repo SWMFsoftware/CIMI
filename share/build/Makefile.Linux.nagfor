@@ -5,6 +5,7 @@
 SHELL=/bin/sh
 
 # Fortran language related part of Makefile.conf: Makefile.Linux.nagfor
+FORTRAN_COMPILER_NAME=nagfor
 #
 #	Space Weather Modeling Framework (SWMF) 
 #	NAG Fortran Compiler (5.3 or later)
@@ -21,6 +22,8 @@ PRECISION  = ${DOUBLEPREC}
 
 MPILIB = 
 #MPILIB = -L${LIBDIR} -lNOMPI
+
+#OPENMPFLAG = -fopenmp
 
 # Define where modules are stored and add it to the search path
 # INCL_EXTRA can be defined to add more search directories.
@@ -64,22 +67,21 @@ BLAS  = lapack.o blas.o
 .SUFFIXES: .f90 .F90 .f .for .ftn .o
 
 .f90.o:
-	${COMPILE.f90} ${Cflag3} $<
+	${COMPILE.f90} ${Cflag4} $<
 
 .F90.o:
 	${COMPILE.f90} -DsysLinux -DcompNAGF95 ${Cflag3} $<
 
 .f.o:
-	${COMPILE.f77} ${Cflag3} -132 $<
+	${COMPILE.f77} ${Cflag4} -132 $<
 
 .for.o:
-	${COMPILE.f77} ${Cflag3} -132 $<
+	${COMPILE.f77} ${Cflag4} -132 $<
 
 .ftn.o:
-	${COMPILE.f77} ${Cflag3} -132 $<
+	${COMPILE.f77} ${Cflag4} -132 $<
 
-clean:	
+cleanfiles:	
 	rm -f *~ core *.o *.mod fort.* a.out *.exe *.a *.so *.protex
 
 
-# keep this line

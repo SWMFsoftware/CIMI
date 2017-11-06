@@ -5,6 +5,7 @@
 SHELL=/bin/sh
 
 # Fortran language related part of Makefile.conf: Makefile.Linux.crayftn
+FORTRAN_COMPILER_NAME=crayftn
 #
 #	Space Weather Modeling Framework (SWMF) 
 #	Cray Fortran (ftn) Compiler with FTN for linking
@@ -33,7 +34,7 @@ DEBUG     =
 OPT0 = -O0
 OPT1 = -O1
 OPT2 = -O2
-OPT3 = -O3,fp3
+OPT3 = -O3
 OPT4 = -O4
 
 CFLAG = ${SEARCH} -c ${DEBUG}
@@ -78,8 +79,7 @@ BLAS  = lapack.o blas.o
 .ftn.o:
 	${COMPILE.f77} ${Cflag3} -f fixed $<
 
-clean:	
+cleanfiles:	
 	rm -f *~ core *.o *.mod fort.* a.out *.exe *.a *.so *.il *.protex
 
 
-# keep this line

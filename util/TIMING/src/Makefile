@@ -37,16 +37,16 @@ ${MY_LIB}:  $(OBJ_LIB) ${MAKEFILE_COMP_SELECT}
 tests: test test_mpi test_empty test_empty_mpi
 
 test: timing_test.exe
-	timing_test.exe
+	./timing_test.exe
 
 test_mpi: timing_test_mpi.exe
-	mpirun -np 2 timing_test_mpi.exe
+	${PARALLEL} ${NPFLAG} 2 timing_test_mpi.exe
 
 test_empty: timing_empty.exe
 	timing_empty.exe
 
 test_empty_mpi: timing_empty_mpi.exe
-	mpirun -np 2 timing_empty_mpi.exe
+	${PARALLEL} ${NPFLAG} 2 timing_empty_mpi.exe
 
 EXE: timing_test.exe
 
@@ -78,6 +78,8 @@ timing_empty.exe: $(OBJ_EMPTY) ${LIBNOMPI}
 
 timing_empty_mpi.exe: $(OBJ_EMPTY)
 	$(LINK.f90) ${Lflag2} -o timing_empty_mpi.exe $(OBJ_EMPTY) $(MPILIB)
+
+clean: cleanfiles
 
 distclean: clean
 

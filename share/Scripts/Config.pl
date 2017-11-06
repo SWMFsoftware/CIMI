@@ -1,13 +1,17 @@
-#!/usr/bin/perl -i
+#!/usr/bin/perl
 #  Copyright (C) 2002 Regents of the University of Michigan, 
 #  portions used with permission 
 #  For more information, see http://csem.engin.umich.edu/tools/swmf
+
+# Allow in-place editing
+$^I = "";
+
 use strict;
 
 # Default compiler per machine or OS
 my %Compiler = (
-		"Linux"               => "f95",
-		"Darwin"              => "f95",
+		"Linux"               => "nagfor",
+		"Darwin"              => "nagfor",
 		"OSF1"                => "f90",
 		"IRIX64"              => "f90",
 		"AIX"                 => "xlf90",
@@ -22,8 +26,11 @@ my %Compiler = (
 		"ubgl"                => "mpxlf90,mpxlc",
 		"jaguarpf-ext"        => "ifortftn",
                 "kraken-gsi"          => "ifortftn",
-                "yslogin"             => "ifortmpif90,icc",
-                "h2ologin"            => "crayftn,cc",
+                "yslogin"             => "ifortmpif90,iccmpicxx",
+                "h2ologin"            => "ifortftn,intelcc",
+                "slogin"              => "ifortftn,intelcc",
+                "cetuslac"            => "mpixlf2008,mpixlc",
+                "miralac"             => "mpixlf2008,mpixlc",
 		);
 
 my $WARNING_='share/Scripts/Config.pl WARNING:';
@@ -116,12 +123,14 @@ my $NewPrecision;
 my $NewOptimize;
 my $NewDebug;
 my $NewMpi;
+my $NewOpenMp;
 my $NewHdf5;
 my $NewHypre;
 my $NewFishpak;
 my $NewSpice;
 my $IsCompilerSet;
 my $Debug;
+my $OpenMp;
 my $Mpi;
 my $Fcompiler;
 my $Ccompiler;
@@ -154,6 +163,8 @@ foreach (@Arguments){
     if(/^-compiler$/i)        {$ShowCompiler=1;                 next};
     if(/^-mpi$/i)             {$NewMpi="yes";                   next};
     if(/^-nompi$/i)           {$NewMpi="no";                    next};
+    if(/^-openmp$/i)          {$NewOpenMp="yes";                next};
+    if(/^-noopenmp$/i)        {$NewOpenMp="no";                 next};
     if(/^-debug$/i)           {$NewDebug="yes";                 next};
     if(/^-nodebug$/i)         {$NewDebug="no";                  next};
     if(/^-hdf5$/i)            {$NewHdf5="yes";                  next};
@@ -263,6 +274,9 @@ if($NewPrecision and $NewPrecision ne $Precision){
 # Link with MPI vs. NOMPI library if required
 &set_mpi_ if $NewMpi and $NewMpi ne $Mpi;
 
+# Switch on or off the OPENMPFLAG
+&set_openmp_ if $NewOpenMp and $NewOpenMp ne $OpenMp;
+
 # Link with HDF5 library is required
 &set_hdf5_ 
     if ($Install and not $IsComponent) or ($NewHdf5 and $NewHdf5 ne $Hdf5);
@@ -316,9 +330,10 @@ sub get_settings_{
 	  $OS         = $1 if /^\s*OS\s*=\s*(\w+)/;
       }
       close(MAKEFILE);
-  }
+    }
 
     $Debug     = "no";
+    $OpenMp    = "no";
     $Mpi       = "yes";
     $Hdf5      = "no";
     $Hypre     = "no";
@@ -346,8 +361,9 @@ sub get_settings_{
 
 	  $Precision = lc($1) if /^\s*PRECISION\s*=.*(SINGLE|DOUBLE)PREC/;
           $Debug = "yes" if /^\s*DEBUG\s*=\s*\$\{DEBUGFLAG\}/;
+	  $OpenMp = "yes" if /^OPENMPFLAG/;
 	  $Mpi   = "no"  if /^\s*MPILIB\s*=.*\-lNOMPI/;
-	  $Hdf5  = "yes" if /^\s*LINK\.f90\s*=.*$H5pfc/;
+	  $Hdf5  = "yes" if /^\# HDF5=YES/;
 	  $Hypre = "yes" if /^\s*HYPRELIB/;
 	  $Fishpak = "yes" if /^\s*FISHPAKLIB/;
 	  $Spice = "$1"  if /^\s*SPICELIB\s*=\s*(\S*)/;
@@ -397,6 +413,7 @@ The selected C   compiler is $Ccompiler.
 The default precision for reals is $Precision precision.
 The maximum optimization level is $Optimize
 Debugging flags:   $Debug
+OpenMP flags:      $OpenMp
 Linked with MPI:   $Mpi
 Linked with HDF5:  $Hdf5
 Linked with HYPRE: $Hypre
@@ -427,10 +444,23 @@ sub install_code_{
 	    $MakefileDefOrig;
 	die "$ERROR_ $MakefileDefOrig is missing\n" unless
 	    -f $MakefileDefOrig;
-	&shell_command("echo OS=$OS > $MakefileDef");
-	&shell_command("echo MYDIR=$DIR >> $MakefileDef");
-	&shell_command("echo ${Component}DIR=$DIR >> $MakefileDef");
-	&shell_command("echo COMPILER=$Compiler >> $MakefileDef");
+	my $header = "${Component}DIR    = $DIR
+MYDIR    = $DIR
+OS       = $OS
+COMPILER = $Compiler
+SERIAL   =
+PARALLEL = mpiexec
+NPFLAG   = -n
+NP       = 2
+MPIRUN   = \${PARALLEL} \${NPFLAG} \${NP}
+";
+	if($DryRun){
+	    print "write into $MakefileDef:\n$header";
+	}else{
+	    open(MAKEFILE, ">$MakefileDef");
+	    print MAKEFILE $header;
+	    close(MAKEFILE);
+	}
 	&shell_command("cat $MakefileDefOrig >> $MakefileDef");
 
 	my $Makefile = "$MakefileConfOrig.$OS.$Compiler";
@@ -461,14 +491,14 @@ sub install_code_{
 	    die "$ERROR_ could not find $Makefile\n";
 	}
 
-	# Remove -lmpicxx from CPPLIB definition in Makefile.conf if not needed
-	my $remove_mpicxx = (`mpicxx -show` !~ /\-lmpi_cxx/);
-	if($remove_mpicxx){
-	    @ARGV = ($MakefileConf);
-	    while(<>){
-		s/ -lmpi_cxx// if /^CPPLIB/;
-		print;
+	# Remove -lmpicxx or -lmpi++ from CPPLIB definition in Makefile.conf if not needed
+	@ARGV = ($MakefileConf);
+	while(<>){
+	    if(/^CPPLIB/){
+		s/ -lmpi_cxx// if (`mpicxx -show` !~ /\-lmpi_cxx/);
+		s/ -lmpi\+\+// if (`mpicxx -show` !~ /\-lmpi\+\+/);;
 	    }
+	    print;
 	}
     }
 
@@ -531,11 +561,32 @@ sub set_debug_{
 	@ARGV = ($MakefileConf);
 	while(<>){
 	    s/^(\s*DEBUG\s*=).*/$1 $DEBUG/;
+	    s/^#(DEBUGC\s*=)/$1/ if $Debug eq "yes";
+	    s/^(DEBUGC\s*=)/#$1/ if $Debug eq "no";
 	    print;
 	}
     }
 }
 
+##############################################################################
+
+sub set_openmp_{
+
+    # Set the OpenMP compilation flags in $MakefileConf
+
+    # OpenMp will be NewOpenMp after changes
+    $OpenMp = $NewOpenMp;
+
+    print "Setting OpenMP flags to '$OpenMp' in $MakefileConf\n";
+    if(not $DryRun){
+	@ARGV = ($MakefileConf);
+	while(<>){
+	    s/^#(OPENMPFLAG)/$1/ if $OpenMp eq "yes";
+	    s/^(OPENMPFLAG)/#$1/ if $OpenMp eq "no";
+	    print;
+	}
+    }
+}
 ##############################################################################
 
 sub set_mpi_{
@@ -572,6 +623,13 @@ sub set_mpi_{
 		s/^\s*M/\#M/ if /lNOMPI/ eq ($Mpi eq "yes");
 		s/^\#\s*M/M/ if /lNOMPI/ eq ($Mpi eq "no");
 	    }
+	    
+	    # Always compile with the NOMPI library if code is installed
+	    # without MPI (so that PostIDL compiles).
+	    if(/^Lflag2\s+=/){
+		s/=\s*(.*)/= \$\{Lflag1} \# $1/ if $Mpi eq "no";
+		s/= \$\{Lflag1} \#/=/        if $Mpi eq "yes";
+	    }
 
 	    # Comment/uncomment mpi_cxx library
 	    if(/mpi_cxx/){
@@ -596,15 +654,22 @@ sub set_mpi_{
 sub set_hdf5_{
 
     $NewHdf5=$Hdf5 if $Install and not $NewHdf5;
-
+    
+    if($NewHdf5 eq "yes" and $Compiler =~ /(cray|ifort)ftn/ and not `which h5dump`){
+	# On Bluewaters the HDF5 module does not load h5pfc or h5pcc
+	# It uses ftn and CC for compilation
+	print "Warning: h5dump is not in path. Load parallel hdf5 module!/\n";
+	return;
+    }
     # Check if HDF5 module is loaded
-    if($NewHdf5 eq "yes" and not `which $H5pfc`){
-        print "Warning: $H5pfc is not in path. Load parallel hdf5 module!/\n";
-        return;
+    if($NewHdf5 eq "yes" and $Compiler !~  /(cray|ifort)ftn/ and not `which $H5pfc`){
+	print "Warning: $H5pfc is not in path. ".
+	    "Load parallel hdf5 module!/\n";
+	return;
     }
 
-    if($NewHdf5 eq "yes" and not `which $H5pcc`){
-        print "Warning: $H5pcc is not in path. Load parallel hdf5 module!/\n";
+    if($NewHdf5 eq "yes" and $Compiler !~  /(cray|ifort)ftn/ and not `which $H5pcc`){
+	print "Warning: $H5pcc is not in path. Load parallel hdf5 module!/\n";
         return;
     }
 
@@ -625,7 +690,10 @@ sub set_hdf5_{
 	    if($Hdf5 eq "yes"){
 		# Modify linker definition to use h5pfc
 		s/^(LINK\.f90\s*=\s*\$\{CUSTOMPATH_\w+\})(.*)/$1$H5pfc \#$2/
-		    unless /\#/;
+		    unless /\#/ or $Compiler =~  /(cray|ifort)ftn/;
+
+		# Add a comment about HDF5 being set
+		s/^(LINK\.f90.*)/$1\n\# HDF5=YES/;
 
 		# For pgf90 the F90 compiler has to be changed too
 		s/^(COMPILE\.f90\s*=.*)(pgf90)/$1$H5pfc \#$2/
@@ -633,15 +701,16 @@ sub set_hdf5_{
 
 		# Change the parallel C++ compiler too
 		s/^(COMPILE\.mpicxx\s*=\s*)(.*)/$1$H5pcc \#$2/
-		    unless /\#/;
+		    unless /\#/ or $CompilerC =~ /(cray|intel)cc/;
 
-		# Add the h5pfc include directory to the search path for hdf5.mod
+		# Add the h5pfc include directory to search path for hdf5.mod
 		s/\s+$/$H5include\n/ if /^SEARCH\b/ and $H5include
 		    and not /$H5include/;
 	    }else{
 		# Undo the modifications
 		s/($H5pfc|$H5pcc) \#//;
 		s/$H5include// if $H5include;
+		s/^\# HDF5=YES\n//;
 	    }
 	    print;
 	}
@@ -1018,6 +1087,8 @@ Compilation:
 -double         set precision to double in Makefile.conf and make clean
 -debug          select debug options for the compiler in Makefile.conf
 -nodebug        do not use debug options for the compiler in Makefile.conf
+-openmp         compile and link with OpenMP flag
+-noopenmp       compile and link without the OpenMP flag
 -mpi            compile and link with the MPI library for parallel execution
 -nompi          compile and link with the NOMPI library for serial execution
 -hdf5           compile and link with HDF5 library for HDF5 plot output
@@ -1055,13 +1126,13 @@ Install code with the gfortran compiler and no MPI library on the machine
 
     Config.pl -install -compiler=gfortran -nompi
 
-Use the HDF5 plotting library, the HYPRE linear solver library, and SPICE:
+Use the HDF5, HYPRE linear solver library, SPICE and compile with OpenMP flag:
 
     Config.pl -hdf5 -hypre -spice=/usr/local/lib/spicelib.a
 
-Do not link with the HDF5, HYPRE and SPICE libraries:
+Do not link with the HDF5, HYPRE and SPICE libraries, and switch off OpenMP flag:
 
-    Config.pl -nohdf5 -nohypre -nospice
+    Config.pl -nohdf5 -nohypre -nospice -noopenmp
 
 Set optimization level to -O0, switch on debugging flags and link with NOMPI:
 

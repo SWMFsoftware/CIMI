@@ -3,11 +3,7 @@
 
 include ../../../Makefile.def
 
-SEARCH_EXTRA = -I../src
-
 include ../../../Makefile.conf
-
-MPIRUN = mpirun -np 2
 
 help:
 	@echo "You can test the following modules in ../src:"
@@ -27,6 +23,7 @@ help:
 	@echo "   test_planet_field     - test CON_planet_field"
 	@echo "   test_plot_file        - test ModPlotFile"
 	@echo "   test_process_var_name - test ModProcessVarName"
+	@echo "   test_random_number    - test ModRandomNumber"
 	@echo "   test_ray_trace        - test CON_ray_trace"
 	@echo "   test_sort             - test ModSort"
 	@echo "   test_time_convert     - test ModTimeConvert"
@@ -40,9 +37,9 @@ help:
 	@echo
 	@echo "The parallel tests can be executed like this"
 	@echo
-	@echo "   make MPIRUN='mpirun -np 4' test_line_extract"
+	@echo "   make NP=4 test_line_extract"
 	@echo
-	@echo "The default value for MPIRUN is mpirun -np 2."
+	@echo "The default value for NP is ${NP}."
 
 test:
 	-@make test_axes
@@ -59,6 +56,7 @@ test:
 	-@make test_lookup_table
 	-@make test_planet_field
 	-@make test_plot_file
+	-@make test_random_number
 	-@make test_ray_trace
 	-@make test_sort
 	-@make test_time_convert
@@ -67,6 +65,8 @@ test:
 	-@make test_utilities
 	@echo ---------------------------------------------------------
 	@ls -l *.diff
+
+clean: cleanfiles
 
 distclean: clean
 	rm -rf *.tmp *.diff test*.out test_initial_state.ref \
@@ -168,7 +168,7 @@ test_linear_advection_exe:
 	@(cd ../src; make ModLinearAdvection.o)
 	@make test_linear_advection.o
 	${LINK.f90} -o test_linear_advection.exe ${OBJ_LINEAR_ADVECTION} \
-		${Lflag1}
+		${Lflag2}
 
 test_linear_advection:
 	@echo test_linear_advection starting	>  test_linear_advection.diff
@@ -235,13 +235,17 @@ test_interpolate:
 						>  test_interpolate.diff)
 	@ls -l test_interpolate.diff
 #######################################################################
+test_interpolate_amr.o: test_interpolate_amr.f90
+	${COMPILE.f90} ${Cflag0} test_interpolate_amr.f90
+
 OBJ_INTERPOLATE_AMR = \
 	../src/ModKind.o \
+	../src/ModRandomNumber.o \
 	../src/ModInterpolateAMR.o \
 	test_interpolate_amr.o
 
 test_interpolate_amr_exe:
-	@(cd ../src; make ModKind.o; make ModInterpolateAMR.o)
+	@(cd ../src; make ModKind.o; make ModRandomNumber.o; make ModInterpolateAMR.o)
 	@make test_interpolate_amr.o
 	${LINK.f90} -o test_interpolate_amr.exe ${OBJ_INTERPOLATE_AMR} ${Lflag2}
 
@@ -252,11 +256,34 @@ test_interpolate_amr:
 	-@(./test_interpolate_amr.exe > test_interpolate_amr.diff)
 	@ls -l test_interpolate_amr.diff
 #######################################################################
+test_interpolate_cell_amr.o: test_interpolate_cell_amr.f90
+	${COMPILE.f90} ${Cflag0} test_interpolate_cell_amr.f90
+
+OBJ_INTERPOLATE_CELL_AMR = \
+	../src/ModKind.o \
+	../src/ModRandomNumber.o \
+	../src/ModInterpolateAMR.o \
+	../src/ModInterpolateCellAMR.o \
+	test_interpolate_cell_amr.o
+
+test_interpolate_cell_amr_exe:
+	@(cd ../src; make ModKind.o; make ModRandomNumber.o; make ModInterpolateAMR.o; make ModInterpolateCellAMR.o)
+	@make test_interpolate_cell_amr.o
+	${LINK.f90} -o test_interpolate_cell_amr.exe ${OBJ_INTERPOLATE_CELL_AMR} ${Lflag2}
+
+test_interpolate_cell_amr:
+	@echo test_interpolate_cell_amr starting > test_interpolate_cell_amr.diff
+	@make test_interpolate_cell_amr_exe >> test_interpolate_cell_amr.diff
+	@echo ./test_interpolate_cell_amr.exe  >> test_interpolate_cell_amr.diff
+	-@(./test_interpolate_cell_amr.exe > test_interpolate_cell_amr.diff)
+	@ls -l test_interpolate_cell_amr.diff
+#######################################################################
 OBJ_INITIAL_STATE = \
 	test_initial_state.o \
 	../src/ModIoUnit.o \
 	../src/ModMpiInterfaces.o \
-	../src/ModUtilities.o \
+	../src/ModUtility.o \
+	../src/ModUtility_c.o \
 	../src/ModReadParam.o \
 	../src/ModHdf5Utils.o \
 	../src/ModPlotFile.o \
@@ -279,6 +306,25 @@ test_initial_state:
 	@ls -l test_initial_state.diff
 
 #######################################################################
+OBJ_RANDOM_NUMBER = \
+	../src/ModRandomNumber.o
+
+test_random_number_exe:
+	@(cd ../src; make ModRandomNumber.o)
+	@make test_random_number.o
+	${LINK.f90} -o test_random_number.exe \
+		test_random_number.o ${OBJ_RANDOM_NUMBER} ${Lflag2}
+
+test_random_number:
+	@echo test_random_number starting	>  test_random_number.diff
+	@make test_random_number_exe		>> test_random_number.diff
+	@echo ./test_random_number.exe		>> test_random_number.diff
+	-@(./test_random_number.exe > test_random_number.tmp)
+	-@(diff test_random_number.tmp test_random_number.log \
+						>  test_random_number.diff)
+	@ls -l test_random_number.diff
+
+#######################################################################
 OBJ_RAY_TRACE = \
 	../src/ModMpiInterfaces.o \
 	../src/ModMpi.o \
@@ -294,7 +340,7 @@ test_ray_trace:
 	@echo test_ray_trace starting		>  test_ray_trace.diff
 	@make test_ray_trace_exe		>> test_ray_trace.diff
 	@echo ./test_ray_trace.exe		>> test_ray_trace.diff
-	-@(./test_ray_trace.exe > test_ray_trace.tmp)
+	-@(${SERIAL} ./test_ray_trace.exe > test_ray_trace.tmp)
 	-@(${SCRIPTDIR}/DiffNum.pl -t test_ray_trace.tmp test_ray_trace.log \
 						>  test_ray_trace.diff)
 	@ls -l test_ray_trace.diff
@@ -354,7 +400,8 @@ OBJ_AXES = \
 	../src/ModIoUnit.o \
 	../src/ModReadParam.o \
 	../src/ModTimeConvert.o \
-	../src/ModUtilities.o \
+	../src/ModUtility.o \
+	../src/ModUtility_c.o \
 	../src/ModKind.o \
 	../src/ModConst.o \
 	../src/ModNumConst.o \
@@ -390,7 +437,8 @@ OBJ_PLANET_FIELD = \
 	../src/ModIoUnit.o \
 	../src/ModReadParam.o \
 	../src/ModTimeConvert.o \
-	../src/ModUtilities.o
+	../src/ModUtility.o \
+	../src/ModUtility_c.o
 
 test_planet_field_exe:
 	@(cd ../src; make CON_planet_field.o)
@@ -414,7 +462,8 @@ OBJ_PLOT_FILE = \
 	../src/ModIoUnit.o \
 	../src/ModMpi.o \
 	../src/ModMpiInterfaces.o \
-	../src/ModUtilities.o \
+	../src/ModUtility.o \
+	../src/ModUtility_c.o \
 	../src/ModHdf5Utils.o \
 	../src/ModPlotFile.o
 
@@ -436,12 +485,14 @@ test_plot_file:
 
 OBJ_LOOKUP_TABLE = \
 	test_lookup_table.o \
+	../src/ModNumConst.o \
 	../src/ModIoUnit.o \
 	../src/ModMpi.o \
 	../src/ModMpiInterfaces.o \
 	../src/ModReadParam.o \
 	../src/ModInterpolate.o \
-	../src/ModUtilities.o \
+	../src/ModUtility.o \
+	../src/ModUtility_c.o \
 	../src/ModHdf5Utils.o \
 	../src/ModPlotFile.o \
 	../src/ModLookupTable.o
@@ -465,12 +516,15 @@ test_lookup_table:
 OBJ_UTILITIES = \
 	test_utilities.o \
 	../src/ModIoUnit.o \
+	../src/ModKind.o \
 	../src/ModMpi.o \
+	../src/ModMpiOrig.o \
 	../src/ModMpiInterfaces.o \
-	../src/ModUtilities.o
+	../src/ModUtility.o \
+	../src/ModUtility_c.o
 
 test_utilities_exe:
-	@(cd ../src; make ModUtilities.o)
+	@(cd ../src; make ModUtility.o)
 	@make test_utilities.o
 	${LINK.f90} -o test_utilities.exe ${OBJ_UTILITIES} ${Lflag1}
 
@@ -479,9 +533,10 @@ test_utilities:
 	@make test_utilities_exe		>> test_utilities.diff
 	@echo ./test_utilities.exe		>> test_utilities.diff
 	-@(./test_utilities.exe > test_utilities.tmp)
-	-@(diff test_utilities.tmp test_utilities.log \
+	-@(diff -b test_utilities.tmp test_utilities.log \
 						>  test_utilities.diff)
 	@ls -l test_utilities.diff
+	@rmdir xxx
 
 #######################################################################
 
@@ -513,7 +568,8 @@ OBJ_PROCESS_VAR_NAME = \
 	../src/ModIoUnit.o \
 	../src/ModMpi.o \
 	../src/ModMpiInterfaces.o \
-	../src/ModUtilities.o \
+	../src/ModUtility.o \
+	../src/ModUtility_c.o \
 	../src/ModProcessVarName.o
 
 test_process_var_name:

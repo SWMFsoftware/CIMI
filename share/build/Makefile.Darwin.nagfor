@@ -5,6 +5,7 @@
 SHELL=/bin/sh
 
 # Fortran language related part of Makefile.conf: Makefile.Darwin.nagfor
+FORTRAN_COMPILER_NAME=nagfor
 #
 #	Space Weather Modeling Framework (SWMF) 
 #	NAG Fortran Compiler (5.3 or later)
@@ -22,6 +23,8 @@ PRECISION  = ${DOUBLEPREC}
 MPILIB = 
 #MPILIB = -L${LIBDIR} -lNOMPI
 
+#OPENMPFLAG = -fopenmp
+
 # Define where modules are stored and add it to the search path
 # INCL_EXTRA can be defined to add more search directories.
 SEARCH =  -mdir ${INCLDIR} -I${INCLDIR} ${INCL_EXTRA}
@@ -35,7 +38,7 @@ OPT2 = -O2
 OPT3 = -O3
 OPT4 = -O4
 
-CFLAG = ${SEARCH} -c -w -ideclient ${DEBUG}
+CFLAG = ${SEARCH} -c -w -ideclient ${OPENMPFLAG} ${DEBUG}
 
 Cflag0  = ${CFLAG} ${PRECISION} ${OPT0}
 Cflag1  = ${CFLAG} ${PRECISION} ${OPT1}
@@ -48,8 +51,8 @@ Cflag4  = ${CFLAG} ${PRECISION} ${OPT4}
 CFLAGS = ${CFLAG} -save
 
 # The '-Bstatic' flag avoids segmentation fault for large number of blocks
-Lflag1  = ${PRECISION} ${MPILIB} ${DEBUG} # -Bstatic
-Lflag2  = ${PRECISION} ${DEBUG} # -Bstatic
+Lflag1  = ${PRECISION} ${MPILIB} ${OPENMPFLAG} ${DEBUG}
+Lflag2  = ${PRECISION} ${DEBUG} ${OPENMPFLAG}
 
 # BLAS and LAPACK libraries
 LBLAS =
@@ -80,8 +83,5 @@ BLAS  = lapack.o blas.o
 .ftn.o:
 	${COMPILE.f77} ${Cflag3} -132 $<
 
-clean:	
+cleanfiles:	
 	rm -f *~ core *.o *.mod fort.* a.out *.exe *.a *.so *.protex
-
-
-# keep this line

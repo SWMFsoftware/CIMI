@@ -5,14 +5,19 @@
 SHELL=/bin/sh
 
 # Fortran language related part of Makefile.conf: Makefile.Linux.ifortftn
+FORTRAN_COMPILER_NAME=ifortftn
 #
 #	Space Weather Modeling Framework (SWMF) 
 #	Intel Fortran (ifort) Compiler with FTN for linking
 #
 
-COMPILE.f77     = ${CUSTOMPATH_F}ifort
-COMPILE.f90     = ${CUSTOMPATH_F}ifort
+COMPILE.f77     = ${CUSTOMPATH_F}ftn
+COMPILE.f90     = ${CUSTOMPATH_F}ftn
 LINK.f90	= ${CUSTOMPATH_MPI}ftn
+
+# To compile main C code with Fortran libraries
+NOMAINFLAG = -nofor-main
+
 AR = ar -rs
 
 SINGLEPREC =
@@ -22,11 +27,13 @@ PRECISION  = ${DOUBLEPREC}
 MPILIB =
 #MPILIB = -L${LIBDIR} -lNOMPI
 
+#OPENMPFLAG = -fopenmp
+
 # Define where modules are stored and add it to the search path
 # INCL_EXTRA can be defined to add more search directories.
 SEARCH = -module ${INCLDIR} ${INCL_EXTRA}
 
-DEBUGFLAG = -check all
+DEBUGFLAG = -check noarg_temp_created -g -traceback -fpe0
 DEBUG     = 
 
 OPT0 = -O0
@@ -35,7 +42,7 @@ OPT2 = -O2
 OPT3 = -O3
 OPT4 = -O4
 
-CFLAG = ${SEARCH} -c -w -diag-disable remark ${DEBUG}
+CFLAG = ${SEARCH} -c -w -diag-disable remark ${OPENMPFLAG} ${DEBUG}
 
 Cflag0  = ${CFLAG} ${PRECISION} ${OPT0}
 Cflag1  = ${CFLAG} ${PRECISION} ${OPT1}
@@ -48,8 +55,8 @@ Cflag4  = ${CFLAG} ${PRECISION} ${OPT4}
 CFLAGS = ${CFLAG} ${OPT2} -save
 
 # Link flags: Lflag1 for MPI parallel code, Lflag2 for serial code
-Lflag1  = ${PRECISION} ${MPILIB} ${DEBUG}
-Lflag2  = ${PRECISION} ${DEBUG}
+Lflag1  = ${PRECISION} ${MPILIB} ${OPENMPFLAG} ${DEBUG}
+Lflag2  = ${PRECISION} ${OPENMPFLAG} ${DEBUG}
 
 # BLAS and LAPACK libraries
 LBLAS =
@@ -77,8 +84,7 @@ BLAS  = lapack.o blas.o
 .ftn.o:
 	${COMPILE.f77} ${Cflag2} -132 $<
 
-clean:	
+cleanfiles:	
 	rm -f *~ core *.o *.mod fort.* a.out *.exe *.a *.so *.il *.protex
 
 
-# keep this line

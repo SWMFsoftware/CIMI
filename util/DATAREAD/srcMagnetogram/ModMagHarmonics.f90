@@ -1,31 +1,31 @@
-!  Copyright (C) 2002 Regents of the University of Michigan, portions used with permission 
+!  Copyright (C) 2002 Regents of the University of Michigan, 
+!  portions used with permission 
 !  For more information, see http://csem.engin.umich.edu/tools/swmf
 module ModMagHarmonics
   use ModNumConst
   implicit none  
 
   !The logical is to be set. 
-
-  logical,parameter :: UseSinLatitudeGrid = .true.
-  logical,parameter :: UseChebyshevNode   = .true.
+  logical:: UseSinLatitudeGrid = .true.
+  logical:: UseChebyshevNode   = .true.
   
   ! **********************Choice of this parameter**********************
   ! *Sin(Latitude): WSO : http://wso.stanford.edu                      *
-  ! *   MDI: see http://soi.stanford.edu/magnetic/index6.html          *         
+  ! *   MDI: see http://soi.stanford.edu/magnetic/index6.html          * 
   ! *   SOLIS:http://solis.nso.edu/vsm/map_info.html                   *
-  ! *   GONG: http://gong.nso.edu/data/magmap/index.html               *         
+  ! *   GONG: http://gong.nso.edu/data/magmap/index.html               *
   ! ********************************************************************
-  !
-  !
+
   ! Name of input file
-  character (len=*), parameter:: NameFileIn='fitsfile.dat'
+  character (len=100):: NameFileIn = 'fitsfile.out'
+  real:: BrMax = 3500.0
 
   ! Name of output file
-  character (len=*), parameter:: NameFileOut='harmonics.dat'
+  character (len=100):: NameFileOut='harmonics.dat'
 
   ! This Module reads a raw (RADIAL, not LOS!!!) magnetogram data file and
   ! generates a magnetogram file in the form of spherical
-  ! harmonics to be use by SWMF. 
+  ! harmonics to be used by the SWMF. 
   
   ! ************************ Data Links ********************************
   ! * MDI:   http://soi.stanford.edu/magnetic/index6.html              *
@@ -37,19 +37,20 @@ module ModMagHarmonics
   ! * Field in Gauss: MDI,GONG,SOLIS                                   *
   ! * Field in microTesla(0.01Gs): WSO, MWO                            *
   ! ********************************************************************
-  real,allocatable,dimension(:,:)::g_nm,h_nm, Br_II
-  real::dR=1.0,dPhi=1.0,dTheta,dSinTheta=1.0
+
+  real, allocatable, dimension(:,:):: g_nm, h_nm, Br_II
+  real:: dR=1.0, dPhi=1.0, dTheta, dSinTheta=1.0
   integer:: nPhi=72, nTheta=29
-  integer:: nHarmonics=180
-  !----------------------------------------------------------------
+
+  integer, parameter:: MaxHarmonics = 180
+  integer:: nHarmonics = MaxHarmonics, nHarmonicsIn = MaxHarmonics
 
   integer:: i,n,m,iTheta,iPhi,iR,mm,nn,CarringtonRotation
   real:: CosTheta,SinTheta
   real:: stuff1,stuff2,stuff3
   real:: Theta,Phi
-  !----------------------------------------------------------------
  
- real :: SumArea,da
+  real :: SumArea,da
   real :: NormalizationFactor
   integer :: iUnit2, iNM
   real,allocatable,dimension(:) :: gArray, hArray
@@ -57,7 +58,6 @@ module ModMagHarmonics
   integer :: SizeOfnm, ArrPerProc,EndProc,SizeLastProc
   real, allocatable, dimension(:,:)   :: p_nm, CosMPhi_II,SinMPhi_II
   real, allocatable, dimension(:,:,:) :: PNMTheta_III
-  !----------------------------------------------------------------
  
   real:: SinThetaM, SinThetaM1 
   integer:: delta_m0
@@ -65,11 +65,56 @@ module ModMagHarmonics
   integer, parameter:: MaxInt=100000
   real:: Sqrt_I(MaxInt)
 
-
   real, allocatable, dimension(:) :: ChebyshevWeightE_I, ChebyshevWeightW_I
 
-contains
+  ! Parameters used to apply modified scaling to the raw magnetogram
+  real:: BrFactor = 1.0, BrMin = 0.0
 
+  ! Optional enhancement of the polar magnetic field with a factor
+  !  1 + (PolarFactor-1)*abs(sin(Latitude))^PolarExponent
+  logical           :: DoChangePolarField = .false.
+  real              :: PolarFactor = 1.0
+  real              :: PolarExponent = 2.0
+
+contains
+  subroutine read_harmonics_param
+
+    use ModReadParam
+
+    character(len=lStringLine) :: NameCommand
+
+    character(len=*), parameter:: NameSub = 'read_harmonics_param'
+    !-----------------------------------------------------------------------
+    call read_file('HARMONICS.in')
+    call read_init
+    call read_echo_set(.true.)
+
+    do
+       if(.not.read_line() ) EXIT
+       if(.not.read_command(NameCommand)) CYCLE
+       select case(NameCommand)
+       case("#HARMONICS")
+          call read_var('nHarmonics', nHarmonicsIn)
+       case("#MAGNETOGRAMFILE")
+          call read_var('NameFileIn', NameFileIn)
+          call read_var('BrMax',      BrMax)
+       case("#CHANGEPOLARFIELD")
+          DoChangePolarField = .true.
+          call read_var('PolarFactor',   PolarFactor)
+          call read_var('PolarExponent', PolarExponent)
+       case("#OUTPUT")
+          call read_var('NameFileOut', NameFileOut)
+       case("#CHEBYSHEV")
+          call read_var('UseChebyshevNode', UseChebyshevNode)
+       case("#CHANGEWEAKFIELD")
+          call read_var('BrFactor', BrFactor)
+          call read_var('BrMin', BrMin)
+       case default
+          call CON_stop(NameSub//': unknown command='//trim(NameCommand))
+       end select
+    end do
+
+  end subroutine read_harmonics_param
   !=================================================================
   real function sin_latitude(iTheta)
     integer,intent(in)::iTheta
@@ -80,8 +125,9 @@ contains
   !=================================================================
   real function r_latitude(iTheta)
     integer,intent(in)::iTheta
+    !--------------------------------------------------------------
     if(UseSinLatitudeGrid)then
-       r_latitude=asin(sin_latitude(iTheta))
+       r_latitude = asin(sin_latitude(iTheta))
     else
        r_latitude = (iTheta + 0.50)*dTheta - cPi*0.50
     end if
@@ -93,91 +139,88 @@ contains
   end function colatitude
   !=================================================================
   subroutine read_raw_magnetogram
-    use ModPlotFile,ONLY: save_plot_file
+
+    use ModPlotFile,ONLY: read_plot_file
+
     ! Read the raw magnetogram file into a 2d array
-    
-    integer :: iRM,jRM,iUnit,iError,nHarmonicsIn
-    character (len=100) :: line
-    real, allocatable:: tempBr(:),Coord_DII(:,:,:),State_VII(:,:,:)
-    !----------------------------------------------------------
-    
-    iUnit = 11
-    open(iUnit,file=NameFileIn,status='old',iostat=iError)
-    
-    do 
-       read(iUnit,'(a)', iostat = iError ) line
-       if(index(line,'#CR')>0)then
-          read(iUnit,*) CarringtonRotation
-       endif
-       if(index(line,'#nMax')>0)then
-          read(iUnit,*) nHarmonicsIn
-       endif
-       if(index(line,'#ARRAYSIZE')>0)then
-          read(iUnit,*) nPhi
-          read(iUnit,*) nTheta
-       endif
-       if(index(line,'#START')>0) EXIT
-    end do
-    
-    write(*,*)'Magnetogram size - Theta,Phi: ',nTheta,nPhi
-    
+
+    integer :: iTheta, iError
+    real, allocatable:: Phi_I(:), Latitude_I(:)
+    real:: Param_I(1)
+
+    character(len=*), parameter:: NameSub = 'read_raw_magnetogram'
+    !--------------------------------------------------------------------------
+    call read_plot_file(NameFileIn, n1Out = nPhi, n2Out = nTheta, &
+         ParamOut_I=Param_I, iErrorOut=iError)
+
+    if(iError /= 0) call CON_stop(NameSub// &
+         ': could not read header from file'//trim(NameFileIn))
+
+    write(*,*)'nTheta, nPhi, LongitudeShift: ', nTheta, nPhi, Param_I
+
+    allocate(Phi_I(nPhi), Latitude_I(nTheta), Br_II(0:nPhi-1,0:nTheta-1))
+
+    call read_plot_file(NameFileIn, &
+         Coord1Out_I=Phi_I, Coord2Out_I=Latitude_I, VarOut_II = Br_II, &
+         iErrorOut=iError)
+
+    if(iError /= 0) call CON_stop(NameSub// &
+         ': could not read date from file'//trim(NameFileIn))
+
+    ! Check if the theta coordinate is uniform or not
+    UseSinLatitudeGrid = &
+         abs(Latitude_I(3) - 2*Latitude_I(2) + Latitude_I(1)) > 1e-6
+
+    ! There is no point using Chebyshev transform if the original grid
+    ! is already uniform in theta
+    if(.not.UseSinLatitudeGrid) UseChebyshevNode = .false.
+
+    ! Apply polar field change if option
+    if(DoChangePolarField)then
+       do iTheta = 0, nTheta-1
+          Br_II(:,iTheta) = Br_II(:,iTheta) &
+               *(1 + (PolarFactor-1) &
+               * abs(sin(cDegToRad*Latitude_I(iTheta+1)))**PolarExponent)
+       end do
+    end if
+    deallocate(Latitude_I)
+
+    ! Apply a scaling factor to small magnetic fields, to compensate
+    ! the measurement error for the coronal hole (=very low) field.
+    !
+    ! For examples for scaling factor = 3.75 and BrMin = 5 G 
+    ! the observed field of
+    ! 1    G, 2 G, 20 G  will be converted to 
+    ! 3.75 G, 7 G, 25 G  accordingly.
+    if(BrMin > 0.0 .or. BrFactor > 1.0) &
+         Br_II = sign(min(abs(Br_II) + BrMin, BrFactor*abs(Br_II)), Br_II)
+
+    ! Fix too large values of Br
+    where (abs(Br_II) > BrMax) Br_II = sign(BrMax, Br_II)
+
     ! Setting the order on harmonics to be equal to the 
     ! latitudinal resolution.
-    if(nHarmonicsIn > 0 .and. nHarmonicsIn <180)then
-       nHarmonics=nHarmonicsIn
+    if(nHarmonicsIn > 0 .and. nHarmonicsIn < MaxHarmonics)then
+       nHarmonics = nHarmonicsIn
     else
-       nHarmonics=min(nTheta,180)
+       nHarmonics = min(nTheta, MaxHarmonics)
     endif
     write(*,*)'Order of harmonics: ',nHarmonics
-    
-    dPhi=cTwoPi/nPhi
-    dTheta=cPi/nTheta
-    dSinTheta=2.0/nTheta
-    
+
+    dPhi      = cTwoPi/nPhi
+    dTheta    = cPi/nTheta
+    dSinTheta = 2.0/nTheta
+
     ! Allocate the harmonic coefficients arrays
     allocate( &
-         p_nm(nHarmonics+1,nHarmonics+1),&
-         g_nm(nHarmonics+1,nHarmonics+1), h_nm(nHarmonics+1,nHarmonics+1), &
+         p_nm(nHarmonics+1,nHarmonics+1), &
+         g_nm(nHarmonics+1,nHarmonics+1), &
+         h_nm(nHarmonics+1,nHarmonics+1), &
          FactRatio1(nHarmonics+1))
 
-    !Allocate the magnetic field array, at the spherical grid.
-    allocate( tempBr(0:nPhi*nTheta-1), Br_II(0:nPhi-1,0:nTheta-1))
-    
     p_nm = 0.0
     g_nm = 0.0
     h_nm = 0.0
-
-    tempBr = 0.0 
-    Br_II  = 0.0
-    allocate(Coord_DII(2,nPhi,nTheta), State_VII(1,nPhi,nTheta))
-    
-    iRM=0
-    do
-       read(iUnit,*,iostat=iError) tempBr(iRM)
-       if (iError /= 0) EXIT
-       iRM=iRM+1
-    end do
-    
-    close(iUnit)
-    
-    do iRM = 0, nTheta - 1
-       do jRM = 0, nPhi - 1
-          ! The MDI magnetogram is saturated for magnetic field larger than 
-          ! 1900 gauss.
-          if (abs(tempBr(iRM*nPhi+jRM)) > 1900.0) &
-               tempBr(iRM*nPhi+jRM)=1900.0*sign(1.,tempBr(iRM*nPhi+jRM))
-          Br_II(jRM,iRM) = tempBr(iRM*nPhi+jRM)
-          Coord_DII(1,jRM+1,iRM+1) = dPhi * cRadToDeg * jRM
-          Coord_DII(2,jRM+1,iRM+1) = r_latitude(iRM)*cRadToDeg
-          State_VII(1,jRM+1,iRM+1) = Br_II(jRM,iRM)
-       end do
-    end do
-    write(line,'(a,i4,a)')'CR',CarringtonRotation,'.out'
-    call save_plot_file(NameFile=trim(line),&
-         StringHeaderIn='Longitude[deg] Latitude[deg] Br[Gs]',&
-         NameVarIn='Longitude Latitude Br', &
-         nDimIn=2, CoordIn_DII=Coord_DII, VarIn_VII=State_VII)
-    deallocate(tempBr)
 
   end subroutine read_raw_magnetogram
 
@@ -209,8 +252,6 @@ contains
        nThetaOut=nThetaOut
     end if
 
-    !nThetaOut = 283
-    
     write(*,*) 'Original nTheta=', nThetaIn
     write(*,*) 'New nTheta=     ', nThetaOut
 
@@ -222,7 +263,7 @@ contains
        ThetaIn_I(iTheta) = colatitude(iTheta)
     end do
     dThetaChebyshev = cPi/(nThetaOut-1)
-    !write(*,*) 'New Theta:'
+
     do iTheta = 0, nThetaOut-1
        ThetaOut_I(iTheta) = cPi - iTheta*dThetaChebyshev
     end do
@@ -322,7 +363,7 @@ contains
     ! This suroutine calculates the spherical harmonics from the raw 
     ! magnetogram data
 
-    integer :: iUnit, iError, nError, m, n
+    integer :: iUnit, iError, m
     real    :: dThetaChebyshev
     
     !-------------------------------------------------------------------------
@@ -345,11 +386,10 @@ contains
 
     !Save Legendre polynoms
     if (UseChebyshevNode) then
-       call Chebyshev_transform
-       !write(*,*) 'nTheta=', nTheta
+       call chebyshev_transform
        allocate(PNMTheta_III(nHarmonics+1,nHarmonics+1,0:nTheta-1))
        PNMTheta_III = 0.0
-       dThetaChebyshev=cPi/(nTheta-1)
+       dThetaChebyshev = cPi/(nTheta-1)
        do iTheta=0,nTheta-1
           Theta=cPi-iTheta*dThetaChebyshev
           !write(*,*) Theta
@@ -410,7 +450,6 @@ contains
        enddo
     end do
 
-
     ! Each processor gets part of the array 
     do iNM = 0,SizeOfnm-1
 
@@ -423,20 +462,18 @@ contains
 
        SumArea=0.0
 
-
        do iTheta=0,nTheta-1
 
           if (UseChebyshevNode) then
-             !write(*,*) 'Running here'
              ! Use Chebyshev Weight in theta direction
-             da=ChebyshevWeightE_I(iTheta)*ChebyshevWeightW_I(iTheta)*dPhi
+             da = ChebyshevWeightE_I(iTheta)*ChebyshevWeightW_I(iTheta)*dPhi
           else
-             Theta=colatitude(iTheta) 
-             SinTheta=max(sin(Theta), 0.0)
+             Theta = colatitude(iTheta) 
+             SinTheta = max(sin(Theta), 0.0)
              if(UseSinLatitudeGrid)then
-                da = dSinTheta * dPhi
+                da = dSinTheta*dPhi
              else
-                da =SinTheta*dTheta*dPhi
+                da = SinTheta*dTheta*dPhi
              end if
           end if
           
@@ -455,10 +492,8 @@ contains
                   nArray(iNM)+1,mArray(iNM)+1,iTheta)!/SinTheta
           SumArea = SumArea+da*nPhi
        end do
-       gArray(iNM) = &
-            NormalizationFactor*gArray(iNM)/SumArea
-       hArray(iNM) = &
-            NormalizationFactor*hArray(iNM)/SumArea
+       gArray(iNM) = NormalizationFactor*gArray(iNM)/SumArea
+       hArray(iNM) = NormalizationFactor*hArray(iNM)/SumArea
     end do
 
     iNM=0
@@ -482,7 +517,7 @@ contains
     !/
     
     write(*,*)'Writing harmonic coefficients file, named ',NameFileOut
-    iUnit = 2
+    iUnit = 9
     open ( unit = iUnit, &
          file = NameFileOut, &
          form = 'formatted', &
@@ -494,9 +529,12 @@ contains
        stop
     end if
 
-    write ( iUnit, '(a19,I3,a10,I4,a4)' ) 'Coefficients order=',nHarmonics,' center=CT',CarringtonRotation,':180'
+    write ( iUnit, '(a19,I3,a10,I4,a4)' ) &
+         'Coefficients order=',nHarmonics, &
+         ' Central=CT',CarringtonRotation,':180'
     write ( iUnit, '(a)' ) 'Observation time'
-    write ( iUnit, '(a45,I3)' ) 'B0 angle & Nmax:        0          ',nHarmonics
+    write ( iUnit, '(a45,I3)' ) &
+         'B0 angle & Nmax:        0          ',nHarmonics
     write ( iUnit, * )
     write ( iUnit, * )
     write ( iUnit, * )
@@ -509,14 +547,13 @@ contains
     write ( iUnit, '(a)' ) ' '
     
     
-    do nn=0,nHarmonics
-       do mm=0,nn
+    do nn=0, nHarmonics
+       do mm = 0, nn
           write(iUnit, '(2I5,2f20.10)') nn,mm,g_nm(nn+1,mm+1),h_nm(nn+1,mm+1)
        enddo
     end do
     
     close(iUnit)
-
 
   end subroutine calc_harmonics
 

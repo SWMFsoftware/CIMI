@@ -5,6 +5,7 @@
 SHELL=/bin/sh
 
 # Fortran language related part of Makefile.conf: Makefile.Linux.mpxlf90
+FORTRAN_COMPILER_NAME=mpxlf90
 #
 #	Space Weather Modeling Framework (SWMF) 
 #
@@ -87,6 +88,6 @@ BLAS  = lapack.o blas.o
 .ftn.o:
 	${COMPILE.f77} ${Cflag5} ${SuffixMapftn} $<
 
-clean:	
+cleanfiles:	
 	rm -f *~ core *.o *.mod fort.* a.out *.exe *.a *.so *.protex
 

@@ -5,6 +5,7 @@
 SHELL=/bin/sh
 
 # Fortran language related part of Makefile.conf: Makefile.Darwin.ifort
+FORTRAN_COMPILER_NAME=ifort
 #
 #	Space Weather Modeling Framework (SWMF) 
 #	Intel ifort Fortran compiler for OSX with mpif90
@@ -13,6 +14,10 @@ SHELL=/bin/sh
 COMPILE.f77     = ${CUSTOMPATH_F}ifort
 COMPILE.f90     = ${CUSTOMPATH_F}ifort
 LINK.f90	= ${CUSTOMPATH_MPI}mpif90
+
+# To compile main C code with Fortran libraries
+NOMAINFLAG = -nofor-main
+
 AR = ar -rs
 
 SINGLEPREC =
@@ -79,8 +84,7 @@ BLAS  = lapack.o blas.o
 .ftn.o:
 	${COMPILE.f77} ${Cflag2} -132 $<
 
-clean:	
+cleanfiles:	
 	rm -f *~ core *.o *.mod fort.* a.out *.exe *.a *.so *.protex
 
 
-# keep this line
