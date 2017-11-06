@@ -34,6 +34,8 @@ ${MY_LIB}: ${CIMI_LIB} ${OBJECTS}
 	cp -f ${CIMI_LIB} ${MY_LIB}
 	${AR} ${MY_LIB} ${OBJECTS}
 
+clean: cleanfiles
+
 distclean: clean
 	rm -f Makefile.DEPEND
 
