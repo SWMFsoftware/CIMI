@@ -145,8 +145,16 @@ subroutine cimi_run(delta_t)
 
      call WavePower(Time,AE_temp,iba)
   end if
+
+  ! calculate the ionospheric potential (if not using MHD potential)
+  if (UseWeimer) then
+     call timing_start('set_cimi_potential')
+     call set_cimi_potential(CurrentTime,rc) 
+     call timing_stop('set_cimi_potential')
+  endif
   
-  if (Time == 0.0 .and. nProc == 1 .and. DoSavePlot) then
+  ! save the initial point (needs to be fixed and so not called)
+  if (Time == 0.0 .and. nProc == 0 .and. DoSavePlot) then
      call timing_start('cimi_output')
      call cimi_output(np,nt,nm,nk,nspec,neng,npit,iba,ftv,f2,ekev, &
           sinA,energy,sinAo,delE,dmu,amu_I,xjac,pp,xmm,dmm,dk,xlat,dphi, &
@@ -181,12 +189,6 @@ subroutine cimi_run(delta_t)
      endif
   endif
   
-  ! calculate the ionospheric potential (if not using MHD potential)
-  if (UseWeimer) then
-     call timing_start('set_cimi_potential')
-     call set_cimi_potential(CurrentTime,rc) 
-     call timing_stop('set_cimi_potential')
-  endif
 
   ! calculate the drift velocity
   call timing_start('cimi_driftV')
