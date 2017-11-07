@@ -146,7 +146,7 @@ contains
 
     use ModCimiGrid,      ONLY: np, xlat
     use ModCimi,          ONLY: init_mod_cimi, Time
-    use ModFieldTrace,    ONLY: init_mod_field_trace
+    use ModCimiTrace,    ONLY: init_mod_field_trace
     use ModImTime
     use ModTimeConvert,   ONLY: time_real_to_int
     use CON_physics,      ONLY: get_time
@@ -520,7 +520,7 @@ contains
     use ModCimi,      ONLY: Pressure_IC, PressurePar_IC, Bmin_C, Time, Pmin
     use ModGmCimi,    ONLY: Den_IC, iLatMin, DoMultiFluidGMCoupling, &
          DoAnisoPressureGMCoupling
-    use ModFieldTrace,ONLY: iba
+    use ModCimiTrace,ONLY: iba
     use ModCimiPlanet,ONLY: nspec,amu_I
     use ModNumConst,  ONLY: cRadToDeg
     use ModConst,     ONLY: cProtonMass
