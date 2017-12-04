@@ -4399,7 +4399,7 @@ c$$$     .         * exp ( -.005*ne(i,nfl,nll)/deni(i,nfl,nll,ni) )
           s2i(i) = s2i(i) + 2. * nuin(i,ptop,nn) * redmass 
           s3i(i) = s3i(i)
      .      + convfac * amn(nn) 
-     .                * abs ( vsi(i,nfl,nll,ptop) - tvn(i,nll) )
+     .                * abs ( vsi(i,nfl,nll,ptop) - tvn(i,nll) )**2
      .      * 2. * nuin(i,ptop,nn) * redmass 
         enddo
 
