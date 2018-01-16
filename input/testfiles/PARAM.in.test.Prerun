@@ -45,7 +45,7 @@ F		UseSeparatePlotFiles
 F		IsEmptyInitial
 F		IsGmInitial
 T		IsDataInitial
-F		IsRBSPData
+T		IsRBSPData
 
 #TYPEBOUNDARY
 Circle		TypeBoundary
@@ -67,6 +67,11 @@ F		IsRestart
 F		DoWritePrerun
 T		UsePrerun
 60.		DtRead
+
+#PRERUNSAT
+F		DoWritePrerunSat
+T		UsePrerunSat
+60.		DtReadSat
 
 #IMTIMESTEP
 30.		IMDeltaT [s]
