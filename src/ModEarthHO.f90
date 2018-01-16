@@ -46,7 +46,7 @@ Module ModCimiPlanet
 !  integer, parameter :: nLogVars = 8
   character(len=500), parameter :: & 
        NamePlotVarLog=&
-       'it t '// &
+       'it t dst '// &
        'RbSumH RcSumH HpDrift HpBfield HpChargeEx HpWaves '// &
        'HpStrongDiff HpLossCone HpDriftIn HpDriftOut '// &
        'RbSumO RcSumO OpDrift OpBfield OpChargeEx OpWaves '// &

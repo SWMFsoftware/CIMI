@@ -7,10 +7,10 @@ subroutine cimi_run(delta_t)
                             OpDrift_, OpBfield_, OpChargeEx_, &
                             OpWaves_, OpStrongDiff_, OpLossCone_, &
                             rbsumLocal, rbsumGlobal, &
-                            rcsumLocal,rcsumGlobal,&
-                            driftin, driftout, IsStandAlone,&
-                            preP,preF,Eje1,UseStrongDiff,&
-                            eChangeOperator_VICI,nOperator,&
+                            rcsumLocal, rcsumGlobal, &
+                            driftin, driftout, IsStandAlone, &
+                            preP,preF,Eje1,UseStrongDiff, &
+                            eChangeOperator_VICI,nOperator, &
                             eChangeLocal,eChangeGlobal
   use ModCimiPlanet,  ONLY: re_m, dipmom, Hiono, nspec, amu_I, &
                             dFactor_I,tFactor_I
@@ -745,22 +745,31 @@ subroutine cimi_init
   enddo
 
   ! CIMI magnetic moment, xmm1
- do n=1,nspec
-  xmm(n,1)=energy(n,1)*cElectronCharge/(dipmom/(2*re_m)**3.0)
-!  dmm(n,1)=xmm(n,1)*2.              
-  rw=1.55 
-  rw1=(rw-1.)/sqrt(rw)
-  xmm(n,0)=xmm(n,1)/rw                      
-  !do i=2,nm                    
-  !   dmm(n,i)=dmm(n,1)*rw**(i-1)           
-  !   xmm(n,i)=xmm(n,i-1)+0.5*(dmm(n,i-1)+dmm(n,i))
-  !enddo
-  do i=1,nm            ! This setup makes xmm(k+0.5)=sqrt(xmm(k)*xmm(k+1))
-         xmm(n,i)=xmm(n,i-1)*rw
-         dmm(n,i)=xmm(n,i)*rw1
+  ! This setup makes xmm(k+0.5)=sqrt(xmm(k)*xmm(k+1))
+  do n=1,nspec
+     xmm(n,1)=energy(n,1)*cElectronCharge/(dipmom/(2*re_m)**3.0)
+     rw=1.55 
+     rw1=(rw-1.)/sqrt(rw)
+     xmm(n,0)=xmm(n,1)/rw                      
+     do i=1,nm            ! This setup makes xmm(k+0.5)=sqrt(xmm(k)*xmm(k+1))
+        xmm(n,i)=xmm(n,i-1)*rw
+        dmm(n,i)=xmm(n,i)*rw1
+     enddo
+     xmm(n,nm+1)=xmm(n,nm)*rw
   enddo
-      xmm(n,nm+1)=xmm(n,nm)*rw
- enddo
+
+  ! OLD INITIALIZATION of CIMI magnetic moment, xmm1
+  ! This setup has been saved and commented out here for comparison
+  ! with older simulations
+!!$  do n=1,nspec
+!!$     xmm(n,1)=energy(n,1)*cElectronCharge/(dipmom/(2*re_m)**3.0)
+!!$     dmm(n,1)=xmm(n,1)*2.              
+!!$     rw=1.55 
+!!$     do i=2,nm                    
+!!$        dmm(n,i)=dmm(n,1)*rw**(i-1)           
+!!$        xmm(n,i)=xmm(n,i-1)+0.5*(dmm(n,i-1)+dmm(n,i))
+!!$     enddo
+!!$  enddo
 
   ! CIMI K, xk
   rsi=1.47
@@ -1799,101 +1808,111 @@ subroutine sume_cimi(OperatorName)
 ! 	because it's total energy
 !  
 !!!!!!!!!!!!!!!!
-  use ModCimi,       ONLY: &
-       f2,rbsum=>rbsumLocal,rbsumGlobal,rcsum=>rcsumLocal,rcsumGlobal,&
-       xle=>eChangeOperator_VICI,ple=>pChangeOperator_VICI, &
-       eChangeGlobal,eChangeLocal, &
-       esum=>eTimeAccumult_ICI,psum=>pTimeAccumult_ICI
-  use ModCimiTrace, ONLY: iba,irm,ekev,ro,iw2
-  use ModCimiGrid,   ONLY: &
-       nProc,iProc,iComm, MinLonPar,MaxLonPar,d4Element_C, &
-       ip=>np,ir=>nt,im=>nm,ik=>nk,je=>neng,Energy,Ebound
-  use ModCimiPlanet, ONLY: nspec
+  use ModCimi,       	ONLY: &
+       f2, rbsum=>rbsumLocal, rbsumGlobal, &
+       rcsum=>rcsumLocal, rcsumGlobal, &
+       xle => eChangeOperator_VICI, ple => pChangeOperator_VICI, &
+       eChangeGlobal, eChangeLocal, &
+       esum => eTimeAccumult_ICI, psum => pTimeAccumult_ICI
+  use ModCimiTrace, 	ONLY: iba, ekev,ro, iw2
+  use ModCimiGrid,   	ONLY: &
+       nProc,iProc,iComm, MinLonPar, MaxLonPar, d4Element_C, &
+       ip => np, ir => nt, im => nm, ik => nk, je => neng, &
+       Energy, Ebound
+  use ModCimiPlanet, 	ONLY: nspec
   use ModMPI
-  use ModWaveDiff,    ONLY: testDiff_aE 
+  use ModWaveDiff,    	ONLY: testDiff_aE 
 
   implicit none
 
   integer OperatorName   ! defined in ModCimi
-  real    :: weight,ekev1,weighte,dee,dpe
-  integer n,i,j,k,m,iError,kk
-  real gride1(0:je+1),e0(ip,ir,je+2),p0(ip,ir,je+2)
+  real    :: weight, ekev1, weighte, dee, dpe
+  integer n, i, j, k, m, iError, kk
+  real gride1(0:je+1), e0(ip,ir,je+2), p0(ip,ir,je+2)
 
 ! Set up gride1(0) and gride1(je+1)
-      gride1(0)=0.
-      gride1(je+1)=1.e10     ! arbitrary large number
+  gride1(0)=0.
+  gride1(je+1)=1.e10     ! arbitrary large number
 
 ! Calculate esum, psum, etc.
-    do n=1,nspec
-       eChangeLocal(n, OperatorName) = 0.
-       e0(1:ip,MinLonPar:MaxLonPar,1:je+2)=&
-            esum(n,1:ip,MinLonPar:MaxLonPar,1:je+2)
-       p0(1:ip,MinLonPar:MaxLonPar,1:je+2)=&
-            psum(n,1:ip,MinLonPar:MaxLonPar,1:je+2)
-       esum(n,1:ip,MinLonPar:MaxLonPar,1:je+2)=0.
-       psum(n,1:ip,MinLonPar:MaxLonPar,1:je+2)=0.
-       gride1(1:je)=Ebound(n,1:je)
+  do n=1,nspec
+     rbsum(n)=0.
+     rcsum(n)=0.
+     eChangeLocal(n, OperatorName) = 0.
+     e0(1:ip,MinLonPar:MaxLonPar,1:je+2)=&
+          esum(n,1:ip,MinLonPar:MaxLonPar,1:je+2)
+     p0(1:ip,MinLonPar:MaxLonPar,1:je+2)=&
+          psum(n,1:ip,MinLonPar:MaxLonPar,1:je+2)
+     esum(n,1:ip,MinLonPar:MaxLonPar,1:je+2)=0.
+     psum(n,1:ip,MinLonPar:MaxLonPar,1:je+2)=0.
+     gride1(1:je)=Ebound(n,1:je)
+     
+     do j=MinLonPar,MaxLonPar
+        do i=1,iba(j)
+           do m=1,ik
+              do k=1,iw2(n,m)
+                 ekev1=ekev(n,i,j,k,m)
+                 weight=d4Element_C(n,i,k,m)*f2(n,i,j,k,m)
+                 weighte=ekev1*weight
+                 psum(n,i,j,je+2)=psum(n,i,j,je+2)+weight
+                 esum(n,i,j,je+2)=esum(n,i,j,je+2)+weighte
+                 rbsum(n)=rbsum(n)+weighte
+                 if (ro(i,j).le.6.6) rcsum(n)=rcsum(n)+weighte
+                 kkloop: do kk=1,je+1
+                    if ( ekev1 .gt. gride1(kk-1) .and. &
+                         ekev1 .le. gride1(kk) ) then
+                       psum(n,i,j,kk)=psum(n,i,j,kk)+weight
+                       esum(n,i,j,kk)=esum(n,i,j,kk)+weighte
+                       exit kkloop
+                    endif
+                 enddo kkloop
+              enddo
+           enddo
+           
+           do kk=1,je+2
+              dee = esum(n,i,j,kk) - e0(i,j,kk)
+              xle(n,i,j,kk,OperatorName) = &
+                   xle(n,i,j,kk,OperatorName) + dee
+              dpe=psum(n,i,j,kk)-p0(i,j,kk)
+              ple(n,i,j,kk,OperatorName) = &
+                   ple(n,i,j,kk,OperatorName) + dpe
+           enddo
+           
+           eChangeLocal(n, OperatorName) = &
+                eChangeLocal(n, OperatorName) + &
+                xle(n,i,j,je+2,OperatorName)
+           
+        enddo                ! end of do i=1,iba(j)
+     enddo                   ! end of do j=MinLonPar,MaxLonPar
+     
+     if (nProc > 1) then
 
-       do j=MinLonPar,MaxLonPar
-          do i=1,irm(j)
-                do m=1,ik
-                   do k=1,iw2(n,m)
-                      ekev1=ekev(n,i,j,k,m)
-                      weight=d4Element_C(n,i,k,m)*f2(n,i,j,k,m)
-                      weighte=ekev1*weight
-                      psum(n,i,j,je+2)=psum(n,i,j,je+2)+weight
-                      esum(n,i,j,je+2)=esum(n,i,j,je+2)+weighte
-                      rbsum(n)=rbsum(n)+weighte
-                      if (ro(i,j).le.6.6) rcsum(n)=rcsum(n)+weighte
-                      kkloop: do kk=1,je+1
-                         if ( ekev1 .gt. gride1(kk-1) .and. &
-                              ekev1 .le. gride1(kk) ) then
-                            psum(n,i,j,kk)=psum(n,i,j,kk)+weight
-                            esum(n,i,j,kk)=esum(n,i,j,kk)+weighte
-                            exit kkloop
-                         endif
-                      enddo kkloop
-                   enddo
-                enddo
+        call MPI_REDUCE(&
+             rbsum(n), &
+             rbsumGlobal(n), 1, &
+             MPI_REAL, MPI_SUM, 0, iComm, iError)
+        call MPI_REDUCE(&
+             rcsum(n), &
+             rcsumGlobal(n), 1, &
+             MPI_REAL, MPI_SUM, 0, iComm, iError)
+        call MPI_REDUCE(&
+             eChangeLocal(n, OperatorName), &
+             eChangeGlobal(n, OperatorName), 1, &
+             MPI_REAL, MPI_SUM, 0, iComm, iError)
 
-             do kk=1,je+2
-                dee = esum(n,i,j,kk) - e0(i,j,kk)
-                xle(n,i,j,kk,OperatorName) = &
-                     xle(n,i,j,kk,OperatorName) + dee
-                dpe=psum(n,i,j,kk)-p0(i,j,kk)
-                ple(n,i,j,kk,OperatorName) = &
-                     ple(n,i,j,kk,OperatorName) + dpe
-             enddo
+     else 
 
-             eChangeLocal(n, OperatorName) = &
-                  eChangeLocal(n, OperatorName) + &
-                  xle(n,i,j,je+2,OperatorName)
-             
-          enddo                ! end of do i=1,iba(j)
-       enddo                   ! end of do j=MinLonPar,MaxLonPar
-
-       if (nProc > 1) then
-          call MPI_REDUCE(&
-               rbsum(n), rbsumGlobal(n), 1, &
-               MPI_REAL, MPI_SUM, 0, iComm, iError)
-          call MPI_REDUCE(&
-               rcsum(n), rcsumGlobal(n), 1, &
-               MPI_REAL, MPI_SUM, 0, iComm, iError)
-          call MPI_REDUCE(&
-               eChangeLocal(n, OperatorName),&
-               eChangeGlobal(n, OperatorName), 1, &
-               MPI_REAL, MPI_SUM, 0, iComm, iError)
-       else 
-          rbsumGlobal(n) = rbsum(n)
-          rcsumGlobal(n) = rcsum(n)
-          eChangeGlobal(n,OperatorName) = &
-               eChangeLocal(n,OperatorName)
-       endif
-
-    enddo                      ! end of do n=1,nSpecies
-
-    if (testDiff_aE) &
-         write(*,*) 'tot particles, el: ',psum(nspec,30,5,je+2)
+        rbsumGlobal(n) = rbsum(n)
+        rcsumGlobal(n) = rcsum(n)
+        eChangeGlobal(n,OperatorName) = &
+             eChangeLocal(n,OperatorName)
+        
+     endif
+     
+  enddo                      ! end of do n=1,nSpecies
+  
+  if (testDiff_aE) &
+       write(*,*) 'tot particles, el: ',psum(nspec,30,5,je+2)
 
 end subroutine sume_cimi
 

@@ -603,6 +603,9 @@ contains
 
   !============================================================================
   subroutine cimi_plot_log(Time)
+    use ModNumConst, 	ONLY: cPi
+    use ModConst, 	ONLY: cElectronCharge, cMu, cPi
+    use ModPlanetConst,	ONLY: Earth_, DipoleStrengthPlanet_I, rPlanet_I
     use ModCimiPlanet,  ONLY: nSpecies=>nspec,NamePlotVarLog
     use ModCimiRestart, ONLY: IsRestart
     use ModIoUnit,      ONLY: UnitTmp_
@@ -634,20 +637,37 @@ contains
     endif
 
     ! Write out iteration number (just use time in seconds)
-    write(UnitTmp_,'(i7)',ADVANCE='NO') nint(Time/dt)
+    write(UnitTmp_,'(I18)',ADVANCE='NO') nint(Time/dt)
 
     ! write time 
-    write(UnitTmp_,'(1es13.5)',ADVANCE='NO') time
+    write(UnitTmp_,'(1es18.08E3)',ADVANCE='NO') time
 
-  ! write out the operator changes
+    ! write dst calculated from the Dessler-Parker-Schopke relation.
+    ! Magnetic field depression deltaB at Earth's Center given by
+    !
+    ! 	      deltaB = - mu_0 / 2 / pi * U_R / B_E / R_E^3,
+    !
+    ! where mu_0 is the vacuum permeability, U_R is the total total
+    ! ring current energy given by the sum over species of rbsum, B_E
+    ! is the strength of Earth's dipole magnetic field, and R_E is the
+    ! Earth's radius.
+    !
+    ! Reference: Eq. 3.36 of Baumjohann and Treumann (2012), "Basic
+    ! Space Plasma Physics, Revised Edition," Imperial College Press.
+    write(UnitTmp_,'(1es18.08E3)',ADVANCE='NO') &
+         -0.5 * cMu / cPi / ABS( DipoleStrengthPlanet_I( Earth_ ) ) / &
+         rPlanet_I( Earth_ ) ** 3 * &
+         SUM( rbsumglobal ) * 1000. * cElectronCharge * 10 ** ( 9. )
+
+    ! write out the operator changes
     do iSpecies=1,nSpecies
        if (iSpecies < nSpecies) then
-          write(UnitTmp_,'(11es18.8E3)',ADVANCE='NO') & 
+          write(UnitTmp_,'(10es18.08E3)',ADVANCE='NO') & 
                rbsumglobal(iSpecies), rcsumglobal(iSpecies), &
                eChangeGlobal(iSpecies,1:nOperator-1), &
                driftin(iSpecies), driftout(iSpecies)
        else
-          write(UnitTmp_,'(11es18.8E3)') & 
+          write(UnitTmp_,'(10es18.08E3)') & 
                rbsumglobal(iSpecies), rcsumglobal(iSpecies), &
                eChangeGlobal(iSpecies,1:nOperator-1), &
                driftin(iSpecies), driftout(iSpecies)
