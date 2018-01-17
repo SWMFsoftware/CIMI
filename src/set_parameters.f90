@@ -7,7 +7,7 @@ subroutine CIMI_set_parameters(NameAction)
   use ModCimiPlot,       ONLY: DtOutput, DoSavePlot, DoSaveFlux, DoSaveDrifts,&
        DoSaveLog, UseSeparatePlotFiles, DtLogOut,DoSavePSD
   use ModCimiTrace,     ONLY: UseEllipse, UseSmooth, UseCorotation, &
-       UsePotential, SmoothWindow, imod
+       UsePotential, SmoothWindow, imod, iLatTest, iLonTest
   use ModCimi,           ONLY: UseMcLimiter, BetaLimiter, time, Pmin,&
        IsStandAlone, UseStrongDiff, dt, dtmax
   use ModCimiRestart,    ONLY: IsRestart,DtSaveRestart
@@ -21,6 +21,7 @@ subroutine CIMI_set_parameters(NameAction)
        DiffStartT,HissWavesD, ChorusWavesD,ChorusUpperBandD, &
        testDiff_aa, testDiff_EE, testDiff_aE, &
        NameAeFile, read_ae_wdc_kyoto
+  use DensityTemp, 	 ONLY: densityP
   use ModImSat,          ONLY: DtSatOut, DoWritePrerunSat, UsePrerunSat, &
        DtReadSat, DoWriteSats, ReadRestartSat
   use ModCimiGrid
@@ -254,6 +255,12 @@ subroutine CIMI_set_parameters(NameAction)
         call read_var('IMDeltaT [s]',dt)
         call read_var('IMDeltaTMax [s]',dtmax)
 
+     case('#TESTFIELDLINE')
+        call read_var('iLatTest',iLatTest)
+        call read_var('iLonTest',iLonTest)
+        
+     case('#PLASMAPAUSEDENSITY')
+        call read_var('DensityP [m^3]',densityP)
         
      end select
      
