@@ -16,7 +16,7 @@ Module ModCimiTrace
        tanA2(:,:,:), volume(:,:), bm(:,:,:), gamma(:,:,:,:),&
        xo(:,:), yo(:,:), tya(:,:,:), gridoc(:,:)
 
-  real:: parmod(10), rb
+  real	  :: parmod(10), rb = 10.0
 
   integer :: irm(ip),irm0(ip),iba(ip)
 
@@ -25,7 +25,7 @@ Module ModCimiTrace
   logical :: UseEllipse = .true.
   logical :: UseCorotation = .true.
   logical :: UsePotential = .true.
-
+  
   logical :: UseSmooth = .false.
   real    :: SmoothWindow
 
@@ -111,7 +111,7 @@ contains
        b_I(iTaylor)=b_I(iTaylor-1)*(2.*iTaylor-1.)/(2.*iTaylor)
     enddo
 
-    rb=10.0               ! nightside outer boundary in RE
+    if ( UseExpandedGrid ) rb = 15.0
 
     iopt=1               ! dummy parameter in t96_01 and t04_s 
     rlim=2.*rb

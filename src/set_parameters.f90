@@ -7,7 +7,7 @@ subroutine CIMI_set_parameters(NameAction)
   use ModCimiPlot,       ONLY: DtOutput, DoSavePlot, DoSaveFlux, DoSaveDrifts,&
        DoSaveLog, UseSeparatePlotFiles, DtLogOut,DoSavePSD
   use ModCimiTrace,     ONLY: UseEllipse, UseSmooth, UseCorotation, &
-       UsePotential, SmoothWindow, imod, iLatTest, iLonTest
+       UsePotential, SmoothWindow, imod, iLatTest, iLonTest, rb
   use ModCimi,           ONLY: UseMcLimiter, BetaLimiter, time, Pmin,&
        IsStandAlone, UseStrongDiff, dt, dtmax
   use ModCimiRestart,    ONLY: IsRestart,DtSaveRestart
@@ -261,6 +261,9 @@ subroutine CIMI_set_parameters(NameAction)
         
      case('#PLASMAPAUSEDENSITY')
         call read_var('DensityP [m^3]',densityP)
+        
+     case('#SETRB')
+        call read_var('rb [R_E]', rb)
         
      end select
      
