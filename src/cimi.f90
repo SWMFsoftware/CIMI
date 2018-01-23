@@ -181,8 +181,8 @@ subroutine cimi_run(delta_t)
 
      if (DoSaveFlux) call Cimi_plot_fls(rc,flux,time,Lstar_C,Lstar_max)
      if (DoSavePSD) call Cimi_plot_psd(rc,psd,xmm,xk,time)
-     if (DoSaveFlux.or.DoSavePSD) call &
-        Cimi_plot_Lstar(rc,xk,time,Lstarm,Lstar_maxm)
+     if (DoSaveFlux .or. DoSavePSD) &
+          call Cimi_plot_Lstar(rc,xk,time,Lstarm,Lstar_maxm)
      if (DoSaveDrifts) then
         call Cimi_plot_vl(rc,vlEa,time)
         call Cimi_plot_vp(rc,vpEa,time)
@@ -535,6 +535,8 @@ subroutine cimi_run(delta_t)
 
         if (DoSaveFlux) call Cimi_plot_fls(rc,flux,time,Lstar_C,Lstar_max)
         if (DoSavePSD) call Cimi_plot_psd(rc,psd,xmm,xk,time)
+        if (DoSaveFlux .or. DoSavePSD) &
+             call Cimi_plot_Lstar(rc,xk,time,Lstarm,Lstar_maxm)
         if (DoSaveDrifts) then
            call Cimi_plot_vl(rc,vlEa,time)
            call Cimi_plot_vp(rc,vpEa,time)
