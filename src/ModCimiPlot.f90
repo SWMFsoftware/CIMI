@@ -346,6 +346,7 @@ contains
              write(UnitTmp_,"(f10.6,5i6,6x,'! rc in Re,nr,ip,nm,nk,ntime')") &
                   rc,nLat-1,nLon,nint(nm/2.),nint(nk/2.),nprint
              write(UnitTmp_,'(1p,7e11.3)') (xk(k)*sqrt(1.e9)/re_m,k=1,nk,2)
+!!$             write(*,*) "PSD Array", xmm(n,:)*6.25e6
              write(UnitTmp_,'(1p,7e11.3)') (xmm(n,m)*6.25e6,m=1,nm,2)
              write(UnitTmp_,'(10f8.3)') (xlat(i),i=2,nLat)
           else

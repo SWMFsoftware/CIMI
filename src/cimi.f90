@@ -1964,7 +1964,8 @@ subroutine cimi_output(np,nt,nm,nk,nspec,neng,npit,iba,ftv,f2,ekev, &
   phot=0.
   Ppar_IC = 0.
   PressurePar_IC = 0.
-
+  psd = 0.
+  
   ! Some constants for pressure, fac calculations
   rion=re_m+Hiono*1000.                      ! ionosphere distance in meter
   do n=1,nspec

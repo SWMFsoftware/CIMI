@@ -13,7 +13,8 @@ contains
     use ModCimiGrid,  ONLY: np,nt,nm,nk,neng,d4Element_C
     use ModCimi,      ONLY: f2, phot, Pressure_IC, PressurePar_IC, FAC_C, &
          Ppar_IC, Bmin_C, eTimeAccumult_ICI, eChangeOperator_VICI, &
-         driftin, driftout, rbsumGlobal, nOperator
+         pTimeAccumult_ICI, pChangeOperator_VICI, &
+         driftin, driftout, rbsumGlobal, rcsumGlobal, nOperator
     use ModCimiTrace,ONLY: iba,ekev
     use ModGmCimi,    ONLY: Den_IC
     use ModIoUnit,    ONLY: UnitTmp_
@@ -40,7 +41,10 @@ contains
        read(UnitTmp_) Bmin_C
        read(UnitTmp_) eTimeAccumult_ICI
        read(UnitTmp_) eChangeOperator_VICI
-       read(UnitTmp_) rbsumglobal
+       read(UnitTmp_) pTimeAccumult_ICI
+       read(UnitTmp_) pChangeOperator_VICI
+       read(UnitTmp_) rbsumGlobal
+       read(UnitTmp_) rcsumGlobal
        read(UnitTmp_) driftin
        read(UnitTmp_) driftout
        close(UnitTmp_)
@@ -61,7 +65,12 @@ contains
             		MPI_REAL, 0, iComm, iError)
        call MPI_bcast(eChangeOperator_VICI, nspec*np*nt*nOperator*(neng+2), &
             		MPI_REAL, 0, iComm, iError)
-       call MPI_bcast(rbsumglobal, nspec, MPI_REAL, 0, iComm, iError)
+       call MPI_bcast(pTimeAccumult_ICI, nspec*np*nt*(neng+2), &
+            		MPI_REAL, 0, iComm, iError)
+       call MPI_bcast(pChangeOperator_VICI, nspec*np*nt*nOperator*(neng+2), &
+            		MPI_REAL, 0, iComm, iError)
+       call MPI_bcast(rbsumGlobal, nspec, MPI_REAL, 0, iComm, iError)
+       call MPI_bcast(rcsumGlobal, nspec, MPI_REAL, 0, iComm, iError)
        call MPI_bcast(driftin, nspec, MPI_REAL, 0, iComm, iError)
        call MPI_bcast(driftout, nspec, MPI_REAL, 0, iComm, iError)
     endif
@@ -77,7 +86,8 @@ contains
     use ModCimi,      ONLY: f2,time, phot, Pressure_IC, PressurePar_IC, &
          FAC_C, Ppar_IC, Bmin_C, &
          eTimeAccumult_ICI, eChangeOperator_VICI, &
-         driftin, driftout, rbsumGlobal, nOperator
+         pTimeAccumult_ICI, pChangeOperator_VICI, &
+         driftin, driftout, rbsumGlobal, rcsumGlobal, nOperator
     use ModCimiTrace,ONLY: iba    
     use ModGmCimi,    ONLY: Den_IC
     use ModIoUnit,    ONLY: UnitTmp_
@@ -165,9 +175,18 @@ contains
              if (iProc==0) &
                   eTimeAccumult_ICI(iSpecies,:,:,iEnergy)=BufferRecv_C(:,:)
 
+             !gather pTimeAccumult_ICI
+             BufferSend_C(:,:)=&
+                  pTimeAccumult_ICI(iSpecies,:,:,iEnergy)
+             call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
+                  MPI_REAL, BufferRecv_C, iRecieveCount_P, iDisplacement_P, &
+                  MPI_REAL, 0, iComm, iError)
+             if (iProc==0) &
+                  pTimeAccumult_ICI(iSpecies,:,:,iEnergy)=BufferRecv_C(:,:)
+
              do iOperator = 1, nOperator
 
-                !gather eTimeAccumult_VICI
+                !gather eChangeOperator_VICI
                 BufferSend_C(:,:)=&
                      eChangeOperator_VICI(iSpecies,:,:,iEnergy,iOperator)
                 call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), &
@@ -176,6 +195,17 @@ contains
                      MPI_REAL, 0, iComm, iError)
                 if (iProc==0) &
                      eChangeOperator_VICI(iSpecies,:,:,iEnergy,iOperator)=&
+                     	   BufferRecv_C(:,:)
+                
+                !gather pChangeOperator_VICI
+                BufferSend_C(:,:)=&
+                     pChangeOperator_VICI(iSpecies,:,:,iEnergy,iOperator)
+                call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), &
+                     iSendCount, &
+                     MPI_REAL, BufferRecv_C, iRecieveCount_P, iDisplacement_P, &
+                     MPI_REAL, 0, iComm, iError)
+                if (iProc==0) &
+                     pChangeOperator_VICI(iSpecies,:,:,iEnergy,iOperator)=&
                      	   BufferRecv_C(:,:)
                 
              enddo ! end iOperator loop
@@ -198,7 +228,9 @@ contains
     endif
 
     if(iProc==0) then
-       open(unit=UnitTmp_,file='IM/restartOUT/data.restart',form='unformatted')
+       open(unit=UnitTmp_,file='IM/restartOUT/data.restart',&
+            form='unformatted')
+       
        write(UnitTmp_) f2
        write(UnitTmp_) Den_IC
        write(UnitTmp_) phot
@@ -210,7 +242,10 @@ contains
        write(UnitTmp_) Bmin_C
        write(UnitTmp_) eTimeAccumult_ICI
        write(UnitTmp_) eChangeOperator_VICI
-       write(UnitTmp_) rbsumglobal
+       write(UnitTmp_) pTimeAccumult_ICI
+       write(UnitTmp_) pChangeOperator_VICI
+       write(UnitTmp_) rbsumGlobal
+       write(UnitTmp_) rcsumGlobal
        write(UnitTmp_) driftin
        write(UnitTmp_) driftout
        close(UnitTmp_)
