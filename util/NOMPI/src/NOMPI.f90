@@ -576,7 +576,7 @@ end subroutine MPI_CART_SHIFT
 subroutine MPI_COMM_CREATE(comm,group,newcomm,ierror)
   integer, intent(in) :: comm,group
   integer, intent(out):: newcomm,ierror
-  newcomm=0
+  newcomm=comm
   ierror=0
 end subroutine MPI_COMM_CREATE
 
@@ -680,10 +680,25 @@ subroutine MPI_GROUP_UNION(group1, group2, newgroup, ierror)
 
 end subroutine MPI_GROUP_UNION
 
+subroutine MPI_initialized(IsInitialized, iError)
+  logical, intent(out):: IsInitialized
+  integer, intent(out):: ierror
+  IsInitialized = .true.
+  iError = 0
+end subroutine MPI_initialized
+
 subroutine MPI_INIT(ierror)
   integer, intent(out):: ierror
   ierror=0
 end subroutine MPI_INIT
+
+subroutine MPI_INIT_THREAD(required, provided, ierror)
+  integer, intent(in) :: required
+  integer, intent(out):: provided
+  integer, intent(out):: ierror
+  provided = required
+  ierror=0
+end subroutine MPI_INIT_THREAD
 
 subroutine MPI_WAIT(request,status,ierror)
   integer, intent(inout) :: request

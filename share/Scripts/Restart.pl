@@ -61,6 +61,7 @@ my $DateTime;                      # Date+Time string for restart tree
 # Alternative names should be separated by commas without space.
 my %RestartOutDir = (
 		     EE => "EE/restartOUT",
+                     IE => "IE/restartOUT",
 		     GM => "GM/restartOUT",
                      SC => "SC/restartOUT",
 		     IH => "IH/restartOUT",
@@ -71,10 +72,12 @@ my %RestartOutDir = (
                      PT => "PT/restartOUT",
 		     PW => "PW/restartOUT",
 		     RB => "RB/restartOUT",
-		     UA => "UA/restartOUT,UA/RestartOUT" );
+		     UA => "UA/restartOUT,UA/RestartOUT",
+		     SP => "SP/restartOUT" );
 
 my %RestartInDir =  (
 		     EE => "EE/restartIN",
+                     IE => "IE/restartIN",
 		     GM => "GM/restartIN",
 		     SC => "SC/restartIN",
 		     IH => "IH/restartIN",
@@ -85,7 +88,8 @@ my %RestartInDir =  (
                      PT => "PT/restartIN",
 		     PW => "PW/restartIN",
 		     RB => "RB/restartIN",
-		     UA => "UA/restartIN,UA/RestartIN" );
+		     UA => "UA/restartIN,UA/RestartIN",
+ 		     SP => "SP/restartIN" );
 
 # Hashes for the actually found directories
 my %RestartOutDirFound;
@@ -94,8 +98,10 @@ my %RestartInDirFound;
 # The name of the restart header file (if any) for each component.
 my %HeaderFile   =  (
 		     EE => "restart.H",
+                     IE => "restart.H",
 		     GM => "restart.H",
 		     SC => "restart.H",
+		     SP => "restart.H",
                      OH => "restart.H",
 		     IH => "restart.H" );
 
