@@ -117,6 +117,7 @@ subroutine cimi_run(delta_t)
   if (IsFirstCall .and. .not.IsRestart) then
      !set initial state when no restarting
      call initial_f2(nspec,np,nt,iba,amu_I,vel,xjac,ib0)
+     call initial_extra
      IsFirstCall=.false.
   elseif(IsFirstCall .and. IsRestart) then
      ib0=iba
@@ -181,8 +182,8 @@ subroutine cimi_run(delta_t)
 
      if (DoSaveFlux) call Cimi_plot_fls(rc,flux,time,Lstar_C,Lstar_max)
      if (DoSavePSD) call Cimi_plot_psd(rc,psd,xmm,xk,time)
-     if (DoSaveFlux.or.DoSavePSD) call &
-        Cimi_plot_Lstar(rc,xk,time,Lstarm,Lstar_maxm)
+     if (DoSaveFlux .or. DoSavePSD) &
+          call Cimi_plot_Lstar(rc,xk,time,Lstarm,Lstar_maxm)
      if (DoSaveDrifts) then
         call Cimi_plot_vl(rc,vlEa,time)
         call Cimi_plot_vp(rc,vpEa,time)
@@ -535,6 +536,8 @@ subroutine cimi_run(delta_t)
 
         if (DoSaveFlux) call Cimi_plot_fls(rc,flux,time,Lstar_C,Lstar_max)
         if (DoSavePSD) call Cimi_plot_psd(rc,psd,xmm,xk,time)
+        if (DoSaveFlux .or. DoSavePSD) &
+             call Cimi_plot_Lstar(rc,xk,time,Lstarm,Lstar_maxm)
         if (DoSaveDrifts) then
            call Cimi_plot_vl(rc,vlEa,time)
            call Cimi_plot_vp(rc,vpEa,time)
@@ -813,9 +816,9 @@ subroutine cimi_init
 
 end subroutine cimi_init
 
-!-------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
 subroutine initial_f2(nspec,np,nt,iba,amu_I,vel,xjac,ib0)
-  !-----------------------------------------------------------------------------
+  !----------------------------------------------------------------------------
   ! Routine setup initial distribution.
   ! 
   ! Input: nspec,np,nt,iba,Den_IC,Temp_IC,amu,vel,xjac
@@ -823,10 +826,7 @@ subroutine initial_f2(nspec,np,nt,iba,amu_I,vel,xjac,ib0)
   !         (through common block cinitial_f2)
   use ModIoUnit, ONLY: UnitTmp_
   use ModGmCimi, ONLY: Den_IC, Temp_IC, Temppar_IC, DoAnisoPressureGMCoupling
-  use ModCimi,   ONLY: f2, nOperator, driftin, driftout, &
-       eChangeOperator_VICI, echangeLocal, eChangeGlobal, &
-       pChangeOperator_VICI, eTimeAccumult_ICI, pTimeAccumult_ICI, &
-       rbsumLocal, rbsumGlobal, rcsumLocal, rcsumGlobal
+  use ModCimi,   ONLY: f2
   use ModCimiInitialize,   ONLY: IsEmptyInitial, IsDataInitial, IsRBSPData, &
        IsGmInitial
   use ModCimiGrid,ONLY: nm,nk,MinLonPar,MaxLonPar,iProc,nProc,iComm,d4Element_C,neng
@@ -958,7 +958,30 @@ subroutine initial_f2(nspec,np,nt,iba,amu_I,vel,xjac,ib0)
      enddo                                        ! end of n loop
   end if
 
-! Setup variables for energy gain/loss from each process
+end subroutine initial_f2
+!==============================================================================
+subroutine initial_extra
+
+  use ModCimiPlanet, 	ONLY: nSpec
+  use ModCimiGrid,   	ONLY: nP, nT, nEng
+  use ModCimi,   	ONLY: nOperator, driftin, driftout, &
+       eChangeOperator_VICI, echangeLocal, eChangeGlobal, &
+       pChangeOperator_VICI, eTimeAccumult_ICI, pTimeAccumult_ICI, &
+       rbsumLocal, rbsumGlobal, rcsumLocal, rcsumGlobal, &
+       SDtime, phot, Ppar_IC, Pressure_IC, PressurePar_IC, FAC_C, Bmin_C
+
+  !----------------------------------------------------------------------------
+
+  ! Initialize allocated variables in ModCimi to 0.
+  SDtime(1:np,1:nt,1:nm,1:nk) = 0.0
+  phot(1:nspec,1:np,1:nt) = 0.0
+  Ppar_IC(1:nspec,1:np,1:nt) = 0.0
+  Pressure_IC(1:nspec,1:np,1:nt) = 0.0
+  PressurePar_IC(1:nspec,1:np,1:nt) = 0.0
+  FAC_C(1:np,1:nt) = 0.0
+  Bmin_C(1:np,1:nt) = 0.0
+
+  ! Setup variables for energy gain/loss from each process
   eChangeOperator_VICI(1:nspec,1:np,1:nt,1:neng+2,1:nOperator)=0.0
   pChangeOperator_VICI(1:nspec,1:np,1:nt,1:neng+2,1:nOperator)=0.0
   eTimeAccumult_ICI(1:nspec,1:np,1:nt,1:neng+2) = 0.0
@@ -978,7 +1001,7 @@ subroutine initial_f2(nspec,np,nt,iba,amu_I,vel,xjac,ib0)
   driftin(1:nspec)=0.      ! energy gain due injection
   driftout(1:nspec)=0.     ! energy loss due drift-out loss
 
-end subroutine initial_f2
+end subroutine initial_extra
 
 
 !-------------------------------------------------------------------------------
@@ -1809,14 +1832,14 @@ subroutine sume_cimi(OperatorName)
 !  
 !!!!!!!!!!!!!!!!
   use ModCimi,       	ONLY: &
-       f2, rbsum=>rbsumLocal, rbsumGlobal, &
-       rcsum=>rcsumLocal, rcsumGlobal, &
+       f2, rbsum => rbsumLocal, rbsumGlobal, &
+       rcsum => rcsumLocal, rcsumGlobal, &
        xle => eChangeOperator_VICI, ple => pChangeOperator_VICI, &
        eChangeGlobal, eChangeLocal, &
        esum => eTimeAccumult_ICI, psum => pTimeAccumult_ICI
-  use ModCimiTrace, 	ONLY: iba, ekev,ro, iw2
+  use ModCimiTrace, 	ONLY: iba, ekev, ro, iw2
   use ModCimiGrid,   	ONLY: &
-       nProc,iProc,iComm, MinLonPar, MaxLonPar, d4Element_C, &
+       nProc, iProc, iComm, MinLonPar, MaxLonPar, d4Element_C, &
        ip => np, ir => nt, im => nm, ik => nk, je => neng, &
        Energy, Ebound
   use ModCimiPlanet, 	ONLY: nspec
@@ -1829,12 +1852,13 @@ subroutine sume_cimi(OperatorName)
   real    :: weight, ekev1, weighte, dee, dpe
   integer n, i, j, k, m, iError, kk
   real gride1(0:je+1), e0(ip,ir,je+2), p0(ip,ir,je+2)
+  !----------------------------------------------------------------------------
 
-! Set up gride1(0) and gride1(je+1)
+  ! Set up gride1(0) and gride1(je+1)
   gride1(0)=0.
   gride1(je+1)=1.e10     ! arbitrary large number
 
-! Calculate esum, psum, etc.
+  ! Calculate esum, psum, etc.
   do n=1,nspec
      rbsum(n)=0.
      rcsum(n)=0.
@@ -1888,12 +1912,10 @@ subroutine sume_cimi(OperatorName)
      if (nProc > 1) then
 
         call MPI_REDUCE(&
-             rbsum(n), &
-             rbsumGlobal(n), 1, &
+             rbsum(n), rbsumGlobal(n), 1, &
              MPI_REAL, MPI_SUM, 0, iComm, iError)
         call MPI_REDUCE(&
-             rcsum(n), &
-             rcsumGlobal(n), 1, &
+             rcsum(n), rcsumGlobal(n), 1, &
              MPI_REAL, MPI_SUM, 0, iComm, iError)
         call MPI_REDUCE(&
              eChangeLocal(n, OperatorName), &
@@ -1923,7 +1945,7 @@ subroutine cimi_output(np,nt,nm,nk,nspec,neng,npit,iba,ftv,f2,ekev, &
      sinA,energy,sinAo,delE,dmu,amu_I,xjac,pp,xmm, &
      dmm,dk,xlat,dphi,re_m,Hiono,vl,vp, &
      flux,fac,phot,Ppar_IC,Pressure_IC,PressurePar_IC,vlEa,vpEa,psd)
-  !-----------------------------------------------------------------------------
+  !----------------------------------------------------------------------------
   ! Routine calculates CIMI output, flux, fac and phot from f2
   ! Routine also converts the particle drifts from (m,K) space to (E,a) space
   !
@@ -1956,13 +1978,16 @@ subroutine cimi_output(np,nt,nm,nk,nspec,neng,npit,iba,ftv,f2,ekev, &
   real Pressure0, Pressure1, PressurePar1, Coeff
   integer :: iStatus_I(MPI_STATUS_SIZE), iError
   logical, parameter :: DoCalcFac=.true.
+
+  !---------------------------------------------------------------------------
   flux=0.
   fac=0.
   eta=0.
   phot=0.
   Ppar_IC = 0.
   PressurePar_IC = 0.
-
+  psd = 0.
+  
   ! Some constants for pressure, fac calculations
   rion=re_m+Hiono*1000.                      ! ionosphere distance in meter
   do n=1,nspec

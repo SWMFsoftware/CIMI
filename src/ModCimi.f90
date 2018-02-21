@@ -57,10 +57,6 @@ contains
     ! minimum B field along each field line
     ! passed from GM to IM, now as an output of IM
 
-    ! Not clear why these need initialization !!!
-    FAC_C = 0.0
-    Pressure_IC = 0.0
-
     ! now allocate arrays for energy tracking
     allocate(eChangeOperator_VICI(nspec,np,nt,neng+2,nOperator), &
          driftin(nspec), driftout(nspec), &
