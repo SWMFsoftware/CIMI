@@ -44,8 +44,8 @@ Module ModCimiPlanet
        NamePlotVarLog=&
        'it t dst '// &
        'RbSumH RcSumH HpDrift HpBfield HpChargeEx HpWaves '// &
-       'HpStrongDiff HpLossCone HpDriftIn HpDriftOut '// &
-       'RbSume RcSume eDrift  eBfield  eChargeEx  eWaves  '// &
-       'eStrongDiff  eLossCone  eDriftIn  eDriftOut'
+       'HpStrongDiff HpDecay HpLossCone HpDriftIn HpDriftOut '// &
+       'RbSume RcSume  eDrift  eBfield  eChargeEx  eWaves '// &
+       ' eStrongDiff  eDecay  eLossCone  eDriftIn  eDriftOut'
 
 end Module ModCimiPlanet

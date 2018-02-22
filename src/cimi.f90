@@ -3,15 +3,16 @@ subroutine cimi_run(delta_t)
   use ModConst,       ONLY: cLightSpeed, cElectronCharge
   use ModCimiInitialize, ONLY: xmm,xk,dphi,dmm,dk,delE,dmu, xjac
   use ModCimi,        ONLY: f2,dt, Time, phot, Ppar_IC, Pressure_IC, &
-                            PressurePar_IC,FAC_C, Bmin_C, &
+                            PressurePar_IC, FAC_C, Bmin_C, &
                             OpDrift_, OpBfield_, OpChargeEx_, &
                             OpWaves_, OpStrongDiff_, OpLossCone_, &
+                            OpDecay_, UseDecay, &
                             rbsumLocal, rbsumGlobal, &
                             rcsumLocal, rcsumGlobal, &
                             driftin, driftout, IsStandAlone, &
-                            preP,preF,Eje1,UseStrongDiff, &
-                            eChangeOperator_VICI,nOperator, &
-                            eChangeLocal,eChangeGlobal
+                            preP, preF, Eje1, UseStrongDiff, &
+                            eChangeOperator_VICI, nOperator, &
+                            eChangeLocal, eChangeGlobal
   use ModCimiPlanet,  ONLY: re_m, dipmom, Hiono, nspec, amu_I, &
                             dFactor_I,tFactor_I
   use ModCimiTrace,  ONLY: &
@@ -268,6 +269,14 @@ subroutine cimi_run(delta_t)
         call StrongDiff(iba)
         call sume_cimi(OpStrongDiff_)
         call timing_stop('cimi_StrongDiff')
+     endif
+     
+     if (UseDecay) then
+        call timing_start('cimi_Decay')
+        write(*,*) "Using Decay:"
+        call CalcDecay_cimi(dt)
+        call sume_cimi(OpDecay_)
+        call timing_stop('cimi_Decay')
      endif
      
      call timing_start('cimi_lossconeIM')
@@ -853,6 +862,7 @@ subroutine initial_f2(nspec,np,nt,iba,amu_I,vel,xjac,ib0)
   
   character(11) :: NameFile='quiet_x.fin'
   character(5) :: FilePrefix='xxxxx'
+  !---------------------------------------------------------------------------
   pi=acos(-1.)
 
   ib0=iba
@@ -973,7 +983,6 @@ subroutine initial_extra
   !----------------------------------------------------------------------------
 
   ! Initialize allocated variables in ModCimi to 0.
-  SDtime(1:np,1:nt,1:nm,1:nk) = 0.0
   phot(1:nspec,1:np,1:nt) = 0.0
   Ppar_IC(1:nspec,1:np,1:nt) = 0.0
   Pressure_IC(1:nspec,1:np,1:nt) = 0.0
@@ -1721,7 +1730,40 @@ subroutine StrongDiff(iba)
   return
 end subroutine StrongDiff
 
+!***********************************************************************   
+!
+!                           CalcDecay_cimi
+!
+!  Routine calculates the change of electron psd (f2) resulting from
+!  Ring Current exponential decay specified by DecayTime (in seconds)
+!  in PARAM.in by the user.
+!
+! Version History:
+! 2018-02-20 CMK: Added and tested
+!
+!***********************************************************************
+subroutine CalcDecay_cimi(deltaT)
 
+  use ModCimi,       	ONLY: f2, DecayTimescale
+  use ModCimiGrid,   	ONLY: np, nt, nm, nk, MinLonPar, MaxLonPar
+  use ModCimiPlanet, 	ONLY: nspec
+  use ModCimiTrace, 	ONLY: iba
+
+  implicit none
+
+  real, intent(in) :: deltaT
+
+  integer n,i,j,k,m
+  real DecayRate
+  !-----------------------------------------------------------------------
+
+  DecayRate = EXP( -( deltaT / DecayTimescale ) )
+
+  f2 = f2 * DecayRate
+
+  return
+  
+end subroutine CalcDecay_cimi
 
 !-------------------------------------------------------------------------------
 subroutine lossconeIM(np,nt,nm,nk,nspec,iba,alscone,f2)

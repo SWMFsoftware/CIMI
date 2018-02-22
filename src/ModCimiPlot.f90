@@ -611,16 +611,11 @@ contains
     use ModIoUnit,      ONLY: UnitTmp_
     use ModCIMI,        ONLY: nOperator,driftin,driftout,&
          rbsumGlobal,rcsumGlobal,dt,eChangeGlobal
-    use ModCimiGrid,    ONLY: ir=>nt,ip=>np,im=>nm,ik=>nk,je=>neng,nproc
     implicit none
     
     real, intent(in) :: Time
-    integer, parameter :: nLogVars = 8
     logical, save :: IsFirstCall=.true.
-    integer       :: iSpecies,iOperator, i, j, k 
-    integer*8       :: count
-    character(len=100) eChange_String
-    character(len=10) nLat_Format
+    integer       :: iSpecies
     !--------------------------------------------------------------------------
 
     ! Open file and write header if no restart on first call
@@ -662,12 +657,12 @@ contains
     ! write out the operator changes
     do iSpecies=1,nSpecies
        if (iSpecies < nSpecies) then
-          write(UnitTmp_,'(10es18.08E3)',ADVANCE='NO') & 
+          write(UnitTmp_,'(11es18.08E3)',ADVANCE='NO') & 
                rbsumglobal(iSpecies), rcsumglobal(iSpecies), &
                eChangeGlobal(iSpecies,1:nOperator-1), &
                driftin(iSpecies), driftout(iSpecies)
        else
-          write(UnitTmp_,'(10es18.08E3)') & 
+          write(UnitTmp_,'(11es18.08E3)') & 
                rbsumglobal(iSpecies), rcsumglobal(iSpecies), &
                eChangeGlobal(iSpecies,1:nOperator-1), &
                driftin(iSpecies), driftout(iSpecies)
