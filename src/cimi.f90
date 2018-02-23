@@ -1734,9 +1734,13 @@ end subroutine StrongDiff
 !
 !                           CalcDecay_cimi
 !
-!  Routine calculates the change of electron psd (f2) resulting from
-!  Ring Current exponential decay specified by DecayTime (in seconds)
-!  in PARAM.in by the user.
+!  Routine calculates the change of Ring Current phase space density
+!  (PSD - f2 variable) resulting from an exponential decay rate
+!  specified by DecayTimescale (in seconds) in PARAM.in by the user.
+!  The Decay term is only applied to the ion species; electrons are
+!  not affected since electron PSD contains both ring current and
+!  radiation belt electrons.  Rapid loss of electron PSD is controlled
+!  with the StrongDiff routine immediately above.
 !
 ! Version History:
 ! 2018-02-20 CMK: Added and tested
@@ -1759,7 +1763,7 @@ subroutine CalcDecay_cimi(deltaT)
 
   DecayRate = EXP( -( deltaT / DecayTimescale ) )
 
-  f2 = f2 * DecayRate
+  f2(1:nspec-1,:,:,:,:) = f2(1:nspec-1,:,:,:,:) * DecayRate
 
   return
   
