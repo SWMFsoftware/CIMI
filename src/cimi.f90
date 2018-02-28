@@ -273,7 +273,6 @@ subroutine cimi_run(delta_t)
      
      if (UseDecay) then
         call timing_start('cimi_Decay')
-        write(*,*) "Using Decay:"
         call CalcDecay_cimi(dt)
         call sume_cimi(OpDecay_)
         call timing_stop('cimi_Decay')
