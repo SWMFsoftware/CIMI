@@ -30,7 +30,7 @@ Module ModCimi
        OpWaves_=4, OpStrongDiff_=5, OpLossCone_=6, OpLossCone0_=7
 ! Note order and number of operators has been changed Waves are added
 ! and OpLossCone0_=7 is previous in time OpLossCone (needed for
-! precipitation)
+! precipitation, see cimi_precip_calc subroutine in cimi.f90)
                                        
 
 ! in CIMI: eChangeOperator=xle(ns,ir,ip,je+2) Here we create one array
@@ -39,6 +39,11 @@ Module ModCimi
 !   dimention because it's total energy
 
   logical :: IsStandAlone=.false.
+  logical :: PrecipOutput=.false.
+  logical :: PrecipCalc = .false.
+  real :: DtPreOut=3600.
+  real :: DtPreCalc=10.
+  
 contains
 
   subroutine init_mod_cimi

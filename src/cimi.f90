@@ -11,7 +11,8 @@ subroutine cimi_run(delta_t)
                             driftin, driftout, IsStandAlone, &
                             preP,preF,Eje1,UseStrongDiff, &
                             eChangeOperator_VICI,nOperator, &
-                            eChangeLocal,eChangeGlobal
+                            eChangeLocal,eChangeGlobal,PrecipOutput,&
+                            DtPreOut,PrecipCalc,DtPreCalc
   use ModCimiPlanet,  ONLY: re_m, dipmom, Hiono, nspec, amu_I, &
                             dFactor_I,tFactor_I
   use ModCimiTrace,  ONLY: &
@@ -22,7 +23,7 @@ subroutine cimi_run(delta_t)
   use ModCimiPlot,    ONLY: Cimi_plot, Cimi_plot_fls, &
        			    Cimi_plot_psd,Cimi_plot_vl,Cimi_plot_vp, &
                             cimi_plot_log, cimi_plot_precip, Cimi_plot_Lstar,&
-                            DtOutput, DtLogOut,DoSavePlot, &
+                            DtOutput, DtLogOut,DoSavePlot, Cimi_plot_boundary_check,&
                             DoSaveFlux, DoSavePSD, DoSaveDrifts, DoSaveLog
   use ModCimiRestart, ONLY: IsRestart
   use ModImTime
@@ -31,7 +32,8 @@ subroutine cimi_run(delta_t)
   use ModCimiGrid,    ONLY: iProc,nProc,iComm,nLonPar,nLonPar_P,nLonBefore_P, &
                             MinLonPar,MaxLonPar,nt,np,neng,npit,nm,nk,dlat,&
                             energy,phi,sinao,xlat,xmlt
-  use ModCimiBoundary,ONLY: cimi_set_boundary_mhd, cimi_set_boundary_empirical
+  use ModCimiBoundary,ONLY: cimi_set_boundary_mhd, cimi_set_boundary_empirical,&
+                            CIMIboundary,Outputboundary
   use ModMpi
   use ModWaveDiff,    ONLY: UseWaveDiffusion, ReadDiffCoef, WavePower, & 
                             diffuse_aa, diffuse_EE, diffuse_aE, DiffStartT, &
@@ -280,12 +282,11 @@ subroutine cimi_run(delta_t)
      call time_real_to_int(CurrentTime,iCurrentTime_I)
   enddo
 
-  ! calculate precipitations accumulated over some time interval
-  ! (DtLogOut in this case)
-  if( (floor((Time+1.0e-5)/DtLogOut))/=&
-       floor((Time+1.0e-5-delta_t)/DtLogOut)) then
+  ! calculate precipitations accumulated over some time interval DtPreCalc 
+  if( PrecipCalc .and. (floor((Time+1.0e-5)/DtPreCalc))/=&
+       floor((Time+1.0e-5-delta_t)/DtPreCalc)) then
      call timing_start('cimi_precip_calc')
-     call cimi_precip_calc(rc,DtLogOut)
+     call cimi_precip_calc(rc,DtPreCalc)
      call timing_stop('cimi_precip_calc')
   endif
 
@@ -467,9 +468,9 @@ subroutine cimi_run(delta_t)
      enddo
   endif
 
-  if (nProc>1 .and. (DoSaveLog .and. &
-          (floor((Time+1.0e-5)/DtLogOut))/=&
-          floor((Time+1.0e-5-delta_t)/DtLogOut))) then
+  if (nProc>1 .and. (PrecipOutput .and. &   
+          (floor((Time+1.0e-5)/DtPreOut))/=&
+          floor((Time+1.0e-5-delta_t)/DtPreOut))) then
       do  iSpecies=1,nspec
          do iEnergy=1,neng+2
             BufferSend_C(:,:)=preP(iSpecies,:,:,iEnergy)
@@ -490,7 +491,6 @@ subroutine cimi_run(delta_t)
                   MPI_REAL, 0, iComm, iError)
          if (iProc==0) Eje1(iSpecies,:,:)=BufferRecv_C(:,:)
       enddo !Do loop over Species
-      
    endif
 
    ! Gather bm to root for multiple processes for Lstar2 calculation.
@@ -539,6 +539,7 @@ subroutine cimi_run(delta_t)
            call Cimi_plot_vl(rc,vlEa,time)
            call Cimi_plot_vp(rc,vpEa,time)
         endif
+        if (OutputBoundary) call Cimi_plot_boundary_check(time)
      endif
   
      ! Write Sat Output
@@ -562,13 +563,13 @@ subroutine cimi_run(delta_t)
      endif
 
      ! Write precipitation file
-     if(DoSaveLog .and. &
-          (floor((Time+1.0e-5)/DtLogOut))/=&
-          floor((Time+1.0e-5-delta_t)/DtLogOut))then
-        call timing_start('cimi_plot_precip')
-        call cimi_plot_precip(rc,Time)
-        call timing_stop('cimi_plot_precip')
-     endif
+     if (PrecipOutput .and. &
+       (floor((Time+1.0e-5)/DtPreOut))/=&
+          floor((Time+1.0e-5-delta_t)/DtPreOut))then
+         call timing_start('cimi_plot_precip')
+         call cimi_plot_precip(rc,Time)
+         call timing_stop('cimi_plot_precip')
+    endif
 
   endif
 
@@ -1937,6 +1938,10 @@ subroutine cimi_output(np,nt,nm,nk,nspec,neng,npit,iba,ftv,f2,ekev, &
        iProcLeft, iLonLeft, iProcRight, iLonRight
   use ModMpi
   use ModCimiTrace, ONLY: ro
+  use ModCimiBoundary, ONLY: CIMIboundary, Outputboundary   ! read from PARAM file
+  use BoundaryCheck, ONLY: vdr_q1,vdr_q3,vgyr_q1,vgyr_q3,eng_q1, &
+      eng_q3,vexb,dif_q1,dif_q3,Part_phot
+
   implicit none
 
   integer np,nt,nm,nk,nspec,neng,npit,iba(nt),i,j,k,m,n,j1,j_1
@@ -1956,6 +1961,15 @@ subroutine cimi_output(np,nt,nm,nk,nspec,neng,npit,iba,ftv,f2,ekev, &
   real Pressure0, Pressure1, PressurePar1, Coeff
   integer :: iStatus_I(MPI_STATUS_SIZE), iError
   logical, parameter :: DoCalcFac=.true.
+!!!!!!!!!!!
+!  real vdr_q1(nspec,np,nt),vdr_q3(nspec,np,nt),vgyr_q1(nspec,np,nt),vgyr_q3(nspec,np,nt)
+!  real eng_q1(nspec,np,nt),eng_q3(nspec,np,nt),vexb(nspec,np,nt),dif_q1(nspec,np,nt)
+!  real Part_phot(nspec,np,nt,neng),dif_q3(nspec,np,nt)
+  integer k_q1,k_q3
+  real p_min,p_max,p_q1,p_q3
+!!!!!!!!!!
+
+
   flux=0.
   fac=0.
   eta=0.
@@ -2028,7 +2042,7 @@ subroutine cimi_output(np,nt,nm,nk,nspec,neng,npit,iba,ftv,f2,ekev, &
                  ! Total pressure and parallel pressure are from
                  !   P    = 4*pi/3*int(E*flx*p/M*dcosAdM)
                  !   Ppar = 4*pi*int(E*flx*p/M*(cosA)^2*dcosAdM)
-                 
+              
                  Den_IC(n,i,j) = Den_IC(n,i,j) & 
                       + flx*pp(n,i,j,k,m)/xmm(n,k)*dmm(n,k)*dcosa
                  Pressure0 = ekev(n,i,j,k,m)*flx*pp(n,i,j,k,m)/xmm(n,k)*dmm(n,k)*dcosa
@@ -2036,8 +2050,8 @@ subroutine cimi_output(np,nt,nm,nk,nspec,neng,npit,iba,ftv,f2,ekev, &
                  PressurePar1 = PressurePar1 + 3.*Pressure0*cosA2(m)
               enddo
            enddo
-           
-           Den_IC(n,i,j) = Den_IC(n,i,j)*2*cPi/1.6e-20   ! density in m^-3
+
+           Den_IC(n,i,j) = Den_IC(n,i,j)*2.0*cPi/1.6e-20   ! density in m^-3
            !Coeff = 1.6e-16*2./3.*1.e9                   ! for the old p
            Coeff = 4.*cPi/3.*1.e4*1.e9
            Pressure_IC(n,i,j) = Pressure1*Coeff          ! pressure in nPa
@@ -2067,12 +2081,14 @@ subroutine cimi_output(np,nt,nm,nk,nspec,neng,npit,iba,ftv,f2,ekev, &
                  
                  flux(n,i,j,k,m)=10.**flx_lo
                  vlEa(n,i,j,k,m)=vl_lo
-                 vpEa(n,i,j,k,m)=re_m*ro(i,j)*1e-3*vp_lo
+                 vpEa(n,i,j,k,m)=re_m*ro(i,j)*1.e-3*vp_lo
               enddo
            enddo
         enddo nloop
      enddo iloop1
   enddo jloop1
+
+Part_phot=0.
 
   ! Calculate pressure of the 'hot' ring current, phot, and temperature, Temp_IC
   jloop2: do j=MinLonPar,MaxLonPar
@@ -2090,6 +2106,7 @@ subroutine cimi_output(np,nt,nm,nk,nspec,neng,npit,iba,ftv,f2,ekev, &
         do n=1,nspec
            do k=1,neng
               phot(n,i,j)=phot(n,i,j)+fave(n,i,j,k)*delEE(n,k)*pf(n) ! phot in nPa
+               if (CIMIboundary) Part_phot(n,i,j,k) = fave(n,i,j,k)*delEE(n,k)*pf(n)
            enddo
            Temp_IC(n,i,j)=0.
            if (Den_IC(n,i,j).gt.0.) &
@@ -2105,9 +2122,46 @@ subroutine cimi_output(np,nt,nm,nk,nspec,neng,npit,iba,ftv,f2,ekev, &
               enddo
            enddo
         enddo
+! boundary calculations: 
+        if (CIMIboundary) then
+           do n=1,nspec
+            p_min = 0.
+            p_max = 0.
+            p_q1 = Phot(n,i,j) * 0.25
+            p_q3 = Phot(n,i,j) * 0.75
+             do k=1,neng
+                  if (p_min.lt.p_q1) then
+                      p_min = Part_phot(n,i,j,k) + p_min
+                      eng_q1(n,i,j)=energy(n,k)   ! in kev(?) - check
+                      k_q1=k
+                  endif
+                  if (p_max.lt.p_q3) then
+                      p_max = Part_phot(n,i,j,k) + p_max
+                      eng_q3(n,i,j)=energy(n,k)
+                      k_q3=k
+                  endif
+              enddo
+            enddo
+
+     vexb(1,i,j) = vp(1,i,j,k_q1,1)*vp(1,i,j,1,1)*re_m*re_m*ro(i,j)*ro(i,j)*1.e-6
+     vexb(1,i,j) = sqrt(vl(1,i,j,1,1)*vl(1,i,j,1,1) + vexb(1,i,j))         
+
+     vdr_q1(1,i,j) = sqrt(vlEa(1,i,j,k_q1,1)*vlEa(1,i,j,k_q1,1)+vpEa(1,i,j,k_q1,1)*vpEa(1,i,j,k_q1,1))
+     vdr_q3(1,i,j) = sqrt(vlEa(1,i,j,k_q3,1)*vlEa(1,i,j,k_q3,1)+vpEa(1,i,j,k_q3,1)*vpEa(1,i,j,k_q3,1))
+     vgyr_q1(1,i,j) = 440. *sqrt(energy(1,k_q1))
+     vgyr_q3(1,i,j) = 440. *sqrt(energy(1,k_q3))
+     vexb(1,i,j) = sqrt(vlEa(1,i,j,1,1)*vlEa(1,i,j,1,1)+vpEa(1,i,j,1,1)*vpEa(1,i,j,1,1))
+         
+     dif_q1(1,i,j) = (vlEa(1,i,j,k_q1,1)-vlEa(1,i,j,1,1))*(vlEa(1,i,j,k_q1,1)-vlEa(1,i,j,1,1))
+     dif_q1(1,i,j) = dif_q1(1,i,j)+(vpEa(1,i,j,k_q1,1)-vpEa(1,i,j,1,1))*(vpEa(1,i,j,k_q1,1)-vpEa(1,i,j,1,1))
+     dif_q1(1,i,j)  = sqrt(dif_q1(1,i,j))/vexb(1,i,j)   ! difference between vdr and vExB, q1
+         
+     dif_q3(1,i,j) = (vlEa(1,i,j,k_q3,1)-vlEa(1,i,j,1,1))*(vlEa(1,i,j,k_q3,1)-vlEa(1,i,j,1,1))
+     dif_q3(1,i,j) = dif_q3(1,i,j)+(vpEa(1,i,j,k_q3,1)-vpEa(1,i,j,1,1))*(vpEa(1,i,j,k_q3,1)-vpEa(1,i,j,1,1))
+     dif_q3(1,i,j)  = sqrt(dif_q3(1,i,j))/vexb(1,i,j)   ! difference between vdr and vExB, q3
+         endif
      enddo iloop2
   enddo jloop2
-
 
   if (DoCalcFac) then
      ! Calculate field aligned current, fac
