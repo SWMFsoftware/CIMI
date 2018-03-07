@@ -7,10 +7,9 @@ Module ModGmCimi
 
   real, allocatable :: StateLine_VI(:,:),StateBmin_IIV(:,:,:)
   integer :: iLineIndex_II(nLon,1:nLat),nPoint, nVarBmin
-  integer, parameter :: AveDens_=4, AveP_=5, AvePpar_=7, AveHpRho_=7, &
-       AveOpRho_=8, AveHpP_=9, AveOpP_=10
-  integer, parameter,dimension(nspec-1) :: AveDen_I = (/7,8/)
-  integer, parameter,dimension(nspec-1) :: AveP_I   = (/9,10/)
+  integer, parameter :: AveDens_=4, AveP_=5, AvePpar_=7
+  integer, dimension(nspec-1) :: AveDen_I 
+  integer, dimension(nspec-1) :: AveP_I   
 
   integer,parameter :: nVar=4
 
@@ -26,4 +25,15 @@ Module ModGmCimi
   logical :: DoMultiFluidGMCoupling = .false.
   logical :: DoAnisoPressureGMCoupling      = .false.
 
+  public :: init_gm_cimi
+contains
+  subroutine init_gm_cimi
+    integer :: iSpecies
+    !----------------------------------------------------------------------
+    do iSpecies =1,nspec
+       AveDen_I(iSpecies) = 6+iSpecies
+       AveP_I(iSpecies)=6+nspec-1+iSpecies
+    enddo
+  end subroutine init_gm_cimi
+  
 end Module ModGmCimi

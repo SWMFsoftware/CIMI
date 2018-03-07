@@ -21,6 +21,7 @@ program cimi
   use ModImSat,       ONLY: UsePrerunSat, read_prerun_sat, DtReadSat, &
        IsFirstWrite
   use ModIeCimi,      ONLY: UseWeimer
+  use ModGmCimi,      ONLY: init_gm_cimi
   use CON_planet, ONLY: init_planet_const, set_planet_defaults
 !  use ModPrerunField, ONLY: UsePrerun, read_prerun, read_prerun_IE
  
@@ -67,6 +68,7 @@ program cimi
   !****************************************************************************
   call init_mod_cimi
   call init_mod_field_trace
+  call init_gm_cimi
   
   ! Start Timing
   call timing_active(.true.)
