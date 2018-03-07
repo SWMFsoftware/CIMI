@@ -611,16 +611,11 @@ contains
     use ModIoUnit,      ONLY: UnitTmp_
     use ModCIMI,        ONLY: nOperator,driftin,driftout,&
          rbsumGlobal,rcsumGlobal,dt,eChangeGlobal
-    use ModCimiGrid,    ONLY: ir=>nt,ip=>np,im=>nm,ik=>nk,je=>neng,nproc
     implicit none
     
     real, intent(in) :: Time
-    integer, parameter :: nLogVars = 8
     logical, save :: IsFirstCall=.true.
-    integer       :: iSpecies,iOperator, i, j, k 
-    integer*8       :: count
-    character(len=100) eChange_String
-    character(len=10) nLat_Format
+    integer       :: iSpecies
     !--------------------------------------------------------------------------
 
     ! Open file and write header if no restart on first call
@@ -662,12 +657,12 @@ contains
     ! write out the operator changes
     do iSpecies=1,nSpecies
        if (iSpecies < nSpecies) then
-          write(UnitTmp_,'(10es18.08E3)',ADVANCE='NO') & 
+          write(UnitTmp_,'(11es18.08E3)',ADVANCE='NO') & 
                rbsumglobal(iSpecies), rcsumglobal(iSpecies), &
                eChangeGlobal(iSpecies,1:nOperator-1), &
                driftin(iSpecies), driftout(iSpecies)
        else
-          write(UnitTmp_,'(10es18.08E3)') & 
+          write(UnitTmp_,'(11es18.08E3)') & 
                rbsumglobal(iSpecies), rcsumglobal(iSpecies), &
                eChangeGlobal(iSpecies,1:nOperator-1), &
                driftin(iSpecies), driftout(iSpecies)
@@ -776,15 +771,15 @@ contains
           
     if (IsFirstCall .and. .not. IsRestart) then
        open(unit=UnitTmp_,file='IM/plots/Cimi.lstar',status='unknown')
-       write(UnitTmp_,"(f10.6,5i6,6x,'! rc in Re,nr,ip,nm,nk,ntime')") &
-            rc,nLat-1,nLon,nint(nk/2.),nprint
+       write(UnitTmp_,"(f10.6,4i6,6x,'! rc in Re,nr,ip,nm,nk,ntime')") &
+            rc, nLat-1, nLon, nint(nk/2.), nprint            
        write(UnitTmp_,'(1p,7e11.3)') (xk(k)*sqrt(1.e9)/re_m,k=1,nk,2)
-       write(UnitTmp_,'(10f8.3)') (xlat(i),i=2,nLat)
+       write(UnitTmp_,'(8f8.3)') (xlat(i),i=2,nLat)
     else
        open(unit=UnitTmp_,file='IM/plots/Cimi.lstar',status='old',&
            position='append')
     endif
-    write(UnitTmp_,'(10f8.3)') &
+    write(UnitTmp_,'(8f8.3)') &
          time/3600.,(Lstar_maxm(m),m=1,nk)
     do iLat=2,nLat            
        do iLon=1,nLon
@@ -796,10 +791,10 @@ contains
           if (iLat.gt.irm(iLon)) bm1(1:nk)=bm(irm(iLon),iLon,1:nk)
              xmlt1=xmlto(iLat,iLon)
           if (iLat.gt.irm(iLon)) xmlt1=xmlto(irm(iLon),iLon)
-          write(UnitTmp_,'(f7.2,f6.1,2f8.3,1pe11.3)') &
+          write(UnitTmp_,'(f7.2,f6.1,2f8.3)') &
                lat,xmlt(iLon),ro1,xmlt1
-          write(UnitTmp_,'(13f8.3)') (Lstarm(iLat,iLon,k),k=1,nk,2)
-          write(UnitTmp_,'(1p,13E10.3)') (bm1(k),k=1,nk,2)
+          write(UnitTmp_,'(7F08.3)') (Lstarm(iLat,iLon,k),k=1,nk,2)
+          write(UnitTmp_,'(1p,7E10.3)') (bm1(k),k=1,nk,2)
        enddo
     enddo
     close(UnitTmp_)

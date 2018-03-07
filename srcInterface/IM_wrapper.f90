@@ -143,7 +143,8 @@ contains
 
     use ModCimiGrid,      ONLY: np, xlat
     use ModCimi,          ONLY: init_mod_cimi, Time
-    use ModCimiTrace,    ONLY: init_mod_field_trace
+    use ModCimiTrace,     ONLY: init_mod_field_trace
+    use ModGmCimi,        ONLY: init_gm_cimi
     use ModImTime
     use ModTimeConvert,   ONLY: time_real_to_int
     use CON_physics,      ONLY: get_time
@@ -157,7 +158,8 @@ contains
     call init_mod_cimi
     call init_mod_field_trace
     call cimi_init
-
+    call init_gm_cimi
+    
     call get_time(tStartOut = StartTime)
     Time = TimeSimulation
     CurrentTime = StartTime + Time  

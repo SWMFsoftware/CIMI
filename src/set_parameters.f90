@@ -9,8 +9,8 @@ subroutine CIMI_set_parameters(NameAction)
   use ModCimiTrace,     ONLY: UseEllipse, UseSmooth, UseCorotation, &
        UsePotential, SmoothWindow, imod, iLatTest, iLonTest, rb
   use ModCimi,           ONLY: UseMcLimiter, BetaLimiter, time, Pmin,&
-       IsStandAlone, UseStrongDiff, dt, dtmax,&
-       PrecipOutput,DtPreOut,PrecipCalc,DtPreCalc
+       IsStandAlone, UseStrongDiff, UseDecay, DecayTimescale,&
+       dt, dtmax,PrecipOutput,DtPreOut,PrecipCalc,DtPreCalc
   use ModCimiRestart,    ONLY: IsRestart,DtSaveRestart
   use ModCimiPlanet,     ONLY: nspec
   use ModImTime,         ONLY: iStartTime_I, TimeMax
@@ -223,6 +223,11 @@ subroutine CIMI_set_parameters(NameAction)
         if(UsePrerun)          call read_var('DtRead',   DtRead)
         if(UsePrerun .or. DoWritePrerun) UseGm=.true.
 
+     case('#DECAY')
+        call read_var('UseDecay',UseDecay)
+        if ( UseDecay ) &
+             call read_var('DecayTimescale in seconds', DecayTimescale)
+        
      case('#STRONGDIFFUSION')
         call read_var('UseStrongDiff',UseStrongDiff)
         

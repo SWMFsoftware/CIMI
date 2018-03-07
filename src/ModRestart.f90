@@ -5,6 +5,9 @@ Module ModCimiRestart
 
   logical :: IsRestart = .false.
   real    :: DtSaveRestart=-1.0
+
+  character(len=100), public:: NameRestartInDir="IM/restartIN/"
+  character(len=100), public:: NameRestartOutDir="IM/restartOUT/"
 contains
   !============================================================================
 
@@ -12,22 +15,26 @@ contains
     use ModCimiPlanet,ONLY: nspec
     use ModCimiGrid,  ONLY: np,nt,nm,nk,neng,d4Element_C
     use ModCimi,      ONLY: f2, phot, Pressure_IC, PressurePar_IC, FAC_C, &
-         Ppar_IC, Bmin_C, eTimeAccumult_ICI, eChangeOperator_VICI, &
-         driftin, driftout, rbsumGlobal, nOperator
-    use ModCimiTrace,ONLY: iba,ekev
+         Ppar_IC, Bmin_C, &
+         eTimeAccumult_ICI, eChangeOperator_VICI, eChangeGlobal, &
+         pTimeAccumult_ICI, pChangeOperator_VICI, &
+         driftin, driftout, rbsumGlobal, rcsumGlobal, nOperator
+    use ModCimiTrace, ONLY: iba
     use ModGmCimi,    ONLY: Den_IC
     use ModIoUnit,    ONLY: UnitTmp_
+    use ModUtilities, ONLY: open_file, close_file
     use ModCimiGrid,  ONLY: iProc,nProc,iComm
     use ModMpi
 
-    real :: weight
-    integer :: iError, n
+    integer :: iError
+
+    character(len=*), parameter:: NameSub = 'cimi_read_restart'    
     !--------------------------------------------------------------------------
     !When nProc>1, proc0 reads and then bcasts restart infor
     !when only 1 proc is used then just read restart info
     if(iProc == 0)then
-       open(unit=UnitTmp_,file='IM/restartIN/data.restart',&
-            status='old',form='unformatted')
+       call open_file(file=trim(NameRestartInDir)//'data.restart',&
+            status='old',form='unformatted', NameCaller=NameSub)
 
        read(UnitTmp_) f2  
        read(UnitTmp_) Den_IC
@@ -40,10 +47,14 @@ contains
        read(UnitTmp_) Bmin_C
        read(UnitTmp_) eTimeAccumult_ICI
        read(UnitTmp_) eChangeOperator_VICI
-       read(UnitTmp_) rbsumglobal
+       read(UnitTmp_) eChangeGlobal
+       read(UnitTmp_) pTimeAccumult_ICI
+       read(UnitTmp_) pChangeOperator_VICI
+       read(UnitTmp_) rbsumGlobal
+       read(UnitTmp_) rcsumGlobal
        read(UnitTmp_) driftin
        read(UnitTmp_) driftout
-       close(UnitTmp_)
+       call close_file
     end if
     
     if(nProc>1)then
@@ -61,14 +72,19 @@ contains
             		MPI_REAL, 0, iComm, iError)
        call MPI_bcast(eChangeOperator_VICI, nspec*np*nt*nOperator*(neng+2), &
             		MPI_REAL, 0, iComm, iError)
-       call MPI_bcast(rbsumglobal, nspec, MPI_REAL, 0, iComm, iError)
+       call MPI_bcast(eChangeGlobal, nspec * nOperator, &
+            		MPI_REAL, 0, iComm, iError)
+       call MPI_bcast(pTimeAccumult_ICI, nspec*np*nt*(neng+2), &
+            		MPI_REAL, 0, iComm, iError)
+       call MPI_bcast(pChangeOperator_VICI, nspec*np*nt*nOperator*(neng+2), &
+            		MPI_REAL, 0, iComm, iError)
+       call MPI_bcast(rbsumGlobal, nspec, MPI_REAL, 0, iComm, iError)
+       call MPI_bcast(rcsumGlobal, nspec, MPI_REAL, 0, iComm, iError)
        call MPI_bcast(driftin, nspec, MPI_REAL, 0, iComm, iError)
        call MPI_bcast(driftout, nspec, MPI_REAL, 0, iComm, iError)
     endif
-
     
   end subroutine cimi_read_restart
-  
 
   !============================================================================
   subroutine cimi_write_restart
@@ -76,11 +92,13 @@ contains
     use ModCimiGrid,  ONLY: np,nt,nm,nk,neng,MinLonPar,MaxLonPar
     use ModCimi,      ONLY: f2,time, phot, Pressure_IC, PressurePar_IC, &
          FAC_C, Ppar_IC, Bmin_C, &
-         eTimeAccumult_ICI, eChangeOperator_VICI, &
-         driftin, driftout, rbsumGlobal, nOperator
+         eTimeAccumult_ICI, eChangeOperator_VICI, eChangeGlobal, &
+         pTimeAccumult_ICI, pChangeOperator_VICI, &
+         driftin, driftout, rbsumGlobal, rcsumGlobal, nOperator
     use ModCimiTrace,ONLY: iba    
     use ModGmCimi,    ONLY: Den_IC
     use ModIoUnit,    ONLY: UnitTmp_
+    use ModUtilities, ONLY: open_file, close_file
     use ModCimiGrid,  ONLY: iProc,nProc,iComm,nLonPar,nLonPar_P,nLonBefore_P
     use ModImSat,     ONLY: DoWriteSats,nImSats,NameSat_I,SatLoc_3I
     use ModMpi
@@ -92,6 +110,8 @@ contains
 
     ! Initialize necessary variables for saving restart.sat file
     integer :: iSat,iRow
+
+    character(len=*), parameter:: NameSub = 'cimi_write_restart'
     !--------------------------------------------------------------------------
 
     ! When nProc>1 gather to proc 0 for writing.
@@ -165,9 +185,18 @@ contains
              if (iProc==0) &
                   eTimeAccumult_ICI(iSpecies,:,:,iEnergy)=BufferRecv_C(:,:)
 
+             !gather pTimeAccumult_ICI
+             BufferSend_C(:,:)=&
+                  pTimeAccumult_ICI(iSpecies,:,:,iEnergy)
+             call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
+                  MPI_REAL, BufferRecv_C, iRecieveCount_P, iDisplacement_P, &
+                  MPI_REAL, 0, iComm, iError)
+             if (iProc==0) &
+                  pTimeAccumult_ICI(iSpecies,:,:,iEnergy)=BufferRecv_C(:,:)
+
              do iOperator = 1, nOperator
 
-                !gather eTimeAccumult_VICI
+                !gather eChangeOperator_VICI
                 BufferSend_C(:,:)=&
                      eChangeOperator_VICI(iSpecies,:,:,iEnergy,iOperator)
                 call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), &
@@ -176,6 +205,17 @@ contains
                      MPI_REAL, 0, iComm, iError)
                 if (iProc==0) &
                      eChangeOperator_VICI(iSpecies,:,:,iEnergy,iOperator)=&
+                     	   BufferRecv_C(:,:)
+                
+                !gather pChangeOperator_VICI
+                BufferSend_C(:,:)=&
+                     pChangeOperator_VICI(iSpecies,:,:,iEnergy,iOperator)
+                call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), &
+                     iSendCount, &
+                     MPI_REAL, BufferRecv_C, iRecieveCount_P, iDisplacement_P, &
+                     MPI_REAL, 0, iComm, iError)
+                if (iProc==0) &
+                     pChangeOperator_VICI(iSpecies,:,:,iEnergy,iOperator)=&
                      	   BufferRecv_C(:,:)
                 
              enddo ! end iOperator loop
@@ -198,7 +238,8 @@ contains
     endif
 
     if(iProc==0) then
-       open(unit=UnitTmp_,file='IM/restartOUT/data.restart',form='unformatted')
+       call open_file(file=trim(NameRestartOutDir)//'data.restart', &
+            form='unformatted', NameCaller=NameSub)
        write(UnitTmp_) f2
        write(UnitTmp_) Den_IC
        write(UnitTmp_) phot
@@ -210,20 +251,28 @@ contains
        write(UnitTmp_) Bmin_C
        write(UnitTmp_) eTimeAccumult_ICI
        write(UnitTmp_) eChangeOperator_VICI
-       write(UnitTmp_) rbsumglobal
+       write(UnitTmp_) eChangeGlobal
+       write(UnitTmp_) pTimeAccumult_ICI
+       write(UnitTmp_) pChangeOperator_VICI
+       write(UnitTmp_) rbsumGlobal
+       write(UnitTmp_) rcsumGlobal
        write(UnitTmp_) driftin
        write(UnitTmp_) driftout
-       close(UnitTmp_)
+       call close_file
 
-       open(unit=UnitTmp_,file='IM/restartOUT/restart.H')
+       call open_file(file=trim(NameRestartOutDir)//'restart.H', &
+            NameCaller=NameSub)
        write(UnitTmp_,'(a)') '#TIMESIMULATION'
        write(UnitTmp_,'(es15.8,a25)') time,'tSimulation'
-       close(UnitTmp_)
+       write(UnitTmp_,*)
+       write(UnitTmp_,'(a)') '#RESTART'
+       write(UnitTmp_,'(a)') 'T                       DoRestart'
+       write(UnitTmp_,'(l1,a45)') DoWriteSats, 'DoReadRestartSatellite'
+       call close_file
 
        if (DoWriteSats) then
-          open(UnitTmp_,file='IM/restartOUT/restart.sat',&
-               status="replace", form="unformatted")
-          
+          call open_file(file=trim(NameRestartOutDir)//'restart.sat', &
+               form="unformatted", NameCaller=NameSub) 
           write(UnitTmp_) nImSats
        
           do iSat=1,nImSats
@@ -242,7 +291,7 @@ contains
              
           end do
           
-          close(UnitTmp_)
+          call close_file
 
        end if
        

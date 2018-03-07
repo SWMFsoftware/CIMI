@@ -38,6 +38,7 @@ if(-f $config){
 # More planet configurations will be added in future
 foreach (@Arguments){
     if(/^-earthhohe$/i)         {$NewPlanet="EarthHOHe";           next};
+    if(/^-earthswho$/i)         {$NewPlanet="EarthSwHO";           next};
     if(/^-earthho$/i)           {$NewPlanet="EarthHO";             next};
     if(/^-earthh$/i)            {$NewPlanet="EarthH";              next};
     if(/^-griddefault$/i)       {$NewGrid="GridDefault";           next};
@@ -97,6 +98,7 @@ sub set_planet{
     my $Dir = "src";
     die "Directory $Dir is missing\n" unless -d $Dir;
 
+    $Files .= " $Dir/ModEarthSwHO.f90" if $Planet eq "EarthSwHO";
     $Files .= " $Dir/ModEarthHOHe.f90" if $Planet eq "EarthHOHe";
     $Files .= " $Dir/ModEarthHO.f90"   if $Planet eq "EarthHO";
     $Files .= " $Dir/ModEarthH.f90"    if $Planet eq "EarthH";
@@ -149,6 +151,8 @@ sub show_settings{
 
 sub print_help{
     print "Additional options for CIMI/Config.pl:
+
+-EarthSwHO       Configure CIMI for Earth with Solar Wind H+,H+,O+,e. 
 
 -EarthHOHe       Configure CIMI for Earth with H+,O+,He+,e. 
 
