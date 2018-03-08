@@ -10,7 +10,7 @@ Module ModCimiGrid
 
   integer,parameter :: np=76    ! dimension of the CIMI latitude grid
   integer,parameter :: nt=48    ! dimension of the CIMI local-time grid
-  integer,parameter :: neng=15  ! dimension of the CIMI energy grid
+  integer 	    :: neng=15  ! dimension of the CIMI energy grid
   integer,parameter :: npit=18  ! dimension of the CIMI pitch-angle grid
 
   ! These have to be initialized so that IM_set_grid does not fail on non-IM PEs
@@ -46,8 +46,7 @@ Module ModCimiGrid
        85.4404094624754862, 87.1942709870800599, 88.9996559369669313/)
 
 
-  real :: xlatr(np), xmlt(nt), dlat(np1), energy(nspec,neng), sinAo(npit),&
-          Ebound(nspec,neng)
+  real :: xlatr(np), xmlt(nt), dlat(np1), sinAo(npit)
 
   real :: d4Element_C(nspec,np,nm,nk) !4D element (dlat*dphi*dmm*dk)
   
@@ -59,7 +58,20 @@ Module ModCimiGrid
   integer ::iProcLeft, iProcRight, iLonLeft, iLonRight
   integer :: iProcMidnight, iLonMidnight
 
+  ! Define parameters for specifying control over Energy grid
   real :: MinIonEnergy=0.1, MaxIonEnergy=316.22777
+  logical :: UseLogEGrid = .true.
+
+  ! Define parameters for specifying Energy grid corresponding to RBSP
+  ! flux (MagEIS and REPT) instruments
+  real, dimension(1:30) :: &
+       energy_RBSP = (/  19.5,   32.7,    50.0,    71.8,    98.1, &
+                        129.0,  166.0,   207.0,   146.0,   232.0, &
+                        334.0,  450.0,   580.0,   722.0,   877.0, &
+                       1040.0, 1200.0,  1740.0,  2520.0,  3770.0, &
+                       2300.0, 2850.0,  3600.0,  4500.0,  5600.0, &
+                       7150.0, 8800.0, 11650.0, 22550.0, 59450.0 /)
+  logical :: UseRBSPGrid = .false.
 
 end Module ModCimiGrid
 

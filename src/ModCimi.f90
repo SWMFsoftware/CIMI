@@ -23,6 +23,7 @@ Module ModCimi
        eChangeOperator_VICI(:,:,:,:,:), pChangeOperator_VICI(:,:,:,:,:)
   real, allocatable :: eChangeLocal(:,:), eChangeGlobal(:,:)
   real, allocatable :: eTimeAccumult_ICI(:,:,:,:), pTimeAccumult_ICI(:,:,:,:)
+  real, allocatable :: energy(:,:), Ebound(:,:), delE(:,:)
   real, allocatable :: &
        preF(:,:,:,:), preP(:,:,:,:), Eje1(:,:,:) ! presipitation output
   integer, parameter :: &
@@ -75,6 +76,8 @@ contains
     allocate(preP(nspec,np,nt,neng+2), preF(nspec,np,nt,neng+2), &
          Eje1(nspec,np,nt))
 
+    allocate(energy(nspec,neng), Ebound(nspec,neng), delE(nspec,neng))
+    
   end subroutine init_mod_cimi
 
 end Module ModCimi

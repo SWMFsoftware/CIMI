@@ -5,7 +5,7 @@ subroutine CIMI_set_parameters(NameAction)
   use ModCimiInitialize, ONLY: IsEmptyInitial,IsDataInitial,IsRBSPData, &
        IsGmInitial
   use ModCimiPlot,       ONLY: DtOutput, DoSavePlot, DoSaveFlux, DoSaveDrifts,&
-       DoSaveLog, UseSeparatePlotFiles, DtLogOut,DoSavePSD
+       DoSaveLog, UseSeparatePlotFiles, DtLogOut, DoSavePSD
   use ModCimiTrace,     ONLY: UseEllipse, UseSmooth, UseCorotation, &
        UsePotential, SmoothWindow, imod, iLatTest, iLonTest, rb
   use ModCimi,           ONLY: UseMcLimiter, BetaLimiter, time, Pmin,&
@@ -250,6 +250,20 @@ subroutine CIMI_set_parameters(NameAction)
              MinIonEnergy)
         call read_var('MaxIonEnergy (in keV), MaxElectronEnergy x10',&
              MaxIonEnergy)
+        
+     case('#SETENERGYGRID')
+        call read_var('neng', neng)
+        if (neng .lt. 1) &
+             call CON_STOP('ERROR: neng must be greater than 0.')
+        call read_var('UseLogEGrid', UseLogEGrid)
+        call read_var('MinIonEnergy (in keV), MinElectronEnergy x10',&
+             MinIonEnergy)
+        call read_var('MaxIonEnergy (in keV), MaxElectronEnergy x10',&
+             MaxIonEnergy)
+
+     case('#RBSPENERGYGRID')
+        call read_var('UseRBSPGrid', UseRBSPGrid)
+        if (UseRBSPGrid) neng = 30
         
      case('#IMTIMESTEP')
         call read_var('IMDeltaT [s]',dt)

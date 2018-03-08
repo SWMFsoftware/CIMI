@@ -173,8 +173,9 @@ contains
 
   subroutine Cimi_plot_fls(rc,flux,time,Lstar_C,Lstar_max)
     use ModIoUnit,    ONLY: UnitTmp_
+    use ModCimi, ONLY: energy, ebound
     use ModCimiGrid,  ONLY:nLat=>np, nLon=>nt, nEnergy=>neng, nPitchAng=>npit,&
-                           energy,sinAo,xlat,xmlt,Ebound
+                           sinAo,xlat,xmlt
     use ModCimiPlanet,ONLY:nSpecies=>nspec
     use ModCimiTrace,ONLY:ro,bo,xmlto,irm
     use ModCimiRestart, ONLY: IsRestart
@@ -283,10 +284,11 @@ contains
 
   subroutine Cimi_plot_psd(rc,psd,xmm,xk,time)
     use ModIoUnit,	ONLY: UnitTmp_
+    use ModCimi, 	ONLY: energy, ebound
     use ModCimiGrid,	ONLY: nLat=>np, nLon=>nt, &
          nEnergy=>neng, nPitchAng=>npit,&
          nm, nk, &
-         energy,sinAo,xlat,xmlt,Ebound
+         sinAo,xlat,xmlt
     use ModCimiPlanet,	ONLY: nSpecies=>nspec,re_m
     use ModCimiTrace,	ONLY: ro,bo,xmlto,irm
     use ModCimiRestart,	ONLY: IsRestart
@@ -393,8 +395,9 @@ contains
 
   subroutine Cimi_plot_vl(rc,vlEa,time)
     use ModIoUnit,    ONLY: UnitTmp_
+    use ModCimi,	ONLY: energy, ebound
     use ModCimiGrid,  ONLY:nLat=>np, nLon=>nt, nEnergy=>neng, nPitchAng=>npit,&
-         energy,sinAo,xlat,xmlt,Ebound
+         sinAo,xlat,xmlt
     use ModCimiPlanet,ONLY:nSpecies=>nspec
     use ModCimiTrace,ONLY:ro,bo,xmlto,irm
     use ModCimiRestart, ONLY: IsRestart
@@ -498,8 +501,9 @@ contains
 
   subroutine Cimi_plot_vp(rc,vpEa,time)
     use ModIoUnit,    ONLY: UnitTmp_
+    use ModCimi, ONLY: energy, ebound
     use ModCimiGrid,  ONLY:nLat=>np, nLon=>nt, nEnergy=>neng, nPitchAng=>npit,&
-         energy,sinAo,xlat,xmlt,Ebound
+         sinAo,xlat,xmlt
     use ModCimiPlanet,ONLY:nSpecies=>nspec
     use ModCimiTrace,ONLY:ro,bo,xmlto,irm
     use ModCimiRestart, ONLY: IsRestart
@@ -682,8 +686,9 @@ contains
   subroutine cimi_plot_precip(rc,time)
    use ModDstOutput,   ONLY: DstOutput 
    use ModIoUnit,      ONLY: UnitTmp_
+   use ModCimi,		ONLY: energy
    use ModCimiGrid,    ONLY:nLat=>np, nLon=>nt, nEnergy=>neng,&
-                            energy,xlat,xmlt
+                            xlat,xmlt
    use ModCimiPlanet,  ONLY: nSpecies=>nspec,re_m
    use ModCimiTrace,  ONLY:ro,bo,xmlto,irm
    use ModCimiRestart, ONLY: IsRestart

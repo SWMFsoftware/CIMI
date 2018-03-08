@@ -1,7 +1,7 @@
  
 subroutine cimi_run(delta_t)
   use ModConst,       ONLY: cLightSpeed, cElectronCharge
-  use ModCimiInitialize, ONLY: xmm,xk,dphi,dmm,dk,delE,dmu, xjac
+  use ModCimiInitialize, ONLY: xmm,xk,dphi,dmm,dk,dmu, xjac
   use ModCimi,        ONLY: f2,dt, Time, phot, Ppar_IC, Pressure_IC, &
                             PressurePar_IC,FAC_C, Bmin_C, &
                             OpDrift_, OpBfield_, OpChargeEx_, &
@@ -11,7 +11,8 @@ subroutine cimi_run(delta_t)
                             driftin, driftout, IsStandAlone, &
                             preP,preF,Eje1,UseStrongDiff, &
                             eChangeOperator_VICI,nOperator, &
-                            eChangeLocal,eChangeGlobal
+                            eChangeLocal,eChangeGlobal,&
+                            energy,delE
   use ModCimiPlanet,  ONLY: re_m, dipmom, Hiono, nspec, amu_I, &
                             dFactor_I,tFactor_I
   use ModCimiTrace,  ONLY: &
@@ -30,7 +31,7 @@ subroutine cimi_run(delta_t)
   use ModImSat,       ONLY: nImSats, write_im_sat, DoWriteSats, DtSatOut
   use ModCimiGrid,    ONLY: iProc,nProc,iComm,nLonPar,nLonPar_P,nLonBefore_P, &
                             MinLonPar,MaxLonPar,nt,np,neng,npit,nm,nk,dlat,&
-                            energy,phi,sinao,xlat,xmlt
+                            phi,sinao,xlat,xmlt
   use ModCimiBoundary,ONLY: cimi_set_boundary_mhd, cimi_set_boundary_empirical
   use ModMpi
   use ModWaveDiff,    ONLY: UseWaveDiffusion, ReadDiffCoef, WavePower, & 
@@ -589,15 +590,12 @@ subroutine cimi_init
   use ModPlanetConst, ONLY: Earth_,DipoleStrengthPlanet_I,rPlanet_I
   use ModConst,       ONLY: cElectronCharge
   use ModNumConst,    ONLY: cDegToRad,cRadToDeg,cPi
+  use ModCimi,	      ONLY: energy, ebound, delE
   use ModCimiPlanet,  ONLY: re_m, dipmom, Hiono, amu_I, nspec
   use ModCimiInitialize
   use ModCimiRestart, ONLY: IsRestart, cimi_read_restart
   use ModImTime
-  use ModCimiGrid,    ONLY: iProcLeft, iProcRight, iLonLeft, iLonRight, &
-       d4Element_C, MinIonEnergy, MaxIonEnergy, iProc,nLonPar, nt, nProc,&
-       nLonBefore_P, nLonPar_P, MinLonPar, MaxLonPar, nLonPar_P, &
-       iLonMidnight, iProcMidnight, nLonPar_P, np, xlatr, sinao, npit, energy, &
-       dLat,ebound, iComm, phi, xlat,xlat_data,xmlt 
+  use ModCimiGrid
   use ModTimeConvert, ONLY: time_int_to_real,time_real_to_int
   use ModMpi
 
@@ -701,15 +699,24 @@ subroutine cimi_init
 !!$  dmu=(/0.000207365,0.000868320,0.00167125,0.00489855,0.0165792,0.0404637, &
 !!$       0.078819500,0.121098000,0.14729600,0.16555900,0.1738560,0.2486830/)
 
-  energy_ion(1)=MinIonEnergy
-  energy_ion(neng)=MaxIonEnergy
-  aloga=log10(energy_ion(neng)/energy_ion(1))/(neng-1)
-  eratio=10.**aloga
-  do k=2,neng-1
-     energy_ion(k)=energy_ion(k-1)*eratio
-  enddo  
-  energy_ele(1:neng)=10.*energy_ion(1:neng)
+  if (UseRBSPGrid) then
 
+     energy_ele(1:neng) = energy_RBSP(1:neng)
+     energy_ion(1:neng) = energy_RBSP(1:neng)/10.
+     
+  else
+     
+     energy_ion(1)=MinIonEnergy
+     energy_ion(neng)=MaxIonEnergy
+     aloga=log10(energy_ion(neng)/energy_ion(1))/(neng-1)
+     eratio=10.**aloga
+     do k=2,neng-1
+        energy_ion(k)=energy_ion(k-1)*eratio
+     enddo
+     energy_ele(1:neng)=10.*energy_ion(1:neng)
+
+  endif
+  
   sinAo=(/0.009417,0.019070,0.037105,0.069562,0.122536,0.199229, &
        0.296114,0.405087,0.521204,0.638785,0.750495,0.843570, &
        0.910858,0.952661,0.975754,0.988485,0.995792,0.998703/)
@@ -1370,7 +1377,6 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
   !
   ! Input: iw2,nspec,np,nt,nm,nk,iba,dt,dlat,dphi,brad,rb,vl,vp,fbi
   ! Input/Output: f2,ib0,driftin,driftout
-  use ModCimiGrid, ONLY: MinLonPar, MaxLonPar
   use ModCimiTrace, ONLY: iba, ekev
   use ModCimiGrid, ONLY: iProc,nProc,iComm,MinLonPar,MaxLonPar, &
        iProcLeft, iLonLeft, iProcRight, iLonRight, d4Element_C    
@@ -1817,10 +1823,10 @@ subroutine sume_cimi(OperatorName)
        eChangeGlobal, eChangeLocal, &
        esum => eTimeAccumult_ICI, psum => pTimeAccumult_ICI
   use ModCimiTrace, 	ONLY: iba, ekev,ro, iw2
+  use ModCimi,		ONLY: Energy, Ebound
   use ModCimiGrid,   	ONLY: &
        nProc,iProc,iComm, MinLonPar, MaxLonPar, d4Element_C, &
-       ip => np, ir => nt, im => nm, ik => nk, je => neng, &
-       Energy, Ebound
+       ip => np, ir => nt, im => nm, ik => nk, je => neng
   use ModCimiPlanet, 	ONLY: nspec
   use ModMPI
   use ModWaveDiff,    	ONLY: testDiff_aE 
