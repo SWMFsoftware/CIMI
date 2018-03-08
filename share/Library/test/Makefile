@@ -1,4 +1,5 @@
-#  Copyright (C) 2002 Regents of the University of Michigan, portions used with permission 
+#  Copyright (C) 2002 Regents of the University of Michigan, 
+#  portions used with permission 
 #  For more information, see http://csem.engin.umich.edu/tools/swmf
 
 include ../../../Makefile.def
@@ -19,6 +20,7 @@ help:
 	@echo "   test_line_extract     - test CON_line_extract"
 	@echo "   test_linear_advection - test ModLinearAdvection"
 	@echo "   test_linear_solver    - test ModLinearSolver"
+	@echo "   test_linear_wrapper   - test linear_solver_wrapper"
 	@echo "   test_lookup_table     - test ModLookupTable"
 	@echo "   test_planet_field     - test CON_planet_field"
 	@echo "   test_plot_file        - test ModPlotFile"
@@ -53,6 +55,7 @@ test:
 	-@make test_line_extract
 	-@make test_linear_advection
 	-@make test_linear_solver
+	-@make test_linear_wrapper
 	-@make test_lookup_table
 	-@make test_planet_field
 	-@make test_plot_file
@@ -75,6 +78,9 @@ distclean: clean
 #######################################################################
 OBJ_TIME_CONVERT = \
 	test_time_convert.o \
+	../src/ModIoUnit.o \
+	../src/ModUtility.o \
+	../src/ModUtility_c.o \
 	../src/ModConst.o \
 	../src/ModNumConst.o \
 	../src/ModTimeConvert.o
@@ -96,6 +102,9 @@ test_time_convert:
 #######################################################################
 OBJ_COORD_TRANSFORM = \
 	test_coord_transform.o \
+	../src/ModIoUnit.o \
+	../src/ModUtility.o \
+	../src/ModUtility_c.o \
 	../src/ModCoordTransform.o \
 	../src/ModNumConst.o
 
@@ -118,6 +127,9 @@ test_coord_transform:
 #######################################################################
 OBJ_FREQ = \
 	test_freq.o \
+	../src/ModIoUnit.o \
+	../src/ModUtility.o \
+	../src/ModUtility_c.o \
 	../src/ModFreq.o
 
 test_freq_exe:
@@ -138,6 +150,9 @@ OBJ_LINEAR_SOLVER = \
 	test_linear_solver.o \
 	../src/blas.o \
 	../src/lapack.o \
+	../src/ModIoUnit.o \
+	../src/ModUtility.o \
+	../src/ModUtility_c.o \
 	../src/ModMpi.o \
 	../src/ModMpiInterfaces.o \
 	../src/ModBlasLapack.o \
@@ -145,7 +160,7 @@ OBJ_LINEAR_SOLVER = \
 
 test_linear_solver_exe:
 	@(cd ../src; make blas.o lapack.o ModLinearSolver.o)
-	@make test_linear_solver.o
+	@make test_linear_solver.o 
 	${LINK.f90} -o test_linear_solver.exe ${OBJ_LINEAR_SOLVER} ${Lflag1}
 
 test_linear_solver:
@@ -159,9 +174,44 @@ test_linear_solver:
 	@ls -l test_linear_solver.diff
 
 #######################################################################
+SEARCH_C = -I${SHAREDIR}
+
+OBJ_LINEAR_WRAPPER = \
+        ../src/blas.o \
+        ../src/lapack.o \
+        ../src/ModMpi.o \
+        ../src/ModMpiInterfaces.o \
+        ../src/ModBlasLapack.o \
+        ../src/ModLinearSolver.o \
+	../src/ModIoUnit.o \
+	../src/ModUtility.o \
+	../src/ModUtility_c.o \
+	../src/linear_solver_wrapper.o \
+	../src/linear_solver_wrapper_c.o \
+	test_linear_wrapper.o
+
+test_linear_wrapper_exe:
+	@(cd ../src; make blas.o lapack.o ModLinearSolver.o \
+		ModUtility.o ModUtility_c.o \
+		linear_solver_wrapper.o linear_solver_wrapper_c.o)
+	@make test_linear_wrapper.o 
+	${LINK.f90} ${NOMAINFLAG} -o test_linear_wrapper.exe \
+		${OBJ_LINEAR_WRAPPER} ${Lflag1} ${CPPLIB} 
+
+test_linear_wrapper:
+	@echo test_linear_wrapper starting 	>  test_linear_wrapper.diff	
+	make test_linear_wrapper_exe		>> test_linear_wrapper.diff
+	@echo ./test_linear_wrapper.exe		>> test_linear_wrapper.diff
+	-@(${MPIRUN} ./test_linear_wrapper.exe > test_linear_wrapper.tmp)
+	-@grep "ERROR" test_linear_wrapper.tmp   > test_linear_wrapper.diff
+	@ls -l test_linear_wrapper.diff
+
+#######################################################################
 OBJ_LINEAR_ADVECTION = \
 	test_linear_advection.o \
 	../src/ModIoUnit.o \
+	../src/ModUtility.o \
+	../src/ModUtility_c.o \
 	../src/ModLinearAdvection.o 
 
 test_linear_advection_exe:
@@ -197,7 +247,31 @@ test_sort:
 	-@(./test_sort.exe > test_sort.tmp)
 	-@(diff test_sort.tmp test_sort.log 	>  test_sort.diff)
 	@ls -l test_sort.diff
+#######################################################################
+test_hypergeometric.o: test_hypergeometric.f90
+	${COMPILE.f90} ${Cflag0} test_hypergeometric.f90
 
+OBJ_HYPERGEOMETRIC = \
+	../src/ModKind.o \
+	../src/ModMpi.o\
+	../src/ModNumConst.o \
+	../src/ModHyperGeometric.o \
+	../src/ModIoUnit.o \
+	../src/ModUtility.o \
+	../src/ModUtility_c.o \
+	test_hypergeometric.o
+
+test_hypergeometric_exe:
+	@(cd ../src; make ModKind.o; make ModMpi.o; make ModNumConst.o; make ModHyperGeometric.o)
+	@make test_hypergeometric.o
+	${LINK.f90} -o test_hypergeometric.exe ${OBJ_HYPERGEOMETRIC} ${Lflag2}
+
+test_hypergeometric:
+	@echo test_hypergeometric starting     >  test_hypergeometric.diff
+	@make test_hypergeometric_exe	       >> test_hypergeometric.diff
+	@echo ./test_hypergeometric.exe        >> test_hypergeometric.diff
+	-@(./test_hypergeometric.exe > test_hypergeometric.diff)
+	@ls -l test_hypergeometric.diff
 #######################################################################
 OBJ_IO_UNIT = \
 	test_io_unit.o \
@@ -219,6 +293,9 @@ test_io_unit:
 #######################################################################
 OBJ_INTERPOLATE = \
 	test_interpolate.o \
+	../src/ModIoUnit.o \
+	../src/ModUtility.o \
+	../src/ModUtility_c.o \
 	../src/ModInterpolate.o
 
 test_interpolate_exe:
@@ -240,12 +317,19 @@ test_interpolate_amr.o: test_interpolate_amr.f90
 
 OBJ_INTERPOLATE_AMR = \
 	../src/ModKind.o \
+	../src/ModNumConst.o \
 	../src/ModRandomNumber.o \
 	../src/ModInterpolateAMR.o \
+	../src/ModIoUnit.o \
+	../src/ModMpi.o \
+	../src/ModMpiInterfaces.o \
+	../src/ModMpiOrig.o \
+	../src/ModUtility.o \
+	../src/ModUtility_c.o \
 	test_interpolate_amr.o
 
 test_interpolate_amr_exe:
-	@(cd ../src; make ModKind.o; make ModRandomNumber.o; make ModInterpolateAMR.o)
+	@(cd ../src; make ModKind.o ModNumConst.o ModRandomNumber.o ModMpiOrig.o ModMpiInterfaces.o ModMpi.o ModIoUnit.o ModUtility_c.o ModUtility.o ModInterpolateAMR.o)
 	@make test_interpolate_amr.o
 	${LINK.f90} -o test_interpolate_amr.exe ${OBJ_INTERPOLATE_AMR} ${Lflag2}
 
@@ -264,6 +348,9 @@ OBJ_INTERPOLATE_CELL_AMR = \
 	../src/ModRandomNumber.o \
 	../src/ModInterpolateAMR.o \
 	../src/ModInterpolateCellAMR.o \
+	../src/ModIoUnit.o \
+	../src/ModUtility.o \
+	../src/ModUtility_c.o \
 	test_interpolate_cell_amr.o
 
 test_interpolate_cell_amr_exe:
@@ -280,8 +367,8 @@ test_interpolate_cell_amr:
 #######################################################################
 OBJ_INITIAL_STATE = \
 	test_initial_state.o \
-	../src/ModIoUnit.o \
 	../src/ModMpiInterfaces.o \
+	../src/ModIoUnit.o \
 	../src/ModUtility.o \
 	../src/ModUtility_c.o \
 	../src/ModReadParam.o \
@@ -300,7 +387,7 @@ test_initial_state:
 	@echo ${MPIRUN} ./test_initial_state_exe >> test_initial_state.diff
 	-@(${MPIRUN} ./test_initial_state.exe > test_initial_state.tmp)
 	-@gunzip -c test_initial_state.ref.gz > test_initial_state.ref
-	-@(${SCRIPTDIR}/DiffNum.pl \
+	-@(${SCRIPTDIR}/DiffNum.pl -b \
 	    test_initial_state.out test_initial_state.ref \
 						 >  test_initial_state.diff)
 	@ls -l test_initial_state.diff
@@ -328,6 +415,9 @@ test_random_number:
 OBJ_RAY_TRACE = \
 	../src/ModMpiInterfaces.o \
 	../src/ModMpi.o \
+	../src/ModIoUnit.o \
+	../src/ModUtility.o \
+	../src/ModUtility_c.o \
 	../src/CON_ray_trace.o
 
 test_ray_trace_exe:
@@ -351,7 +441,10 @@ OBJ_LINE_EXTRACT = \
 	../src/ModMpiInterfaces.o \
 	../src/ModMpi.o \
 	../src/ModSort.o \
-	../src/CON_line_extract.o
+	../src/CON_line_extract.o \
+	../src/ModIoUnit.o \
+	../src/ModUtility.o \
+	../src/ModUtility_c.o
 
 test_line_extract_exe: 
 	@(cd ../src; make CON_line_extract.o)
@@ -372,7 +465,10 @@ OBJ_GEOPACK = \
 	test_geopack.o \
 	../src/CON_geopack.o \
 	../src/ModCoordTransform.o \
-	../src/ModNumConst.o
+	../src/ModNumConst.o \
+	../src/ModIoUnit.o \
+	../src/ModUtility.o \
+	../src/ModUtility_c.o
 
 test_geopack_exe:
 	@(cd ../src; make ModCoordTransform.o CON_geopack.o)
@@ -397,9 +493,9 @@ OBJ_AXES = \
 	../src/ModMpi.o \
 	../src/ModMpiInterfaces.o \
 	../src/ModCoordTransform.o \
-	../src/ModIoUnit.o \
 	../src/ModReadParam.o \
 	../src/ModTimeConvert.o \
+	../src/ModIoUnit.o \
 	../src/ModUtility.o \
 	../src/ModUtility_c.o \
 	../src/ModKind.o \
@@ -434,9 +530,9 @@ OBJ_PLANET_FIELD = \
 	../src/ModCoordTransform.o \
 	../src/ModNumConst.o \
 	../src/ModConst.o \
-	../src/ModIoUnit.o \
 	../src/ModReadParam.o \
 	../src/ModTimeConvert.o \
+	../src/ModIoUnit.o \
 	../src/ModUtility.o \
 	../src/ModUtility_c.o
 
@@ -459,9 +555,9 @@ test_planet_field:
 
 OBJ_PLOT_FILE = \
 	test_plot_file.o \
-	../src/ModIoUnit.o \
 	../src/ModMpi.o \
 	../src/ModMpiInterfaces.o \
+	../src/ModIoUnit.o \
 	../src/ModUtility.o \
 	../src/ModUtility_c.o \
 	../src/ModHdf5Utils.o \
@@ -486,11 +582,11 @@ test_plot_file:
 OBJ_LOOKUP_TABLE = \
 	test_lookup_table.o \
 	../src/ModNumConst.o \
-	../src/ModIoUnit.o \
 	../src/ModMpi.o \
 	../src/ModMpiInterfaces.o \
 	../src/ModReadParam.o \
 	../src/ModInterpolate.o \
+	../src/ModIoUnit.o \
 	../src/ModUtility.o \
 	../src/ModUtility_c.o \
 	../src/ModHdf5Utils.o \
@@ -515,11 +611,11 @@ test_lookup_table:
 
 OBJ_UTILITIES = \
 	test_utilities.o \
-	../src/ModIoUnit.o \
 	../src/ModKind.o \
 	../src/ModMpi.o \
 	../src/ModMpiOrig.o \
 	../src/ModMpiInterfaces.o \
+	../src/ModIoUnit.o \
 	../src/ModUtility.o \
 	../src/ModUtility_c.o
 
@@ -542,7 +638,10 @@ test_utilities:
 
 OBJ_TRIANGULATE = \
 	test_triangulate.o \
-	../src/ModTriangulate.o
+	../src/ModTriangulate.o \
+	../src/ModIoUnit.o \
+	../src/ModUtility.o \
+        ../src/ModUtility_c.o
 
 test_triangulate_exe:
 	@(cd ../src; make ModTriangulate.o)
@@ -565,9 +664,9 @@ OBJ_PROCESS_VAR_NAME = \
 	ModSingleFluid.o\
 	ModExtraVariables.o\
 	ModEquation.o \
-	../src/ModIoUnit.o \
 	../src/ModMpi.o \
 	../src/ModMpiInterfaces.o \
+	../src/ModIoUnit.o \
 	../src/ModUtility.o \
 	../src/ModUtility_c.o \
 	../src/ModProcessVarName.o
@@ -589,7 +688,6 @@ test_process_var_name1:
 		>> test_process_var_name.log 2>&1
 	@for i in ${BATSDIR}/srcEquation/*.f90 ; do\
 		cp -f $${i} ModEquation.f90;\
-		perl -i -pe 's/call init_mhd_variables/ /' ModEquation.f90;\
 		echo working on $${i} >> test_process_var_name.tmp;\
 		echo working on $${i} >> test_process_var_name.log;\
 		sleep 1;\
@@ -604,7 +702,7 @@ test_process_var_name_exe:
 	@make ModEquation.o test_process_var_name.o \
 		>> test_process_var_name.log 2>&1
 	@${LINK.f90} -o test_process_var_name.exe ${OBJ_PROCESS_VAR_NAME} \
-		${Lflag1} >> test_process_var_name.log 2>&1
+		${Lflag1}  >> test_process_var_name.log 2>&1
 
 test_process_var_name_run:
 	-@(./test_process_var_name.exe >> test_process_var_name.tmp)

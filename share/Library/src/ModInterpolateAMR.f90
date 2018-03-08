@@ -1,4 +1,5 @@
-!  Copyright (C) 2002 Regents of the University of Michigan, portions used with permission 
+!  Copyright (C) 2002 Regents of the University of Michigan, 
+!  portions used with permission 
 !  For more information, see http://csem.engin.umich.edu/tools/swmf
 module ModInterpolateSimpleShape
   !\
@@ -22,14 +23,19 @@ module ModInterpolateSimpleShape
   ! so that the provided routine may be used for interpolating values
   ! in the proximity of such points.  
   !/
+
+  use ModUtilities, ONLY: CON_stop
+
   implicit none
-  PRIVATE
   SAVE
-  integer, parameter:: nDim = 3, nGrid = 8
-  integer, parameter:: Rectangular_=1, Trapezoidal_=2
+  PRIVATE ! Except
+
   public :: interpolate_tetrahedron
   public :: interpolate_pyramid
   public :: interpolate_pyramids, interpolate_on_parallel_rays
+
+  integer, parameter:: nDim = 3, nGrid = 8
+  integer, parameter:: Rectangular_=1, Trapezoidal_=2
 contains
   !========================
   function cross_product(a_D, B_d)
@@ -1046,6 +1052,7 @@ contains
 end module ModInterpolateSimpleShape
 !============================
 module ModCubeGeometry
+  use ModUtilities, ONLY: CON_stop
   implicit none
   SAVE
   !=================ARRAYS FOR A CUBE====================================!
@@ -1483,9 +1490,9 @@ contains
        i_case = i_case + i_case + iLevel_I(iGrid)
     end do
   end function i_case
-  !============================
+  !===========================================================================
 end module ModCubeGeometry
-!=========================
+!==============================================================================
 module ModResolutionCorner
   use ModCubeGeometry, ONLY: iSortStencil3_II, iFace_IDI, iOppositeFace_IDI,&
        Case_, Grid_, Dir_, FiveTetrahedra_, & 
@@ -1493,6 +1500,8 @@ module ModResolutionCorner
        CoarseMainDiag_, CoarseFaceDiag_, FineEdgePlusOne_,            &
        ThreeFineOnFace_, CoarseEdgePlusOne_, ThreeCoarseOnFace_,      &
        ThreeCoarseOnFacePlusOne_, CoarseChain_, i_case
+  use ModUtilities, ONLY: CON_stop
+
   implicit none
   PRIVATE
   SAVE
@@ -2086,14 +2095,15 @@ contains
     !===========================
   end subroutine resolution_corner
 end module ModResolutionCorner
-!================================
+!==============================================================================
 module ModInterpolateAMR23
+
+  use ModUtilities, ONLY: CON_stop
   use ModCubeGeometry
   implicit none
   integer, parameter:: x_ = 1, y_ = 2, z_ = 3
 contains
   !=====================================================================
-!============================
   subroutine interpolate_uniform(nDim, Dimless_D, Weight_I, IsOut_I)
     integer,intent(in)::nDim
     !\
@@ -2676,7 +2686,7 @@ contains
   !============================
   subroutine  interpolate_amr3(&
        XyzIn_D, XyzGridIn_DI, iLevel_I, IsOut_I, iCaseExtended,&
-       nGridOut, Weight_I, iOrder_I, IsCorner)
+       nGridOut, Weight_I, iOrder_I, IsCorner, NameCaller)
     integer,parameter :: nGrid = 8, nDim = 3
     character(LEN=*),parameter:: NameSub='interpolate_amr3'
     !\
@@ -2727,6 +2737,10 @@ contains
     !/
     logical, intent(out):: IsCorner
     !\
+    ! The name of the calling subroutine
+    !/
+    character(len=*), optional, intent(in):: NameCaller
+    !\
     ! Misc
     !/
     real    :: zMin               
@@ -2748,6 +2762,11 @@ contains
     ! To find the sort of corner stencil
     !/
     integer:: iCase, iDir, iGrid
+
+    !\
+    ! Error message
+    !/
+    character(len=200):: StringError
     !\
     ! Switches in the algorithm
     !/
@@ -3049,7 +3068,15 @@ contains
        Weight_I(nGridOut2 + 1:nGridOut) = Weight_I(1:nFine)*(1 - AuxFine)
        Weight_I(     1:nFine) = Weight_I(1:  nFine)*AuxFine
     case default
-       call CON_stop('How could this happen?')
+       if(present(NameCaller))then
+          StringError = NameCaller
+       else
+          StringError = NameSub
+       end if
+       StringError = trim(StringError)//&
+            ': failed to determine interpolation stencil; '//&
+            'likely, the grid information is incorrect'
+       call CON_stop(StringError)
     end select
   contains
     !==========================
@@ -3094,9 +3121,12 @@ contains
     !===========================
   end subroutine interpolate_amr3
 end module ModInterpolateAMR23
-!=========================
+!=============================================================================
 module ModInterpolateAMR
+
   use ModInterpolateAMR23, ONLY: interpolate_uniform
+  use ModUtilities, ONLY: CON_stop
+
   !\
   !Generalize bilinear and trilinear interpolation for AMR grids
   !The data are given at the cell-centered grid which consists of AMR blocks.
@@ -3493,8 +3523,8 @@ contains
     !\
     ! variables to call interpolate_extended_stencil
     !/
-    real   :: XyzGrid_DII(nDim, 0:2**nDim, 2**nDim)
-    integer:: iCellIndexes_DII(nDim, 2**nDim, 2**nDim)
+    real   :: XyzGrid_DII(nDim, 0:2**(nDim-1), 2**nDim)
+    integer:: iCellIndexes_DII(nDim, 2**(nDim-1), 2**nDim)
     integer, parameter:: iBlock_I(8) = 1, iProc_I(8) = 1
     integer:: iLevel_I(2**nDim)
     logical:: IsOut_I(2**nDim)
@@ -3516,6 +3546,7 @@ contains
     ! Loop variables
     !/
     integer:: iGrid, iSubGrid, iGridSeenFrom, iOrder
+    character(len=*), parameter:: NameSub = 'share:interpolate_amr_gc'
     !--------------------------------------------------------------------    
     cTol2 = cTol**(nByteReal/4)
     Dimless_D = (Xyz_D - XyzMin_D)/DXyz_D
@@ -3709,7 +3740,8 @@ contains
          Weight_I        = Weight_I, & 
          iIndexes_II     = iIndexes_II, & 
          IsSecondOrder   = IsSecondOrder,&
-         nSubgridIn_I    = nSubgrid_I)
+         nSubgridIn_I    = nSubgrid_I,&
+         NameCaller      = NameSub)
 
     ! store indices of cells in the final interpolation stencil
     iCellOut_II(:,1:nCellOut) = iIndexes_II(1:nDim,1:nCellOut)
@@ -3811,7 +3843,9 @@ contains
          ! stencil coordinates might occur. To handle the latter problem,
          ! we added the "out" intent. The coordinates for the stencil
          ! and input point are calculated and recalculated below with
-         ! respect to the block corner. 
+         ! respect to the block corner. Another possible feature handled
+         ! below is the glued margins such as the pole of the spherical 
+         ! coordinate system. 
          !/
          real,  intent(inout):: Xyz_D(nDim)
          integer, intent(out):: iProc, iBlock !processor and block number
@@ -3861,28 +3895,28 @@ contains
     !\
     ! The minimal coordinates of the block, to which XyzIn_D point belongs
     !/ 
-    real, dimension(nDim) :: XyzBasicBlock_D
+    real, dimension(nDim) :: XyzStartBasic_D
     !\
     ! Pe and iBlock numbers for this block
     !/ 
-    integer:: iProcBasic, iBlockBasic
+    integer:: iProc, iBlock
     !\
     ! Cell sizes (/Dx, Dy, Dz/) in this block, or, if this block is finer 
-    ! than its neihbors, DxyzBasic_D is redefine to be twice (/Dx, Dy, Dz/)
+    ! than its neihbors, DXyzGrid_D is redefine to be twice (/Dx, Dy, Dz/)
     ! The grid size of the extended stencil. 
     !/
-    real, dimension(nDim) :: DxyzBasic_D
+    real, dimension(nDim) :: DXyzGrid_D
     !\
-    ! inverse of  DxyzBasic_D is reused
+    ! inverse of  DXyzGrid_D is reused
     !/
     real, dimension(nDim) :: DxyzInv_D
     !\
     ! The extended stencil in a structured form:
     ! A cubic 2*2*2 grid with 2*2*2 subgrids covering each vertex
     !/
-    real       :: XyzGrid_DII(nDim,0:2**nDim,2**nDim)
+    real       :: XyzGrid_DII(nDim,0:2**(nDim-1),2**nDim)
     integer    :: iBlock_I(2**nDim), iProc_I(2**nDim) 
-    integer    :: iCellIndexes_DII(nDim,2**nDim,2**nDim)
+    integer    :: iCellIndexes_DII(nDim,2**(nDim-1),2**nDim)
     integer    :: iLevelSubgrid_I(2**nDim)
     logical    :: IsOut_I(2**nDim)
     !\
@@ -3901,17 +3935,28 @@ contains
     ! Misc----------------
     !/
     integer, parameter:: iOrder_I(8) = (/1,2,3,4,5,6,7,8/)
-    !\
-    ! Stored iProc and iBlock number
-    !/
-    integer:: iProcStored, iBlockStored
     logical    :: IsOutOfDomain
     !\
     !Just 2**nDim
     integer:: nGrid
     !/
-
-    integer    :: iGridOutOfBlock
+    !\
+    ! In the neighboring block the direction of iDir coordinate
+    ! may be different. For example, near the northern pole the 
+    ! latitute coordinate increases toward the pole, while in 
+    ! the across pole block, if we keep follow the same direction
+    ! the latitude starts to decrese. The order number of the 
+    ! stencil grid changes if the stencil is viewed from the 
+    ! neighboring block. 
+    !/
+    logical    :: IsFlipped_I(2**nDim)
+    integer    :: iDirFlip = 0
+    integer, parameter :: iOrderFlip_ID(1:8,0:3) = reshape((/&
+         1, 2, 3, 4, 5, 6, 7, 8,        &    !iDir = 0 no flip
+         2, 1, 4, 3, 6, 5, 8, 7,        &    !iDir=1 is flipped
+         3, 4, 1, 2, 7, 8, 5, 6,        &    !iDir=2 is flipped
+         5, 6, 7, 8, 1, 2, 3, 4/),(/8,4/))   !iDir=3 is flipped
+    character(len=*), parameter:: NameSub = 'share:interpolate_amr'
     !------------------------
     cTol2 = cTol**(nByteReal/4)
 
@@ -3921,8 +3966,9 @@ contains
     ! Initialize 
     !/
     iIndexes_II = 0; Weight_I    = 0
-    nGridOut = -1; Xyz_D = XyzIn_D ; IsOut_I = .false.
-    iBlock_I = -1; iProc_I = -1
+    nGridOut = -1; Xyz_D = XyzIn_D  
+    IsOut_I  = .false. ; IsFlipped_I = .false.
+    iBlock_I = -1; iProc_I = -1; iDirFlip = 0
     if(present(UseGhostCell))then
        UseGhostCellLocal = UseGhostCell
     else
@@ -3930,32 +3976,18 @@ contains
     end if
     if(present(IsSecondOrder))IsSecondOrder = .false.
     !\
-    ! Implemented version:
-    ! only physical points are involved into interpolation,
-    ! but, in general case, from many blocks. An alternative 
-    ! version, when the ghost cells may be involved but the 
-    ! stencil points should be all from one block is under
-    ! development.
-    !/
-    !\
     ! Find block to which the point belong
     !/ 
-    call find(nDim, Xyz_D, iProcBasic, iBlockBasic, &
-         XyzBasicBlock_D, DxyzBasic_D, IsOutOfDomain)
+    call find(nDim, Xyz_D, iProc, iBlock, &
+         XyzStartBasic_D, DXyzGrid_D, IsOutOfDomain)
     if(IsOutOfDomain)then
-       !\
-       ! The algorithm does not work for a point out of the computation
-       ! domain. It could, but in this case too much information
-       ! about grid should be brought to the table - the domain size,
-       ! periodicity etc
-       !/
        nGridOut = -1
        RETURN
     end if
     !\
     ! Now Xyz_D is given  with respect to the main block corner
     !/
-    call get_main_block(iGridOutOfBlock)
+    call get_main_block
     !\
     !The interpolation is done, if the stencil is within a single block
     !/
@@ -3963,7 +3995,8 @@ contains
        if(present(IsSecondOrder))IsSecondOrder = .true.
        RETURN
     end if
-    call get_other_blocks(iGridOutOfBlock)
+
+    call get_other_blocks
     !\
     ! recalculate grid cells indexes for ghost cells
     !/
@@ -3972,10 +4005,9 @@ contains
     call interpolate_extended_stencil(nDim, Xyz_D, nIndexes, &
          XyzGrid_DII, iCellIndexes_DII, iBlock_I, iProc_I,   &
          iLevelSubgrid_I, IsOut_I, DxyzInv_D,                &
-         nGridOut, Weight_I, iIndexes_II, IsSecondOrder, nSubGrid_I)
+         nGridOut, Weight_I, iIndexes_II, IsSecondOrder, nSubGrid_I,NameSub)
   contains
-    subroutine get_main_block(iGridOutOfBlock)
-      integer, intent(out):: iGridOutOfBlock
+    subroutine get_main_block
       !\
       ! Fills in XyzGrid_DII(:,0,:) - coarse grid
       ! Fills in indexes for the points of the stencil 
@@ -4009,7 +4041,7 @@ contains
       !------------------------------------
       iLevelSubgrid_I =  0
       iCellIndexes_DII = 0; XyzGrid_DII     = 0
-      DxyzInv_D = 1/DxyzBasic_D
+      DxyzInv_D = 1/DXyzGrid_D
       XyzMisc_D = Xyz_D*DxyzInv_D + 0.50
       !\
       ! Find discriminator which determines the 
@@ -4036,19 +4068,19 @@ contains
          do iGrid = 1, nGrid
             if(Weight_I(iGrid) < cTol2)CYCLE
             nGridOut = nGridOut + 1
-            iIndexes_II(0,       nGridOut) = iProcBasic
-            iIndexes_II(nIndexes,nGridOut) = iBlockBasic
+            iIndexes_II(0,       nGridOut) = iProc
+            iIndexes_II(nIndexes,nGridOut) = iBlock
             iIndexes_II(1:nDim,  nGridOut) = iCellIndexes_DII(:,1,1) + &
                  iShift_DI(1:nDim,iGrid)
             Weight_I(nGridOut) = Weight_I(iGrid)
          end do
          RETURN  !All interpolation is done, ready to exit
       end if
-      XyzGrid_DII(:,0,1) = DxyzBasic_D*(iCellIndexes_DII(:,1,1) - 0.50)
+      XyzGrid_DII(:,0,1) = DXyzGrid_D*(iCellIndexes_DII(:,1,1) - 0.50)
       do iGrid = 2, nGrid
          iShift_D = iShift_DI(1:nDim,iGrid)
          XyzGrid_DII(:,0,iGrid) = &
-              XyzGrid_DII(:,0,1) + iShift_D*DxyzBasic_D
+              XyzGrid_DII(:,0,1) + iShift_D*DXyzGrid_D
          !\
          !This grid point is out of block, mark it
          !/ 
@@ -4059,7 +4091,7 @@ contains
       ! these inequalities 
       !/
       XyzMisc_D = min(1 - cTol2,max(XyzMisc_D, cTol2 ))
-      Xyz_D = XyzGrid_DII(:,0,1) + XyzMisc_D*DxyzBasic_D
+      Xyz_D = XyzGrid_DII(:,0,1) + XyzMisc_D*DXyzGrid_D
       !\
       ! The value of iGrid for the cell which includes the point Xyz_D:
       !/
@@ -4079,86 +4111,197 @@ contains
          XyzGrid_DII(:,1,iGrid) = XyzGrid_DII(:,0,iGrid)
          iCellIndexes_DII(:,1,iGrid) = &
               iCellIndexes_DII(:,1,1) + iShift_D
-         iBlock_I(iGrid) = iBlockBasic
-         iProc_I(iGrid)  = iProcBasic
+         iBlock_I(iGrid) = iBlock
+         iProc_I(iGrid)  = iProc
       end do
-      
-      iGridOutOfBlock = maxval(iOrder_I(1:nGrid),MASK=iProc_I==-1)
-   
     end subroutine get_main_block
     !=====================
-    recursive subroutine get_other_blocks(iGridOutOfBlock)
-      integer, intent(inout)::iGridOutOfBlock
+    subroutine check_flip_in_block(XyzGridRel2Basic_D, &
+         XyzGridRel2Block_D, XyzStartBlock_D, IsFlippedBlock)
+      real, intent(in )     :: XyzGridRel2Basic_D(nDim)
+      real, intent(in )     :: XyzGridRel2Block_D(nDim)
+      real, intent(in )     :: XyzStartBlock_D(nDim)
+      logical, intent(out)  :: IsFlippedBlock 
+      !----------------------------
+      integer    :: iDiscrFlip_D(nDim) 
+      character(len=*), parameter:: NameSub = 'check_flip_in_block'
+      !------------
+      !\
+      ! Coordinates XyzBasic_D and the grid point coordinates, 
+      ! XyzGridBasic_D are defined relative to the basic block.
+      ! XyzBasic_D + XyzCornerBasic_D are the "absolute coordinates"
+      ! of the point at which to interpolate, while
+      ! XyzGridBasic_D + XyzCornerBasic_D are "absolute coordinates"
+      ! of the stencil point. However, the stencil grid point is 
+      ! beyond the basic block boundary, therefore, in principle, it 
+      ! may be also beyond the margin of the coordinate map.
+      ! 
+      ! XyzGridRel2Block_D is the result of the 'find' procedure
+      !  application  to  the "absolute coordinates" of the stencil
+      !  point. The point belongs to the neighboring block, 
+      ! XyzStartBlock_D + XyzGridRel2Block_D are the "absolute coordinates" 
+      ! of the same point. However, the coordinate map in the neighboring 
+      ! block may be different if the block is beyond the margin of the 
+      ! basic block map.
+      !\
+      ! The difference between  
+      ! XyzGridRel2Basic_D + XyzStartBasic_D and
+      ! XyzGridRel2Block_D + XyzStartBlock_D  
+      !  may be non-zero by two possible reasons
+      ! 1. For cycling coordinate (over which the periodic boundary conditions
+      ! are applied)  XyzGridRel2Block_D + XyzStartBlock_D -
+      !              -(XyzGridRel2Basic_D + XyzStartBasic_D)=
+      !              =Full range of a cycling coordinate.
+      ! This difference is constant for the two maps from the both sides of
+      ! the periodic boundary. Therefore, the "absolute coordinates" of the
+      ! point, XyzRel2Basic_D + XyzCornerBasic_D, in the map of the 
+      ! neighboring block are XyzRel2Basic_D + XyzStartBasic_D  - 
+      !                       -(XyzGridRel2Basic_D + XyzStartBasic_D)+
+      !                       + XyzStartBlock_D + XyzGridRel2Block_D = 
+      !                     = XyzRel2Basic_D - XyzGridRel2Basic_D + 
+      !                       +XyzGridRel2Block_D + XyzStartBlock_D, 
+      ! so that the coordinates relative to the block corner are:
+      ! (1)XyzRel2Block_D = XyzRel2Basic_D - XyzGridRel2Basic_D + 
+      !                       +XyzGridRel2Block_D 
+      ! The SIGNATURE of this case is that the difference
+      ! abs(XyzGridRel2Block_D - XyzGridRel2Basic_D) is the sime
+      ! of the domain (sometimes, the half of domain) which is the 
+      ! multiple of the block sime, just as in the case, where there is no 
+      ! map margin in the block boundary , in which general case
+      ! the "absolute coordinates"
+      ! are same: XyzGridRel2Block_D + XyzCornerBlock_D = 
+      !          = XyzGridRel2Basic_D + XyzCornerBasic_D), and their
+      ! difference vanishes
+      ! Therefore, the following discriminator is zero:
+      iDiscrFlip_D = nint(mod(1.0e-6*DXyzGrid_D + abs(& 
+           XyzGridRel2Block_D + XyzStartBlock_D - &
+           (XyzGridRel2Basic_D + XyzStartBasic_D)),&
+           DXyzGrid_D*nCell_D)*DxyzInv_D)
+      ! (2) The second possibility is if the "absolute coordinate" is 
+      ! continuous but flips the direction of its growth beyond the margin:
+      !   XyzRel2Basic_D + XyzCornerBasic_D +
+      !  +XyzRel2Block_D + XyzCornerBlock_D =
+      !  2*(Absolute coordinate of a margin) =
+      !   +XyzGridRel2Basic_D + XyzCornerBasic_D +
+      !  +XyzGridRel2Block_D + XyzCornerBlock_D,
+      ! which gives:
+      ! (2)XyzRel2Block_D = XyzGridRel2Basic_D - XyzRel2Basic_D + 
+      !                   + XyzGridRel2Block_D
+      ! In addition, the following estimate is valid for the difference
+      ! a) the margin is at the right. In this case 
+      ! XyzGridRel2Basic_D = DXyzBasic_D*(nCell_D + 0.5)
+      ! XyzGridRel2Block   = DXyzBasic_D*(nCell_D - 0.5)
+      ! Their difference equals +DXyzBasic_D
+      ! a) the margin is at the left. In this case 
+      ! XyzGridRel2Basic_D = - DXyzBasic_D*0.5
+      ! XyzGridRel2Block   = + DXyzBasic_D*0.5
+      ! Their difference equals -DXyzBasic_D
+      ! in both cases a and b discriminator equals 1
+      IsFlippedBlock = any(iDiscrFlip_D/=0)
+      if(IsFlippedBlock)&
+           iDirFlip = sum(iOrder_I(1:nDim)*iDiscrFlip_D)
+    end subroutine check_flip_in_block
+    !============================
+    function xyz_rel_to_block(&
+         XyzGridRel2Basic_D,XyzGridRel2Block_D,iDirFlipBlock)&
+         RESULT(XyzRel2Block_D)
+      real,    intent(in) :: XyzGridRel2Basic_D(nDim)
+      real,    intent(in) :: XyzGridRel2Block_D(nDim)
+      integer, intent(in) :: iDirFlipBlock
+      real                :: XyzRel2Block_D(nDim)
+      ! index of iDiscrFlip_D starts at 0 to accomodate for iDirFlipBlock = 0
+      integer             :: iDiscrFlip_D(0:nDim)
+      !------------------------------------------------------------------
+      ! redefine iDiscrFlip_D
+      iDiscrFlip_D = 0; iDiscrFlip_D(iDirFlipBlock) = 1
+      ! Combine Eqs. (1) for iDiscrFlip_D=0 and (2) for iDiscrFlip_D=1 
+      ! We obtain an equation
+      XyzRel2Block_D = (Xyz_D - XyzGridRel2Basic_D)* & 
+                       (1 - 2*iDiscrFlip_D(1:nDim))  + XyzGridRel2Block_D
+    end function xyz_rel_to_block
+    !==============================
+    subroutine get_other_blocks
+      integer :: iGrid
       !\
       ! Misc
       !/
-      integer:: iGrid, iGridStored, iLevel
+      integer:: iLevel
       !\
-      ! For using find routine with inout argument
+      ! Stencil point coordinates
       !/
-      real  :: XyzMisc_D(nDim)
+      real  :: XyzGrid_D(nDim)
       !\
       ! Output parameters of find routine
       !/
-      real    :: XyzCorner_D(nDim), Dxyz_D(nDim)
-      logical :: IsOut
+      real    :: XyzStartBlock_D(nDim), Dxyz_D(nDim)
+      logical :: IsOut, IsFlippedBlock = .false.
+      integer :: iDirFlipBlock = 0
       !----------------------------
-      if(iGridOutOfBlock == -1)RETURN
-      iGridStored = iGridOutOfBlock
-      !\
-      ! For the grid point not belonging to the block
-      ! find the block they belong to
-      !/ 
-      !\
-      !Recalculate absolute coordinates for
-      !the grid point which is out of the block
-      !/
-      XyzMisc_D = XyzBasicBlock_D + XyzGrid_DII(:,0,iGridStored)
-      !\
-      ! Find neighboring block
-      !/
-      call find(nDim, XyzMisc_D, &
-           iProcStored, iBlockStored, &
-           XyzCorner_D, Dxyz_D, IsOut)
-      if(IsOut)then
-         iProc_I(iGridStored) = 0 !For not processing this point again
-         IsOut_I(iGridStored) = .true.
-         XyzGrid_DII(:,1,iGridStored) = XyzGrid_DII(:,0,iGridStored)
+      iGrid = maxval(iOrder_I(1:nGrid),MASK=iProc_I==-1)
+      do
          !\
-         ! Find the next out-of-block point
+         ! For the grid point not belonging to the block
+         ! find the block they belong to
+         !/ 
+         !\
+         !Recalculate absolute coordinates for
+         !the grid point which is out of the block
          !/
-         do iGrid = iGridStored - 1, 1, -1
-            if(iProc_I(iGrid)==-1)then
-               iGridOutOfBlock = iGrid
-               call get_other_blocks(iGridOutOfBlock)
-               RETURN
+         XyzGrid_D = XyzStartBasic_D + XyzGrid_DII(:,0,iGrid)
+         !\
+         ! Find neighboring block
+         !/
+         call find(nDim, XyzGrid_D, &
+              iProc, iBlock, &
+              XyzStartBlock_D, Dxyz_D, IsOut)
+         if(IsOut)then
+            iProc_I(iGrid) = 0 !For not processing this point again
+            IsOut_I(iGrid) = .true.
+            XyzGrid_DII(:,1,iGrid) = XyzGrid_DII(:,0,iGrid)
+         else
+            call check_flip_in_block(&
+                 XyzGridRel2Basic_D = XyzGrid_DII(:,0,iGrid), &
+                 XyzGridRel2Block_D = XyzGrid_D             , &
+                 XyzStartBlock_D    = XyzStartBlock_D       , &
+                 IsFlippedBlock     = IsFlippedBlock)
+            if(IsFlippedBlock)then
+               iDirFlipBlock = iDirFlip
+            else
+               iDirFlipBlock = 0
             end if
-         end do
-         RETURN
-      end if
-      iLevel = 1 - floor(Dxyz_D(1)*DXyzInv_D(1)+ cTol)
-      !\                     ^
-      ! For expression above | equal to 2 , 1, 0.5 correspondingly
-      ! iLevel = -1, 0, Fine_, meaning that the neighboring block
-      ! is coarser, at the same resolution or finer than the basic 
-      ! one.
-      !/
-      select case(iLevel)
-      case(-1)
-         call get_coarse_block(iGridOutOfBlock, XyzMisc_D, DXyz_D)
-      case(0)  ! (New Dxyz_D)*Stored DXyzInv =1
-         call get_block(iGridOutOfBlock, XyzMisc_D)
-      case(Fine_  )  !1, (New Dxyz_D)*Stored DXyzInv =0.5 
-         call get_fine_block(iGridOutOfBlock, XyzMisc_D, Dxyz_D)
-      end select
-      call get_other_blocks(iGridOutOfBlock)
+            iLevel = 1 - floor(Dxyz_D(1)*DXyzInv_D(1)+ cTol)
+            !\                     ^
+            ! For expression above | equal to 2 , 1, 0.5 correspondingly
+            ! iLevel = -1, 0, Fine_, meaning that the neighboring block
+            ! is coarser, at the same resolution or finer than the basic 
+            ! one.
+            !/
+            select case(iLevel)
+            case(-1)
+               call get_coarse_block(iGrid, XyzGrid_D, iDirFlipBlock)
+            case(0)  ! (New Dxyz_D)*Stored DXyzInv =1
+               call get_block(       iGrid, XyzGrid_D, iDirFlipBlock)
+            case(Fine_  )  !1, (New Dxyz_D)*Stored DXyzInv =0.5 
+               call get_fine_block(  iGrid, XyzGrid_D, iDirFlipBlock)
+            end select
+         end if
+         !\
+         ! Find the next out-of-block point of stencil
+         !/
+         if (any(iProc_I==-1))then
+            iGrid = maxval(iOrder_I(1:nGrid),MASK=iProc_I==-1)
+         else
+            RETURN
+         end if
+      end do
     end subroutine get_other_blocks
     !========================
-    subroutine get_block(iGridOutOfBlock, XyzGridStored_D)
-      integer, intent(inout)::iGridOutOfBlock
-      real, dimension(nDim), intent(in):: XyzGridStored_D
+    subroutine get_block(iGridInBlock, XyzGrid_D, iDirFlipBlock)
+      integer, intent(in)  :: iGridInBlock
+      real,    intent(in)  :: XyzGrid_D(nDim)
+      integer, intent(in)  :: iDirFlipBlock
       !\
-      ! Fills in the indexes for the grid boints belonging
+      ! Fills in the indexes for the grid points belonging
       ! to the block, which it at the same resolution as the
       ! main block Returns the maximum number of the grid poit
       ! which is out of all blocks  found so far
@@ -4166,7 +4309,7 @@ contains
       !\
       ! Misc
       !/
-      integer:: iGrid, iGridStored, iCellIndexes_D(nDim)
+      integer:: iGrid, iCellIndexes_D(nDim), iGridFlip
       !\
       ! New variables to work with reduced nSubgrid_I
       !/
@@ -4187,23 +4330,25 @@ contains
       !/
       real  :: XyzMisc_D(nDim)
       !---------------------
-      iGridStored = iGridOutOfBlock
       !\
       ! Calculate cell indexes as we did before. Use nint
-      ! instead of int as long as XyzMisc_D is very close to 
+      ! instead of int as long as XyzGrid_D is very close to 
       ! the grid point 
       !/
-      iCellIndexes_D = nint(XyzGridStored_D*DxyzInv_D + 0.50)
+      iCellIndexes_D = nint(XyzGrid_D*DxyzInv_D + 0.50)
+
+      !First, calculate Xyz_D with respect to the corner of given block
+      !Coords Xyz_D and XyzGrid_DII(:,0,iGridInBlock) are detemined with
+      !respect to the reference block, the latter point coords with
+      !with respect to the current block are XyzGrid_D, so that
+      !/
+      XyzMisc_D = xyz_rel_to_block(&
+           XyzGridRel2Basic_D  = XyzGrid_DII(:,0,iGridInBlock), &
+           XyzGridRel2Block_D  = XyzGrid_D, &
+           iDirFlipBlock       = iDirFlipBlock)*DxyzInv_D
       !\
       ! Calculate discriminator
       !/
-      !First, calculate Xyz_D with respect to the corner of given block
-      !Coords Xyz_D and XyzGrid_DII(:,0,iGridStored) are detemined with
-      !respect to the reference block, the latter point coords with
-      !with respect to the current block are XyzGridStored_D, so that
-      !/
-      XyzMisc_D = (Xyz_D + XyzGridStored_D - XyzGrid_DII(:,0,iGridStored))&
-           *DxyzInv_D
       iDiscr_D = 0
       iDiscr_D(1:nDim) = nint(SIGN(0.50, XyzMisc_D - 0.50) +&
            SIGN(0.50, XyzMisc_D + 0.5 - nCell_D))
@@ -4211,26 +4356,28 @@ contains
       ! Check if there are more grid points belonging to the
       ! newly found block
       !/
-      iShift_D = iShift_DI(1:nDim,iGridStored)
+      iShift_D = &
+           iShift_DI(1:nDim, iOrderFlip_ID(iGridInBlock, iDirFlipBlock))
       do iOrder = 1, iPowerOf2_D(1 + count(iDiscr_D(1:nDim)==0))
          iGrid = iSubgridBasic_IIII(&
               iOrder,-iDiscr_D(1),-iDiscr_D(2),-iDiscr_D(3))
-         iCellIndexes_DII(:,1,iGrid) = iCellIndexes_D +&
+         iGridFlip = iOrderFlip_ID(iGrid, iDirFlipBlock)
+         iCellIndexes_DII(:,1,iGridFlip) = iCellIndexes_D +&
               iShift_DI(1:nDim,iGrid) - iShift_D 
-         iProc_I( iGrid) = iProcStored
-         iBlock_I(iGrid) = iBlockStored
-         XyzGrid_DII(:,1,iGrid) = XyzGrid_DII(:,0,iGrid)
-         iLevelSubGrid_I(iGrid) = Coarse_
-         nSubgrid_I(iGrid) = 1
+         iProc_I( iGridFlip) = iProc
+         iBlock_I(iGridFlip) = iBlock
+         XyzGrid_DII(:,1,iGridFlip) = XyzGrid_DII(:,0,iGridFlip)
+         iLevelSubGrid_I(iGridFlip) = Coarse_
+         nSubgrid_I(iGridFlip) = 1
+         IsFlipped_I(iGridFlip) = iDirFlipBlock > 0
       end do
-      iGridOutOfBlock = -1
-      if (any(iProc_I==-1))&
-           iGridOutOfBlock = maxval(iOrder_I(1:nGrid),MASK=iProc_I==-1)
     end subroutine get_block
     !=====================
-    subroutine get_fine_block(iGridOutOfBlock, XyzGridStored_D, DxyzFine_D)
-      integer, intent(inout)::iGridOutOfBlock
-      real, dimension(nDim), intent(in):: XyzGridStored_D, DxyzFine_D
+    subroutine get_fine_block(iGridInBlock, XyzGrid_D, iDirFlipBlock)
+      integer,  intent(in) :: iGridInBlock
+      real,     intent(in) :: XyzGrid_D(nDim)
+      integer,  intent(in) :: iDirFlipBlock
+      real :: DxyzSubgrid_D(nDim)
       !\
       ! Fills in the indexes for the grid points belonging
       ! to the block, which it at the same resolution as the
@@ -4240,7 +4387,8 @@ contains
       !\
       ! Loop variables
       !/
-      integer:: iGrid, iSubGrid
+      integer:: iGrid, iSubGrid, iGridFlip, iSubGridFlip,&
+           iGridBasicFlip, iGridInBlockFlip
       !\
       ! New variables to work with reduced nSubgrid_I
       !/
@@ -4252,49 +4400,69 @@ contains
       !Discriminators
       !/
       integer:: iDiscr_D(3), iDiscr1_D(3), iGridSeenFrom
-      integer:: iCellIndexesStored_D(nDim), iCellIndexes_D(nDim)
+      integer:: iCellIndexesInput_D(nDim), iCellIndexes_D(nDim)
       !\
       !Displacement measured in grid sizes or in their halfs
       !/ 
       integer, dimension(nDim) :: iShift_D
       !/
-      integer :: iGridStored
       !\
       ! Misc
       !/
       real  :: XyzMisc_D(nDim)
+      logical :: IsFlippedBlock
       !------------------
-      iGridStored = iGridOutOfBlock
- 
       !\
       ! Calculate cell indexes as we did above. Note that DxyzInv_D
       ! is twice less than needed, because it is calculated for the
       ! whole stencil, not for the finer subgrid
       !/
-      iCellIndexesStored_D = &
-           floor(2*XyzGridStored_D*DxyzInv_D + 0.50)
+      iCellIndexesInput_D = &
+           floor(2*XyzGrid_D*DxyzInv_D + 0.50)
+      if(any(iCellIndexesInput_D < 1).or.&
+           any(iCellIndexesInput_D > nCell_D))then
+         !\
+         !This grid point is out of block, which may occur 
+         !when the basic block happens to be fine and many 
+         !some points need to be sorted out in the course of
+         !the stencil reconstruction
+         !/
+         iProc_I(iGridInBlock) = -1
+         RETURN
+      end if
+      IsFlippedBlock   = iDirFlipBlock > 0
+      iGridBasicFlip   = iOrderFlip_ID(iGridBasic   ,iDirFlipBlock)
+      iGridInBlockFlip = iOrderFlip_ID(iGridInBlock ,iDirFlipBlock)
+      DXyzSubgrid_D    = 0.5*DXyzGrid_D
+
+      !First, calculate Xyz_D with respect to the corner of given block
+      !Coords Xyz_D and XyzGrid_DII(:,0,iGridInBlock) are detemined with
+      !respect to the reference block, the latter point coords with
+      !with respect to the current block are XyzGrid_D, so that
+      !/
+      XyzMisc_D = xyz_rel_to_block(&
+           XyzGridRel2Basic_D  = XyzGrid_DII(:,0,iGridInBlock), &
+           XyzGridRel2Block_D  = XyzGrid_D, &
+           iDirFlipBlock       = iDirFlipBlock)*DxyzInv_D
       !\
       ! Calculate discriminator
       !/
-      !First, calculate Xyz_D with respect to the corner of given block
-      !Coords Xyz_D and XyzGrid_DII(:,0,iGridStored) are detemined with
-      !respect to the reference block, the latter point coords with
-      !with respect to the current block are XyzGridStored_D, so that
-      !/
-      XyzMisc_D = (Xyz_D + XyzGridStored_D - XyzGrid_DII(:,0,iGridStored))&
-           *DxyzInv_D
       iDiscr_D = 0
       iDiscr_D(1:nDim) = nint(SIGN(0.50, XyzMisc_D - 0.50) +&
            SIGN(0.50, XyzMisc_D + 0.5 - nCell_D/2))
       do iOrder = 1, iPowerOf2_D(1 + count(iDiscr_D(1:nDim)==0))! -1
          iGrid = iSubgridBasic_IIII(&
               iOrder,-iDiscr_D(1),-iDiscr_D(2),-iDiscr_D(3))
-         iCellIndexes_D = iCellIndexesStored_D + 2*(&
-              iShift_DI(1:nDim,iGrid) - iShift_DI(1:nDim,iGridStored))
-         iProc_I(iGrid ) = iProcStored
-         iBlock_I(iGrid) = iBlockStored
-         iLevelSubGrid_I(iGrid) = Fine_
-         if(iGrid==iGridBasic)then
+         iGridFlip = iOrderFlip_ID(iGrid, iDirFlipBlock)
+         iCellIndexes_D = iCellIndexesInput_D + 2*(&
+              iShift_DI(1:nDim,iGrid) - &
+              iShift_DI(1:nDim,iGridInBlockFlip))
+         iProc_I(        iGridFlip ) = iProc
+         iBlock_I(       iGridFlip)  = iBlock
+         iLevelSubGrid_I(iGridFlip)  = Fine_
+         IsFlipped_I(    iGridFlip)  = IsFlippedBlock
+         if(iGridFlip==iGridBasic)then
+            !No flip in the basic block
             !\
             ! Determine, where Xyz point is located with respect to
             ! the subgrid at basic grid node
@@ -4306,58 +4474,41 @@ contains
             iGridSeenFrom = &
                  sum(iDiscr1_D(1:nDim)*iPowerOf2_D(1:nDim)) + iGridBasic
          else
-            iGridSeenFrom = iGridBasic
+            iGridSeenFrom = iGridBasicFlip
          end if
-         nSubgrid_I(iGrid) = iPowerOf2_D(1+nDim - &
+         nSubgrid_I(iGridFlip) = iPowerOf2_D(1+nDim - &
               iLog2NDimOverNSubgrid_II(iGrid,iGridSeenFrom))
-              !iLog2NDimOverNSubgrid_II(iGrid,iGridBasic))
-         do iOrderSubgrid = 1, nSubgrid_I(iGrid)
+         do iOrderSubgrid = 1, nSubgrid_I(iGridFlip)
             iSubGrid = iSubgridOrder_III(iOrderSubgrid,iGrid,iGridSeenFrom)
-            iShift_D = iShift_DI(1:nDim,iSubGrid)
-            XyzGrid_DII(:,iOrderSubgrid,iGrid) = &
-                 XyzGrid_DII(:,0,iGrid) + DxyzFine_D*(iShift_D -0.50)
-            iCellIndexes_DII(:,iOrderSubgrid,iGrid) = iCellIndexes_D + iShift_D
+            iCellIndexes_DII(:,iOrderSubgrid,iGridFlip) = &
+                 iCellIndexes_D + iShift_DI(1:nDim,iSubGrid)
+            iSubgridFlip = iOrderFlip_ID(iSubGrid,iDirFlipBlock)
+            XyzGrid_DII(:,iOrderSubgrid,iGridFlip) = &
+                 XyzGrid_DII(:,0,iGridFlip) + DXyzSubgrid_D*&
+                 (iShift_DI(1:nDim,iSubgridFlip) - 0.50)
          end do
       end do
-      iGridOutOfBlock = -1
-      if (any(iProc_I==-1))&
-           iGridOutOfBlock = maxval(iOrder_I(1:nGrid),MASK=iProc_I==-1)
     end subroutine get_fine_block
     !=====================
-    subroutine get_coarse_block(iGridOutOfBlock, XyzGridStoredIn_D, DXyzIn_D)
-      integer, intent(inout)::iGridOutOfBlock
-      real, dimension(nDim), intent(in):: XyzGridStoredIn_D, DxyzIn_D
-
+    subroutine get_coarse_block(iGridInBlock, XyzGrid_D, iDirFlipBlock)
+      integer,   intent(in) :: iGridInBlock
+      real,      intent(in) :: XyzGrid_D(nDim)
+      integer,   intent(in) :: iDirFlipBlock
       !\
       ! Loop variables
       !/
-      integer:: iGrid, iSubGrid
+      integer:: iGrid, iDirFlipFineBlock
       !\
-      ! New variables to work with reduced nSubgrid_I
+      !Discriminator
       !/
-      !\
-      !Loop variable
-      !/
-      integer:: iOrder
-      !\
-      !Discriminators
-      !/
-      integer:: iDiscr_D(3), iDiscr1_D(3), iGridSeenFrom
-      integer:: iCellIndexesStored_D(nDim), iCellIndexes_D(nDim)
-      !\
-      !Displacement measured in grid sizes or in their halfs
-      !/ 
-      integer :: iShift_D(nDim)
-      !/
-      integer :: iGridStored
+      integer:: iDiscr_D(3)
 
-      real   :: XyzMisc_D(nDim), DXyz_D(nDim), XyzGridStored_D(nDim)
+      real   :: XyzMisc_D(nDim), DXyzSubgrid_D(nDim), &
+           XyzGridOld_D(nDim), XyzGridShift_D(nDim)
 
-      integer:: iCellOrigin_D(nDim), iProcStored, iBlockStored
+      integer:: iCellOrigin_D(nDim),   iProcStored, iBlockStored
       real   :: XyzGridOrigin_D(nDim), XyzGridOriginShift_D(nDim)
-      !integer, parameter:: iOrder_I(8) = (/1,2,3,4,5,6,7,8/)
       !------------------
-      iGridStored = iGridOutOfBlock
       !\
       ! The neighboring block is coarser, the whole stencil 
       ! needs to be recalculated.
@@ -4365,120 +4516,92 @@ contains
       !\
       ! Increase the mesh size for the basic grid
       !/
-      DxyzBasic_D = 2*DxyzBasic_D
+      DXyzGrid_D       = 2*DXyzGrid_D
       DxyzInv_D        = 0.50*DxyzInv_D
+      DXyzSubgrid_D    = 0.50*DXyzGrid_D
       !\
-      ! Recalculate coordinates of the origin point with respect to
-      ! the basic block (see get_main_block)
+      ! Store iProc and iBlock for the found coarse block
+      !/
+      iProcStored = iProc; iBlockStored = iBlock
+      !\
+      ! Recalculate coordinates of the origin point of stencil
       !/
       XyzMisc_D       = Xyz_D*DxyzInv_D + 0.50
       iCellOrigin_D   = floor(XyzMisc_D)
       XyzMisc_D       = XyzMisc_D - iCellOrigin_D
-      XyzGridOrigin_D = DxyzBasic_D*(iCellOrigin_D - 0.50)
+      XyzGridOrigin_D = DXyzGrid_D*(iCellOrigin_D - 0.50)
       !\ 
       ! 5. Now XyzMisc_D = (Xyz_D-XyzGridOrigin_D)/DXyzBasicBlock  
       ! satisfies inequalities: XyzMisc_D >= 0 and XyzMisc_D < 1.  
       ! Strengthen these inequalities 
       !/
       XyzMisc_D = min(1 - cTol2, max(XyzMisc_D, cTol2 ))
-      Xyz_D = XyzGridOrigin_D + XyzMisc_D*DxyzBasic_D
+      Xyz_D = XyzGridOrigin_D + XyzMisc_D*DXyzGrid_D
       !\
       ! The value of iGrid for the cell which includes the point Xyz_D:
       !/
-      iDiscr1_D = 0
-      iDiscr1_D(1:nDim) = nint(0.50 + SIGN(0.50, XyzMisc_D - 0.50))
-      iGridBasic = sum(iDiscr1_D(1:nDim)*iPowerOf2_D(1:nDim)) + 1
+      iDiscr_D = 0
+      iDiscr_D(1:nDim) = nint(0.50 + SIGN(0.50, XyzMisc_D - 0.50))
+      iGridBasic = sum(iDiscr_D(1:nDim)*iPowerOf2_D(1:nDim)) + 1
       !\
       ! 6. Store the displacement of the grid origin and assign
-      ! its coordinates 
+      ! the stencil coordinates 
       !/
       XyzGridOriginShift_D = XyzGridOrigin_D - XyzGrid_DII(:, 0, 1)
+      XyzGrid_DII(:, 0, 1) = XyzGridOrigin_D
+      do iGrid = 2, nGrid
+         XyzGrid_DII(:,0,iGrid) = &
+              XyzGrid_DII(:, 0, 1) + iShift_DI(1:nDim,iGrid)*DXyzGrid_D
+      end do
       !\
       ! 7. Now we need to pass through all previously calculated
       ! gird points and subsitute if possible finer subgid instead 
       ! of them, as long as all blocks we passed through so far are 
-      ! fine comparing with the basic stencil
+      ! fine.
       !/
-      DXyz_D = 0.50*DXyzIn_D !Last calculated DXyz_D was coarse
       do iGrid = nGrid, 1, -1
-         iShift_D = iShift_DI(1:nDim,iGrid)
-         XyzGrid_DII(:,0,iGrid) = &
-              XyzGridOrigin_D + iShift_D*DxyzBasic_D
          !Nothing to do for not assigned grid point
          if(iProc_I(iGrid)==-1)CYCLE
-         if(IsOut_I(iGrid))    CYCLE
+         if(IsOut_I(iGrid))then
+            XyzGrid_DII(:,1,iGrid) = XyzGrid_DII(:,0,iGrid)
+            CYCLE
+         end if
+         !the point is done if refined subgrid is done
+         if(iLevelSubGrid_I(iGrid) == Fine_)CYCLE
          !\
          ! This grid point is assigned. These are the coordinates 
          ! of the grid point with respect to the (its) block corner
          !/
-         XyzMisc_D = DXyz_D*(iCellIndexes_DII(:,1,iGrid) -0.50) +&
-              XyzGridOriginShift_D + DXyz_D*iShift_D
-         ! The grid displacement is accounted for in the second line.
-         !\
-         ! Now, XyzMisc_D are the coordinates of new grid point
-         ! (the center of subgrid) with respect to the block corner
-         ! Calculate the finer grid cell indexes as we do this
-         ! for finer grid (see get_fine_block)
-         !/
-         !\
-         ! Calculate cell indexes as we did above. Note that DxyzInv_D
-         ! is twice less than needed, because it is calculated for the
-         ! whole stencil, not for the finer subgrid
-         !/
-         iCellIndexes_D = &
-              floor(2*XyzMisc_D*DxyzInv_D + 0.50)
-         if(any(iCellIndexes_D < 1).or.&
-              any(iCellIndexes_D > nCell_D))then
-            !\
-            !This grid point is out of block
-            !/
-            iProc_I(iGrid) = -1
+         iProc = iProc_I(iGrid); iBlock = iBlock_I(iGrid)
+         XyzGridOld_D = DXyzSubgrid_D*(iCellIndexes_DII(:,1,iGrid) -0.50)
+         XyzGridShift_D = XyzGridOriginShift_D +&
+              DXyzSubgrid_D*iShift_DI(1:nDim,iGrid)
+         if(IsFlipped_I(iGrid))then
+            iDirFlipFineBlock = iDirFlip
+            XyzGridShift_D(iDirFlip) = - XyzGridShift_D(iDirFlip) 
          else
-            !\
-            ! All points in the 2*2*2 finer subgrid are involved
-            !/
-            iLevelSubGrid_I(iGrid) = Fine_
-            if(iGrid==iGridBasic)then
-               !\
-               ! Determine, where Xyz point is located with respect to
-               ! the subgrid at basic grid node
-               !/
-               XyzMisc_D = (Xyz_D - XyzGrid_DII(:,0,iGridBasic))*DXyzInv_D
-               iDiscr1_D = 0
-               iDiscr1_D(1:nDim) = nint(sign(0.50, XyzMisc_D + 0.250) + &
-                    SIGN(0.50, XyzMisc_D - 0.250))
-               iGridSeenFrom = &
-                    sum(iDiscr1_D(1:nDim)*iPowerOf2_D(1:nDim)) + iGridBasic
-            else
-               iGridSeenFrom = iGridBasic
-            end if
-            nSubgrid_I(iGrid) = iPowerOf2_D(1+nDim - &
-                 iLog2NDimOverNSubgrid_II(iGrid,iGridSeenFrom))
-            do iOrder = 1, nSubgrid_I(iGrid)
-               iSubGrid = iSubgridOrder_III(iOrder,iGrid,iGridSeenFrom)
-               iShift_D = iShift_DI(1:nDim,iSubGrid)
-               !\
-               ! Fine subgrid is displaced by half of finer subgrid size
-               !/
-               XyzGrid_DII(:,iOrder,iGrid) = &
-                    XyzGrid_DII(:,0,iGrid) + Dxyz_D*(iShift_D - 0.50)
-               iCellIndexes_DII(:,iOrder,iGrid) = &
-                    iCellIndexes_D + iShift_D
-            end do
+            iDirFlipFineBlock = 0
          end if
+            
+         call get_fine_block(iGrid, &
+              XyzGrid_D = XyzGridOld_D + XyzGridShift_D,&
+              iDirFlipBlock = iDirFlipFineBlock) 
       end do
       !\
       ! Done with all previously found fine blocks. Now proceed to
       ! the coarse block
       !/
-      DXyz_D = DXyzIn_D
+      iProc = iProcStored; iBlock = iBlockStored
       !\
       ! Account for the grid displacement
       !/
-      iShift_D = iShift_DI(1:nDim,iGridStored)
-      XyzGridStored_D = XyzGridStoredIn_D + XyzGridOriginShift_D + &
-           0.50*DXyz_D*iShift_D
-      call get_block(iGridOutOfBlock,XyzGridStored_D)
+      XyzGridShift_D = XyzGridOriginShift_D + &
+           DXyzSubgrid_D*iShift_DI(1:nDim,iGridInBlock)
+      if(iDirFlipBlock > 0)XyzGridShift_D(iDirFlipBlock) = -&
+           XyzGridShift_D(iDirFlipBlock)
+      call get_block(iGridInBlock                ,&
+           XyzGrid_D     = XyzGrid_D + XyzGridShift_D,&
+           iDirFlipBlock = iDirFlipBlock)
     end subroutine get_coarse_block
     !=====================
     subroutine get_ghost_cell_indexes
@@ -4498,7 +4621,6 @@ contains
       call get_reference_block(&
            nDim, Xyz_D, XyzGrid_DII(:,0,:), &
            iLevelSubgrid_I, IsOut_I, iGridPhys)
-
       if(iLevelSubgrid_I(iGridPhys)/=Fine_)then
          !\
          ! Stencil is uniform
@@ -4519,11 +4641,18 @@ contains
          !/ 
          if(iBlock_I(iGrid)==iBlock_I(iGridPhys)&
               .and.iProc_I(iGrid)==iProc_I(iGridPhys))CYCLE
-
          iBlock_I(iGrid) = iBlock_I(iGridPhys)
          iProc_I( iGrid) = iProc_I( iGridPhys)
 
          iShift_D = iShift_DI(1:nDim,iGrid) - iShift_DI(1:nDim,iGridPhys)
+         !\
+         !If the block chosen for interpolation with the chost cells,
+         !the order of cell indexes along the flipped direction is 
+         !opposite to the order of iGrid index, adopted for the BASIC
+         !block, therefore:
+         if(IsFlipped_I(iGridPhys))&
+              iShift_D(iDirFlip) = -iShift_D(iDirFlip)
+         !/
          !\
          ! Below we benefit from the observation that although the
          ! shift in indexes between iGrid and iGridPhys is twice iShift_D
@@ -4551,7 +4680,8 @@ contains
   subroutine interpolate_extended_stencil(nDim, Xyz_D, nIndexes, &
        XyzGrid_DII, iCellIndexes_DII, iBlock_I, iProc_I,   &
        iLevelSubgrid_I, IsOut_I, DxyzInv_D,               &
-       nGridOut, Weight_I, iIndexes_II, IsSecondOrder, nSubgridIn_I)
+       nGridOut, Weight_I, iIndexes_II, IsSecondOrder, nSubgridIn_I,&
+       NameCaller)
     use ModResolutionCorner, ONLY: resolution_corner
     use ModInterpolateAMR23, ONLY: interpolate_amr2, interpolate_amr3,&
          check_transition2, check_transition3
@@ -4586,7 +4716,7 @@ contains
     ! Therefore, XyzGrid_DII and iLevelSubGrid_I have intent inout
     ! and their actual values used may be found, if desired. 
     !/
-    real,    intent(inout):: XyzGrid_DII(nDim,0:2**nDim,2**nDim) 
+    real,    intent(inout):: XyzGrid_DII(nDim,0:2**(nDim-1),2**nDim) 
     integer, intent(in):: iCellIndexes_DII(:,:,:)
     integer, intent(in), dimension(2**nDim):: iBlock_I, iProc_I
     integer, intent(inout):: iLevelSubgrid_I(2**nDim) 
@@ -4620,6 +4750,10 @@ contains
     ! Number of points in a subgrid
     !/
     integer,  intent(in), optional:: nSubgridIn_I(2**nDim)
+    !\
+    ! The name of the calling subroutine
+    !/
+    character(len=*), optional, intent(in):: NameCaller
     !\
     ! Local variables
     !/
@@ -4733,7 +4867,7 @@ contains
           call generate_basic_stencil(XyzStencil_D)
           call interpolate_amr3(&
                Xyz_D , XyzGrid_DI, iLevel_I, IsOut_I, iCaseExtended,&
-               nGridOut, Weight_I, iOrder_I, IsCorner)
+               nGridOut, Weight_I, iOrder_I, IsCorner, NameCaller)
        end if
        if(IsCorner)then
           !\

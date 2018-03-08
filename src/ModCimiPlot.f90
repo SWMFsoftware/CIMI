@@ -4,7 +4,7 @@ module ModCimiPlot
 
   private ! except
   public :: Cimi_plot, Cimi_plot_fls, Cimi_plot_psd, &
-       cimi_plot_log, cimi_plot_precip, &
+       cimi_plot_log, cimi_plot_precip, Cimi_plot_boundary_check,&
        Cimi_plot_vl, Cimi_plot_vp, Cimi_plot_Lstar
   character(len=5),  public    :: TypePlot   = 'ascii'
   logical,           public    :: DoSavePlot = .false.
@@ -616,16 +616,11 @@ contains
     use ModIoUnit,      ONLY: UnitTmp_
     use ModCIMI,        ONLY: nOperator,driftin,driftout,&
          rbsumGlobal,rcsumGlobal,dt,eChangeGlobal
-    use ModCimiGrid,    ONLY: ir=>nt,ip=>np,im=>nm,ik=>nk,je=>neng,nproc
     implicit none
     
     real, intent(in) :: Time
-    integer, parameter :: nLogVars = 8
     logical, save :: IsFirstCall=.true.
-    integer       :: iSpecies,iOperator, i, j, k 
-    integer*8       :: count
-    character(len=100) eChange_String
-    character(len=10) nLat_Format
+    integer       :: iSpecies
     !--------------------------------------------------------------------------
 
     ! Open file and write header if no restart on first call
@@ -667,12 +662,12 @@ contains
     ! write out the operator changes
     do iSpecies=1,nSpecies
        if (iSpecies < nSpecies) then
-          write(UnitTmp_,'(10es18.08E3)',ADVANCE='NO') & 
+          write(UnitTmp_,'(11es18.08E3)',ADVANCE='NO') & 
                rbsumglobal(iSpecies), rcsumglobal(iSpecies), &
                eChangeGlobal(iSpecies,1:nOperator-1), &
                driftin(iSpecies), driftout(iSpecies)
        else
-          write(UnitTmp_,'(10es18.08E3)') & 
+          write(UnitTmp_,'(11es18.08E3)') & 
                rbsumglobal(iSpecies), rcsumglobal(iSpecies), &
                eChangeGlobal(iSpecies,1:nOperator-1), &
                driftin(iSpecies), driftout(iSpecies)
@@ -812,6 +807,69 @@ contains
     IsFirstCall=.false.
 
   end subroutine Cimi_plot_Lstar
+
+   subroutine Cimi_plot_boundary_check(time)
+    use ModIoUnit,      ONLY: UnitTmp_
+    use ModCimiGrid,    ONLY: energy
+!         nm, nk, xlat,xmlt
+!    use ModCimiPlanet,  ONLY: nSpecies=>nspec,re_m
+    use ModCimiTrace,   ONLY: ro,bm,xmlto,irm
+    use ModCimiRestart, ONLY: IsRestart
+    use BoundaryCheck, nlat=>np,nLon=>nt
+    use ModCimi, ONLY: phot,Pressure_IC
+    use ModGmCimi,      ONLY: Den_IC,Temp_IC
+
+    real, intent(in) :: time
+
+    real   :: lat,ro1,xmlt1,eng1,vexb1,vdr1,dif1,phot1,den1,temp1,press1
+    integer       :: iLat,iLon,k,m,n,i,nprint
+    logical, save :: IsFirstCall = .true.
+    !--------------------------------------------------------------------------
+
+    nprint=ifix(time/DtOutput)
+
+    if (IsFirstCall .and. .not. IsRestart) then
+       open(unit=UnitTmp_,file='IM/plots/Cimi.boundary.check',status='unknown')
+       write(UnitTmp_,"(4i10,6x,'! nr,ip,neng,ntime')") &
+            nLat-1,nLon,neng,nprint
+       write(UnitTmp_,'(10f8.3)') (energy(1,i),i=1,neng)
+    else
+       open(unit=UnitTmp_,file='IM/plots/Cimi.boundary.check',status='old',&
+           position='append')
+    endif
+    write(UnitTmp_,"(f8.3,6x, '! time, h ')") time/3600.
+       do iLon=1,nLon
+         do iLat=2,nLat
+             ro1=ro(iLat,iLon)
+             xmlt1=xmlto(iLat,iLon)
+          if (iLat.gt.irm(iLon)) xmlt1=0.0
+
+             eng1=eng_q3(1,iLat,iLon)
+          if (iLat.gt.irm(iLon)) eng1=0.0
+
+             vexb1=vexb(1,iLat,iLon)
+          if (iLat.gt.irm(iLon)) vexb1=0.0
+
+             vdr1=vdr_q3(1,iLat,iLon)
+          if (iLat.gt.irm(iLon)) vdr1=0.0
+
+             dif1=dif_q3(1,iLat,iLon)        
+          if (iLat.gt.irm(iLon)) dif1=0.0
+
+              phot1 = Phot(1,iLat,iLon)
+              press1 = Pressure_IC(1,Ilat,iLon)
+              den1 = Den_IC(1,iLat,iLon)
+              temp1 = Temp_IC(1,iLat,iLon)/1000. ! in keV
+
+          write(UnitTmp_,'(2i10,8f8.3,1pe11.3)') &
+              iLon,iLat,xmlt1,ro1,phot1,press1,temp1,eng1,vexb1,vdr1,dif1
+          write(UnitTmp_,'(1p,6e12.4)') Part_phot(1,iLat,iLon,1:neng)
+       enddo
+    enddo
+    close(UnitTmp_)
+    IsFirstCall=.false.
+
+  end subroutine Cimi_plot_boundary_check
 
 end module ModCimiPlot
 

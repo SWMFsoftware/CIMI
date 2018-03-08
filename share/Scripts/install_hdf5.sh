@@ -525,7 +525,7 @@ fi
 
 function bv_hdf5_info
 {
-export HDF5_VERSION=${HDF5_VERSION:-"1.8.17"}
+export HDF5_VERSION=${HDF5_VERSION:-"1.8.13"}
 export HDF5_FILE=${HDF5_FILE:-"hdf5-${HDF5_VERSION}.tar.gz"}
 export HDF5_COMPATIBILITY_VERSION=${HDF5_COMPATIBILITY_VERSION:-"1.8"}
 export HDF5_BUILD_DIR=${HDF5_BUILD_DIR:-"hdf5-${HDF5_VERSION}"}
@@ -579,6 +579,9 @@ function build_hdf5
     # Fix too many continuation lines in fortran/src/H5f90global.f90
     perl -pi -e 's/,\s*\&/\n  INTEGER(HID_T)  \&/ if /H5T_STD_U32LE/ and $.==109' \
 	fortran/src/H5f90global.f90
+
+    # Fix the configure script
+    perl -pi -e '$_="#!#$_" if /\-commons|OLD_HEADER_FILENAME/' configure;
 
     cf_darwin=""
     if [[ "$OPSYS" == "Darwin" ]]; then

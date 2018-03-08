@@ -6,6 +6,7 @@ INSTALLFILES =  src/Makefile.DEPEND \
 		src/Makefile.RULES \
 		srcSAMI3/Makefile.DEPEND \
 		srcSAMI3/Makefile.RULES \
+		srcSAMI3/Makefile.suff \
 		srcInterface/Makefile.DEPEND
 
 
@@ -315,6 +316,30 @@ test_check_Prerun:
 	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CimiFlux_e.fls \
 		output/CimiFlux_e.fls.Prerun \
+		>> test_cimi_Prerun.diff
+	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+		${TESTDIR}/IM/plots/sat_rbspa_hflux_t000060.sat \
+		output/sat_rbspa_hflux_t000060.sat \
+		>> test_cimi_Prerun.diff
+	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+		${TESTDIR}/IM/plots/sat_rbspb_hflux_t000060.sat \
+		output/sat_rbspb_hflux_t000060.sat \
+		>> test_cimi_Prerun.diff
+	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+		${TESTDIR}/IM/plots/sat_rbspa_oflux_t000060.sat \
+		output/sat_rbspa_oflux_t000060.sat \
+		>> test_cimi_Prerun.diff
+	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+		${TESTDIR}/IM/plots/sat_rbspb_oflux_t000060.sat \
+		output/sat_rbspb_oflux_t000060.sat \
+		>> test_cimi_Prerun.diff
+	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+		${TESTDIR}/IM/plots/sat_rbspa_eflux_t000060.sat \
+		output/sat_rbspa_eflux_t000060.sat \
+		>> test_cimi_Prerun.diff
+	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+		${TESTDIR}/IM/plots/sat_rbspb_eflux_t000060.sat \
+		output/sat_rbspb_eflux_t000060.sat \
 		>> test_cimi_Prerun.diff
 	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CimiPSD_h.psd \

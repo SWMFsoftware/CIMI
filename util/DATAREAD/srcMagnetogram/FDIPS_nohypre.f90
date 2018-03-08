@@ -1,6 +1,9 @@
-!  Copyright (C) 2002 Regents of the University of Michigan, portions used with permission 
+!  Copyright (C) 2002 Regents of the University of Michigan, 
+!  portions used with permission 
 !  For more information, see http://csem.engin.umich.edu/tools/swmf
 module ModHypre
+
+  use ModUtilities, ONLY: CON_stop
 
   implicit none
 
@@ -40,6 +43,8 @@ contains
 end module ModHypre
 !============================================================
 subroutine read_hypre_param
+
+  use ModUtilities, ONLY: CON_stop
 
   call CON_stop('FDIPS is compiled without HYPRE')
 

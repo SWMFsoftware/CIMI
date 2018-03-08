@@ -124,4 +124,50 @@ of the included file or PARAM.in file is equivalent with an
 
 </commandgroup>
 
+<commandgroup name="PHYSICS PARAMETERS">
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!! PHYSICS PARAMETERS  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+<command name="STRONGDIFFUSION">
+  <parameter name="UseStrongDiff" type="logical" default="F"/>
+  
+#STRONGDIFFUSION
+F			UseStrongDiff
+
+Applies very effective exponential decay of ring current and radiation
+belt electron populations.  Diffusion time is first (mu) and second
+(K) adiabatic invariant dependent.  Can result in electrons being lost
+by up to 50\%.
+
+Default is UseStrongDiff is false.
+	
+</command>	
+
+<command name="DECAY">
+	<parameter name="UseDecay" type="logical" default="F"/>
+	<if expr="$UseDecay">
+		<parameter name="DecayTimescale"   type="real" min="0"
+						   default="36000."/>
+	</if>
+
+#DECAY
+T			UseDecay
+36000.  		DecayTimescale in seconds
+
+If UseDecay is true, adds exponential decay to ring current ion
+populations, so that if there are no other effects, ion phase space
+density (PSD) decays proportional to \begin{verbatim}
+exp(-(deltaT/DecayTimescale)) \end{verbatim} This ad hoc decay can
+improve agreement with observed recovery after magnetic storms.  The
+default DecayTimescale value of 10 hours as above seems to be close to
+optimal.  The decay term is NOT applied to the electron PSD since both
+ring current and radiation belt electrons are represented.  Rapid loss
+of electron PSD is controlled with the #STRONGDIFFUSION routine.
+
+The default is UseDecay false.
+</command>
+
+</commandgroup>
+
 </commandList>

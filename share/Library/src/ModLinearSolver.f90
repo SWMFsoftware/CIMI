@@ -17,6 +17,7 @@ module ModLinearSolver
 
   !USES:
   use ModMpi
+  use ModUtilities, ONLY: CON_stop
   use ModBlasLapack, ONLY: BLAS_gemm, BLAS_copy, BLAS_gemv, &
        LAPACK_getrf, LAPACK_getrs
 
@@ -76,7 +77,7 @@ module ModLinearSolver
   logical, public:: UsePDotADotP = .false.
 
   ! Use an effectively 16byte real accuracy for global sums
-  logical, public:: UseAccurateSum = .true.
+  logical, public:: UseAccurateSum = .false.
 
   ! Named indexes for various preconditioner options
   integer, public, parameter:: &
@@ -932,10 +933,7 @@ contains
     if(present(LimitIn))then
        Limit = LimitIn
     else
-       Maximum = 0.0
-       do i = 1, n
-          Maximum = max(Maximum, abs(a_I(i)*b_I(i)))
-       end do
+       Maximum = maxval(abs(a_I*b_I))
        if(present(iComm))then
           if(iComm /= MPI_COMM_SELF)then
              call MPI_COMM_SIZE(iComm, nProc, iError)

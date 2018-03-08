@@ -26,7 +26,7 @@ my %Compiler = (
 		"ubgl"                => "mpxlf90,mpxlc",
 		"jaguarpf-ext"        => "ifortftn",
                 "kraken-gsi"          => "ifortftn",
-                "yslogin"             => "ifortmpif90,iccmpicxx",
+                "cheyenne"            => "ifortmpif90,iccmpicxx",
                 "h2ologin"            => "ifortftn,intelcc",
                 "slogin"              => "ifortftn,intelcc",
                 "cetuslac"            => "mpixlf2008,mpixlc",
@@ -134,6 +134,7 @@ my $OpenMp;
 my $Mpi;
 my $Fcompiler;
 my $Ccompiler;
+my $MpiCxxCompiler;
 my $MpiCompiler;
 my $MpiHeaderFile = "share/Library/src/mpif.h";
 my $Optimize;
@@ -274,17 +275,23 @@ if($NewPrecision and $NewPrecision ne $Precision){
 # Link with MPI vs. NOMPI library if required
 &set_mpi_ if $NewMpi and $NewMpi ne $Mpi;
 
+if($Compiler eq "nagfor" and $Debug eq "yes" and 
+   ($NewOpenMp eq "yes" or $OpenMp eq "yes")){
+    warn "$WARNING: nagfor with debugging cannot use OpenMP!\n";
+    $NewOpenMp = "no";
+}
+
 # Switch on or off the OPENMPFLAG
 &set_openmp_ if $NewOpenMp and $NewOpenMp ne $OpenMp;
 
-# Link with HDF5 library is required
+# Link with HDF5 library if required
 &set_hdf5_ 
     if ($Install and not $IsComponent) or ($NewHdf5 and $NewHdf5 ne $Hdf5);
 
-# Link with HYPRE library is required
+# Link with HYPRE library if required
 &set_hypre_ if $NewHypre and $NewHypre ne $Hypre;
 
-# Link with FISHPAK library is required 
+# Link with FISHPAK library if required 
 &set_fishpak_ if $NewFishpak and $NewFishpak ne $Fishpak;
 
 # Link with SPICE library is required
@@ -356,9 +363,9 @@ sub get_settings_{
 
 	  $Fcompiler = $+ if 
 	      /^\s*COMPILE\.f90\s*=\s*(\$\{CUSTOMPATH_F\})?(\S+)/;
-	  $Ccompiler   = $1 if /^\s*COMPILE\.c\s*=\s*(\S+)/;
-	  $MpiCompiler = $1 if /^\s*LINK\.f90\s*=\s*(.*)/;
-
+	  $Ccompiler      = $1 if /^\s*COMPILE\.c\s*=\s*(\S+)/;
+	  $MpiCompiler    = $1 if /^\s*LINK\.f90\s*=\s*(.*)/;
+	  $MpiCxxCompiler = $1 if /^\s*COMPILE\.mpicxx\s*=\s*(\S+)/;
 	  $Precision = lc($1) if /^\s*PRECISION\s*=.*(SINGLE|DOUBLE)PREC/;
           $Debug = "yes" if /^\s*DEBUG\s*=\s*\$\{DEBUGFLAG\}/;
 	  $OpenMp = "yes" if /^OPENMPFLAG/;
@@ -410,6 +417,7 @@ Makefile.conf was created from $MakefileConfOrig.$OS.$Compiler
                            and $MakefileConfOrig.$CompilerC
 The selected F90 compiler is $Fcompiler.
 The selected C   compiler is $Ccompiler.
+The selected C++ compiler is $MpiCxxCompiler.
 The default precision for reals is $Precision precision.
 The maximum optimization level is $Optimize
 Debugging flags:   $Debug
@@ -453,6 +461,8 @@ PARALLEL = mpiexec
 NPFLAG   = -n
 NP       = 2
 MPIRUN   = \${PARALLEL} \${NPFLAG} \${NP}
+NTHREAD  = 2
+OMPIRUN  = export OMP_NUM_THREADS=\${NTHREAD}; \${MPIRUN}
 ";
 	if($DryRun){
 	    print "write into $MakefileDef:\n$header";
@@ -574,6 +584,9 @@ sub set_openmp_{
 
     # Set the OpenMP compilation flags in $MakefileConf
 
+    # Clean the code so it gets recompiled with consistent openmp flag
+    &shell_command('make clean');
+
     # OpenMp will be NewOpenMp after changes
     $OpenMp = $NewOpenMp;
 
@@ -636,6 +649,12 @@ sub set_mpi_{
 		s/ \-lmpi_cxx/ \#\-lmpi_cxx/ if $Mpi eq "no";
 		s/ \#\-lmpi_cxx/ \-lmpi_cxx/ if $Mpi eq "yes";
 	    }
+
+	    # Modify COMPILE.mpicxx definition
+            if(/^\s*COMPILE.mpic(c|xx)\s*=/){
+		s/=\s+/= \$\{COMPILE.c\}\# / if $Mpi eq "no";
+		s/ \$\{COMPILE.c\}\#//       if $Mpi eq "yes";
+            }
 	    print;
 	}
     }

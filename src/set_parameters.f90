@@ -9,11 +9,12 @@ subroutine CIMI_set_parameters(NameAction)
   use ModCimiTrace,     ONLY: UseEllipse, UseSmooth, UseCorotation, &
        UsePotential, SmoothWindow, imod, iLatTest, iLonTest, rb
   use ModCimi,           ONLY: UseMcLimiter, BetaLimiter, time, Pmin,&
-       IsStandAlone, UseStrongDiff, dt, dtmax
+       IsStandAlone, UseStrongDiff, UseDecay, DecayTimescale,&
+       dt, dtmax,PrecipOutput,DtPreOut,PrecipCalc,DtPreCalc
   use ModCimiRestart,    ONLY: IsRestart,DtSaveRestart
   use ModCimiPlanet,     ONLY: nspec
   use ModImTime,         ONLY: iStartTime_I, TimeMax
-  use ModCimiBoundary,   ONLY: UseBoundaryEbihara,UseYoungEtAl
+  use ModCimiBoundary,   ONLY: UseBoundaryEbihara,UseYoungEtAl,CIMIboundary,Outputboundary
   use ModIeCimi,         ONLY: UseWeimer
   use ModPrerunField,    ONLY: DoWritePrerun, UsePrerun, DtRead
   use ModGmCIMI,         ONLY: UseGm
@@ -222,6 +223,11 @@ subroutine CIMI_set_parameters(NameAction)
         if(UsePrerun)          call read_var('DtRead',   DtRead)
         if(UsePrerun .or. DoWritePrerun) UseGm=.true.
 
+     case('#DECAY')
+        call read_var('UseDecay',UseDecay)
+        if ( UseDecay ) &
+             call read_var('DecayTimescale in seconds', DecayTimescale)
+        
      case('#STRONGDIFFUSION')
         call read_var('UseStrongDiff',UseStrongDiff)
         
@@ -278,7 +284,18 @@ subroutine CIMI_set_parameters(NameAction)
         
      case('#SETRB')
         call read_var('rb [R_E]', rb)
-        
+ 
+
+     case('#BOUNDARYCHECK')
+        call read_var('CIMIboundary',CIMIboundary)
+        if (CIMIboundary) call read_var('Outputboundary',Outputboundary)
+
+     case('#PRECIPITATION')
+        call read_var('PrecipCalc',PrecipCalc)
+        if (PrecipCalc) call read_var('DtPreCalc',DtPreCalc)
+        if (PrecipCalc) call read_var('PrecipOutput',PrecipOutput)
+        if (PrecipOutput) call read_var('DtPreOut',DtPreOut)
+
      end select
      
   enddo

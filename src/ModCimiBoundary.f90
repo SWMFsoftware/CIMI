@@ -13,6 +13,8 @@ Module ModCimiBoundary
   !when in standalone mode which boundary type do you use for the RC?
   logical,public :: UseBoundaryEbihara =.true.
   logical,public :: UseYoungEtAl =.false.
+  logical,public :: CIMIboundary = .false.
+  logical,public :: Outputboundary = .false.
 
   !boundary density in m^-3 and temperature in eV
   real, public :: BoundaryDens_IC(nspec,nt)
@@ -297,3 +299,11 @@ contains
  end subroutine get_tsy_plasma
  
 end Module ModCimiBoundary
+
+module BoundaryCheck
+use ModCimiPlanet,  ONLY: nspec
+use ModCimiGrid,    ONLY: nt,np,neng
+real vdr_q1(nspec,np,nt),vdr_q3(nspec,np,nt),vgyr_q1(nspec,np,nt),vgyr_q3(nspec,np,nt)
+real eng_q1(nspec,np,nt),eng_q3(nspec,np,nt),vexb(nspec,np,nt),dif_q1(nspec,np,nt)
+real Part_phot(nspec,np,nt,neng),dif_q3(nspec,np,nt)
+end module BoundaryCheck
