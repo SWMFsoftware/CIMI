@@ -46,6 +46,7 @@ subroutine cimi_run(delta_t)
   use DensityTemp,    ONLY: density, simple_plasmasphere
   use ModIndicesInterfaces
   use ModLstar,       ONLY: calc_Lstar1,calc_Lstar2 
+  use BoundaryCheck, ONLY: vdr_q3,eng_q3,vexb,dif_q3,Part_phot
   implicit none
 
   !regular variables
@@ -518,7 +519,44 @@ subroutine cimi_run(delta_t)
          if (iProc==0) bm(:,:,iK)=BufferRecv_C(:,:)
       end do      
    endif
-   
+  
+  ! gather information for boundary output
+     if (nProc>1 .and. OutputBoundary) then
+        do  iSpecies=1,nspec
+         do iEnergy=1,neng
+            BufferSend_C(:,:)=Part_phot(iSpecies,:,:,iEnergy)
+            call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
+                 MPI_REAL, BufferRecv_C,iRecieveCount_P, iDisplacement_P, &
+                 MPI_REAL, 0, iComm, iError)
+            if (iProc==0) Part_phot(iSpecies,:,:,iEnergy)=BufferRecv_C(:,:)
+         enddo ! Do loop over iEnergy^M
+
+         BufferSend_C(:,:)=eng_q3(iSpecies,:,:)
+         call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
+                  MPI_REAL, BufferRecv_C,iRecieveCount_P, iDisplacement_P, &
+                  MPI_REAL, 0, iComm, iError)
+         if (iProc==0) eng_q3(iSpecies,:,:)=BufferRecv_C(:,:)
+
+         BufferSend_C(:,:)=vexb(iSpecies,:,:)
+         call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
+                  MPI_REAL, BufferRecv_C,iRecieveCount_P, iDisplacement_P, &
+                  MPI_REAL, 0, iComm, iError)
+         if (iProc==0) vexb(iSpecies,:,:)=BufferRecv_C(:,:)
+
+         BufferSend_C(:,:)=vdr_q3(iSpecies,:,:)
+         call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
+                  MPI_REAL, BufferRecv_C,iRecieveCount_P, iDisplacement_P, &
+                  MPI_REAL, 0, iComm, iError)
+         if (iProc==0) vdr_q3(iSpecies,:,:)=BufferRecv_C(:,:)
+
+         BufferSend_C(:,:)=dif_q3(iSpecies,:,:)
+         call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
+                  MPI_REAL, BufferRecv_C,iRecieveCount_P, iDisplacement_P, &
+                  MPI_REAL, 0, iComm, iError)
+         if (iProc==0) dif_q3(iSpecies,:,:)=BufferRecv_C(:,:)
+      enddo
+     endif
+
   !Gather to root
   !    iSendCount = np*nLonPar
   !    iRecieveCount_P=np*nLonPar_P
@@ -2152,7 +2190,9 @@ subroutine cimi_output(np,nt,nm,nk,nspec,neng,npit,iba,ftv,f2,ekev, &
                  
                  flux(n,i,j,k,m)=10.**flx_lo
                  vlEa(n,i,j,k,m)=vl_lo
-                 vpEa(n,i,j,k,m)=re_m*ro(i,j)*1.e-3*vp_lo
+                 vpEa(n,i,j,k,m)= vp_lo
+                 !  vpEa(n,i,j,k,m)=re_m*ro(i,j)*1.e-3*vp_lo !
+                 !  temporary until understood how to map both components
               enddo
            enddo
         enddo nloop
@@ -2214,22 +2254,23 @@ Part_phot=0.
               enddo
             enddo
 
-     vexb(1,i,j) = vp(1,i,j,k_q1,1)*vp(1,i,j,1,1)*re_m*re_m*ro(i,j)*ro(i,j)*1.e-6
-     vexb(1,i,j) = sqrt(vl(1,i,j,1,1)*vl(1,i,j,1,1) + vexb(1,i,j))         
+
+     vexb(1,i,j) = vpEa(1,i,j,1,1)*vpEa(1,i,j,1,1)
+     vexb(1,i,j) = sqrt(vlEa(1,i,j,1,1)*vlEa(1,i,j,1,1) + vexb(1,i,j))
 
      vdr_q1(1,i,j) = sqrt(vlEa(1,i,j,k_q1,1)*vlEa(1,i,j,k_q1,1)+vpEa(1,i,j,k_q1,1)*vpEa(1,i,j,k_q1,1))
      vdr_q3(1,i,j) = sqrt(vlEa(1,i,j,k_q3,1)*vlEa(1,i,j,k_q3,1)+vpEa(1,i,j,k_q3,1)*vpEa(1,i,j,k_q3,1))
      vgyr_q1(1,i,j) = 440. *sqrt(energy(1,k_q1))
      vgyr_q3(1,i,j) = 440. *sqrt(energy(1,k_q3))
      vexb(1,i,j) = sqrt(vlEa(1,i,j,1,1)*vlEa(1,i,j,1,1)+vpEa(1,i,j,1,1)*vpEa(1,i,j,1,1))
-         
+
      dif_q1(1,i,j) = (vlEa(1,i,j,k_q1,1)-vlEa(1,i,j,1,1))*(vlEa(1,i,j,k_q1,1)-vlEa(1,i,j,1,1))
      dif_q1(1,i,j) = dif_q1(1,i,j)+(vpEa(1,i,j,k_q1,1)-vpEa(1,i,j,1,1))*(vpEa(1,i,j,k_q1,1)-vpEa(1,i,j,1,1))
-     dif_q1(1,i,j)  = sqrt(dif_q1(1,i,j))/vexb(1,i,j)   ! difference between vdr and vExB, q1
-         
+     dif_q1(1,i,j)  = sqrt(dif_q1(1,i,j))/vexb(1,i,j)   ! relative difference between vdr and vExB, q1
+
      dif_q3(1,i,j) = (vlEa(1,i,j,k_q3,1)-vlEa(1,i,j,1,1))*(vlEa(1,i,j,k_q3,1)-vlEa(1,i,j,1,1))
      dif_q3(1,i,j) = dif_q3(1,i,j)+(vpEa(1,i,j,k_q3,1)-vpEa(1,i,j,1,1))*(vpEa(1,i,j,k_q3,1)-vpEa(1,i,j,1,1))
-     dif_q3(1,i,j)  = sqrt(dif_q3(1,i,j))/vexb(1,i,j)   ! difference between vdr and vExB, q3
+     dif_q3(1,i,j)  = sqrt(dif_q3(1,i,j))/vexb(1,i,j)   ! relative difference between vdr and vExB, q3
          endif
      enddo iloop2
   enddo jloop2
