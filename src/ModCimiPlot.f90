@@ -857,7 +857,7 @@ contains
               den1 = Den_IC(1,iLat,iLon)/1.e6
               temp1 = Temp_IC(1,iLat,iLon)/1000. ! in keV
 
-          write(UnitTmp_,'(2i10,4f8.3,1p,6e11.3)') &
+          write(UnitTmp_,'(2i10,2f8.3,1p,8e11.3)') &
               iLon,iLat,xmlt1,ro1,phot1,press1,temp1,den1,eng1,vexb1,vdr1,dif1
           write(UnitTmp_,'(1p,6e12.4)') Part_phot(1,iLat,iLon,1:neng)
        enddo

@@ -2255,8 +2255,8 @@ Part_phot=0.
             enddo
 
 
-     vexb(1,i,j) = vpEa(1,i,j,1,1)*vpEa(1,i,j,1,1)
-     vexb(1,i,j) = sqrt(vlEa(1,i,j,1,1)*vlEa(1,i,j,1,1) + vexb(1,i,j))
+     vexb(1,i,j) = vp(1,i,j,1,1)*vp(1,i,j,1,1)
+     vexb(1,i,j) = sqrt(vl(1,i,j,1,1)*vl(1,i,j,1,1) + vexb(1,i,j))
 
      vdr_q1(1,i,j) = sqrt(vlEa(1,i,j,k_q1,1)*vlEa(1,i,j,k_q1,1)+vpEa(1,i,j,k_q1,1)*vpEa(1,i,j,k_q1,1))
      vdr_q3(1,i,j) = sqrt(vlEa(1,i,j,k_q3,1)*vlEa(1,i,j,k_q3,1)+vpEa(1,i,j,k_q3,1)*vpEa(1,i,j,k_q3,1))
