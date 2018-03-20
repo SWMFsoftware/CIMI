@@ -1422,7 +1422,6 @@ subroutine driftV(nspec,np,nt,nm,nk,irm,re_m,Hiono,dipmom,dphi,xlat, &
                        vp(n,i,j,k,m)=vp(n,i-1,j,k,m)
                     endif
                  endif
-
               enddo jloop
            enddo iloop
         enddo kloop
@@ -2044,7 +2043,7 @@ subroutine cimi_output(np,nt,nm,nk,nspec,neng,npit,iba,ftv,f2,ekev, &
   use ModCimiGrid,ONLY: iProc,nProc,iComm,MinLonPar,MaxLonPar,&
        iProcLeft, iLonLeft, iProcRight, iLonRight
   use ModMpi
-  use ModCimiTrace, ONLY: ro
+  use ModCimiTrace, ONLY: ro,xmlto
   use ModCimiBoundary, ONLY: CIMIboundary, Outputboundary   ! read from PARAM file
   use BoundaryCheck, ONLY: vdr_q1,vdr_q3,vgyr_q1,vgyr_q3,eng_q1, &
       eng_q3,vexb,dif_q1,dif_q3,Part_phot
@@ -2052,7 +2051,7 @@ subroutine cimi_output(np,nt,nm,nk,nspec,neng,npit,iba,ftv,f2,ekev, &
   implicit none
 
   integer np,nt,nm,nk,nspec,neng,npit,iba(nt),i,j,k,m,n,j1,j_1
-  real f2(nspec,np,nt,nm,nk),ekev(nspec,np,nt,nm,nk),sinA(np,nt,nk),re_m,Hiono,rion,vl(nspec,np,nt,nm,nk),vp(nspec,np,nt,nm,nk)
+  real f2(nspec,np,nt,nm,nk),ekev(nspec,np,nt,nm,nk),sinA(np,nt,nk),re_m,Hiono,rion,vl(nspec,0:np,nt,nm,nk),vp(nspec,np,nt,nm,nk)
   real ftv(np,nt),ftv1,energy(nspec,neng),sinAo(npit),delE(nspec,neng),dmu(npit),aloge(nspec,neng)
   real flux2D(nm,nk),pp(nspec,np,nt,nm,nk),xjac(nspec,np,nm)
   real vl2D(nm,nk),vp2D(nm,nk)
@@ -2189,10 +2188,9 @@ subroutine cimi_output(np,nt,nm,nk,nspec,neng,npit,iba,ftv,f2,ekev, &
                       sinAo(m),vp_lo)
                  
                  flux(n,i,j,k,m)=10.**flx_lo
-                 vlEa(n,i,j,k,m)=vl_lo
-                 vpEa(n,i,j,k,m)= vp_lo
+                 vlEa(n,i,j,k,m)=vl_lo*re_m   ! bounce-averaged vl  PROJECTED to ionosphere 
+                 vpEa(n,i,j,k,m)= vp_lo*re_m*cos(xlatr(i))    !  bounce averaged vp PROJECTED to ionosphere
                  !  vpEa(n,i,j,k,m)=re_m*ro(i,j)*1.e-3*vp_lo !
-                 !  temporary until understood how to map both components
               enddo
            enddo
         enddo nloop
@@ -2254,9 +2252,8 @@ Part_phot=0.
               enddo
             enddo
 
-
-     vexb(1,i,j) = vp(1,i,j,1,1)*vp(1,i,j,1,1)
-     vexb(1,i,j) = sqrt(vl(1,i,j,1,1)*vl(1,i,j,1,1) + vexb(1,i,j))
+     vexb(1,i,j) = vpEa(1,i,j,1,1)*vpEa(1,i,j,1,1)
+     vexb(1,i,j) = sqrt(vlEa(1,i,j,1,1)*vlEa(1,i,j,1,1) + vexb(1,i,j))
 
      vdr_q1(1,i,j) = sqrt(vlEa(1,i,j,k_q1,1)*vlEa(1,i,j,k_q1,1)+vpEa(1,i,j,k_q1,1)*vpEa(1,i,j,k_q1,1))
      vdr_q3(1,i,j) = sqrt(vlEa(1,i,j,k_q3,1)*vlEa(1,i,j,k_q3,1)+vpEa(1,i,j,k_q3,1)*vpEa(1,i,j,k_q3,1))
