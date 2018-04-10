@@ -119,7 +119,8 @@ contains
     xmltlim=2.           ! limit of field line warping in hour
     dre=0.06             ! r interval below the surface of the Earth
     n5=16                ! no. of point below the surface of the Earth
-    DeltaRMax = 1.0
+    DeltaRMax = 2.0
+!    DeltaRMax = 1.0 NB - test
     !DeltaRMax = 0.5
     !DeltaRMax = 0.75
 
@@ -160,8 +161,6 @@ contains
                imod,np,npf1,dssa,bba,volume1,ro1,xmlt1,bo1,ra)
           if (imod.eq.3) call Mhd_trace_IM(xlati1,phi(j),re,i,j,np, &
                npf1,dssa,bba,volume1,ro1,xmlt1,bo1,ra)
-
-
           if (i==iLatTest .and. j==iLonTest) then
              write(*,*) "Time: ",t
              write(*,*) "npf1,xlati1*180.0/3.14,xmlt1,ro1"

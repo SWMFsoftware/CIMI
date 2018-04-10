@@ -30,7 +30,7 @@ contains
   subroutine init_gm_cimi
     integer :: iSpecies
     !----------------------------------------------------------------------
-    do iSpecies =1,nspec
+    do iSpecies =1,nspec-1
        AveDen_I(iSpecies) = 6+iSpecies
        AveP_I(iSpecies)=6+nspec-1+iSpecies
     enddo

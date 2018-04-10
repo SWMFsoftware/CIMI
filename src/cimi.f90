@@ -1,7 +1,7 @@
  
 subroutine cimi_run(delta_t)
   use ModConst,       ONLY: cLightSpeed, cElectronCharge
-  use ModCimiInitialize, ONLY: xmm,xk,dphi,dmm,dk,dmu, xjac
+  use ModCimiInitialize, ONLY: xmm,xk,dphi,dmm,dk,delE,dmu, xjac
   use ModCimi,        ONLY: f2,dt, Time, phot, Ppar_IC, Pressure_IC, &
                             PressurePar_IC, FAC_C, Bmin_C, &
                             OpDrift_, OpBfield_, OpChargeEx_, &
@@ -10,10 +10,12 @@ subroutine cimi_run(delta_t)
                             rbsumLocal, rbsumGlobal, &
                             rcsumLocal, rcsumGlobal, &
                             driftin, driftout, IsStandAlone, &
+
                             preP,preF,Eje1,UseStrongDiff, &
                             eChangeOperator_VICI,nOperator, &
                             eChangeLocal,eChangeGlobal,PrecipOutput,&
                             DtPreOut,PrecipCalc,DtPreCalc
+              
   use ModCimiPlanet,  ONLY: re_m, dipmom, Hiono, nspec, amu_I, &
                             dFactor_I,tFactor_I
   use ModCimiTrace,  ONLY: &
@@ -32,7 +34,7 @@ subroutine cimi_run(delta_t)
   use ModImSat,       ONLY: nImSats, write_im_sat, DoWriteSats, DtSatOut
   use ModCimiGrid,    ONLY: iProc,nProc,iComm,nLonPar,nLonPar_P,nLonBefore_P, &
                             MinLonPar,MaxLonPar,nt,np,neng,npit,nm,nk,dlat,&
-                            phi,sinao,xlat,xmlt
+                            energy,phi,sinao,xlat,xmlt
   use ModCimiBoundary,ONLY: cimi_set_boundary_mhd, cimi_set_boundary_empirical,&
                             CIMIboundary,Outputboundary
   use ModMpi
@@ -44,6 +46,7 @@ subroutine cimi_run(delta_t)
   use DensityTemp,    ONLY: density, simple_plasmasphere
   use ModIndicesInterfaces
   use ModLstar,       ONLY: calc_Lstar1,calc_Lstar2 
+  use BoundaryCheck, ONLY: vdr_q3,eng_q3,vexb,dif_q3,Part_phot
   implicit none
 
   !regular variables
@@ -516,7 +519,44 @@ subroutine cimi_run(delta_t)
          if (iProc==0) bm(:,:,iK)=BufferRecv_C(:,:)
       end do      
    endif
-   
+  
+  ! gather information for boundary output
+     if (nProc>1 .and. OutputBoundary) then
+        do  iSpecies=1,nspec
+         do iEnergy=1,neng
+            BufferSend_C(:,:)=Part_phot(iSpecies,:,:,iEnergy)
+            call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
+                 MPI_REAL, BufferRecv_C,iRecieveCount_P, iDisplacement_P, &
+                 MPI_REAL, 0, iComm, iError)
+            if (iProc==0) Part_phot(iSpecies,:,:,iEnergy)=BufferRecv_C(:,:)
+         enddo ! Do loop over iEnergy^M
+
+         BufferSend_C(:,:)=eng_q3(iSpecies,:,:)
+         call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
+                  MPI_REAL, BufferRecv_C,iRecieveCount_P, iDisplacement_P, &
+                  MPI_REAL, 0, iComm, iError)
+         if (iProc==0) eng_q3(iSpecies,:,:)=BufferRecv_C(:,:)
+
+         BufferSend_C(:,:)=vexb(iSpecies,:,:)
+         call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
+                  MPI_REAL, BufferRecv_C,iRecieveCount_P, iDisplacement_P, &
+                  MPI_REAL, 0, iComm, iError)
+         if (iProc==0) vexb(iSpecies,:,:)=BufferRecv_C(:,:)
+
+         BufferSend_C(:,:)=vdr_q3(iSpecies,:,:)
+         call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
+                  MPI_REAL, BufferRecv_C,iRecieveCount_P, iDisplacement_P, &
+                  MPI_REAL, 0, iComm, iError)
+         if (iProc==0) vdr_q3(iSpecies,:,:)=BufferRecv_C(:,:)
+
+         BufferSend_C(:,:)=dif_q3(iSpecies,:,:)
+         call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
+                  MPI_REAL, BufferRecv_C,iRecieveCount_P, iDisplacement_P, &
+                  MPI_REAL, 0, iComm, iError)
+         if (iProc==0) dif_q3(iSpecies,:,:)=BufferRecv_C(:,:)
+      enddo
+     endif
+
   !Gather to root
   !    iSendCount = np*nLonPar
   !    iRecieveCount_P=np*nLonPar_P
@@ -599,12 +639,15 @@ subroutine cimi_init
   use ModPlanetConst, ONLY: Earth_,DipoleStrengthPlanet_I,rPlanet_I
   use ModConst,       ONLY: cElectronCharge
   use ModNumConst,    ONLY: cDegToRad,cRadToDeg,cPi
-  use ModCimi,	      ONLY: energy, ebound, delE
   use ModCimiPlanet,  ONLY: re_m, dipmom, Hiono, amu_I, nspec
   use ModCimiInitialize
   use ModCimiRestart, ONLY: IsRestart, cimi_read_restart
   use ModImTime
-  use ModCimiGrid
+  use ModCimiGrid,    ONLY: iProcLeft, iProcRight, iLonLeft, iLonRight, &
+       d4Element_C, MinIonEnergy, MaxIonEnergy, iProc,nLonPar, nt, nProc,&
+       nLonBefore_P, nLonPar_P, MinLonPar, MaxLonPar, nLonPar_P, &
+       iLonMidnight, iProcMidnight, nLonPar_P, np, xlatr, sinao, npit, energy, &
+       dLat,ebound, iComm, phi, xlat,xlat_data,xmlt 
   use ModTimeConvert, ONLY: time_int_to_real,time_real_to_int
   use ModMpi
 
@@ -708,24 +751,15 @@ subroutine cimi_init
 !!$  dmu=(/0.000207365,0.000868320,0.00167125,0.00489855,0.0165792,0.0404637, &
 !!$       0.078819500,0.121098000,0.14729600,0.16555900,0.1738560,0.2486830/)
 
-  if (UseRBSPGrid) then
+  energy_ion(1)=MinIonEnergy
+  energy_ion(neng)=MaxIonEnergy
+  aloga=log10(energy_ion(neng)/energy_ion(1))/(neng-1)
+  eratio=10.**aloga
+  do k=2,neng-1
+     energy_ion(k)=energy_ion(k-1)*eratio
+  enddo  
+  energy_ele(1:neng)=10.*energy_ion(1:neng)
 
-     energy_ele(1:neng) = energy_RBSP(1:neng)
-     energy_ion(1:neng) = energy_RBSP(1:neng)/10.
-     
-  else
-     
-     energy_ion(1)=MinIonEnergy
-     energy_ion(neng)=MaxIonEnergy
-     aloga=log10(energy_ion(neng)/energy_ion(1))/(neng-1)
-     eratio=10.**aloga
-     do k=2,neng-1
-        energy_ion(k)=energy_ion(k-1)*eratio
-     enddo
-     energy_ele(1:neng)=10.*energy_ion(1:neng)
-
-  endif
-  
   sinAo=(/0.009417,0.019070,0.037105,0.069562,0.122536,0.199229, &
        0.296114,0.405087,0.521204,0.638785,0.750495,0.843570, &
        0.910858,0.952661,0.975754,0.988485,0.995792,0.998703/)
@@ -1388,7 +1422,6 @@ subroutine driftV(nspec,np,nt,nm,nk,irm,re_m,Hiono,dipmom,dphi,xlat, &
                        vp(n,i,j,k,m)=vp(n,i-1,j,k,m)
                     endif
                  endif
-
               enddo jloop
            enddo iloop
         enddo kloop
@@ -1406,6 +1439,7 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
   !
   ! Input: iw2,nspec,np,nt,nm,nk,iba,dt,dlat,dphi,brad,rb,vl,vp,fbi
   ! Input/Output: f2,ib0,driftin,driftout
+  use ModCimiGrid, ONLY: MinLonPar, MaxLonPar
   use ModCimiTrace, ONLY: iba, ekev
   use ModCimiGrid, ONLY: iProc,nProc,iComm,MinLonPar,MaxLonPar, &
        iProcLeft, iLonLeft, iProcRight, iLonRight, d4Element_C    
@@ -1888,11 +1922,11 @@ subroutine sume_cimi(OperatorName)
        xle => eChangeOperator_VICI, ple => pChangeOperator_VICI, &
        eChangeGlobal, eChangeLocal, &
        esum => eTimeAccumult_ICI, psum => pTimeAccumult_ICI
-  use ModCimiTrace, 	ONLY: iba, ekev,ro, iw2
-  use ModCimi,		ONLY: Energy, Ebound
+  use ModCimiTrace, 	ONLY: iba, ekev, ro, iw2
   use ModCimiGrid,   	ONLY: &
-       nProc,iProc,iComm, MinLonPar, MaxLonPar, d4Element_C, &
-       ip => np, ir => nt, im => nm, ik => nk, je => neng
+       nProc, iProc, iComm, MinLonPar, MaxLonPar, d4Element_C, &
+       ip => np, ir => nt, im => nm, ik => nk, je => neng, &
+       Energy, Ebound
   use ModCimiPlanet, 	ONLY: nspec
   use ModMPI
   use ModWaveDiff,    	ONLY: testDiff_aE 
@@ -2009,7 +2043,7 @@ subroutine cimi_output(np,nt,nm,nk,nspec,neng,npit,iba,ftv,f2,ekev, &
   use ModCimiGrid,ONLY: iProc,nProc,iComm,MinLonPar,MaxLonPar,&
        iProcLeft, iLonLeft, iProcRight, iLonRight
   use ModMpi
-  use ModCimiTrace, ONLY: ro
+  use ModCimiTrace, ONLY: ro,xmlto
   use ModCimiBoundary, ONLY: CIMIboundary, Outputboundary   ! read from PARAM file
   use BoundaryCheck, ONLY: vdr_q1,vdr_q3,vgyr_q1,vgyr_q3,eng_q1, &
       eng_q3,vexb,dif_q1,dif_q3,Part_phot
@@ -2017,7 +2051,7 @@ subroutine cimi_output(np,nt,nm,nk,nspec,neng,npit,iba,ftv,f2,ekev, &
   implicit none
 
   integer np,nt,nm,nk,nspec,neng,npit,iba(nt),i,j,k,m,n,j1,j_1
-  real f2(nspec,np,nt,nm,nk),ekev(nspec,np,nt,nm,nk),sinA(np,nt,nk),re_m,Hiono,rion,vl(nspec,np,nt,nm,nk),vp(nspec,np,nt,nm,nk)
+  real f2(nspec,np,nt,nm,nk),ekev(nspec,np,nt,nm,nk),sinA(np,nt,nk),re_m,Hiono,rion,vl(nspec,0:np,nt,nm,nk),vp(nspec,np,nt,nm,nk)
   real ftv(np,nt),ftv1,energy(nspec,neng),sinAo(npit),delE(nspec,neng),dmu(npit),aloge(nspec,neng)
   real flux2D(nm,nk),pp(nspec,np,nt,nm,nk),xjac(nspec,np,nm)
   real vl2D(nm,nk),vp2D(nm,nk)
@@ -2154,8 +2188,9 @@ subroutine cimi_output(np,nt,nm,nk,nspec,neng,npit,iba,ftv,f2,ekev, &
                       sinAo(m),vp_lo)
                  
                  flux(n,i,j,k,m)=10.**flx_lo
-                 vlEa(n,i,j,k,m)=vl_lo
-                 vpEa(n,i,j,k,m)=re_m*ro(i,j)*1.e-3*vp_lo
+                 vlEa(n,i,j,k,m)=vl_lo*re_m   ! bounce-averaged vl  PROJECTED to ionosphere 
+                 vpEa(n,i,j,k,m)= vp_lo*re_m*cos(xlatr(i))    !  bounce averaged vp PROJECTED to ionosphere
+                 !  vpEa(n,i,j,k,m)=re_m*ro(i,j)*1.e-3*vp_lo !
               enddo
            enddo
         enddo nloop
@@ -2217,22 +2252,22 @@ Part_phot=0.
               enddo
             enddo
 
-     vexb(1,i,j) = vp(1,i,j,k_q1,1)*vp(1,i,j,1,1)*re_m*re_m*ro(i,j)*ro(i,j)*1.e-6
-     vexb(1,i,j) = sqrt(vl(1,i,j,1,1)*vl(1,i,j,1,1) + vexb(1,i,j))         
+     vexb(1,i,j) = vpEa(1,i,j,1,1)*vpEa(1,i,j,1,1)
+     vexb(1,i,j) = sqrt(vlEa(1,i,j,1,1)*vlEa(1,i,j,1,1) + vexb(1,i,j))
 
      vdr_q1(1,i,j) = sqrt(vlEa(1,i,j,k_q1,1)*vlEa(1,i,j,k_q1,1)+vpEa(1,i,j,k_q1,1)*vpEa(1,i,j,k_q1,1))
      vdr_q3(1,i,j) = sqrt(vlEa(1,i,j,k_q3,1)*vlEa(1,i,j,k_q3,1)+vpEa(1,i,j,k_q3,1)*vpEa(1,i,j,k_q3,1))
      vgyr_q1(1,i,j) = 440. *sqrt(energy(1,k_q1))
      vgyr_q3(1,i,j) = 440. *sqrt(energy(1,k_q3))
      vexb(1,i,j) = sqrt(vlEa(1,i,j,1,1)*vlEa(1,i,j,1,1)+vpEa(1,i,j,1,1)*vpEa(1,i,j,1,1))
-         
+
      dif_q1(1,i,j) = (vlEa(1,i,j,k_q1,1)-vlEa(1,i,j,1,1))*(vlEa(1,i,j,k_q1,1)-vlEa(1,i,j,1,1))
      dif_q1(1,i,j) = dif_q1(1,i,j)+(vpEa(1,i,j,k_q1,1)-vpEa(1,i,j,1,1))*(vpEa(1,i,j,k_q1,1)-vpEa(1,i,j,1,1))
-     dif_q1(1,i,j)  = sqrt(dif_q1(1,i,j))/vexb(1,i,j)   ! difference between vdr and vExB, q1
-         
+     dif_q1(1,i,j)  = sqrt(dif_q1(1,i,j))/vexb(1,i,j)   ! relative difference between vdr and vExB, q1
+
      dif_q3(1,i,j) = (vlEa(1,i,j,k_q3,1)-vlEa(1,i,j,1,1))*(vlEa(1,i,j,k_q3,1)-vlEa(1,i,j,1,1))
      dif_q3(1,i,j) = dif_q3(1,i,j)+(vpEa(1,i,j,k_q3,1)-vpEa(1,i,j,1,1))*(vpEa(1,i,j,k_q3,1)-vpEa(1,i,j,1,1))
-     dif_q3(1,i,j)  = sqrt(dif_q3(1,i,j))/vexb(1,i,j)   ! difference between vdr and vExB, q3
+     dif_q3(1,i,j)  = sqrt(dif_q3(1,i,j))/vexb(1,i,j)   ! relative difference between vdr and vExB, q3
          endif
      enddo iloop2
   enddo jloop2

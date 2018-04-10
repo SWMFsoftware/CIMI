@@ -831,6 +831,8 @@ contains
 
     if (IsFirstCall .and. .not. IsRestart) then
        open(unit=UnitTmp_,file='IM/plots/Cimi.boundary.check',status='unknown')
+       write(UnitTmp_,"('! iLon,iLat,xmlt,ro,phot,press,temp,den,eng,vexb,vdr1,dif1')")
+
        write(UnitTmp_,"(4i10,6x,'! nr,ip,neng,ntime')") &
             nLat-1,nLon,neng,nprint
        write(UnitTmp_,'(10f8.3)') (energy(1,i),i=1,neng)
@@ -859,11 +861,11 @@ contains
 
               phot1 = Phot(1,iLat,iLon)
               press1 = Pressure_IC(1,Ilat,iLon)
-              den1 = Den_IC(1,iLat,iLon)
+              den1 = Den_IC(1,iLat,iLon)/1.e6
               temp1 = Temp_IC(1,iLat,iLon)/1000. ! in keV
 
-          write(UnitTmp_,'(2i10,8f8.3,1pe11.3)') &
-              iLon,iLat,xmlt1,ro1,phot1,press1,temp1,eng1,vexb1,vdr1,dif1
+          write(UnitTmp_,'(2i10,2f8.3,1p,8e11.3)') &
+              iLon,iLat,xmlt1,ro1,phot1,press1,temp1,den1,eng1,vexb1,vdr1,dif1
           write(UnitTmp_,'(1p,6e12.4)') Part_phot(1,iLat,iLon,1:neng)
        enddo
     enddo
