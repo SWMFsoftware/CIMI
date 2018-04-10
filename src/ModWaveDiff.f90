@@ -1064,7 +1064,7 @@ end subroutine interpolate_ae
      use ModCimiGrid,   ONLY: MinLonPar,MaxLonPar
 
      implicit none
-  integer,parameter :: ie=40
+  integer,parameter :: ie=80
   integer i,j,m,k,k1,k2,nrun,n,ier,iww,nn
   integer iba(ip),iw2(nspec,ik),nrun2
   real f2(nspec,ir,ip,iw,ik),xjac(nspec,ir,iw),einlog, &

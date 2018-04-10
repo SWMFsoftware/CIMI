@@ -213,7 +213,7 @@ contains
                status='unknown')
           write(UnitTmp_,"(f10.6,5i6,6x,'! rc in Re,nr,ip,je,ig,ntime')") &
                rc,nLat-1,nLon,nEnergy,nPitchAng,nprint
-          write(UnitTmp_,'(6f9.3)') (energy_temp(k),k=1,nEnergy)
+          write(UnitTmp_,'(6f10.3)') (energy_temp(k),k=1,nEnergy)
           !write(UnitTmp_,'(6f9.3)') (Ebound(k),k=1,nEnergy+1)
           write(UnitTmp_,'(6f9.5)') (sinAo(m),m=1,nPitchAng)
           write(UnitTmp_,'(10f8.3)') (xlat(i),i=2,nLat)
@@ -810,13 +810,14 @@ contains
 
    subroutine Cimi_plot_boundary_check(time)
     use ModIoUnit,      ONLY: UnitTmp_
-    use ModCimiGrid,    ONLY: energy
+!!$    use ModCimi,    ONLY: energy
 !         nm, nk, xlat,xmlt
 !    use ModCimiPlanet,  ONLY: nSpecies=>nspec,re_m
     use ModCimiTrace,   ONLY: ro,bm,xmlto,irm
     use ModCimiRestart, ONLY: IsRestart
-    use BoundaryCheck, nlat=>np,nLon=>nt
-    use ModCimi, ONLY: phot,Pressure_IC
+    use ModCimiGrid, ONLY: nlat=>np,nLon=>nt,neng
+    use ModCimi, ONLY: phot,Pressure_IC,energy, &
+         part_phot, dif_q3, eng_q3, vdr_q3, vexb
     use ModGmCimi,      ONLY: Den_IC,Temp_IC
 
     real, intent(in) :: time

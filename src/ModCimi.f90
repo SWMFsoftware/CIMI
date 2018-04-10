@@ -34,7 +34,17 @@ Module ModCimi
 ! Note order and number of operators has been changed Waves are added
 ! and OpLossCone0_=7 is previous in time OpLossCone (needed for
 ! precipitation, see cimi_precip_calc subroutine in cimi.f90)
-                                       
+
+! Variables brought over from Module BoundaryCheck in
+! ModCimiBoundary. neng can now have a variable size making it
+! necessary that these variables be allocatable.
+  
+  real, allocatable :: &
+       vdr_q1(:,:,:), vdr_q3(:,:,:), vgyr_q1(:,:,:), vgyr_q3(:,:,:)
+  real, allocatable :: &
+       eng_q1(:,:,:), eng_q3(:,:,:), vexb(:,:,:), dif_q1(:,:,:)
+  real, allocatable :: &
+       Part_phot(:,:,:,:), dif_q3(:,:,:)
 
 ! in CIMI: eChangeOperator=xle(ns,ir,ip,je+2) Here we create one array
 !   for all operators (plus one dimension)
@@ -80,7 +90,13 @@ contains
          Eje1(nspec,np,nt))
 
     allocate(energy(nspec,neng), Ebound(nspec,neng), delE(nspec,neng))
-    
+
+    allocate( vdr_q1( nspec, np, nt ), vdr_q3( nspec, np, nt ), &
+         vgyr_q1( nspec, np, nt ), vgyr_q3( nspec, np, nt ) )
+    allocate( eng_q1( nspec, np, nt ), eng_q3( nspec, np, nt ), &
+         vexb( nspec, np, nt ), dif_q1( nspec, np, nt ) )
+    allocate( Part_phot( nspec, np, nt, neng ), dif_q3( nspec, np, nt ) )
+
   end subroutine init_mod_cimi
 
 end Module ModCimi

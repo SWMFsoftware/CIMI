@@ -123,8 +123,8 @@ contains
     !DeltaRMax = 0.5
     !DeltaRMax = 0.75
 
-    NonMonoLengthThresh = 1. ! Sets the non-Monotonicity length
-    ! threshold (in R_E)
+    ! Sets the non-Monotonicity length threshold (in R_E)
+    NonMonoLengthThresh = 1. 
 
     ! Save irm0
     irm0(1:ip)=irm(1:ip)

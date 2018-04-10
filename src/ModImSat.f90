@@ -21,7 +21,7 @@ contains
     use ModIoUnit,      ONLY: io_unit_new, UnitTmp_
     use ModInterpolate, ONLY: bilinear, trilinear
     use ModNumConst,    ONLY: cDegToRad,cRadToDeg
-    use ModCimi,        ONLY: t=>time
+    use ModCimi,        ONLY: t=>time, Energy
     use ModCimiPlanet,  ONLY: nSpecies=>nspec
     use ModCimiGrid,    ONLY: LonGrid_I=>phi, LatGrid_I=>xlat, &
                               AngleGrid_I=>sinAo
@@ -42,15 +42,15 @@ contains
     integer             :: iError
     logical             :: IsExist
     character(len=100)  :: NameSatFile, StringTime
-    character(len=3000) :: HeadVar
+    character(len=10000) :: HeadVar
     real                :: SatLat, SatLon, SatAng, &
                           LatSatGen,LonSatGen, AngSatGen
-    real                :: SatB2, RatioBeqBsat
+    real                :: SatB2, EqB2, RatioBeqBsat
     integer             :: iSatLat, iSatLonMin,iSatLonMax, &
          iSatAng, iAngle, iEnergy
     integer             :: iSpecies
     character(len=2)    :: NameSpecies
-    character(len=8)    :: NameChannel
+    character(len=16)   :: NameChannel
     character(len=3)    :: numChannels
     !-------------------------------------------------------------------------
     ! Allocate array for satellite flux
@@ -118,8 +118,9 @@ contains
           
           !get B^2 at sat
           SatB2 = SatLoc_3I(4,2,iSatIn)
-          RatioBeqBsat  = sqrt(bilinear(BfieldEq2_G,1,nLat,0,nLon+1,& 
-               (/ LatSatGen, LonSatGen /) ) / SatB2)
+          EqB2 = bilinear(BfieldEq2_G,1,nLat,0,nLon+1,& 
+               (/ LatSatGen, LonSatGen /) )
+          RatioBeqBsat  = sqrt(EqB2 / SatB2)
           
           ! Beq must be minimum so ratio can not be larger than 1
           if (RatioBeqBsat > 1.0) RatioBeqBsat=1.0
@@ -196,15 +197,16 @@ contains
        
        if ( (.not.IsExist) .or. IsFirstWrite(iSpecies,iSatIn) ) then
           IsFirstWrite(iSpecies,iSatIn) = .false.
-          HeadVar = 'it year mo dy hr mn sc msc X Y Z'
+          HeadVar = 'it year mo dy hr mn sc msc X Y Z Beq[nT] Bsat[nT]'
           open(unit=UnitTmp_, file=trim(NameSatFile), &
                status='replace', iostat=iError)
           if(iError /= 0) call CON_stop &
                (NameSubSub//' Error opening file '//NameSatFile)
           do iAngle=1,nAngle
              do iEnergy=1,nEnergy
-                write(NameChannel,"(a,i2.2,a,i2.2)") &
-                     ' E',iEnergy,'@A',iAngle
+                write(NameChannel,"(a,F6.1,a,i2.2,a)") &
+                     ' ',Energy( iSpecies, iEnergy ),'keV@',&
+                     INT( ASIN( AngleGrid_I( iAngle ) ) * cRadToDeg ),'deg'
                 HeadVar = trim(HeadVar) // NameChannel
              enddo
           enddo
@@ -222,7 +224,10 @@ contains
        write(UnitTmp_,'(i7)',ADVANCE='NO') int(t)
        write(UnitTmp_,'(i5,5(1X,i2.2),1X,i3.3)',ADVANCE='NO') &
             iCurrentTime_I
-       write(UnitTmp_,'(3es13.5)',ADVANCE='NO') SatLoc_3I(1:3,1,iSatIn)
+       write(UnitTmp_,'(3es13.5)',ADVANCE='NO') &
+            SatLoc_3I(1:3,1,iSatIn)
+       write(UnitTmp_,'(2es13.5)',ADVANCE='NO') &
+            SQRT( EqB2 )*1.e9, SQRT( SatB2 ) * 1.e9
        write(numChannels,'(I3)') nEnergy*nAngle
        write(UnitTmp_,'('//numChannels//'es13.5)') &
             SatFlux_3I(iSpecies,:,:)!SatVar_I
