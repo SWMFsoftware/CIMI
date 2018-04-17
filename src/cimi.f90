@@ -1,7 +1,6 @@
- 
 subroutine cimi_run(delta_t)
   use ModConst,       ONLY: cLightSpeed, cElectronCharge
-  use ModCimiInitialize, ONLY: xmm,xk,dphi,dmm,dk,delE,dmu, xjac
+  use ModCimiInitialize, ONLY: xmm,xk,dphi,dmm,dk,dmu, xjac
   use ModCimi,        ONLY: f2,dt, Time, phot, Ppar_IC, Pressure_IC, &
                             PressurePar_IC, FAC_C, Bmin_C, &
                             OpDrift_, OpBfield_, OpChargeEx_, &
@@ -10,12 +9,12 @@ subroutine cimi_run(delta_t)
                             rbsumLocal, rbsumGlobal, &
                             rcsumLocal, rcsumGlobal, &
                             driftin, driftout, IsStandAlone, &
-
+                            energy, Ebound, delE, &
                             preP,preF,Eje1,UseStrongDiff, &
                             eChangeOperator_VICI,nOperator, &
                             eChangeLocal,eChangeGlobal,PrecipOutput,&
-                            DtPreOut,PrecipCalc,DtPreCalc
-              
+                            DtPreOut,PrecipCalc,DtPreCalc,&
+                            vdr_q3,eng_q3,vexb,dif_q3,Part_phot              
   use ModCimiPlanet,  ONLY: re_m, dipmom, Hiono, nspec, amu_I, &
                             dFactor_I,tFactor_I
   use ModCimiTrace,  ONLY: &
@@ -26,7 +25,8 @@ subroutine cimi_run(delta_t)
   use ModCimiPlot,    ONLY: Cimi_plot, Cimi_plot_fls, &
        			    Cimi_plot_psd,Cimi_plot_vl,Cimi_plot_vp, &
                             cimi_plot_log, cimi_plot_precip, Cimi_plot_Lstar,&
-                            DtOutput, DtLogOut,DoSavePlot, Cimi_plot_boundary_check,&
+                            DtOutput, DtLogOut,DoSavePlot, &
+                            Cimi_plot_boundary_check,&
                             DoSaveFlux, DoSavePSD, DoSaveDrifts, DoSaveLog
   use ModCimiRestart, ONLY: IsRestart
   use ModImTime
@@ -34,7 +34,7 @@ subroutine cimi_run(delta_t)
   use ModImSat,       ONLY: nImSats, write_im_sat, DoWriteSats, DtSatOut
   use ModCimiGrid,    ONLY: iProc,nProc,iComm,nLonPar,nLonPar_P,nLonBefore_P, &
                             MinLonPar,MaxLonPar,nt,np,neng,npit,nm,nk,dlat,&
-                            energy,phi,sinao,xlat,xmlt
+                            phi,sinao,xlat,xmlt
   use ModCimiBoundary,ONLY: cimi_set_boundary_mhd, cimi_set_boundary_empirical,&
                             CIMIboundary,Outputboundary
   use ModMpi
@@ -46,7 +46,7 @@ subroutine cimi_run(delta_t)
   use DensityTemp,    ONLY: density, simple_plasmasphere
   use ModIndicesInterfaces
   use ModLstar,       ONLY: calc_Lstar1,calc_Lstar2 
-  use BoundaryCheck, ONLY: vdr_q3,eng_q3,vexb,dif_q3,Part_phot
+
   implicit none
 
   !regular variables
@@ -643,11 +643,8 @@ subroutine cimi_init
   use ModCimiInitialize
   use ModCimiRestart, ONLY: IsRestart, cimi_read_restart
   use ModImTime
-  use ModCimiGrid,    ONLY: iProcLeft, iProcRight, iLonLeft, iLonRight, &
-       d4Element_C, MinIonEnergy, MaxIonEnergy, iProc,nLonPar, nt, nProc,&
-       nLonBefore_P, nLonPar_P, MinLonPar, MaxLonPar, nLonPar_P, &
-       iLonMidnight, iProcMidnight, nLonPar_P, np, xlatr, sinao, npit, energy, &
-       dLat,ebound, iComm, phi, xlat,xlat_data,xmlt 
+  use ModCimiGrid
+  use ModCimi, 		ONLY: energy, Ebound, dele
   use ModTimeConvert, ONLY: time_int_to_real,time_real_to_int
   use ModMpi
 
@@ -751,18 +748,28 @@ subroutine cimi_init
 !!$  dmu=(/0.000207365,0.000868320,0.00167125,0.00489855,0.0165792,0.0404637, &
 !!$       0.078819500,0.121098000,0.14729600,0.16555900,0.1738560,0.2486830/)
 
-  energy_ion(1)=MinIonEnergy
-  energy_ion(neng)=MaxIonEnergy
-  aloga=log10(energy_ion(neng)/energy_ion(1))/(neng-1)
-  eratio=10.**aloga
-  do k=2,neng-1
-     energy_ion(k)=energy_ion(k-1)*eratio
-  enddo  
-  energy_ele(1:neng)=10.*energy_ion(1:neng)
+  if ( UseRBSPGrid ) then
 
-  sinAo=(/0.009417,0.019070,0.037105,0.069562,0.122536,0.199229, &
-       0.296114,0.405087,0.521204,0.638785,0.750495,0.843570, &
-       0.910858,0.952661,0.975754,0.988485,0.995792,0.998703/)
+     energy_ele(1:neng) = energy_RBSP(1:neng)
+     energy_ion(1:neng) = energy_RBSP(1:neng)/10.
+     
+  else
+     
+     energy_ion( 1 ) = MinIonEnergy
+     energy_ion( neng ) = MaxIonEnergy
+     aloga = LOG10( energy_ion( neng ) / energy_ion( 1 ) ) / ( neng - 1 )
+     eratio = 10. ** aloga
+     do k = 2, neng - 1
+        energy_ion( k ) = energy_ion( k - 1 ) * eratio
+     enddo
+     energy_ele( 1 : neng ) = 10. * energy_ion( 1 : neng )
+
+  endif
+  
+  sinAo = &
+       (/ 0.009417, 0.019070, 0.037105, 0.069562, 0.122536, 0.199229, &
+          0.296114, 0.405087, 0.521204, 0.638785, 0.750495, 0.843570, &
+          0.910858, 0.952661, 0.975754, 0.988485, 0.995792, 0.998703 /)
 
   do m=1,npit
      if (m.eq.1) sina0=0.
@@ -781,19 +788,20 @@ subroutine cimi_init
 
 ! setup energies:
   do n=1,nspec-1
-  energy(n,1:neng) = energy_ion(1:neng)
-  delE(n,1:neng)   = 0.5243*energy_ion(1:neng)
+     energy( n, 1 : neng )  = energy_ion( 1 : neng )
+     delE( n, 1 : neng )    = 0.5243 * energy_ion( 1 : neng )
   enddo
-  energy(nspec,1:neng)=energy_ele(1:neng)
-  delE(nspec,1:neng)   = 0.5243*energy_ele(1:neng)
+  energy( nspec, 1 : neng ) = energy_ele( 1 : neng )
+  delE( nspec, 1 : neng )   = 0.5243 * energy_ele( 1 : neng )
 
 ! From CIMI:
 ! Setup Ebound
-  do n=1,nspec
-     do k=1,neng-1
-         Ebound(n,k)=sqrt(energy(n,k)*energy(n,k+1))
+  do n=1, nspec
+     do k=1, neng - 1
+         Ebound( n, k ) = SQRT( energy( n, k ) * energy( n, k + 1 ) )
      enddo
-     Ebound(n,neng)=energy(n,neng)*energy(n,neng)/Ebound(n,neng-1)
+     Ebound( n, neng ) = energy( n, neng ) * energy( n, neng ) / &
+          Ebound( n, neng - 1 )
   enddo
 
   ! CIMI magnetic moment, xmm1
@@ -1925,8 +1933,8 @@ subroutine sume_cimi(OperatorName)
   use ModCimiTrace, 	ONLY: iba, ekev, ro, iw2
   use ModCimiGrid,   	ONLY: &
        nProc, iProc, iComm, MinLonPar, MaxLonPar, d4Element_C, &
-       ip => np, ir => nt, im => nm, ik => nk, je => neng, &
-       Energy, Ebound
+       ip => np, ir => nt, im => nm, ik => nk, je => neng
+  use ModCimi, 		ONLY: Energy, Ebound
   use ModCimiPlanet, 	ONLY: nspec
   use ModMPI
   use ModWaveDiff,    	ONLY: testDiff_aE 
@@ -2045,7 +2053,7 @@ subroutine cimi_output(np,nt,nm,nk,nspec,neng,npit,iba,ftv,f2,ekev, &
   use ModMpi
   use ModCimiTrace, ONLY: ro,xmlto
   use ModCimiBoundary, ONLY: CIMIboundary, Outputboundary   ! read from PARAM file
-  use BoundaryCheck, ONLY: vdr_q1,vdr_q3,vgyr_q1,vgyr_q3,eng_q1, &
+  use ModCimi, ONLY: vdr_q1,vdr_q3,vgyr_q1,vgyr_q3,eng_q1, &
       eng_q3,vexb,dif_q1,dif_q3,Part_phot
 
   implicit none

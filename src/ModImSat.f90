@@ -42,7 +42,7 @@ contains
     integer             :: iError
     logical             :: IsExist
     character(len=100)  :: NameSatFile, StringTime
-    character(len=10000) :: HeadVar
+    character(len=15000) :: HeadVar
     real                :: SatLat, SatLon, SatAng, &
                           LatSatGen,LonSatGen, AngSatGen
     real                :: SatB2, EqB2, RatioBeqBsat
@@ -50,7 +50,7 @@ contains
          iSatAng, iAngle, iEnergy
     integer             :: iSpecies
     character(len=2)    :: NameSpecies
-    character(len=16)   :: NameChannel
+    character(len=20)   :: NameChannel
     character(len=3)    :: numChannels
     !-------------------------------------------------------------------------
     ! Allocate array for satellite flux
@@ -204,8 +204,8 @@ contains
                (NameSubSub//' Error opening file '//NameSatFile)
           do iAngle=1,nAngle
              do iEnergy=1,nEnergy
-                write(NameChannel,"(a,F6.1,a,i2.2,a)") &
-                     ' ',Energy( iSpecies, iEnergy ),'keV@',&
+                write(NameChannel,"(F10.1,A4,I2.2,A3)") &
+                     Energy( iSpecies, iEnergy ),'keV@',&
                      INT( ASIN( AngleGrid_I( iAngle ) ) * cRadToDeg ),'deg'
                 HeadVar = trim(HeadVar) // NameChannel
              enddo

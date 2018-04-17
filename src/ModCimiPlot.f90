@@ -213,7 +213,7 @@ contains
                status='unknown')
           write(UnitTmp_,"(f10.6,5i6,6x,'! rc in Re,nr,ip,je,ig,ntime')") &
                rc,nLat-1,nLon,nEnergy,nPitchAng,nprint
-          write(UnitTmp_,'(6f10.3)') (energy_temp(k),k=1,nEnergy)
+          write(UnitTmp_,'(6f14.3)') (energy_temp(k),k=1,nEnergy)
           !write(UnitTmp_,'(6f9.3)') (Ebound(k),k=1,nEnergy+1)
           write(UnitTmp_,'(6f9.5)') (sinAo(m),m=1,nPitchAng)
           write(UnitTmp_,'(10f8.3)') (xlat(i),i=2,nLat)
@@ -233,7 +233,7 @@ contains
                   status='unknown')
              write(UnitTmp_,"(f10.6,5i6,6x,'! rc in Re,nr,ip,je,ig,ntime')") &
                   rc,nLat-1,nLon,nEnergy,nPitchAng,nprint
-             write(UnitTmp_,'(6f9.3)') (energy_temp(k),k=1,nEnergy)
+             write(UnitTmp_,'(6f14.3)') (energy_temp(k),k=1,nEnergy)
              !write(UnitTmp_,'(6f9.3)') (Ebound(k),k=1,nEnergy+1)
              write(UnitTmp_,'(6f9.5)') (sinAo(m),m=1,nPitchAng)
              write(UnitTmp_,'(10f8.3)') (xlat(i),i=2,nLat)
