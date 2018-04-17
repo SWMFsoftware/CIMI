@@ -17,9 +17,9 @@ List of IM commands used in the PARAM.in file
 F			UseMcLimiter
 2			BetaLimiter
 
-Set whether or not the MC limiter is used. If it is not, the super bee 
-limiter is used. Also set the Beta parameter for the MC limiter.
-The default value is shown.
+Set whether or not the MC limiter is used. If it is not, the super bee
+limiter is used. Also set the Beta parameter for the MC limiter.  The
+default value is shown.
 </command>
 
 <command name="TIMESIMULATION">
@@ -45,12 +45,12 @@ This command specifies the simulation time.
 F		DoSaveFlux
 F		UseSeparatePlotFiles
 
-Define frequency of plots. When DoSaveFlux is false, only integrated 
-values such as species pressure density etc is saved. When DoSaveFlux is 
-true, then another file containing information needed to make plots of 
-species flux in each energy bin is saved. Use SeparatePlotFiles defines if 
-each time is saved in the same file or if a separate file is used for each 
-time.
+Define frequency of plots. When DoSaveFlux is false, only integrated
+values such as species pressure density etc is saved. When DoSaveFlux
+is true, then another file containing information needed to make plots
+of species flux in each energy bin is saved. Use SeparatePlotFiles
+defines if each time is saved in the same file or if a separate file
+is used for each time.
 </command>
 
 <command name="SAVELOG">
@@ -58,10 +58,10 @@ time.
 #SAVELOG
 10		DtSaveLog
 
-When this command is set, a log file for CIMI is written out. The log file 
-saves the change in ring current energy content for each species resulting 
-from each operator. A new entry in the log is written out every DtSaveLog 
-seconds of simulation time.
+When this command is set, a log file for CIMI is written out. The log
+file saves the change in ring current energy content for each species
+resulting from each operator. A new entry in the log is written out
+every DtSaveLog seconds of simulation time.
 </command>
 
 <command name="TYPEBOUNDARY">
@@ -70,7 +70,8 @@ seconds of simulation time.
 #TYPEBOUNDARY
 Ellipse		TypeBoundary
 
-Determines if the IM outer boundary is an ellipse of circle.
+Determines if the IM outer boundary is an 'Ellipse' or 'Circle.'
+Default shown.
 </command>
 
 <command name="MINIMUMPRESSURETOGM">
@@ -79,7 +80,7 @@ Determines if the IM outer boundary is an ellipse of circle.
 #MINIMUMPRESSURETOGM
 1e-2		MinimumPressureToGM
 
-Sets minimum pressure passed to GM. 
+Sets minimum pressure passed to GM.
 </command>
 
 
@@ -102,29 +103,78 @@ F			IsEmptyF2
 T			IsGmInitial
 F			IsDataInitial
 
-Determines whether to fill the fluxes in the simulation domain based on a 
-Maxwellian determined from MHD quantities (IsGmInitial=T) or to set the 
-initial fluxes in the simulation domain to zero (IsEmptyF2=T, not recommended) 
-or to set the initial fluxes in the simulation to values from AMPTE/CCE data 
-(IsDataInitial=T). The default is shown. 
+Determines whether to fill the fluxes in the simulation domain based
+on a Maxwellian determined from MHD quantities (IsGmInitial=T) or to
+set the initial fluxes in the simulation domain to zero (IsEmptyF2=T,
+not recommended) or to set the initial fluxes in the simulation to
+values from AMPTE/CCE data (IsDataInitial=T). The default is shown.
 </command>
-
-
 
 <command name="END">
 
 #END
 
-The #END command signals the end of the included file or the
-end of the PARAM.in file. Lines following the #END command are
-ignored. It is not required to use the #END command. The end
-of the included file or PARAM.in file is equivalent with an 
-#END command in the last line.
+The #END command signals the end of the included file or the end of
+the PARAM.in file. Lines following the #END command are ignored. It is
+not required to use the #END command. The end of the included file or
+PARAM.in file is equivalent with an #END command in the last line.
+</command>
+
+<command name="ENERGYGRID">
+	<parameter name="MinIonEnergy" type="real" />
+	<parameter name="MaxIonEnergy" type="real" />
+
+#ENERGYGRID
+  0.10000	MinIonEnergy (in keV)
+316.22777	MaxIonEnergy (in keV)
+
+DEPRECATED - Command sets the minimum and maximum of the ion energy
+grid for the output fluxes. MinIonEnergy and MaxIonEnergy are the
+bounds for the energy array in keV; electron energies are multiplied
+by 10.  Results in a 15 element grid per species that is evenly spaced
+logarithmically. Parameter included for backwards compatibility. For
+more direct control over the grid, use #SETENERGYGRID command.
+</command>
+
+<command name="SETENERGYGRID">
+	<parameter name="neng" type="integer" />
+	<parameter name="UseLogEGrid" type="logical" />
+  	<parameter name="MinIonEnergy" type="real" />
+	<parameter name="MaxIonEnergy" type="real" />
+
+#SETENERGYGRID
+15		neng
+T	        UseLogEGrid
+  0.10000	MinIonEnergy (in keV)
+316.22777	MaxIonEnergy (in keV)
+
+Command provides user with direct control over the size, spacing, and
+energy extent of the ion energy grid for the output fluxes.  neng is
+the number of elements in the energy grid per species. UseLogEGrid=T
+sets logarithmic spacing to the grid; setting UseLogEGrid=F changes it
+to linearly spaced. MinIonEnergy and MaxIonEnergy are the bounds for
+the energy array in keV; electron energies are multiplied by 10. The
+values displayed here result in CIMI's default energy grid regardless
+of #SETENERGYGRID being specified in PARAM.in.
+</command>
+
+<command name="RBSPENERGYGRID">
+  	<parameter name="UseRBSPGrid" type="logical" default="F"/>
+
+#RBSPENERGYGRID
+F		UseRBSPGrid
+
+Command sets the output energy grid to exactly the energy centroids of
+the Van Allen Probes' MagEIS and REPT instruments. If this parameter
+is set, the #ENERGYGRID and #SETENERGYGRID commands are
+ignored. Default shown.
+
 </command>
 
 </commandgroup>
 
 <commandgroup name="PHYSICS PARAMETERS">
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!! PHYSICS PARAMETERS  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

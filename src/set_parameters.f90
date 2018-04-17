@@ -259,8 +259,8 @@ subroutine CIMI_set_parameters(NameAction)
         
      case('#SETENERGYGRID')
         call read_var('neng', neng)
-        if (neng .lt. 1) &
-             call CON_STOP('ERROR: neng must be greater than 0.')
+        if (neng .lt. 2) &
+             call CON_STOP('ERROR: neng must be greater than 1.')
         call read_var('UseLogEGrid', UseLogEGrid)
         call read_var('MinIonEnergy (in keV), MinElectronEnergy x10',&
              MinIonEnergy)

@@ -650,15 +650,20 @@ subroutine cimi_init
 
   implicit none
 
-  integer i,n,k,m,iPe, iError
+  integer i, n, k, m, iPe, iError
 
-  real aloga,eratio
-  real sina0,sina1
-  real rw,rw1,rsi,rs1
-  real xjac1,sqrtm
-  real d2,energy_ion(1:neng),energy_ele(1:neng)
+  ! Variables for specifying the Energy Grid
+  real aloga, eratio, delta_E, energy_ion( 1 : neng ), energy_ele( 1 : neng )
+  
+  ! Variables determining the spacing of the mu and K grids
+  real rw, rw1, rsi, rs1
+  
+  real sina0, sina1
+  real xjac1, sqrtm
+  real d2
 
-
+  !-----------------------------------------------------------------------------
+  
   ! Set up proc distribution
   if (iProc < mod(nt,nProc))then
      nLonPar=(nt+nProc-1)/nProc
@@ -732,39 +737,46 @@ subroutine cimi_init
 
   ! CIMI output grids: energy, sinAo, delE1, dmu1
 
-!!$  Replacing old grids in CIMI with those of Mei-Ching's standalone CIMI.
-!!$  -Colin 07/23/2015.
-  
-!!$  energy_ion=(/1.0000,1.6795,2.8209,4.7378,7.9574,13.365, &
-!!$       22.447,37.701,63.320,106.35,178.62,300.00/)
-!!$  
-!!$  energy_ele=10.*(/1.0000,1.6795,2.8209,4.7378,7.9574,13.365, &
-!!$       22.447,37.701,63.320,106.35,178.62,300.00/)
-
-!  delE=0.5243*energy_ion
-
-!!$  sinAo=(/0.010021,0.030708,0.062026,0.086108,0.16073,0.27682, &
-!!$       0.430830,0.601490,0.753790,0.863790,0.94890,0.98827/)
-!!$  dmu=(/0.000207365,0.000868320,0.00167125,0.00489855,0.0165792,0.0404637, &
-!!$       0.078819500,0.121098000,0.14729600,0.16555900,0.1738560,0.2486830/)
-
+  ! Checks to set the energy grid to van allen probe MagEIS and REPT
+  ! energies
   if ( UseRBSPGrid ) then
 
-     energy_ele(1:neng) = energy_RBSP(1:neng)
-     energy_ion(1:neng) = energy_RBSP(1:neng)/10.
+     energy_ele( 1 : neng ) = energy_RBSP( 1 : neng )
+     energy_ion( 1 : neng ) = energy_RBSP( 1 : neng ) / 10.
      
   else
-     
-     energy_ion( 1 ) = MinIonEnergy
-     energy_ion( neng ) = MaxIonEnergy
-     aloga = LOG10( energy_ion( neng ) / energy_ion( 1 ) ) / ( neng - 1 )
-     eratio = 10. ** aloga
-     do k = 2, neng - 1
-        energy_ion( k ) = energy_ion( k - 1 ) * eratio
-     enddo
-     energy_ele( 1 : neng ) = 10. * energy_ion( 1 : neng )
 
-  endif
+     energy_ion( 1 ) = MinIonEnergy
+
+     ! Checks if the grid is to be logarithmic in Energy. (DEFAULT)
+     if ( UseLogEGrid ) then
+        
+        aloga = &
+             LOG10( MaxIonEnergy / MinIonEnergy ) / ( neng - 1 )
+        eratio = 10. ** aloga
+
+        do k = 2, neng
+           
+           energy_ion( k ) = energy_ion( k - 1 ) * eratio
+           
+        enddo
+        
+     else
+
+        delta_E = &
+             ( MaxIonEnergy - MinIonEnergy ) / ( neng - 1 )
+        
+        do k = 2, neng
+           
+           energy_ion( k ) = energy_ion( k - 1 ) + delta_E
+
+        enddo
+        
+     endif
+
+     energy_ele( 1 : neng ) = 10. * energy_ion( 1 : neng )
+     
+  endif ! end UseRBSPGrid if
   
   sinAo = &
        (/ 0.009417, 0.019070, 0.037105, 0.069562, 0.122536, 0.199229, &
