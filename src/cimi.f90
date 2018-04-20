@@ -1,7 +1,7 @@
 subroutine cimi_run(delta_t)
-  use ModConst,       ONLY: cLightSpeed, cElectronCharge
+  use ModConst,       	 ONLY: cLightSpeed, cElectronCharge
   use ModCimiInitialize, ONLY: xmm,xk,dphi,dmm,dk,dmu, xjac
-  use ModCimi,        ONLY: f2,dt, Time, phot, Ppar_IC, Pressure_IC, &
+  use ModCimi,        	 ONLY: f2,dt, Time, phot, Ppar_IC, Pressure_IC, &
                             PressurePar_IC, FAC_C, Bmin_C, &
                             OpDrift_, OpBfield_, OpChargeEx_, &
                             OpWaves_, OpStrongDiff_, OpLossCone_, &
@@ -15,37 +15,40 @@ subroutine cimi_run(delta_t)
                             eChangeLocal,eChangeGlobal,PrecipOutput,&
                             DtPreOut,PrecipCalc,DtPreCalc,&
                             vdr_q3,eng_q3,vexb,dif_q3,Part_phot              
-  use ModCimiPlanet,  ONLY: re_m, dipmom, Hiono, nspec, amu_I, &
-                            dFactor_I,tFactor_I
-  use ModCimiTrace,  ONLY: &
+  use ModCimiPlanet,  	 ONLY: &
+       re_m, dipmom, Hiono, nspec, amu_I, dFactor_I,tFactor_I
+  use ModCimiTrace,  	 ONLY: &
        fieldpara, brad=>ro, ftv=>volume, xo,yo,rb,irm,&
        ekev,iba,bo,pp,Have, sinA, vel, alscone, iw2,xmlto, bm
-  use ModGmCimi,      ONLY: Den_IC,UseGm
-  use ModIeCimi,      ONLY: UseWeimer, pot
-  use ModCimiPlot,    ONLY: Cimi_plot, Cimi_plot_fls, &
-       			    Cimi_plot_psd,Cimi_plot_vl,Cimi_plot_vp, &
-                            cimi_plot_log, cimi_plot_precip, Cimi_plot_Lstar,&
-                            DtOutput, DtLogOut,DoSavePlot, &
-                            Cimi_plot_boundary_check,&
-                            DoSaveFlux, DoSavePSD, DoSaveDrifts, DoSaveLog
-  use ModCimiRestart, ONLY: IsRestart
+  use ModGmCimi,      	 ONLY: Den_IC,UseGm
+  use ModIeCimi,      	 ONLY: UseWeimer, pot
+  use ModCimiPlot,    	 ONLY: &
+       Cimi_plot, Cimi_plot_fls, Cimi_plot_psd, Cimi_plot_vl, Cimi_plot_vp, &
+       cimi_plot_log, cimi_plot_precip, Cimi_plot_Lstar,&
+       Cimi_plot_boundary_check, &
+       DtOutput, DtLogOut, DoSavePlot, &
+       DoSaveFlux, DoSavePSD, DoSaveDrifts, DoSaveLog
+  use ModCimiRestart, 	 ONLY: IsRestart
   use ModImTime
-  use ModTimeConvert, ONLY: time_real_to_int
-  use ModImSat,       ONLY: nImSats, write_im_sat, DoWriteSats, DtSatOut
-  use ModCimiGrid,    ONLY: iProc,nProc,iComm,nLonPar,nLonPar_P,nLonBefore_P, &
-                            MinLonPar,MaxLonPar,nt,np,neng,npit,nm,nk,dlat,&
-                            phi,sinao,xlat,xmlt
-  use ModCimiBoundary,ONLY: cimi_set_boundary_mhd, cimi_set_boundary_empirical,&
-                            CIMIboundary,Outputboundary
+  use ModTimeConvert, 	 ONLY: time_real_to_int
+  use ModImSat,       	 ONLY: nImSats, write_im_sat, DoWriteSats, DtSatOut
+  use ModCimiGrid,    	 ONLY: &
+       iProc,nProc,iComm,nLonPar,nLonPar_P,nLonBefore_P, &
+       MinLonPar,MaxLonPar,nt,np,neng,npit,nm,nk,dlat,&
+       phi,sinao,xlat,xmlt
+  use ModCimiBoundary,	 ONLY: &
+       cimi_set_boundary_mhd, cimi_set_boundary_empirical, &
+       CIMIboundary, Outputboundary
   use ModMpi
-  use ModWaveDiff,    ONLY: UseWaveDiffusion, ReadDiffCoef, WavePower, & 
-                            diffuse_aa, diffuse_EE, diffuse_aE, DiffStartT, &
-                            testDiff_aa, testDiff_EE, testDiff_aE, &
-                            TimeAeIndex_I, AeIndex_I, interpolate_ae
-  use ModCoupleSami,  ONLY: DoCoupleSami
-  use DensityTemp,    ONLY: density, simple_plasmasphere
+  use ModWaveDiff,    	 ONLY: &
+       UseWaveDiffusion, ReadDiffCoef, WavePower, & 
+       diffuse_aa, diffuse_EE, diffuse_aE, DiffStartT, &
+       testDiff_aa, testDiff_EE, testDiff_aE, &
+       TimeAeIndex_I, AeIndex_I, interpolate_ae
+  use ModCoupleSami,  	 ONLY: DoCoupleSami
+  use DensityTemp,    	 ONLY: density, simple_plasmasphere
   use ModIndicesInterfaces
-  use ModLstar,       ONLY: calc_Lstar1,calc_Lstar2 
+  use ModLstar,       	 ONLY: calc_Lstar1, calc_Lstar2 
 
   implicit none
 
@@ -54,7 +57,7 @@ subroutine cimi_run(delta_t)
   integer,save :: ib0(nt)
   real delta_t
   real flux(nspec,np,nt,neng,npit),&
-       vlEa(nspec,np,nt,neng,npit),vpEa(nspec,np,nt,neng,npit)
+       vlEa(nspec,np,nt,neng,npit), vpEa(nspec,np,nt,neng,npit)
   real achar(nspec,np,nt,nm,nk)
   real :: vl(nspec,0:np,nt,nm,nk)=0.0, vp(nspec,np,nt,nm,nk)=0.0, &
        psd(nspec,np,nt,nm,nk), fb(nspec,nt,nm,nk), rc
@@ -772,12 +775,12 @@ subroutine cimi_init
 
         enddo
         
-     endif
+     endif ! end UseLogEGrid if statement
 
      energy_ele( 1 : neng ) = 10. * energy_ion( 1 : neng )
      
-  endif ! end UseRBSPGrid if
-  
+  endif ! end UseRBSPGrid if statement
+
   sinAo = &
        (/ 0.009417, 0.019070, 0.037105, 0.069562, 0.122536, 0.199229, &
           0.296114, 0.405087, 0.521204, 0.638785, 0.750495, 0.843570, &
@@ -799,7 +802,7 @@ subroutine cimi_init
 
 
 ! setup energies:
-  do n=1,nspec-1
+  do n = 1, nspec - 1
      energy( n, 1 : neng )  = energy_ion( 1 : neng )
      delE( n, 1 : neng )    = 0.5243 * energy_ion( 1 : neng )
   enddo
@@ -808,8 +811,8 @@ subroutine cimi_init
 
 ! From CIMI:
 ! Setup Ebound
-  do n=1, nspec
-     do k=1, neng - 1
+  do n = 1, nspec
+     do k = 1, neng - 1
          Ebound( n, k ) = SQRT( energy( n, k ) * energy( n, k + 1 ) )
      enddo
      Ebound( n, neng ) = energy( n, neng ) * energy( n, neng ) / &
@@ -818,16 +821,38 @@ subroutine cimi_init
 
   ! CIMI magnetic moment, xmm1
   ! This setup makes xmm(k+0.5)=sqrt(xmm(k)*xmm(k+1))
-  do n=1,nspec
-     xmm(n,1)=energy(n,1)*cElectronCharge/(dipmom/(2*re_m)**3.0)
-     rw=1.55 
-     rw1=(rw-1.)/sqrt(rw)
-     xmm(n,0)=xmm(n,1)/rw                      
-     do i=1,nm            ! This setup makes xmm(k+0.5)=sqrt(xmm(k)*xmm(k+1))
-        xmm(n,i)=xmm(n,i-1)*rw
-        dmm(n,i)=xmm(n,i)*rw1
+  do n = 1, nspec
+
+     ! Convert energy from keV to J to calculate mu in Joules / Tesla
+     ! The minimum of the mu grid should fit the lowest energy particles at
+     ! Earth's surface.
+     xmm( n, 01 ) = &
+          energy( n, 1 ) * 1000. * cElectronCharge / &
+          ( 2 * dipmom / ( 01. * re_m ) ** 3.0 )
+
+     ! The maximum of mu grid should fit the highest energy particles
+     ! at 100 R_E well beyond the extent of the simulation grid.
+     xmm( n, nm ) = &
+          energy( n, neng ) * 1000. * cElectronCharge / &
+          ( 2 * dipmom / ( 100. * re_m ) ** 3.0 )
+
+     rw = ( xmm( n, nm ) / xmm( n, 01 ) ) ** ( 1. / FLOAT( nm ) )
+
+     if ( iProc == 0 ) &
+
+     
+     rw1 = ( rw - 1. ) / SQRT( rw )
+     xmm( n, 0 ) = xmm( n, 1 ) / rw
+
+     do i = 1, nm            ! This setup makes xmm(k+0.5)=sqrt(xmm(k)*xmm(k+1))
+
+        xmm( n, i ) = xmm( n, i - 1 ) * rw
+        dmm( n, i ) = xmm( n, i ) * rw1
+        
      enddo
-     xmm(n,nm+1)=xmm(n,nm)*rw
+     
+     xmm( n, nm + 1 ) = xmm( n, nm ) * rw
+
   enddo
 
   ! OLD INITIALIZATION of CIMI magnetic moment, xmm1
@@ -843,7 +868,8 @@ subroutine cimi_init
 !!$     enddo
 !!$  enddo
 
-  ! CIMI K, xk
+  ! CIMI K grid, xk: Minimum value is 40 T^0.5 / m
+  ! (~89 degrees at L = 1 R_E or 97 degrees at L = 7.)
   rsi=1.47
   xk(1)=40.*rsi
   rs1=(rsi-1.)/sqrt(rsi) ! in following sutup: xk(i+0.5)=sqrt(xk(i)*xk(i+1))

@@ -6,8 +6,8 @@ EndModule ModDstOutput
 Module ModCimiTrace
   use ModCimi, ONLY: energy
   use ModCimiGrid,ONLY: ir=>np, ip=>nt, iw=>nm , ik=>nk, neng, &
-       UseExpandedGrid,MinLonPar,MaxLonPar,iProc,iComm,iProcMidnight,nProc,&
-       iLonMidnight,nLonPar,nLonPar_P,nLonBefore_P
+       MinLonPar,MaxLonPar,iProc,iComm,iProcMidnight,nProc,&
+       iLonMidnight,nLonPar,nLonPar_P,nLonBefore_P, rb
   use ModCimiPlanet,ONLY: nspec, amu_I
   implicit none
   real, allocatable :: &
@@ -17,7 +17,7 @@ Module ModCimiTrace
        tanA2(:,:,:), volume(:,:), bm(:,:,:), gamma(:,:,:,:),&
        xo(:,:), yo(:,:), tya(:,:,:), gridoc(:,:)
 
-  real	  :: parmod(10), rb = 10.0
+  real	  :: parmod(10)
 
   integer :: irm(ip),irm0(ip),iba(ip)
 
@@ -57,15 +57,13 @@ contains
   ! given magnetic field configuration.
   ! Output: iba,irm,iw2,vel,ekev,pp,sinA,Have,alscone             
   !***********************************************************************
-  subroutine fieldpara(t,dt,c,q,rc,re,xlati,xmlt,phi,si,&
-       xme)
-    !use ModTsyInput, ONLY: imod
-    use ModCimiPlanet,   ONLY: nspec
-    use ModNumConst,       ONLY: pi => cPi, cDegToRad
-    use ModCimiInitialize, ONLY: xmm
+  subroutine fieldpara(t,dt,c,q,rc,re,xlati,xmlt,phi,si,xme)
+    use ModCimiPlanet,		ONLY: nspec
+    use ModNumConst,		ONLY: pi => cPi, cDegToRad
+    use ModCimiInitialize,	ONLY: xmm
     use ModMpi
-    use ModImTime,         ONLY: iCurrentTime_I
-    use ModDstOutput,      ONLY: DstOutput
+    use ModImTime,		ONLY: iCurrentTime_I
+    use ModDstOutput,		ONLY: DstOutput
 
     ! uncomment when T04 Tracing fixed
     common/geopack/aa(10),sps,cps,bb(3),ps,cc(11),kk(2),dd(8)
@@ -112,17 +110,12 @@ contains
        b_I(iTaylor)=b_I(iTaylor-1)*(2.*iTaylor-1.)/(2.*iTaylor)
     enddo
 
-    if ( UseExpandedGrid ) rb = 15.0
-
     iopt=1               ! dummy parameter in t96_01 and t04_s 
     rlim=2.*rb
     xmltlim=2.           ! limit of field line warping in hour
     dre=0.06             ! r interval below the surface of the Earth
     n5=16                ! no. of point below the surface of the Earth
     DeltaRMax = 2.0
-!    DeltaRMax = 1.0 NB - test
-    !DeltaRMax = 0.5
-    !DeltaRMax = 0.75
 
     ! Sets the non-Monotonicity length threshold (in R_E)
     NonMonoLengthThresh = 1. 
@@ -142,7 +135,8 @@ contains
           cps=cos(ps)
           sps=sin(ps)
        else
-          call recalc(iCurrentTime_I(1),iday1,iCurrentTime_I(4),iCurrentTime_I(5),iCurrentTime_I(6))
+          call recalc(iCurrentTime_I(1),iday1,iCurrentTime_I(4),&
+               iCurrentTime_I(5),iCurrentTime_I(6))
        endif
     endif
 
@@ -161,7 +155,7 @@ contains
                imod,np,npf1,dssa,bba,volume1,ro1,xmlt1,bo1,ra)
           if (imod.eq.3) call Mhd_trace_IM(xlati1,phi(j),re,i,j,np, &
                npf1,dssa,bba,volume1,ro1,xmlt1,bo1,ra)
-          if (i==iLatTest .and. j==iLonTest) then
+          if ( i == iLatTest .and. j == iLonTest ) then
              write(*,*) "Time: ",t
              write(*,*) "npf1,xlati1*180.0/3.14,xmlt1,ro1"
              write(*,*) npf1,xlati1*180.0/3.14,xmlt1,ro1

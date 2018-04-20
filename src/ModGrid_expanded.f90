@@ -50,7 +50,8 @@ Module ModCimiGrid
 
   real :: d4Element_C(nspec,np,nm,nk) !4D element (dlat*dphi*dmm*dk)
   
-  logical, parameter :: UseExpandedGrid =.true.
+  ! Defines the outer boundary maximum distance.
+  real	  :: rb = 15.0
 
   ! Define MPI parameters affecting grid
   integer :: iProc, nProc, iComm, nLonPar, MinLonPar, MaxLonPar

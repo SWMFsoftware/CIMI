@@ -7,7 +7,7 @@ subroutine CIMI_set_parameters(NameAction)
   use ModCimiPlot,       ONLY: DtOutput, DoSavePlot, DoSaveFlux, DoSaveDrifts,&
        DoSaveLog, UseSeparatePlotFiles, DtLogOut, DoSavePSD
   use ModCimiTrace,     ONLY: UseEllipse, UseSmooth, UseCorotation, &
-       UsePotential, SmoothWindow, imod, iLatTest, iLonTest, rb
+       UsePotential, SmoothWindow, imod, iLatTest, iLonTest
   use ModCimi,           ONLY: UseMcLimiter, BetaLimiter, time, Pmin,&
        IsStandAlone, UseStrongDiff, UseDecay, DecayTimescale,&
        dt, dtmax,PrecipOutput,DtPreOut,PrecipCalc,DtPreCalc
@@ -284,7 +284,6 @@ subroutine CIMI_set_parameters(NameAction)
         
      case('#SETRB')
         call read_var('rb [R_E]', rb)
- 
 
      case('#BOUNDARYCHECK')
         call read_var('CIMIboundary',CIMIboundary)

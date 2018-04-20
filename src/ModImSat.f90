@@ -51,7 +51,7 @@ contains
     integer             :: iSpecies
     character(len=2)    :: NameSpecies
     character(len=20)   :: NameChannel
-    character(len=3)    :: numChannels
+    character(len=4)    :: numChannels
     !-------------------------------------------------------------------------
     ! Allocate array for satellite flux
 
@@ -228,7 +228,7 @@ contains
             SatLoc_3I(1:3,1,iSatIn)
        write(UnitTmp_,'(2es13.5)',ADVANCE='NO') &
             SQRT( EqB2 )*1.e9, SQRT( SatB2 ) * 1.e9
-       write(numChannels,'(I3)') nEnergy*nAngle
+       write(numChannels,'(I4)') nEnergy*nAngle
        write(UnitTmp_,'('//numChannels//'es13.5)') &
             SatFlux_3I(iSpecies,:,:)!SatVar_I
        
