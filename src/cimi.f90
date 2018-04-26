@@ -640,7 +640,7 @@ subroutine cimi_init
   !         common block cinitialization
 
   use ModPlanetConst, ONLY: Earth_,DipoleStrengthPlanet_I,rPlanet_I
-  use ModConst,       ONLY: cElectronCharge
+  use ModConst,       ONLY: cElectronCharge, cLightSpeed, cProtonMass
   use ModNumConst,    ONLY: cDegToRad,cRadToDeg,cPi
   use ModCimiPlanet,  ONLY: re_m, dipmom, Hiono, amu_I, nspec
   use ModCimiInitialize
@@ -656,7 +656,8 @@ subroutine cimi_init
   integer i, n, k, m, iPe, iError
 
   ! Variables for specifying the Energy Grid
-  real aloga, eratio, delta_E, energy_ion( 1 : neng ), energy_ele( 1 : neng )
+  real aloga, eratio, delta_E, E0, &
+       energy_ion( 1 : neng ), energy_ele( 1 : neng )
   
   ! Variables determining the spacing of the mu and K grids
   real rw, rw1, rsi, rs1
@@ -819,32 +820,43 @@ subroutine cimi_init
           Ebound( n, neng - 1 )
   enddo
 
-  ! CIMI magnetic moment, xmm1
-  ! This setup makes xmm(k+0.5)=sqrt(xmm(k)*xmm(k+1))
+  ! Initialization of the CIMI xmm (mu) grid.  Accounts for
+  ! relativistic effects in the calculation of mu for all species
+  ! (even for ring current ions which are non-relativistic.) Sets the
+  ! scaling factor rw such that the lowest energy particles have mu at
+  ! the planetary surface in a dipolar magnetic; the maximum mu value
+  ! has the most energetic particles fit at well beyond the simulation
+  ! boundary.
   do n = 1, nspec
 
-     ! Convert energy from keV to J to calculate mu in Joules / Tesla
-     ! The minimum of the mu grid should fit the lowest energy particles at
-     ! Earth's surface.
+     ! Calculates the rest mass energy [ keV ] of the particle
+     ! species.
+     E0 = amu_I( n ) * cProtonMass * cLightSpeed ** 2. / &
+          cElectronCharge / 1000.
+
+     ! Convert energy from keV to J to calculate mu in [ J / Tesla ]
+     ! The minimum of the mu grid should fit the lowest energy
+     ! particles at the Earth's surface.
      xmm( n, 01 ) = &
-          energy( n, 1 ) * 1000. * cElectronCharge / &
-          ( 2 * dipmom / ( 01. * re_m ) ** 3.0 )
+          energy( n, 1 ) * 1000. * cElectronCharge * &
+          ( energy( n, 1 ) + 2. * E0 ) / E0 / &
+          ( 2 * dipmom / ( 01.0 * re_m ) ** 3.0 )
 
      ! The maximum of mu grid should fit the highest energy particles
-     ! at 100 R_E well beyond the extent of the simulation grid.
+     ! at 45 R_E well beyond the extent of the simulation grid.
      xmm( n, nm ) = &
-          energy( n, neng ) * 1000. * cElectronCharge / &
-          ( 2 * dipmom / ( 100. * re_m ) ** 3.0 )
+          energy( n, neng ) * 1000. * cElectronCharge * &
+          ( energy( n, neng ) + 2. * E0 ) / E0 / &
+          ( 2 * dipmom / ( 45.0 * re_m ) ** 3.0 )
 
      rw = ( xmm( n, nm ) / xmm( n, 01 ) ) ** ( 1. / FLOAT( nm ) )
 
-     if ( iProc == 0 ) &
-
-     
      rw1 = ( rw - 1. ) / SQRT( rw )
      xmm( n, 0 ) = xmm( n, 1 ) / rw
 
-     do i = 1, nm            ! This setup makes xmm(k+0.5)=sqrt(xmm(k)*xmm(k+1))
+     ! This setup makes:
+     ! 		xmm( k + 0.5 ) = SQRT( xmm( k ) * xmm( k + 1 ) )
+     do i = 1, nm
 
         xmm( n, i ) = xmm( n, i - 1 ) * rw
         dmm( n, i ) = xmm( n, i ) * rw1
@@ -853,11 +865,38 @@ subroutine cimi_init
      
      xmm( n, nm + 1 ) = xmm( n, nm ) * rw
 
+     if ( iProc == 0 ) then
+        write(*,*) "n: ", n
+        write(*,*) "E0: ", E0
+        write(*,*) "xmm( n, : ): ", xmm( n, : )
+     endif
+     
   enddo
 
-  ! OLD INITIALIZATION of CIMI magnetic moment, xmm1
+  !-----------------------------------------------------------------------------
+
+  ! OLDER Initialization of CIMI magnetic moment, xmm1 (pre-April 2018)
+  ! This setup makes xmm(k+0.5)=sqrt(xmm(k)*xmm(k+1))
+
+!!$  do n=1,nspec
+!!$     xmm(n,1)=energy(n,1)*cElectronCharge/(dipmom/(2*re_m)**3.0)
+!!$     rw=1.55 
+!!$     rw1=(rw-1.)/sqrt(rw)
+!!$     xmm(n,0)=xmm(n,1)/rw                      
+!!$     do i=1,nm            ! This setup makes xmm(k+0.5)=sqrt(xmm(k)*xmm(k+1))
+!!$        xmm(n,i)=xmm(n,i-1)*rw
+!!$        dmm(n,i)=xmm(n,i)*rw1
+!!$     enddo
+!!$     xmm(n,nm+1)=xmm(n,nm)*rw
+!!$  enddo
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  
+  ! OLDEST INITIALIZATION of CIMI magnetic moment, xmm1 (pre-2016)
   ! This setup has been saved and commented out here for comparison
   ! with older simulations
+
 !!$  do n=1,nspec
 !!$     xmm(n,1)=energy(n,1)*cElectronCharge/(dipmom/(2*re_m)**3.0)
 !!$     dmm(n,1)=xmm(n,1)*2.              
@@ -868,18 +907,25 @@ subroutine cimi_init
 !!$     enddo
 !!$  enddo
 
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+
   ! CIMI K grid, xk: Minimum value is 40 T^0.5 / m
-  ! (~89 degrees at L = 1 R_E or 97 degrees at L = 7.)
-  rsi=1.47
-  xk(1)=40.*rsi
-  rs1=(rsi-1.)/sqrt(rsi) ! in following sutup: xk(i+0.5)=sqrt(xk(i)*xk(i+1))
-  do i=1,nk
-     if (i.gt.1) xk(i)=xk(i-1)*rsi
-     dk(i)=xk(i)*rs1                 
+  ! (~89 degrees at L = 1 R_E or ~87 degrees at L = 7.)
+
+  rsi = 1.47
+  xk( 0 ) = 40.
+  rs1 = ( rsi - 1. ) / SQRT( rsi )
+
+  ! In the following sutup:
+  ! 		xk( i + 0.5 ) = SQRT( xk( i ) * xk( i + 1 ) )
+  do i = 1, nk
+     if ( i .gt. 1 ) &
+          xk( i ) = xk( i - 1 ) * rsi
+     dk( i ) = xk( i ) * rs1
   enddo
   
-  xk(0)=40.
-  xk(nk+1)=xk(nk)*rsi
+  xk( nk + 1 ) = xk( nk ) * rsi
 
   ! Calculate Jacobian, xjac
   do n=1,nspec 
