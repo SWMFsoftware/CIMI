@@ -1,41 +1,37 @@
 subroutine cimi_run(delta_t)
-  use ModConst,       	 ONLY: cLightSpeed, cElectronCharge
-  use ModCimiInitialize, ONLY: xmm,xk,dphi,dmm,dk,dmu, xjac
-  use ModCimi,        	 ONLY: f2,dt, Time, phot, Ppar_IC, Pressure_IC, &
-                            PressurePar_IC, FAC_C, Bmin_C, &
-                            OpDrift_, OpBfield_, OpChargeEx_, &
-                            OpWaves_, OpStrongDiff_, OpLossCone_, &
-                            OpDecay_, UseDecay, &
-                            rbsumLocal, rbsumGlobal, &
-                            rcsumLocal, rcsumGlobal, &
-                            driftin, driftout, IsStandAlone, &
-                            energy, Ebound, delE, &
-                            preP,preF,Eje1,UseStrongDiff, &
-                            eChangeOperator_VICI,nOperator, &
-                            eChangeLocal,eChangeGlobal,PrecipOutput,&
-                            DtPreOut,PrecipCalc,DtPreCalc,&
-                            vdr_q3,eng_q3,vexb,dif_q3,Part_phot              
+  use ModConst,       	 ONLY: 	cLightSpeed, cElectronCharge
+  use ModCimiInitialize, ONLY: 	xmm, xk, dphi, dmm, dk, dmu, xjac
+  use ModCimi,        	 ONLY: &
+       f2, dt, Time, phot, Ppar_IC, Pressure_IC, &
+       PressurePar_IC, FAC_C, Bmin_C, &
+       OpDrift_, OpBfield_, OpChargeEx_, &
+       OpWaves_, OpStrongDiff_, OpLossCone_, &
+       OpDecay_, UseDecay, &
+       rbsumLocal, rbsumGlobal, &
+       rcsumLocal, rcsumGlobal, &
+       driftin, driftout, IsStandAlone, &
+       energy, Ebound, delE, &
+       preP,preF,Eje1,UseStrongDiff, &
+       eChangeOperator_VICI,nOperator, &
+       eChangeLocal,eChangeGlobal,PrecipOutput,&
+       DtPreOut,PrecipCalc,DtPreCalc,&
+       vdr_q3,eng_q3,vexb,dif_q3,Part_phot              
   use ModCimiPlanet,  	 ONLY: &
-       re_m, dipmom, Hiono, nspec, amu_I, dFactor_I,tFactor_I
+       re_m, dipmom, Hiono, nspec, amu_I, dFactor_I, tFactor_I
   use ModCimiTrace,  	 ONLY: &
-       fieldpara, brad=>ro, ftv=>volume, xo,yo,rb,irm,&
-       ekev,iba,bo,pp,Have, sinA, vel, alscone, iw2,xmlto, bm
-  use ModGmCimi,      	 ONLY: Den_IC,UseGm
+       fieldpara, brad => ro, ftv => volume, xo, yo, rb, irm,&
+       ekev, iba, bo, pp, Have, sinA, vel, alscone, iw2, xmlto, bm
+  use ModGmCimi,      	 ONLY: Den_IC, UseGm
   use ModIeCimi,      	 ONLY: UseWeimer, pot
-  use ModCimiPlot,    	 ONLY: &
-       Cimi_plot, Cimi_plot_fls, Cimi_plot_psd, Cimi_plot_vl, Cimi_plot_vp, &
-       cimi_plot_log, cimi_plot_precip, Cimi_plot_Lstar,&
-       Cimi_plot_boundary_check, &
-       DtOutput, DtLogOut, DoSavePlot, &
-       DoSaveFlux, DoSavePSD, DoSaveDrifts, DoSaveLog
+  use ModCimiPlot
   use ModCimiRestart, 	 ONLY: IsRestart
   use ModImTime
   use ModTimeConvert, 	 ONLY: time_real_to_int
   use ModImSat,       	 ONLY: nImSats, write_im_sat, DoWriteSats, DtSatOut
   use ModCimiGrid,    	 ONLY: &
-       iProc,nProc,iComm,nLonPar,nLonPar_P,nLonBefore_P, &
-       MinLonPar,MaxLonPar,nt,np,neng,npit,nm,nk,dlat,&
-       phi,sinao,xlat,xmlt
+       iProc, nProc, iComm, nLonPar, nLonPar_P, nLonBefore_P, &
+       MinLonPar, MaxLonPar, nt, np, neng, npit, nm, nk, dlat, &
+       phi, sinao, xlat, xmlt
   use ModCimiBoundary,	 ONLY: &
        cimi_set_boundary_mhd, cimi_set_boundary_empirical, &
        CIMIboundary, Outputboundary
@@ -59,7 +55,7 @@ subroutine cimi_run(delta_t)
   real flux(nspec,np,nt,neng,npit),&
        vlEa(nspec,np,nt,neng,npit), vpEa(nspec,np,nt,neng,npit)
   real achar(nspec,np,nt,nm,nk)
-  real :: vl(nspec,0:np,nt,nm,nk)=0.0, vp(nspec,np,nt,nm,nk)=0.0, &
+  real :: vl(nspec,0:np,nt,nm,nk)=0.0, vp(nspec,0:np,nt,nm,nk)=0.0, &
        psd(nspec,np,nt,nm,nk), fb(nspec,nt,nm,nk), rc
   integer iLat, iLon, iSpecies, iSat, iOperator
   logical, save :: IsFirstCall =.true.
@@ -164,12 +160,13 @@ subroutine cimi_run(delta_t)
   endif
   
   ! save the initial point (needs to be fixed and so not called)
-  if (Time == 0.0 .and. nProc == 0 .and. DoSavePlot) then
+  if ( Time == 0.0 .and. nProc == 0 .and. DoSavePlot ) then
      call timing_start('cimi_output')
-     call cimi_output(np,nt,nm,nk,nspec,neng,npit,iba,ftv,f2,ekev, &
-          sinA,energy,sinAo,delE,dmu,amu_I,xjac,pp,xmm,dmm,dk,xlat,dphi, &
-          re_m,Hiono,vp,vL,flux,FAC_C,phot,Ppar_IC,Pressure_IC,PressurePar_IC, &
-          vlEa,vpEa,psd)
+     call cimi_output( &
+          np, nt, nm, nk, nspec, neng, npit, iba, ftv, f2, ekev, &
+          sinA, energy, sinAo, delE, dmu, amu_I, xjac, pp, xmm, dmm, &
+          dk, xlat, dphi, re_m, Hiono, vl, vp, flux, FAC_C, phot, &
+          Ppar_IC, Pressure_IC, PressurePar_IC, vlEa, vpEa, psd )
      call timing_stop('cimi_output')
      
      call timing_start('calc_Lstar1')
@@ -181,22 +178,31 @@ subroutine cimi_run(delta_t)
      call timing_stop('calc_Lstar2')
 
      call timing_start('cimi_plot')
-     call Cimi_plot(np,nt,xo,yo,Pressure_IC,PressurePar_IC,phot,Ppar_IC,Den_IC,&
-          bo,ftv,pot,FAC_C,Time,dt,Lstar_C)
+     call Cimi_plot( np, nt, xo, yo, &
+          Pressure_IC, PressurePar_IC, phot, Ppar_IC, Den_IC,&
+          bo, ftv, pot, FAC_C, Time, dt, Lstar_C )
      call timing_stop('cimi_plot')
 
      call timing_start('cimi_plot_log')
      call cimi_plot_log(Time)
      call timing_stop('cimi_plot_log')
 
-     if (DoSaveFlux) call Cimi_plot_fls(rc,flux,time,Lstar_C,Lstar_max)
-     if (DoSavePSD) call Cimi_plot_psd(rc,psd,xmm,xk,time)
-     if (DoSaveFlux .or. DoSavePSD) &
+     if ( DoSaveLstar ) &
           call Cimi_plot_Lstar(rc,xk,time,Lstarm,Lstar_maxm)
-     if (DoSaveDrifts) then
-        call Cimi_plot_vl(rc,vlEa,time)
-        call Cimi_plot_vp(rc,vpEa,time)
-     endif
+
+     do iSpecies = 1, nspec
+
+        if ( DoSaveFlux( iSpecies ) ) &
+             call Cimi_plot_fls( rc, flux( iSpecies, :, :, :, : ), iSpecies, time, Lstar_C, Lstar_max )
+        if ( DoSavePSD( iSpecies ) ) &
+             call Cimi_plot_psd( rc, psd( iSpecies, :, :, :, : ), iSpecies, time, xmm, xk )
+        if ( DoSaveVLDrift( iSpecies ) ) &
+           call Cimi_plot_vl( rc, vlEa( iSpecies, :, :, :, : ), iSpecies, time)
+        if ( DoSaveVPDrift( iSpecies ) ) &
+           call Cimi_plot_vp( rc, vpEa( iSpecies, :, :, :, : ), iSpecies, time)
+        
+     enddo
+
   endif
   
 
@@ -306,12 +312,13 @@ subroutine cimi_run(delta_t)
   endif
 
   call timing_start('cimi_output')
-  call cimi_output(np,nt,nm,nk,nspec,neng,npit,iba,ftv,f2,ekev, &
-       sinA,energy,sinAo,delE,dmu,amu_I,xjac,pp,xmm,dmm,dk,xlat,dphi, &
-       re_m,Hiono,vl,vp,flux,FAC_C,phot,Ppar_IC,Pressure_IC,PressurePar_IC,&
-       vlEa,vpEa,psd)
+  call cimi_output( &
+       np, nt, nm, nk, nspec, neng, npit, iba, ftv, f2, ekev, &
+       sinA, energy, sinAo, delE, dmu, amu_I, xjac, pp, xmm, dmm, &
+       dk, xlat, dphi, re_m, Hiono, vl, vp, flux, FAC_C, phot, &
+       Ppar_IC, Pressure_IC, PressurePar_IC, vlEa, vpEa, psd )
   call timing_stop('cimi_output')
-  
+
   ! When nProc >1 consolodate: phot, Ppar_IC, Pressure_IC,
   ! PressurePar_IC, fac and iba on iProc 0
   if (nProc>1) then    
@@ -558,7 +565,7 @@ subroutine cimi_run(delta_t)
                   MPI_REAL, 0, iComm, iError)
          if (iProc==0) dif_q3(iSpecies,:,:)=BufferRecv_C(:,:)
       enddo
-     endif
+   endif
 
   !Gather to root
   !    iSendCount = np*nLonPar
@@ -567,67 +574,93 @@ subroutine cimi_run(delta_t)
   !    call MPI_GATHERV(ftv(:,MinLonPar:MaxLonPar), iSendCount, MPI_REAL, &
   !         ftv, iRecieveCount_P, iDisplacement_P, MPI_REAL, &
   !            0, iComm, iError)
-  if (iProc == 0) then
-     ! do main plotting
-     if (DoSavePlot.and.&
-          (floor((Time+1.0e-5)/DtOutput))/=&
-          floor((Time+1.0e-5-delta_t)/DtOutput)) then
-        call timing_start('calc_Lstar1')
-        call calc_Lstar1(Lstar_C,Lstar_max,rc)
-        call timing_stop('calc_Lstar1')
-        
-        call timing_start('calc_Lstar2')
-        call calc_Lstar2(Lstarm,Lstar_maxm,rc)
-        call timing_stop('calc_Lstar2')
 
-        call timing_start('cimi_plot')
-        call Cimi_plot(np,nt,xo,yo,Pressure_IC,PressurePar_IC,phot,&
-             Ppar_IC,Den_IC,bo,ftv,pot,FAC_C,Time,dt,Lstar_C)
-        call timing_stop('cimi_plot')
+   if (iProc == 0) then
 
-        if (DoSaveFlux) call Cimi_plot_fls(rc,flux,time,Lstar_C,Lstar_max)
-        if (DoSavePSD) call Cimi_plot_psd(rc,psd,xmm,xk,time)
-        if (DoSaveFlux .or. DoSavePSD) &
-             call Cimi_plot_Lstar(rc,xk,time,Lstarm,Lstar_maxm)
-        if (DoSaveDrifts) then
-           call Cimi_plot_vl(rc,vlEa,time)
-           call Cimi_plot_vp(rc,vpEa,time)
-        endif
-        if (OutputBoundary) call Cimi_plot_boundary_check(time)
-     endif
-  
-     ! Write Sat Output
-     if(DoWriteSats .and. DoSavePlot .and. &
-          (floor((Time+1.0e-5)/DtSatOut))/=&
-          floor((Time+1.0e-5-delta_t)/DtSatOut))then
-        do iSat=1,nImSats
-           call timing_start('cimi_write_im_sat')
-           call write_im_sat(iSat,np,nt,neng,npit,flux)
-           call timing_stop('cimi_write_im_sat')
-        enddo
-     endif
+      call timing_start('calc_Lstar1')
+      call calc_Lstar1(Lstar_C,Lstar_max,rc)
+      call timing_stop('calc_Lstar1')
+      
+      call timing_start('calc_Lstar2')
+      call calc_Lstar2(Lstarm,Lstar_maxm,rc)
+      call timing_stop('calc_Lstar2')
 
-     ! Write Logfile
-     if(DoSaveLog .and. &
-          (floor((Time+1.0e-5)/DtLogOut))/=&
-          floor((Time+1.0e-5-delta_t)/DtLogOut))then
-        call timing_start('cimi_plot_log')
-        call cimi_plot_log(Time)
-        call timing_stop('cimi_plot_log')
-     endif
+      ! Plot CIMI parameters at the ionosphere and equator.
+      if ( ( DoSaveEq .or. DoSaveIono ) .and. &
+           ( floor( ( Time + 1.0e-5 ) / DtOutput ) /= &
+           	floor( ( Time + 1.0e-5 - delta_t ) / DtOutput ) ) ) then
+         
+         call timing_start('cimi_plot')
+         call Cimi_plot( np, nt, xo, yo, &
+              Pressure_IC, PressurePar_IC, phot, Ppar_IC, &
+              Den_IC, bo, ftv, pot, FAC_C, Time, dt, Lstar_C )
+         call timing_stop('cimi_plot')
+         
+      endif
+     
+      if ( DoSaveLstar .and. &
+           ( floor( ( Time + 1.0e-5 ) / DtLstarOutput ) /= &
+             floor( ( Time + 1.0e-5 - delta_t ) / DtLstarOutput ) ) ) &
+           call Cimi_plot_Lstar( rc, xk, time, Lstarm, Lstar_maxm )
 
-     ! Write precipitation file
-     if (PrecipOutput .and. &
-       (floor((Time+1.0e-5)/DtPreOut))/=&
-          floor((Time+1.0e-5-delta_t)/DtPreOut))then
+      do iSpecies = 1, nspec
+
+         if ( DoSaveFlux( iSpecies ) .and. &
+              ( floor( ( Time + 1.0e-5 ) / DtFluxOutput( iSpecies ) ) /= &
+              	floor( ( Time + 1.0e-5 - delta_t ) / DtFluxOutput( iSpecies ) ) ) ) &
+              call Cimi_plot_fls( rc, flux( iSpecies, :, :, :, : ), iSpecies, time, Lstar_C, Lstar_max)
+         
+         if ( DoSavePSD( iSpecies ) .and. &
+              ( floor( ( Time + 1.0e-5 ) / DtPSDOutput( iSpecies ) ) /= &
+              	floor( ( Time + 1.0e-5 - delta_t ) / DtPSDOutput( iSpecies ) ) ) ) &
+              call Cimi_plot_psd( rc, psd( iSpecies, :, :, :, : ), iSpecies, time, xmm, xk )
+         
+         if ( DoSaveVLDrift( iSpecies ) .and. &
+              ( floor( ( Time + 1.0e-5 ) / DtVLDriftOutput( iSpecies ) ) /= &
+              	floor( ( Time + 1.0e-5 - delta_t ) / DtVLDriftOutput( iSpecies ) ) ) ) &
+              call Cimi_plot_vl( rc, vlEa( iSpecies, :, :, :, : ), iSpecies, time )
+         
+         if ( DoSaveVPDrift( iSpecies ) .and. &
+              ( floor( ( Time + 1.0e-5 ) / DtVPDriftOutput( iSpecies ) ) /= &
+              	floor( ( Time + 1.0e-5 - delta_t ) / DtVPDriftOutput( iSpecies ) ) ) ) &
+              call Cimi_plot_vp( rc, vpEa( iSpecies, :, :, :, : ), iSpecies, time )
+         
+      enddo
+      
+      if ( OutputBoundary ) call Cimi_plot_boundary_check( time )
+     
+      ! Write Sat Output
+      if( DoWriteSats .and. DoSavePlot .and. &
+           ( floor( ( Time + 1.0e-5 ) / DtSatOut ) ) /= &
+             floor( ( Time + 1.0e-5 - delta_t ) / DtSatOut ) ) then
+         do iSat=1, nImSats
+            call timing_start('cimi_write_im_sat')
+            call write_im_sat( iSat, np, nt, neng, npit, flux )
+            call timing_stop('cimi_write_im_sat')
+         enddo
+      endif
+
+      ! Write Logfile
+      if( DoSaveLog .and. &
+           ( floor( ( Time + 1.0e-5 ) / DtLogOut ) ) /= &
+             floor( ( Time + 1.0e-5 - delta_t ) / DtLogOut ) ) then
+         call timing_start('cimi_plot_log')
+         call cimi_plot_log( Time )
+         call timing_stop('cimi_plot_log')
+      endif
+      
+      ! Write precipitation file
+      if (PrecipOutput .and. &
+           (floor((Time+1.0e-5)/DtPreOut))/=&
+           floor((Time+1.0e-5-delta_t)/DtPreOut))then
          call timing_start('cimi_plot_precip')
          call cimi_plot_precip(rc,Time)
          call timing_stop('cimi_plot_precip')
-    endif
+      endif
 
-  endif
+   endif
 
-end subroutine Cimi_run
+ end subroutine Cimi_run
 
 !-----------------------------------------------------------------------------
 subroutine cimi_init
@@ -865,12 +898,6 @@ subroutine cimi_init
      
      xmm( n, nm + 1 ) = xmm( n, nm ) * rw
 
-     if ( iProc == 0 ) then
-        write(*,*) "n: ", n
-        write(*,*) "E0: ", E0
-        write(*,*) "xmm( n, : ): ", xmm( n, : )
-     endif
-     
   enddo
 
   !-----------------------------------------------------------------------------
@@ -920,8 +947,7 @@ subroutine cimi_init
   ! In the following sutup:
   ! 		xk( i + 0.5 ) = SQRT( xk( i ) * xk( i + 1 ) )
   do i = 1, nk
-     if ( i .gt. 1 ) &
-          xk( i ) = xk( i - 1 ) * rsi
+     xk( i ) = xk( i - 1 ) * rsi
      dk( i ) = xk( i ) * rs1
   enddo
   
@@ -1426,7 +1452,7 @@ subroutine driftV(nspec,np,nt,nm,nk,irm,re_m,Hiono,dipmom,dphi,xlat, &
   integer nspec,np,nt,nm,nk,irm(nt),n,i,ii,j,k,m,i0,i2,j0,j2,icharge
   real kfactor,xlat(np),xlatr(np),dlat(np),ekev(nspec,np,nt,nm,nk),pot(np,nt)
   real ksai,ksai1,xlat1,sf0,sf2,dlat2,re_m,Hiono,dipmom,dphi,pi,dphi2,cor
-  real ham(np,nt),vl(nspec,0:np,nt,nm,nk),vp(nspec,np,nt,nm,nk)
+  real ham(np,nt), vl(nspec,0:np,nt,nm,nk), vp(nspec,0:np,nt,nm,nk)
 
   ! MPI status variable
   integer :: iStatus_I(MPI_STATUS_SIZE), iError
@@ -1542,7 +1568,7 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
   integer n,i,j,k,m,j1,j_1,ibaj,ib,ibo,nrun,nn
   integer iw2(nspec,nk)
   real dt,dlat(np),dphi,brad(np,nt),&
-       vl(nspec,0:np,nt,nm,nk),vp(nspec,np,nt,nm,nk)
+       vl(nspec,0:np,nt,nm,nk),vp(nspec,0:np,nt,nm,nk)
   real rb,fb(nspec,nt,nm,nk),f2(nspec,np,nt,nm,nk)
   real f2d(np,nt),cmax,cl1,cp1,cmx,dt1,fb0(nt),fb1(nt),fo_log,fb_log,f_log
   real slope,cl(np,nt),cp(np,nt),fal(0:np,nt),fap(np,nt),&
@@ -2118,16 +2144,17 @@ end subroutine sume_cimi
 
 !==============================================================================
 
-subroutine cimi_output(np,nt,nm,nk,nspec,neng,npit,iba,ftv,f2,ekev, &
-     sinA,energy,sinAo,delE,dmu,amu_I,xjac,pp,xmm, &
-     dmm,dk,xlat,dphi,re_m,Hiono,vl,vp, &
-     flux,fac,phot,Ppar_IC,Pressure_IC,PressurePar_IC,vlEa,vpEa,psd)
+subroutine cimi_output( &
+     np, nt, nm, nk, nspec, neng, npit, iba, ftv, f2, ekev, &
+     sinA, energy, sinAo, delE, dmu, amu_I, xjac, pp, xmm, dmm, &
+     dk, xlat, dphi, re_m, Hiono, vl, vp, flux, fac, phot, &
+     Ppar_IC, Pressure_IC, PressurePar_IC, vlEa, vpEa, psd )
   !----------------------------------------------------------------------------
   ! Routine calculates CIMI output, flux, fac and phot from f2
   ! Routine also converts the particle drifts from (m,K) space to (E,a) space
   !
   ! Input: np,nt,nm,nk,nspec,neng,npit,iba,ftv,f2,ekev,sinA,energy,sinAo,xjac
-  !        delE,dmu,amu_I,xjac,pp,xmm,dmm,dk,xlat,dphi,re_m,Hiono,vl,vp
+  !        delE,dmu,amu_I,pp,xmm,dmm,dk,xlat,dphi,re_m,Hiono,vl,vp
   ! Output: flux,fac,phot,Ppar_IC,Den_IC,Temp_IC,vlEa,vpEa,psd
   Use ModGmCimi, ONLY: Den_IC, Temp_IC
   use ModConst,   ONLY: cProtonMass
@@ -2142,24 +2169,32 @@ subroutine cimi_output(np,nt,nm,nk,nspec,neng,npit,iba,ftv,f2,ekev, &
 
   implicit none
 
-  integer np,nt,nm,nk,nspec,neng,npit,iba(nt),i,j,k,m,n,j1,j_1
-  real f2(nspec,np,nt,nm,nk),ekev(nspec,np,nt,nm,nk),sinA(np,nt,nk),re_m,Hiono,rion,vl(nspec,0:np,nt,nm,nk),vp(nspec,np,nt,nm,nk)
-  real ftv(np,nt),ftv1,energy(nspec,neng),sinAo(npit),delE(nspec,neng),dmu(npit),aloge(nspec,neng)
-  real flux2D(nm,nk),pp(nspec,np,nt,nm,nk),xjac(nspec,np,nm)
-  real vl2D(nm,nk),vp2D(nm,nk)
-  real sinA1D(nk),cosA2(nk),flx,ekev2D(nm,nk),flx_lo,pf(nspec),delEE(nspec,neng),pi,cosAo2(npit)
+  integer, intent(in) 	:: 	np, nt, nm, nk, nspec, neng, npit, iba(nt)
+  real, intent(in) 	:: &
+       ftv(np,nt), f2(nspec,np,nt,nm,nk), sinA(np,nt,nk), &
+       energy(nspec,neng), sinAo(npit), xjac(nspec,np,nm), &
+       delE(nspec,neng), dmu(npit), amu_I(nspec), pp(nspec,np,nt,nm,nk), &
+       xmm(nspec,0:nm+1),dmm(nspec,nm), dk(nk), xlat(np),dphi, re_m, Hiono, &
+       vl(nspec,0:np,nt,nm,nk), vp(nspec,0:np,nt,nm,nk)
+
+  real, intent(out) 	:: &
+       flux(nspec,np,nt,neng,npit), fac(np,nt), phot(nspec,np,nt), &
+       Ppar_IC(nspec,np,nt), Pressure_IC(nspec,np,nt), PressurePar_IC(nspec,np,nt), &
+       vlEa(nspec,np,nt,neng,npit), vpEa(nspec,np,nt,neng,npit), &
+       psd(nspec,np,nt,nm,nk)
+  real ftv1, aloge(nspec,neng), rion, ekev(nspec,np,nt,nm,nk)
+  real flux2D(nm,nk), vl2D(nm,nk), vp2D(nm,nk)
+  real sinA1D(nk),cosA2(nk),flx,ekev2D(nm,nk),flx_lo,pf(nspec),delEE(nspec,neng),cosAo2(npit)
   real vl_lo,vp_lo
   real sina1,sina0,dcosa
-  real amu_I(nspec),amu1,psd1,psd(nspec,np,nt,nm,nk),fave(nspec,np,nt,neng)
-  real xmm(nspec,0:nm+1),dmm(nspec,nm),dk(nk),xlat(np),xlatr(np),dphi,eta(nspec,np,nt,nm,nk)
-  real flux(nspec,np,nt,neng,npit),detadi,detadj,dwkdi,dwkdj
-  real vlEa(nspec,np,nt,neng,npit),vpEa(nspec,np,nt,neng,npit)
-  real fac(np,nt),phot(nspec,np,nt),Ppar_IC(nspec,np,nt)
-  real Pressure_IC(nspec,np,nt), PressurePar_IC(nspec,np,nt)
+  real amu1,psd1,fave(nspec,np,nt,neng)
+  real xlatr(np),eta(nspec,np,nt,nm,nk)
+  real detadi,detadj,dwkdi,dwkdj
   real Pressure0, Pressure1, PressurePar1, Coeff
   integer :: iStatus_I(MPI_STATUS_SIZE), iError
   logical, parameter :: DoCalcFac=.true.
 
+  integer i, j, k, m, n, j1, j_1
 !!!!!!!!!!!
 !  real vdr_q1(nspec,np,nt),vdr_q3(nspec,np,nt),vgyr_q1(nspec,np,nt),vgyr_q3(nspec,np,nt)
 !  real eng_q1(nspec,np,nt),eng_q3(nspec,np,nt),vexb(nspec,np,nt),dif_q1(nspec,np,nt)
@@ -2381,15 +2416,15 @@ Part_phot=0.
              ! call MPI_recv(ekev(:,iLonRight,k,m),np,MPI_REAL,iProcRight,&
              !      2,iComm,iStatus_I,iError)
               do n=1,nspec
-                call MPI_send(ekev(n,:,MaxLonPar,k,m),np,MPI_REAL,iProcRight,&
-                   1,iComm,iError)
-                call MPI_send(ekev(n,:,MinLonPar,k,m),np,MPI_REAL,iProcLeft,&
-                   2,iComm,iError)
-              !recieve ekev from neigboring Procs
-              call MPI_recv(ekev(n,:,iLonLeft,k,m),np,MPI_REAL,iProcLeft,&
-                   1,iComm,iStatus_I,iError)
-              call MPI_recv(ekev(n,:,iLonRight,k,m),np,MPI_REAL,iProcRight,&
-                   2,iComm,iStatus_I,iError)
+                 call MPI_send(ekev(n,:,MaxLonPar,k,m),np,MPI_REAL,iProcRight,&
+                      1,iComm,iError)
+                 call MPI_send(ekev(n,:,MinLonPar,k,m),np,MPI_REAL,iProcLeft,&
+                      2,iComm,iError)
+                 !recieve ekev from neigboring Procs
+                 call MPI_recv(ekev(n,:,iLonLeft,k,m),np,MPI_REAL,iProcLeft,&
+                      1,iComm,iStatus_I,iError)
+                 call MPI_recv(ekev(n,:,iLonRight,k,m),np,MPI_REAL,iProcRight,&
+                      2,iComm,iStatus_I,iError)
                  !send eta ghostcells
                  call MPI_send(eta(n,:,MaxLonPar,k,m),np,MPI_REAL,iProcRight,&
                       1,iComm,iError)

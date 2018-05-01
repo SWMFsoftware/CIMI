@@ -32,7 +32,7 @@ Module ModCimi
        OpWaves_ = 4, OpStrongDiff_ = 5, OpDecay_ = 6, &
        OpLossCone_ = 7, OpLossCone0_ = 8
 ! Note order and number of operators has been changed Waves are added
-! and OpLossCone0_=7 is previous in time OpLossCone (needed for
+! and OpLossCone0_=8 is previous in time OpLossCone (needed for
 ! precipitation, see cimi_precip_calc subroutine in cimi.f90)
 
 ! Variables brought over from Module BoundaryCheck in
