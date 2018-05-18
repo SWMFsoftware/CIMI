@@ -2,24 +2,26 @@ subroutine CIMI_set_parameters(NameAction)
 
   use ModIoUnit,         ONLY: UnitTmp_, io_unit_new
   use ModReadParam
-  use ModCimiInitialize, ONLY: IsEmptyInitial,IsDataInitial,IsRBSPData, &
-       IsGmInitial
-  use ModCimiPlot,       ONLY: DtOutput, DoSavePlot, DoSaveFlux, DoSaveDrifts,&
-       DoSaveLog, UseSeparatePlotFiles, DtLogOut, DoSavePSD
-  use ModCimiTrace,     ONLY: UseEllipse, UseSmooth, UseCorotation, &
+  use ModUtilities,	 ONLY: lower_case
+  use ModCimiInitialize, ONLY: &
+       IsEmptyInitial, IsDataInitial, IsRBSPData, IsGmInitial
+  use ModCimiPlot
+  use ModCimiTrace,	 ONLY: UseEllipse, UseSmooth, UseCorotation, &
        UsePotential, SmoothWindow, imod, iLatTest, iLonTest
-  use ModCimi,           ONLY: UseMcLimiter, BetaLimiter, time, Pmin,&
+  use ModCimi,           ONLY: UseMcLimiter, BetaLimiter, time, Pmin, &
        IsStandAlone, UseStrongDiff, UseDecay, DecayTimescale,&
-       dt, dtmax,PrecipOutput,DtPreOut,PrecipCalc,DtPreCalc
-  use ModCimiRestart,    ONLY: IsRestart,DtSaveRestart
-  use ModCimiPlanet,     ONLY: nspec
+       dt, dtmax, DoCalcPrecip, DtCalcPrecip
+  use ModCimiRestart,    ONLY: IsRestart, DtSaveRestart
+  use ModCimiPlanet,     ONLY: nspec, NameSpecies_I
   use ModImTime,         ONLY: iStartTime_I, TimeMax
-  use ModCimiBoundary,   ONLY: UseBoundaryEbihara,UseYoungEtAl,CIMIboundary,Outputboundary
+  use ModCimiBoundary,   ONLY: &
+       UseBoundaryEbihara, UseYoungEtAl, CIMIboundary, Outputboundary
   use ModIeCimi,         ONLY: UseWeimer
   use ModPrerunField,    ONLY: DoWritePrerun, UsePrerun, DtRead
   use ModGmCIMI,         ONLY: UseGm
-  use ModWaveDiff,       ONLY: UseWaveDiffusion,UseHiss,UseChorus,UseChorusUB, &
-       DiffStartT,HissWavesD, ChorusWavesD,ChorusUpperBandD, &
+  use ModWaveDiff,       ONLY: &
+       UseWaveDiffusion, UseHiss, UseChorus, UseChorusUB, &
+       DiffStartT, HissWavesD, ChorusWavesD, ChorusUpperBandD, &
        testDiff_aa, testDiff_EE, testDiff_aE, &
        NameAeFile, read_ae_wdc_kyoto
   use DensityTemp, 	 ONLY: densityP
@@ -29,8 +31,8 @@ subroutine CIMI_set_parameters(NameAction)
   
   implicit none
 
-  logical 			:: DoEcho=.false.
-  character (len=100)           :: NameCommand
+  logical 			:: DoEcho = .false.
+  character (len=100)           :: NameCommand, StringCIMIPlot
   character (len=*), intent(in) :: NameAction
   character (len=7)             :: TypeBoundary
   character (len=3)             :: NameModel
@@ -39,8 +41,9 @@ subroutine CIMI_set_parameters(NameAction)
   character (len=100) :: cTempLine
   character (len=100), dimension(100) :: cTempLines
   
-  integer :: iError, iDate
-  real :: DensitySW, VelSW, BxSW, BySW,BzSW
+  integer :: iError, iDate, iCIMIPlotType, nCIMIPlotType
+  real :: DensitySW, VelSW, BxSW, BySW, BzSW, DtOutputCIMIPlot
+  logical :: DoSaveSeparateFiles
   !\
   ! Description:
   ! This subroutine gets the inputs for CIMI
@@ -143,22 +146,567 @@ subroutine CIMI_set_parameters(NameAction)
      case('#IEMODEL')
         call read_var('UseWeimer',UseWeimer)
 
-     case('#SAVEPLOT')
-        call read_var('DtSavePlot',DtOutput)
-        call read_var('DoSaveFlux',DoSaveFlux)
-        call read_var('DoSaveDrifts',DoSaveDrifts)
-        call read_var('DoSavePSD',DoSavePSD)
-        ! If saving flux then decide if it should be just one file or many
-        if (DoSaveFlux .or. DoSaveDrifts .or. DoSavePSD) then
-           call read_var('UseSeparatePlotFiles',UseSeparatePlotFiles)
-        endif
-        
-        DoSavePlot = .true.
-        
+!!$     case('#SAVEPLOT')
+!!$        call read_var('DtSavePlot',DtOutput)
+!!$        call read_var('DoSaveFlux',DoSaveFlux)
+!!$        call read_var('DoSaveDrifts',DoSaveDrifts)
+!!$        call read_var('DoSavePSD',DoSavePSD)
+!!$        ! If saving flux then decide if it should be just one file or many
+!!$        if (DoSaveFlux .or. DoSaveDrifts .or. DoSavePSD) then
+!!$           call read_var('UseSeparatePlotFiles',UseSeparatePlotFiles)
+!!$        endif
+!!$        
+!!$        DoSavePlot = .true.
+
      case('#SAVELOG')
         call read_var('DtLogOut',DtLogOut)
         DoSaveLog = .true.
 
+     case('#SAVEPLOT')
+
+        call read_var( 'nCIMIPlotType', nCIMIPlotType )
+
+        CIMI_PLOTTYPE: do iCIMIPlotType = 1, nCIMIPlotType
+
+           call read_var( 'StringPlot', StringCIMIPlot )
+           call lower_case( StringCIMIPlot )
+           call read_var( 'DtOutput', DtOutputCIMIPlot )
+           
+           if ( index( StringCIMIPlot, 'fls'  ) > 0 .or. &
+                index( StringCIMIPlot, 'flux' ) > 0 ) then
+
+              call read_var( 'DoSaveSeparateFiles', DoSaveSeparateFiles )
+
+              if (iProc == 0 ) then
+                 write(*,*) "DoSaveFlux: ", DoSaveFlux
+                 write(*,*) "DtFluxOutput: ", DtFluxOutput
+                 write(*,*) "DoSaveSeparateFluxFiles: ", &
+                      DoSaveSeparateFluxFiles
+              endif
+              
+              PLOT_FLUX_SPECIES: if &
+                   ( index( StringCIMIPlot, 'all' ) > 0 ) then
+                 
+                 DoSaveFlux( 1 : nspec ) = .true.
+                 DtFluxOutput( 1 : nspec ) = DtOutputCIMIPlot
+                 DoSaveSeparateFluxFiles( 1 : nspec ) = &
+                      DoSaveSeparateFiles
+                 
+              elseif &
+                   ( index( StringCIMIPlot, 'ions' ) > 0 ) then
+                 
+                 DoSaveFlux( 1 : nspec - 1 ) = .true.
+                 DtFluxOutput( 1 : nspec - 1 ) = DtOutputCIMIPlot
+                 DoSaveSeparateFluxFiles( 1 : nspec - 1 ) = &
+                      DoSaveSeparateFiles
+                 
+              elseif &
+                   ( index( StringCIMIPlot, 'electrons' ) > 0 .or. &
+                     index( StringCIMIPlot, 'e-' ) > 0 ) then
+                 
+                 DoSaveFlux( nspec ) = .true.
+                 DtFluxOutput( nspec ) = DtOutputCIMIPlot
+                 DoSaveSeparateFluxFiles( nspec ) = &
+                      DoSaveSeparateFiles
+                 
+              elseif &
+                   ( index( StringCIMIPlot, 'h+' ) > 0 ) then
+                 
+                 DoSaveFlux( 1 ) = .true.
+                 DtFluxOutput( 1 ) = DtOutputCIMIPlot
+                 DoSaveSeparateFluxFiles( 1 ) = &
+                      DoSaveSeparateFiles
+                 
+              elseif &
+                   ( index( StringCIMIPlot, 'o+' ) > 0 ) then
+                 
+                 if ( nspec .ge. 3 ) then
+                    
+                    DoSaveFlux( 2 ) = .true. 
+                    DtFluxOutput( 2 ) = DtOutputCIMIPlot
+                    DoSaveSeparateFluxFiles( 2 ) = &
+                         DoSaveSeparateFiles
+                    
+                 else
+                    
+                    call CON_STOP( 'O+ not configured; Recompile CIMI '// &
+                         'with ModEarthHO or ModEarthHOHe options.' )
+                    
+                 endif
+
+              elseif &
+                   ( index( StringCIMIPlot, 'he+' ) > 0 ) then
+
+                 if ( nspec .gt. 3 ) then
+                    
+                    DoSaveFlux( 3 ) = .true. 
+                    DtFluxOutput( 3 ) = DtOutputCIMIPlot
+                    DoSaveSeparateFluxFiles( 3 ) = &
+                         DoSaveSeparateFiles
+
+                 else
+
+                    call CON_STOP( 'He+ not configured; Recompile CIMI '//&
+                         'with ModEarthHOHe option.' )
+
+                 endif
+
+              else
+
+                 call CON_STOP( 'No flux species information; STOPPING' )
+
+              endif PLOT_FLUX_SPECIES
+              
+              if (iProc == 0 ) then
+                 write(*,*) "DoSaveFlux: ", DoSaveFlux
+                 write(*,*) "DtFluxOutput: ", DtFluxOutput
+                 write(*,*) "DoSaveSeparateFluxFiles: ", &
+                      DoSaveSeparateFluxFiles
+              endif
+              
+           elseif &
+                ( index( StringCIMIPlot, 'psd' ) > 0 ) then
+
+              call read_var( 'DoSaveSeparateFiles', DoSaveSeparateFiles )
+
+              if (iProc == 0 ) then
+                 write(*,*) "DoSavePSD: ", DoSavePSD
+                 write(*,*) "DtPSDOutput: ", DtPSDOutput
+                 write(*,*) "DoSaveSeparatePSDFiles: ", &
+                      DoSaveSeparatePSDFiles
+              endif
+              
+              PLOT_PSD_SPECIES: if &
+                   ( index( StringCIMIPlot, 'all' ) > 0 ) then
+
+                 DoSavePSD( 1 : nspec ) = .true.
+                 DtPSDOutput( 1 : nspec ) = DtOutputCIMIPlot
+                 DoSaveSeparatePSDFiles( 1 : nspec ) = &
+                      DoSaveSeparateFiles
+
+              elseif &
+                   ( index( StringCIMIPlot, 'ions' ) > 0 ) then
+
+                 DoSavePSD( 1 : nspec - 1 ) = .true.
+                 DtPSDOutput( 1 : nspec - 1 ) = DtOutputCIMIPlot
+                 DoSaveSeparatePSDFiles( 1 : nspec - 1 ) = &
+                      DoSaveSeparateFiles
+
+              elseif &
+
+                   ( index( StringCIMIPlot, 'electrons' ) > 0 .or. &
+                     index( StringCIMIPlot, 'e-' ) > 0 ) then
+                 DoSavePSD( nspec ) = .true.
+                 DtPSDOutput( nspec ) = DtOutputCIMIPlot
+                 DoSaveSeparatePSDFiles( nspec ) = &
+                      DoSaveSeparateFiles
+
+              elseif &
+                   ( index( StringCIMIPlot, 'h+' ) > 0 ) then
+
+                 DoSavePSD( 1 ) = .true.
+                 DtPSDOutput( 1 ) = DtOutputCIMIPlot
+                 DoSaveSeparatePSDFiles( 1 ) = &
+                      DoSaveSeparateFiles
+
+              elseif &
+                   ( index( StringCIMIPlot, 'o+' ) > 0 ) then
+
+                 if ( nspec .ge. 3 ) then
+                    DoSavePSD( 2 ) = .true. 
+                    DtPSDOutput( 2 ) = DtOutputCIMIPlot
+                    DoSaveSeparatePSDFiles( 2 ) = &
+                         DoSaveSeparateFiles
+                 else
+                    
+                    call CON_STOP( 'O+ not configured; Recompile CIMI '// &
+                         'with ModEarthHO or ModEarthHOHe options.' )
+                    
+                 endif
+                 
+              elseif &
+                   ( index( StringCIMIPlot, 'he+' ) > 0 ) then
+                 
+                 if ( nspec .gt. 3 ) then
+                    
+                    DoSavePSD( 3 ) = .true. 
+                    DtPSDOutput( 3 ) = DtOutputCIMIPlot
+                    DoSaveSeparatePSDFiles( 3 ) = &
+                         DoSaveSeparateFiles
+                    
+                 else
+                    
+                    call CON_STOP( 'He+ not configured; Recompile CIMI '//&
+                         'with ModEarthHOHe option.' )
+                    
+                 endif
+                 
+              else
+                 
+                 call CON_STOP( 'No PSD species information; STOPPING' )
+                 
+              endif PLOT_PSD_SPECIES
+              
+              if (iProc == 0 ) then
+                 write(*,*) "DoSavePSD: ", DoSavePSD
+                 write(*,*) "DtPSDOutput: ", DtPSDOutput
+                 write(*,*) "DoSaveSeparatePSDFiles: ", &
+                      DoSaveSeparatePSDFiles
+              endif
+              
+           elseif &
+                ( index( StringCIMIPlot, 'vl'  ) > 0 .or. &
+                  index( StringCIMIPlot, 'vldrift' ) > 0 ) then
+
+              call read_var( 'DoSaveSeparateFiles', DoSaveSeparateFiles )
+              
+              if (iProc == 0 ) then
+                 write(*,*) "DoSaveVLDrift: ", DoSaveVLDrift
+                 write(*,*) "DtVLDriftOutput: ", DtVLDriftOutput
+                 write(*,*) "DoSaveSeparateVLDriftFiles: ", &
+                      DoSaveSeparateVLDriftFiles
+              endif
+              
+              PLOT_VLDRIFT_SPECIES: if &
+                   ( index( StringCIMIPlot, 'all' ) > 0 ) then
+                 
+                 DoSaveVLDrift( 1 : nspec ) = .true.
+                 DtVLDriftOutput( 1 : nspec ) = DtOutputCIMIPlot
+                 DoSaveSeparateVLDriftFiles( 1 : nspec ) = &
+                      DoSaveSeparateFiles
+                 
+              elseif &
+                   ( index( StringCIMIPlot, 'ions' ) > 0 ) then
+                 
+                 DoSaveVLDrift( 1 : nspec - 1 ) = .true.
+                 DtVLDriftOutput( 1 : nspec - 1 ) = DtOutputCIMIPlot
+                 DoSaveSeparateVLDriftFiles( 1 : nspec - 1 ) = &
+                      DoSaveSeparateFiles
+                 
+              elseif &
+                   ( index( StringCIMIPlot, 'electrons' ) > 0 .or. &
+                     index( StringCIMIPlot, 'e-' ) > 0 ) then
+                 
+                 DoSaveVLDrift( nspec ) = .true.
+                 DtVLDriftOutput( nspec ) = DtOutputCIMIPlot
+                 DoSaveSeparateVLDriftFiles( nspec ) = &
+                      DoSaveSeparateFiles
+                 
+              elseif &
+                   ( index( StringCIMIPlot, 'h+' ) > 0 ) then
+                 
+                 DoSaveVLDrift( 1 ) = .true.
+                 DtVLDriftOutput( 1 ) = DtOutputCIMIPlot
+                 DoSaveSeparateVLDriftFiles( 1 ) = &
+                      DoSaveSeparateFiles
+                 
+              elseif &
+                   ( index( StringCIMIPlot, 'o+' ) > 0 ) then
+                 
+                 if ( nspec .ge. 3 ) then
+                    
+                    DoSaveVLDrift( 2 ) = .true. 
+                    DtVLDriftOutput( 2 ) = DtOutputCIMIPlot
+                    DoSaveSeparateVLDriftFiles( 2 ) = &
+                         DoSaveSeparateFiles
+                    
+                 else
+                    
+                    call CON_STOP( 'O+ not configured; Recompile CIMI '// &
+                         'with ModEarthHO or ModEarthHOHe options.' )
+                    
+                 endif
+              elseif &
+                   ( index( StringCIMIPlot, 'he+' ) > 0 ) then
+                 
+                 if ( nspec .gt. 3 ) then
+                    
+                    DoSaveVLDrift( 3 ) = .true. 
+                    DtVLDriftOutput( 3 ) = DtOutputCIMIPlot
+                    DoSaveSeparateVLDriftFiles( 3 ) = &
+                         DoSaveSeparateFiles
+                    
+                 else
+                    
+                    call CON_STOP( 'He+ not configured; Recompile CIMI '//&
+                         'with ModEarthHOHe option.' )
+                    
+                 endif
+                 
+              else
+                 
+                 call CON_STOP( 'No VLDrift species information; STOPPING' )
+                 
+              endif PLOT_VLDRIFT_SPECIES
+              
+              if (iProc == 0 ) then
+                 write(*,*) "DoSaveVLDrift: ", DoSaveVLDrift
+                 write(*,*) "DtVLDriftOutput: ", DtVLDriftOutput
+                 write(*,*) "DoSaveSeparateVLDriftFiles: ", &
+                      DoSaveSeparateVLDriftFiles
+              endif
+              
+           elseif &
+                ( index( StringCIMIPlot, 'vp'  ) > 0 .or. &
+                  index( StringCIMIPlot, 'vpdrift' ) > 0 ) then
+
+              call read_var( 'DoSaveSeparateFiles', DoSaveSeparateFiles )
+
+              if (iProc == 0 ) then
+                 write(*,*) "DoSaveVPDrift: ", DoSaveVPDrift
+                 write(*,*) "DtVPDriftOutput: ", DtVPDriftOutput
+                 write(*,*) "DoSaveSeparateVPDriftFiles: ", &
+                      DoSaveSeparateVPDriftFiles
+              endif
+              
+              PLOT_VPDRIFT_SPECIES: if &
+                   ( index( StringCIMIPlot, 'all' ) > 0 ) then
+                 
+                 DoSaveVPDrift( 1 : nspec ) = .true.
+                 DtVPDriftOutput( 1 : nspec ) = DtOutputCIMIPlot
+                 DoSaveSeparateVPDriftFiles( 1 : nspec ) = &
+                      DoSaveSeparateFiles
+                 
+              elseif &
+                   ( index( StringCIMIPlot, 'ions' ) > 0 ) then
+                 
+                 DoSaveVPDrift( 1 : nspec - 1 ) = .true.
+                 DtVPDriftOutput( 1 : nspec - 1 ) = DtOutputCIMIPlot
+                 DoSaveSeparateVPDriftFiles( 1 : nspec - 1 ) = &
+                      DoSaveSeparateFiles
+                 
+              elseif &
+                   ( index( StringCIMIPlot, 'electrons' ) > 0 .or. &
+                     index( StringCIMIPlot, 'e-' ) > 0 ) then
+
+                 DoSaveVPDrift( nspec ) = .true.
+                 DtVPDriftOutput( nspec ) = DtOutputCIMIPlot
+                 DoSaveSeparateVPDriftFiles( nspec ) = &
+                      DoSaveSeparateFiles
+                 
+              elseif &
+                   ( index( StringCIMIPlot, 'h+' ) > 0 ) then
+                 
+                 DoSaveVPDrift( 1 ) = .true.
+                 DtVPDriftOutput( 1 ) = DtOutputCIMIPlot
+                 DoSaveSeparateVPDriftFiles( 1 ) = &
+                      DoSaveSeparateFiles
+                 
+              elseif &
+                   ( index( StringCIMIPlot, 'o+' ) > 0 ) then
+                 
+                 if ( nspec .ge. 3 ) then
+                    
+                    DoSaveVPDrift( 2 ) = .true. 
+                    DtVPDriftOutput( 2 ) = DtOutputCIMIPlot
+                    DoSaveSeparateVPDriftFiles( 2 ) = &
+                         DoSaveSeparateFiles
+                    
+                 else
+                    
+                    call CON_STOP( 'O+ not configured; Recompile CIMI '// &
+                         'with ModEarthHO or ModEarthHOHe options.' )
+                    
+                 endif
+                 
+              elseif &
+                   ( index( StringCIMIPlot, 'he+' ) > 0 ) then
+                 
+                 if ( nspec .gt. 3 ) then
+                    
+                    DoSaveVPDrift( 3 ) = .true. 
+                    DtVPDriftOutput( 3 ) = DtOutputCIMIPlot
+                    DoSaveSeparateVPDriftFiles( 3 ) = &
+                         DoSaveSeparateFiles
+                    
+                 else
+                    
+                    call CON_STOP( 'He+ not configured; Recompile CIMI '//&
+                         'with ModEarthHOHe option.' )
+                    
+                 endif
+                 
+              else
+                 
+                 call CON_STOP( 'No VPDrift species information; STOPPING' )
+                 
+              endif PLOT_VPDRIFT_SPECIES
+              
+              if (iProc == 0 ) then
+                 write(*,*) "DoSaveVPDrift: ", DoSaveVPDrift
+                 write(*,*) "DtVPDriftOutput: ", DtVPDriftOutput
+                 write(*,*) "DoSaveSeparateVPDriftFiles: ", &
+                      DoSaveSeparateVPDriftFiles
+              endif
+              
+           elseif &
+                ( index( StringCIMIPlot, 'precipitation'  ) > 0 .or. &
+                  index( StringCIMIPlot, 'precip' ) > 0 .or. &
+                  index( StringCIMIPlot, 'preci' ) > 0 ) then
+
+              call read_var( 'DoSaveSeparateFiles', DoSaveSeparateFiles )
+              
+              if (iProc == 0 ) then
+                 write(*,*) "DoSavePreci: ", DoSavePreci
+                 write(*,*) "DtPreciOutput: ", DtPreciOutput
+                 write(*,*) "DoSaveSeparatePreciFiles: ", &
+                      DoSaveSeparatePreciFiles
+              endif
+              
+              PLOT_PRECI_SPECIES: if &
+                   ( index( StringCIMIPlot, 'all' ) > 0 ) then
+                 
+                 DoSavePreci( 1 : nspec ) = .true.
+                 DtPreciOutput( 1 : nspec ) = DtOutputCIMIPlot
+                 DoSaveSeparatePreciFiles( 1 : nspec ) = &
+                      DoSaveSeparateFiles
+                 
+              elseif &
+                   ( index( StringCIMIPlot, 'ions' ) > 0 ) then
+                 
+                 DoSavePreci( 1 : nspec - 1 ) = .true.
+                 DtPreciOutput( 1 : nspec - 1 ) = DtOutputCIMIPlot
+                 DoSaveSeparatePreciFiles( 1 : nspec - 1 ) = &
+                      DoSaveSeparateFiles
+                 
+              elseif &
+                   ( index( StringCIMIPlot, 'electrons' ) > 0 .or. &
+                     index( StringCIMIPlot, 'e-' ) > 0 ) then
+
+                 DoSavePreci( nspec ) = .true.
+                 DtPreciOutput( nspec ) = DtOutputCIMIPlot
+                 DoSaveSeparatePreciFiles( nspec ) = &
+                      DoSaveSeparateFiles
+                 
+              elseif &
+                   ( index( StringCIMIPlot, 'h+' ) > 0 ) then
+                 
+                 DoSavePreci( 1 ) = .true.
+                 DtPreciOutput( 1 ) = DtOutputCIMIPlot
+                 DoSaveSeparatePreciFiles( 1 ) = &
+                      DoSaveSeparateFiles
+                 
+              elseif &
+                   ( index( StringCIMIPlot, 'o+' ) > 0 ) then
+                 
+                 if ( nspec .ge. 3 ) then
+                    
+                    DoSavePreci( 2 ) = .true. 
+                    DtPreciOutput( 2 ) = DtOutputCIMIPlot
+                    DoSaveSeparatePreciFiles( 2 ) = &
+                         DoSaveSeparateFiles
+                    
+                 else
+                    
+                    call CON_STOP( 'O+ not configured; Recompile CIMI '// &
+                         'with ModEarthHO or ModEarthHOHe options.' )
+                    
+                 endif
+                 
+              elseif &
+                   ( index( StringCIMIPlot, 'he+' ) > 0 ) then
+                 
+                 if ( nspec .gt. 3 ) then
+                    
+                    DoSavePreci( 3 ) = .true. 
+                    DtPreciOutput( 3 ) = DtOutputCIMIPlot
+                    DoSaveSeparatePreciFiles( 3 ) = &
+                         DoSaveSeparateFiles
+                    
+                 else
+                    
+                    call CON_STOP( 'He+ not configured; Recompile CIMI '//&
+                         'with ModEarthHOHe option.' )
+                    
+                 endif
+                 
+              else
+                 
+                 call CON_STOP( 'No Preci species information; STOPPING' )
+                 
+              endif PLOT_PRECI_SPECIES
+              
+              if (iProc == 0 ) then
+                 write(*,*) "DoSavePreci: ", DoSavePreci
+                 write(*,*) "DtPreciOutput: ", DtPreciOutput
+                 write(*,*) "DoSaveSeparatePreciFiles: ", &
+                      DoSaveSeparatePreciFiles
+              endif
+
+           elseif &
+                ( index( StringCIMIPlot, '2d'  ) > 0 ) then
+
+              if (iProc == 0 ) then
+                 write(*,*) "DoSaveEq: ", DoSaveEq
+                 write(*,*) "DoSaveIono: ", DoSaveIono
+                 write(*,*) "DtOutput: ", DtOutput
+              endif
+
+              PLOT_2D: if &
+                   ( index( StringCIMIPlot, 'all'  ) > 0 .or. &
+                     index( StringCIMIPlot, 'both'  ) > 0 ) then
+
+                 DoSaveEq = .true.
+                 DoSaveIono = .true.
+                 DtOutput = DtOutputCIMIPlot
+              elseif &
+                   ( index( StringCIMIPlot, 'equator' ) > 0 .or. &
+                     index( StringCIMIPlot, 'eq' ) > 0 ) then
+
+                 DoSaveEq = .true.
+                 DtOutput = DtOutputCIMIPlot
+
+              elseif &
+                   ( index( StringCIMIPlot, 'ionosphere' ) > 0 .or. &
+                     index( StringCIMIPlot, 'iono' ) > 0 ) then
+
+                 DoSaveIono = .true.
+                 DtOutput = DtOutputCIMIPlot
+                 
+              else
+
+                 call CON_STOP( 'No CIMI 2D Plot information; STOPPING' )
+                 
+              endif PLOT_2D
+
+              if (iProc == 0 ) then
+                 write(*,*) "DoSaveEq: ", DoSaveEq
+                 write(*,*) "DoSaveIono: ", DoSaveIono
+                 write(*,*) "DtOutput: ", DtOutput
+              endif
+              
+           elseif &
+                ( index( StringCIMIPlot, 'lstar'  ) > 0 .or. &
+                  index( StringCIMIPlot, 'l*'  ) > 0 ) then
+
+              call read_var( 'DoSaveSeparateFiles', DoSaveSeparateFiles )
+
+              if (iProc == 0 ) then
+                 write(*,*) "DoSaveLstar: ", DoSaveLstar
+                 write(*,*) "DtLstarOutput: ", DtLstarOutput
+                 write(*,*) "DoSaveSeparateLstarFiles: ", &
+                      DoSaveSeparateLstarFiles
+              endif
+              
+              DoSaveLstar = .true.
+              DtLstarOutput = DtOutputCIMIPlot
+              DoSaveSeparateLstarFiles = DoSaveSeparateFiles
+
+              if (iProc == 0 ) then
+                 write(*,*) "DoSaveLstar: ", DoSaveLstar
+                 write(*,*) "DtLstarOutput: ", DtLstarOutput
+                 write(*,*) "DoSaveSeparateLstarFiles: ", &
+                      DoSaveSeparateLstarFiles
+              endif
+              
+           else
+              call CON_STOP( 'No plot type specified.' )
+           endif
+
+        end do CIMI_PLOTTYPE
+
+        DoSavePlot = .true.
+     
      case('#INITIALF2')
         call read_var('IsEmptyInitial',IsEmptyInitial)
         call read_var('IsGmInitial',   IsGmInitial)
@@ -290,10 +838,10 @@ subroutine CIMI_set_parameters(NameAction)
         if (CIMIboundary) call read_var('Outputboundary',Outputboundary)
 
      case('#PRECIPITATION')
-        call read_var('PrecipCalc',PrecipCalc)
-        if (PrecipCalc) call read_var('DtPreCalc',DtPreCalc)
-        if (PrecipCalc) call read_var('PrecipOutput',PrecipOutput)
-        if (PrecipOutput) call read_var('DtPreOut',DtPreOut)
+        call read_var('DoCalcPrecip',DoCalcPrecip)
+        if (DoCalcPrecip) call read_var('DtCalcPrecip',DtCalcPrecip)
+!!$        if (DoCalcPrecip) call read_var('PrecipOutput',PrecipOutput)
+!!$        if (PrecipOutput) call read_var('DtPreOut',DtPreOut)
 
      end select
      

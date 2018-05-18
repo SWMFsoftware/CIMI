@@ -52,10 +52,10 @@ contains
 
   subroutine calc_Lstar1(Lstar,Lstar_max,rc)
 
-  use ModNumConst, only:pi=>cPi
-  use ModCimiPlanet, only:re_m,xme=>dipmom
-  use ModCimiTrace,only: bo,ro,iba,rb
-  use ModCimiGrid, only:xlati=>xlatr,ir=>np,ip=>nt,xmlt
+  use ModNumConst, 	ONLY: pi => cPi
+  use ModCimiPlanet,	ONLY: re_m, xme => dipmom
+  use ModCimiTrace,	ONLY: bo, ro, iba, rb
+  use ModCimiGrid,	ONLY: xlati => xlatr, ir => np, ip => nt, xmlt
   implicit none
 
   real BE,Bflux(ir,ip),logBo,dBdlat(ir),Lstar(ir,ip),Lstar_max,rc,&
@@ -69,7 +69,7 @@ contains
   dp=24./ip                        ! MLT grid size
   ib0=11          ! ro(ib0,*)=2.1, inner boundary of L* calculation
 
-  BE=xme/re_m**3                    ! mangetic field at L* = 1 in
+  BE=xme/re_m**3                    ! magnetic field at L* = 1 in
 
 
 ! Calulates dmlt at MLT grid 
@@ -138,8 +138,9 @@ contains
      if (Lstar_max.gt.Lstar(iba(j),j)) Lstar_max=Lstar(iba(j),j)
   enddo
 
-write(*,'("L*max =",f8.2)') Lstar_max
-write(*,'("L* =",10f8.2)') (Lstar(i,1),i=1,ir)
+  write(*,'("L*max =",f8.2)') Lstar_max
+  write(*,'("L* =",10f8.2)') (Lstar(i,1),i=1,ir)
+
   end subroutine calc_Lstar1
 
 !**************************************************************************

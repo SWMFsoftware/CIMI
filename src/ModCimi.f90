@@ -51,11 +51,9 @@ Module ModCimi
 !   eTimeAccumulatv=esum(ns,ir,ip,je+2) No need for additional
 !   dimention because it's total energy
 
-  logical :: IsStandAlone=.false.
-  logical :: PrecipOutput=.false.
-  logical :: PrecipCalc = .false.
-  real :: DtPreOut=3600.
-  real :: DtPreCalc=10.
+  logical :: IsStandAlone = .false.
+  logical :: DoCalcPrecip = .false.
+  real :: DtCalcPrecip = 10.
   
 contains
 

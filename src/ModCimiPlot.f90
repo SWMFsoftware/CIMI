@@ -10,8 +10,6 @@ module ModCimiPlot
   
   character(len=5),		public	:: TypePlot   = 'ascii'
 
-  logical,			public	:: UseSeparatePlotFiles = .true.
-
   logical,			public	:: DoSaveLog = .false.
   real,				public	:: DtLogout   = 60.0
 
@@ -21,20 +19,47 @@ module ModCimiPlot
   logical,			public	:: DoSaveIono	= .false.
   real,				public	:: DtOutput = 60.0
 
-  logical, 			public	:: DoSaveLstar     = .false.
-  real,    			public	:: DtLstarOutput   = 60.0
+  logical, 			public	:: &
+       DoSaveLstar = .false.
+  logical, 			public	:: &
+       DoSaveSeparateLstarFiles = .false.
+  real,    			public	:: &
+       DtLstarOutput = 60.0
 
-  logical, dimension( nspec ),	public	:: DoSaveFlux      = .false.
-  real,    dimension( nspec ),	public	:: DtFluxOutput    = 60.0
+  logical, dimension( nspec ),	public	:: &
+       DoSaveFlux = .false.
+  logical, dimension( nspec ),	public	:: &
+       DoSaveSeparateFluxFiles = .false.
+  real,    dimension( nspec ),	public	:: &
+       DtFluxOutput = 60.0
+  
+  logical, dimension( nspec ),	public	:: &
+       DoSavePSD = .false.
+  logical, dimension( nspec ),	public	:: &
+       DoSaveSeparatePSDFiles = .false.
+  real,    dimension( nspec ),	public	:: &
+       DtPSDOutput = 60.0
+  
+  logical, dimension( nspec ),	public	:: &
+       DoSaveVLDrift = .false.
+  logical, dimension( nspec ),	public	:: &
+       DoSaveSeparateVLDriftFiles = .false.
+  real,    dimension( nspec ),	public	:: &
+       DtVLDriftOutput = 60.0
+  
+  logical, dimension( nspec ),	public	:: &
+       DoSaveVPDrift = .false.
+  logical, dimension( nspec ),	public	:: &
+       DoSaveSeparateVPDriftFiles = .false.
+  real,    dimension( nspec ),	public	:: &
+       DtVPDriftOutput = 60.0
 
-  logical, dimension( nspec ),	public	:: DoSavePSD       = .false.
-  real,    dimension( nspec ),	public	:: DtPSDOutput     = 60.0
-  
-  logical, dimension( nspec ),	public	:: DoSaveVLDrift   = .false.
-  real,    dimension( nspec ),	public	:: DtVLDriftOutput = 60.0
-  
-  logical, dimension( nspec ),	public	:: DoSaveVPDrift   = .false.
-  real,    dimension( nspec ),	public	:: DtVPDriftOutput = 60.0
+  logical, dimension( nspec ),	public	:: &
+       DoSavePreci = .false.
+  logical, dimension( nspec ),	public	:: &
+       DoSaveSeparatePreciFiles = .false.
+  real,    dimension( nspec ),	public	:: &
+       DtPreciOutput = 3600.0
   
   character(len=*), parameter :: NameHeader = 'CIMI output'
 
@@ -182,21 +207,23 @@ contains
 
     ! equatorial plot
     if ( DoSaveEq ) &
-         call save_plot_file(NamePlotEq, TypePositionIn=TypePosition,          &
-         TypeFileIn=TypePlot,StringHeaderIn = NameHeader,                 &
-         NameVarIn = NamePlotVar, nStepIn= nint(Time/Dt),TimeIn=Time,     &
-         nDimIn=2,CoordIn_DII=Coord_DII,                                  &
-         VarIn_IIV = PlotState_IIV, ParamIn_I = (/Gamma, rBody/))
+         call save_plot_file( NamePlotEq, TypePositionIn = TypePosition, &
+         TypeFileIn = TypePlot, StringHeaderIn = NameHeader, &
+         NameVarIn = NamePlotVar, &
+         nStepIn = nint( Time / Dt ), TimeIn = Time, &
+         nDimIn = 2, CoordIn_DII = Coord_DII, &
+         VarIn_IIV = PlotState_IIV, ParamIn_I = (/ Gamma, rBody /) )
     
     ! ionospheric plot
     if ( DoSaveIono ) &
-         call save_plot_file(NamePlotIono, TypePositionIn=TypePosition,        &
-         TypeFileIn=TypePlot,StringHeaderIn = NameHeader,                 &
-         NameVarIn = NamePlotVar, nStepIn= nint(Time/Dt),TimeIn=Time,     &
-         nDimIn=2,CoordIn_DII=CoordIono_DII,                              &
-         VarIn_IIV = PlotState_IIV, ParamIn_I = (/Gamma, rBody/))
+         call save_plot_file( NamePlotIono, TypePositionIn = TypePosition, &
+         TypeFileIn = TypePlot, StringHeaderIn = NameHeader, &
+         NameVarIn = NamePlotVar, &
+         nStepIn = nint( Time / Dt ), TimeIn = Time, &
+         nDimIn = 2, CoordIn_DII = CoordIono_DII, &
+         VarIn_IIV = PlotState_IIV, ParamIn_I = (/ Gamma, rBody /) )
     
-    deallocate(Coord_DII, CoordIono_DII, PlotState_IIV)
+    deallocate( Coord_DII, CoordIono_DII, PlotState_IIV )
 
   end subroutine Cimi_plot
   !============================================================================
@@ -217,7 +244,7 @@ contains
     real          :: parmod(1:10)=0.0,lat,ro1,xmlt1,bo1,energy_temp(1:nEnergy),&
                      Lstar1
     integer       :: iLat,iLon,k,m,n,i,nprint
-    logical, save :: IsFirstCall = .true.
+    logical, dimension(nspec), save :: IsFirstCall = .true.
     character(len=13):: outnameSep
     !--------------------------------------------------------------------------
     nprint=ifix(time/DtOutput)
@@ -227,7 +254,7 @@ contains
     
 !!$    do n=1,nSpecies
        energy_temp(1:nEnergy)=energy(n,1:nEnergy)
-       If (UseSeparatePlotFiles) then
+       If (DoSaveSeparateFluxFiles(n)) then
           
           if (n==1) &
                open(unit=UnitTmp_,file='IM/plots/'//outnameSep//'_h.fls',&
@@ -248,7 +275,7 @@ contains
           write(UnitTmp_,'(6f9.5)') (sinAo(m),m=1,nPitchAng)
           write(UnitTmp_,'(10f8.3)') (xlat(i),i=2,nLat)
        else
-          if (IsFirstCall .and. .not. IsRestart) then
+          if (IsFirstCall(n) .and. .not. IsRestart) then
              if (n==1) &
                   open(unit=UnitTmp_,file='IM/plots/CimiFlux_h.fls',&
                   status='unknown')
@@ -298,14 +325,14 @@ contains
              write(UnitTmp_,'(f7.2,f6.1,2f8.3,1pe11.3,0p,f8.3,i6)') &
                   lat,xmlt(iLon),ro1,xmlt1,bo1,Lstar1
              do k=1,nEnergy
-                write(UnitTmp_,'(1p,12e11.3)') &
-                     (flux( iLat, iLon, k, m ), m = 1, nPitchAng )
+                write( UnitTmp_, '(1p,12e11.3)' ) &
+                     ( flux( iLat, iLon, k, m ), m = 1, nPitchAng )
              enddo
           enddo
        enddo
        close(UnitTmp_)
 !!$    enddo
-    IsFirstCall=.false.
+    IsFirstCall(n) = .false.
 
   end subroutine Cimi_plot_fls
 
@@ -326,7 +353,7 @@ contains
     
     real          :: parmod(1:10)=0.0,lat,ro1,xmlt1,bo1
     integer       :: iLat,iLon,k,m,n,i,nprint
-    logical, save :: IsFirstCall = .true.
+    logical, dimension(nspec), save :: IsFirstCall = .true.
     character(len=13):: outnameSep
     !--------------------------------------------------------------------------
 
@@ -337,7 +364,7 @@ contains
     
 !!$    do n=1,nSpecies
 !!$       energy_temp(1:nEnergy)=energy(n,1:nEnergy)
-       If (UseSeparatePlotFiles) then
+       If (DoSaveSeparatePSDFiles(n)) then
           
           if (n==1) &
                open(unit=UnitTmp_,file='IM/plots/'//outnameSep//'_h.psd',&
@@ -361,7 +388,7 @@ contains
                ( xmm( n, m ) / 1e3 / cElectronCharge / 1e9, m = 1, nm, 2 )
           write(UnitTmp_,'(10f8.3)') (xlat(i),i=2,nLat)
        else
-          if (IsFirstCall .and. .not. IsRestart) then
+          if (IsFirstCall(n) .and. .not. IsRestart) then
              if (n==1) &
                   open(unit=UnitTmp_,file='IM/plots/CimiPSD_h.psd',&
                   status='unknown')
@@ -421,7 +448,7 @@ contains
        enddo
        close(UnitTmp_)
 !!$    enddo
-    IsFirstCall=.false.
+    IsFirstCall(n)=.false.
 
   end subroutine Cimi_plot_psd
 
@@ -443,7 +470,7 @@ contains
          parmod( 1 : 10 ) = 0.0, lat, ro1, xmlt1, bo1, &
          energy_temp( 1 : nEnergy )
     integer       :: iLat,iLon,k,m,n,i,nprint
-    logical, save :: IsFirstCall = .true.
+    logical, dimension(nspec), save :: IsFirstCall = .true.
     character(len=13):: outnameSep
     !--------------------------------------------------------------------------
     nprint=ifix(time/DtOutput)
@@ -453,7 +480,7 @@ contains
     
 !!$    do n=1,nSpecies
        energy_temp(1:nEnergy)=energy(n,1:nEnergy)
-       If (UseSeparatePlotFiles) then
+       If (DoSaveSeparateVLDriftFiles(n)) then
           
           if (n==1) &
                open(unit=UnitTmp_,file='IM/plots/'//outnameSep//'_h.vl',&
@@ -474,7 +501,7 @@ contains
           write(UnitTmp_,'(6f9.5)') (sinAo(m),m=1,nPitchAng)
           write(UnitTmp_,'(10f8.3)') (xlat(i),i=2,nLat)
        else
-          if (IsFirstCall .and. .not. IsRestart) then
+          if (IsFirstCall(n) .and. .not. IsRestart) then
              if (n==1) &
                   open(unit=UnitTmp_,file='IM/plots/CimiDrift_h.vl',&
                   status='unknown')
@@ -530,7 +557,7 @@ contains
        enddo
        close(UnitTmp_)
 !!$    enddo
-    IsFirstCall=.false.
+    IsFirstCall(n)=.false.
 
   end subroutine Cimi_plot_vl
 
@@ -549,7 +576,7 @@ contains
     real		:: &
          parmod(1:10) = 0.0, lat, ro1, xmlt1, bo1, energy_temp( 1 : nEnergy )
     integer		:: iLat, iLon, k, m, n, i, nprint
-    logical, save	:: IsFirstCall = .true.
+    logical, dimension(nspec), save :: IsFirstCall = .true.
     character(len=13):: outnameSep
     !--------------------------------------------------------------------------
     nprint=ifix(time/DtOutput)
@@ -560,7 +587,7 @@ contains
     
 !!$    do n=1,nSpecies
        energy_temp( 1 : nEnergy ) = energy( n, 1 :nEnergy )
-       If (UseSeparatePlotFiles) then
+       If (DoSaveSeparateVPDriftFiles(n)) then
           
           if (n==1) &
                open(unit=UnitTmp_,file='IM/plots/'//outnameSep//'_h.vp',&
@@ -582,7 +609,7 @@ contains
           write(UnitTmp_,'(6f9.5)') (sinAo(m),m=1,nPitchAng)
           write(UnitTmp_,'(10f8.3)') (xlat(i),i=2,nLat)
        else
-          if (IsFirstCall .and. .not. IsRestart) then
+          if (IsFirstCall(n) .and. .not. IsRestart) then
              if (n==1) &
                   open(unit=UnitTmp_,file='IM/plots/CimiDrift_h.vp',&
                   status='unknown')
@@ -638,7 +665,7 @@ contains
        enddo
        close(UnitTmp_)
 !!$    enddo
-    IsFirstCall=.false.
+    IsFirstCall(n)=.false.
 
   end subroutine Cimi_plot_vp
 
@@ -714,7 +741,7 @@ contains
 
   end subroutine cimi_plot_log
    
-  subroutine cimi_plot_precip(rc,time)
+  subroutine cimi_plot_precip( rc, n, time )
    use ModDstOutput,   ONLY: DstOutput 
    use ModIoUnit,      ONLY: UnitTmp_
    use ModCimi,		ONLY: energy
@@ -740,7 +767,7 @@ contains
    nprint=ifix(time/DtLogOut)   
 
 !   area1=rc*rc*re_m*re_m*dphi
-   do n=1,nSpecies
+!!$   do n=1,nSpecies
      energy_temp(1:nEnergy) = energy(n,1:nEnergy)
      if (IsFirstCall .and. .not. IsRestart) then
              if (n==1) &
@@ -787,7 +814,7 @@ contains
           enddo
        enddo
        close(UnitTmp_)
-      enddo  ! species loop
+!!$      enddo  ! species loop
 
     IsFirstCall=.false.
   end subroutine cimi_plot_precip 

@@ -11,11 +11,11 @@ subroutine cimi_run(delta_t)
        rcsumLocal, rcsumGlobal, &
        driftin, driftout, IsStandAlone, &
        energy, Ebound, delE, &
-       preP,preF,Eje1,UseStrongDiff, &
-       eChangeOperator_VICI,nOperator, &
-       eChangeLocal,eChangeGlobal,PrecipOutput,&
-       DtPreOut,PrecipCalc,DtPreCalc,&
-       vdr_q3,eng_q3,vexb,dif_q3,Part_phot              
+       preP, preF, Eje1, UseStrongDiff, &
+       eChangeOperator_VICI, nOperator, &
+       eChangeLocal, eChangeGlobal, &
+       DoCalcPrecip, DtCalcPrecip, &
+       vdr_q3, eng_q3, vexb, dif_q3, Part_phot
   use ModCimiPlanet,  	 ONLY: &
        re_m, dipmom, Hiono, nspec, amu_I, dFactor_I, tFactor_I
   use ModCimiTrace,  	 ONLY: &
@@ -193,19 +193,22 @@ subroutine cimi_run(delta_t)
      do iSpecies = 1, nspec
 
         if ( DoSaveFlux( iSpecies ) ) &
-             call Cimi_plot_fls( rc, flux( iSpecies, :, :, :, : ), iSpecies, time, Lstar_C, Lstar_max )
+             call Cimi_plot_fls( rc, flux( iSpecies, :, :, :, : ), &
+             iSpecies, time, Lstar_C, Lstar_max )
         if ( DoSavePSD( iSpecies ) ) &
-             call Cimi_plot_psd( rc, psd( iSpecies, :, :, :, : ), iSpecies, time, xmm, xk )
+             call Cimi_plot_psd( rc, psd( iSpecies, :, :, :, : ), &
+             iSpecies, time, xmm, xk )
         if ( DoSaveVLDrift( iSpecies ) ) &
-           call Cimi_plot_vl( rc, vlEa( iSpecies, :, :, :, : ), iSpecies, time)
+             call Cimi_plot_vl( rc, vlEa( iSpecies, :, :, :, : ), &
+             iSpecies, time)
         if ( DoSaveVPDrift( iSpecies ) ) &
-           call Cimi_plot_vp( rc, vpEa( iSpecies, :, :, :, : ), iSpecies, time)
+             call Cimi_plot_vp( rc, vpEa( iSpecies, :, :, :, : ), &
+             iSpecies, time)
         
      enddo
 
   endif
   
-
   ! calculate the drift velocity
   call timing_start('cimi_driftV')
   call driftV(nspec,np,nt,nm,nk,irm,re_m,Hiono,dipmom,dphi,xlat, &
@@ -278,14 +281,14 @@ subroutine cimi_run(delta_t)
         call WavePower(Time,AE_temp,iba)
      endif
 
-     if (UseStrongDiff) then
+     if ( UseStrongDiff ) then
         call timing_start('cimi_StrongDiff')
         call StrongDiff(iba)
         call sume_cimi(OpStrongDiff_)
         call timing_stop('cimi_StrongDiff')
      endif
      
-     if (UseDecay) then
+     if ( UseDecay ) then
         call timing_start('cimi_Decay')
         call CalcDecay_cimi(dt)
         call sume_cimi(OpDecay_)
@@ -304,15 +307,16 @@ subroutine cimi_run(delta_t)
   enddo
 
   ! calculate precipitations accumulated over some time interval DtPreCalc 
-  if( PrecipCalc .and. (floor((Time+1.0e-5)/DtPreCalc))/=&
-       floor((Time+1.0e-5-delta_t)/DtPreCalc)) then
+  if( DoCalcPrecip .and. &
+       ( floor( ( Time + 1.0e-5 ) / DtCalcPrecip ) ) /= &
+         floor( ( Time + 1.0e-5 - delta_t ) / DtCalcPrecip ) ) then
      call timing_start('cimi_precip_calc')
-     call cimi_precip_calc(rc,DtPreCalc)
+     call cimi_precip_calc( rc, DtCalcPrecip )
      call timing_stop('cimi_precip_calc')
   endif
 
   call timing_start('cimi_output')
-  call cimi_output( &
+  call cimi_output( & 
        np, nt, nm, nk, nspec, neng, npit, iba, ftv, f2, ekev, &
        sinA, energy, sinAo, delE, dmu, amu_I, xjac, pp, xmm, dmm, &
        dk, xlat, dphi, re_m, Hiono, vl, vp, flux, FAC_C, phot, &
@@ -322,12 +326,13 @@ subroutine cimi_run(delta_t)
   ! When nProc >1 consolodate: phot, Ppar_IC, Pressure_IC,
   ! PressurePar_IC, fac and iba on iProc 0
   if (nProc>1) then    
-     if (.not.allocated(iRecieveCount_P)) &
-          allocate(iRecieveCount_P(nProc), iDisplacement_P(nProc))       
+     if ( .not. allocated(iRecieveCount_P) ) &
+          allocate(iRecieveCount_P(nProc), iDisplacement_P(nProc))
      !Gather to root
      iSendCount = np*nLonPar
-     iRecieveCount_P=np*nLonPar_P
+     iRecieveCount_P = np*nLonPar_P
      iDisplacement_P = np*nLonBefore_P
+
      BufferSend_C(:,:) = FAC_C(:,:) 
      call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
           MPI_REAL, BufferRecv_C, iRecieveCount_P, iDisplacement_P, &
@@ -379,13 +384,24 @@ subroutine cimi_run(delta_t)
      if (iProc==0) Bmin_C(:,:)=BufferRecv_C(:,:)
      
   endif
+
+  if ( iProc == 0 ) then
+     write(*,*) "nProc > 1: ", nProc > 1
+     write(*,*) "DoSavePlot: ", DoSavePlot
+     write(*,*) "floor((Time+1.0e-5)/DtOutput)/=floor((Time+1.0e-5-delta_t)/DtOutput): ", &
+          floor((Time+1.0e-5)/DtOutput)/=floor((Time+1.0e-5-delta_t)/DtOutput)
+     
+     write(*,*) (nProc > 1 .and. DoSavePlot .and. &
+          (floor((Time+1.0e-5)/DtOutput)/=&
+          floor((Time+1.0e-5-delta_t)/DtOutput)))
+  endif
   
   ! On processor O, gather info and save plots
   ! When time to write output, consolodate xo,yo,flux,pot,ftv, bo, and irm 
   ! on iProc 0
-  if (nProc>1 .and. DoSavePlot  .and.&
-       (floor((Time+1.0e-5)/DtOutput))/=&
-       floor((Time+1.0e-5-delta_t)/DtOutput)) then
+  if ( nProc > 1 .and. DoSavePlot .and. &
+       (floor((Time+1.0e-5)/DtOutput)/=&
+       floor((Time+1.0e-5-delta_t)/DtOutput))) then
      
 !     call MPI_GATHERV(pot(:,MinLonPar:MaxLonPar), iSendCount, MPI_REAL, &
 !          pot, iRecieveCount_P, iDisplacement_P, MPI_REAL, &
@@ -396,31 +412,38 @@ subroutine cimi_run(delta_t)
           MPI_REAL, BufferRecv_C, iRecieveCount_P, iDisplacement_P, &
           MPI_REAL, 0, iComm, iError)
      if (iProc==0) ftv(:,:)=BufferRecv_C(:,:)
+     
      BufferSend_C(:,:)=xo(:,:)
      call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
           MPI_REAL, BufferRecv_C, iRecieveCount_P, iDisplacement_P, &
           MPI_REAL, 0, iComm, iError)
      if (iProc==0) xo(:,:)=BufferRecv_C(:,:)
+
      BufferSend_C(:,:)=yo(:,:)
      call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
           MPI_REAL, BufferRecv_C, iRecieveCount_P, iDisplacement_P, &
           MPI_REAL, 0, iComm, iError)
      if (iProc==0) yo(:,:)=BufferRecv_C(:,:)
+
+     if ( iproc == 0 ) write(*,*) "DO I GET HERE???"
      BufferSend_C(:,:)=bo(:,:)
      call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
           MPI_REAL, BufferRecv_C, iRecieveCount_P, iDisplacement_P, &
           MPI_REAL, 0, iComm, iError)
      if (iProc==0) bo(:,:)=BufferRecv_C(:,:)
+
      BufferSend_C(:,:)=xmlto(:,:)
      call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
           MPI_REAL, BufferRecv_C, iRecieveCount_P, iDisplacement_P, &
           MPI_REAL, 0, iComm, iError)
      if (iProc==0) xmlto(:,:)=BufferRecv_C(:,:)
+
      BufferSend_C(:,:)=brad(:,:)
      call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
           MPI_REAL, BufferRecv_C, iRecieveCount_P, iDisplacement_P, &
           MPI_REAL, 0, iComm, iError)
      if (iProc==0) brad(:,:)=BufferRecv_C(:,:)
+
      if ( .not. DoCoupleSami ) then
 
         BufferSend_C(:,:) = density(:,:)
@@ -430,27 +453,36 @@ subroutine cimi_run(delta_t)
         if (iProc==0) density(:,:) = BufferRecv_C(:,:)
         
      end if
+
      BufferSend_I(:)=irm(:)
      call MPI_GATHERV(BufferSend_I(MinLonPar:MaxLonPar), nLonPar, &
           MPI_INTEGER, BufferRecv_I, nLonPar_P, nLonBefore_P, &
           MPI_INTEGER, 0, iComm, iError)
      if (iProc==0) irm(:)=BufferRecv_I(:)
-  elseif (nProc > 1 .and. DoWriteSats .and. &
-       (floor((Time+1.0e-5)/DtSatOut))/=&
-       floor((Time+1.0e-5-delta_t)/DtSatOut)) then
+
+  elseif ( nProc > 1 .and. &
+       ( DoWriteSats .and. &
+       ( floor((Time+1.0e-5)/DtSatOut)) /= &
+       floor((Time+1.0e-5-delta_t)/DtSatOut) ) .or.&
+       ( DoSaveLstar .and. &
+       ( floor((Time+1.0e-5)/DtLstarOutput)) /= &
+       floor((Time+1.0e-5-delta_t)/DtLstarOutput) ) ) &
+       then
+
+     if ( iproc == 0 ) write(*,*) "DO I GET HERE, TOO???"
      BufferSend_C(:,:)=bo(:,:)
      call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
           MPI_REAL, BufferRecv_C, iRecieveCount_P, iDisplacement_P, &
           MPI_REAL, 0, iComm, iError)     
      if (iProc==0) bo(:,:)=BufferRecv_C(:,:)
+     
   endif
 
-
   if (nProc>1 .and. ((DoSavePlot  .and.&
-       (floor((Time+1.0e-5)/DtOutput))/=&
-       floor((Time+1.0e-5-delta_t)/DtOutput)) .or.&
+       (floor((Time+1.0e-5)/DtOutput)) /= &
+       floor((Time+1.0e-5-delta_t)/DtOutput)) .or. &
        ((floor((Time+1.0e-5)/DtSatOut))/=&
-       floor((Time+1.0e-5-delta_t)/DtSatOut).and.DoWriteSats))) then
+       floor((Time+1.0e-5-delta_t)/DtSatOut) .and. DoWriteSats))) then
      do  iSpecies=1,nspec
         do iM=1,nm
            do iK=1,nk
@@ -490,30 +522,30 @@ subroutine cimi_run(delta_t)
      enddo
   endif
 
-  if (nProc>1 .and. (PrecipOutput .and. &   
-          (floor((Time+1.0e-5)/DtPreOut))/=&
-          floor((Time+1.0e-5-delta_t)/DtPreOut))) then
-      do  iSpecies=1,nspec
-         do iEnergy=1,neng+2
-            BufferSend_C(:,:)=preP(iSpecies,:,:,iEnergy)
-            call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
-                 MPI_REAL, BufferRecv_C,iRecieveCount_P, iDisplacement_P, &
-                 MPI_REAL, 0, iComm, iError)
-            if (iProc==0) preP(iSpecies,:,:,iEnergy)=BufferRecv_C(:,:) 
-            BufferSend_C(:,:)=preF(iSpecies,:,:,iEnergy)  
-            call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
-                 MPI_REAL, BufferRecv_C,iRecieveCount_P, iDisplacement_P, &
-                 MPI_REAL, 0, iComm, iError)
-            if (iProc==0) preF(iSpecies,:,:,iEnergy)=BufferRecv_C(:,:)
-         enddo ! Do loop over iEnergy
-         
-         BufferSend_C(:,:)=Eje1(iSpecies,:,:)
-         call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
-                  MPI_REAL, BufferRecv_C,iRecieveCount_P, iDisplacement_P, &
-                  MPI_REAL, 0, iComm, iError)
-         if (iProc==0) Eje1(iSpecies,:,:)=BufferRecv_C(:,:)
-      enddo !Do loop over Species
-   endif
+  do  iSpecies=1,nspec
+     if (nProc>1 .and. (DoSavePreci(iSpecies) .and. &   
+          (floor((Time+1.0e-5)/DtPreciOutput(iSpecies)))/=&
+          floor((Time+1.0e-5-delta_t)/DtPreciOutput(iSpecies)))) then
+        do iEnergy=1,neng+2
+           BufferSend_C(:,:)=preP(iSpecies,:,:,iEnergy)
+           call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
+                MPI_REAL, BufferRecv_C,iRecieveCount_P, iDisplacement_P, &
+                MPI_REAL, 0, iComm, iError)
+           if (iProc==0) preP(iSpecies,:,:,iEnergy)=BufferRecv_C(:,:) 
+           BufferSend_C(:,:)=preF(iSpecies,:,:,iEnergy)  
+           call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
+                MPI_REAL, BufferRecv_C,iRecieveCount_P, iDisplacement_P, &
+                MPI_REAL, 0, iComm, iError)
+           if (iProc==0) preF(iSpecies,:,:,iEnergy)=BufferRecv_C(:,:)
+        enddo ! Do loop over iEnergy
+        
+        BufferSend_C(:,:)=Eje1(iSpecies,:,:)
+        call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
+             MPI_REAL, BufferRecv_C,iRecieveCount_P, iDisplacement_P, &
+             MPI_REAL, 0, iComm, iError)
+        if (iProc==0) Eje1(iSpecies,:,:)=BufferRecv_C(:,:)
+     endif
+  enddo !Do loop over Species
 
    ! Gather bm to root for multiple processes for Lstar2 calculation.
    if (nProc > 1 .and. &
@@ -567,29 +599,21 @@ subroutine cimi_run(delta_t)
       enddo
    endif
 
-  !Gather to root
-  !    iSendCount = np*nLonPar
-  !    iRecieveCount_P=np*nLonPar_P
-  !    iDisplacement_P = np*nLonBefore_P
-  !    call MPI_GATHERV(ftv(:,MinLonPar:MaxLonPar), iSendCount, MPI_REAL, &
-  !         ftv, iRecieveCount_P, iDisplacement_P, MPI_REAL, &
-  !            0, iComm, iError)
-
    if (iProc == 0) then
-
-      call timing_start('calc_Lstar1')
-      call calc_Lstar1(Lstar_C,Lstar_max,rc)
-      call timing_stop('calc_Lstar1')
-      
-      call timing_start('calc_Lstar2')
-      call calc_Lstar2(Lstarm,Lstar_maxm,rc)
-      call timing_stop('calc_Lstar2')
 
       ! Plot CIMI parameters at the ionosphere and equator.
       if ( ( DoSaveEq .or. DoSaveIono ) .and. &
            ( floor( ( Time + 1.0e-5 ) / DtOutput ) /= &
            	floor( ( Time + 1.0e-5 - delta_t ) / DtOutput ) ) ) then
          
+         call timing_start('calc_Lstar1')
+         call calc_Lstar1(Lstar_C,Lstar_max,rc)
+         call timing_stop('calc_Lstar1')
+      
+         call timing_start('calc_Lstar2')
+         call calc_Lstar2(Lstarm,Lstar_maxm,rc)
+         call timing_stop('calc_Lstar2')
+
          call timing_start('cimi_plot')
          call Cimi_plot( np, nt, xo, yo, &
               Pressure_IC, PressurePar_IC, phot, Ppar_IC, &
@@ -624,6 +648,14 @@ subroutine cimi_run(delta_t)
               ( floor( ( Time + 1.0e-5 ) / DtVPDriftOutput( iSpecies ) ) /= &
               	floor( ( Time + 1.0e-5 - delta_t ) / DtVPDriftOutput( iSpecies ) ) ) ) &
               call Cimi_plot_vp( rc, vpEa( iSpecies, :, :, :, : ), iSpecies, time )
+      ! Write precipitation file
+      if (DoSavePreci(iSpecies) .and. &
+           (floor((Time+1.0e-5)/DtPreciOutput(iSpecies)))/=&
+           floor((Time+1.0e-5-delta_t)/DtPreciOutput(iSpecies)))then
+         call timing_start('cimi_plot_precip')
+         call cimi_plot_precip( rc, iSpecies, Time )
+         call timing_stop('cimi_plot_precip')
+      endif
          
       enddo
       
@@ -649,15 +681,6 @@ subroutine cimi_run(delta_t)
          call timing_stop('cimi_plot_log')
       endif
       
-      ! Write precipitation file
-      if (PrecipOutput .and. &
-           (floor((Time+1.0e-5)/DtPreOut))/=&
-           floor((Time+1.0e-5-delta_t)/DtPreOut))then
-         call timing_start('cimi_plot_precip')
-         call cimi_plot_precip(rc,Time)
-         call timing_stop('cimi_plot_precip')
-      endif
-
    endif
 
  end subroutine Cimi_run
@@ -1785,7 +1808,7 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
                  dEner=sum(dEnerLocal_C)
               endif
               
-              if(iProc==0) then
+              if( iProc == 0 ) then
                  if (dPart.gt.0.) driftin(n)=driftin(n)+dEner
                  if (dPart.lt.0.) driftout(n)=driftout(n)+dEner
               else
@@ -1984,7 +2007,7 @@ subroutine sume(xle)
      if (nProc >1) call MPI_REDUCE (xleChangeLocal, xleChange, 1, MPI_REAL, &
            MPI_SUM, 0, iComm, iError)
 
-     if(iProc==0) then 
+     if( iProc == 0 ) then 
         xle(n)=xle(n)+xleChange
      else
         xle(n)=0.0

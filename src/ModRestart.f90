@@ -106,7 +106,7 @@ contains
     integer ::iSendCount, iSpecies, iM, iK, iError, iOperator, iEnergy
     real :: BufferSend_C(np,nt),BufferRecv_C(np,nt)
     integer :: BufferSend_I(nt),BufferRecv_I(nt)
-    integer,allocatable :: iRecieveCount_P(:),iDisplacement_P(:)
+    integer,allocatable :: iReceiveCount_P(:),iDisplacement_P(:)
 
     ! Initialize necessary variables for saving restart.sat file
     integer :: iSat,iRow
@@ -116,10 +116,10 @@ contains
 
     ! When nProc>1 gather to proc 0 for writing.
     if (nProc>1) then
-       if (.not.allocated(iRecieveCount_P)) &
-            allocate(iRecieveCount_P(nProc), iDisplacement_P(nProc))       
+       if (.not.allocated(iReceiveCount_P)) &
+            allocate(iReceiveCount_P(nProc), iDisplacement_P(nProc))       
        iSendCount = np*nLonPar
-       iRecieveCount_P=np*nLonPar_P
+       iReceiveCount_P=np*nLonPar_P
        iDisplacement_P = np*nLonBefore_P
        !Gather f2
        do  iSpecies=1,nspec
@@ -128,7 +128,7 @@ contains
                 BufferSend_C(:,:)=f2(iSpecies,:,:,iM,iK)
                 call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), &
                      iSendCount, &
-                     MPI_REAL, BufferRecv_C,iRecieveCount_P, iDisplacement_P, &
+                     MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
                      MPI_REAL, 0, iComm, iError)
                 if (iProc==0) f2(iSpecies,:,:,iM,iK)=BufferRecv_C(:,:)
              enddo
@@ -138,7 +138,7 @@ contains
        !gather FAC
        BufferSend_C(:,:)=FAC_C(:,:)
        call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
-            MPI_REAL, BufferRecv_C, iRecieveCount_P, iDisplacement_P, &
+            MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
             MPI_REAL, 0, iComm, iError)
        if (iProc==0) FAC_C(:,:)=BufferRecv_C(:,:)
 
@@ -146,31 +146,31 @@ contains
        do iSpecies=1,nspec
           BufferSend_C(:,:)=Den_IC(iSpecies,:,:)
           call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
-               MPI_REAL, BufferRecv_C,iRecieveCount_P, iDisplacement_P, &
+               MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
                MPI_REAL, 0, iComm, iError)
           if (iProc==0) Den_IC(iSpecies,:,:)=BufferRecv_C(:,:)
 
           BufferSend_C(:,:)=Pressure_IC(iSpecies,:,:)
           call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
-               MPI_REAL, BufferRecv_C,iRecieveCount_P, iDisplacement_P, &
+               MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
                MPI_REAL, 0, iComm, iError)
           if (iProc==0) Pressure_IC(iSpecies,:,:)=BufferRecv_C(:,:)
 
           BufferSend_C(:,:)=PressurePar_IC(iSpecies,:,:)
           call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
-               MPI_REAL, BufferRecv_C,iRecieveCount_P, iDisplacement_P, &
+               MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
                MPI_REAL, 0, iComm, iError)
           if (iProc==0) PressurePar_IC(iSpecies,:,:)=BufferRecv_C(:,:)
           
           BufferSend_C(:,:)=phot(iSpecies,:,:)
           call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
-               MPI_REAL, BufferRecv_C,iRecieveCount_P, iDisplacement_P, &
+               MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
                MPI_REAL, 0, iComm, iError)
           if (iProc==0) phot(iSpecies,:,:)=BufferRecv_C(:,:)
 
           BufferSend_C(:,:)=Ppar_IC(iSpecies,:,:)
           call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
-               MPI_REAL, BufferRecv_C,iRecieveCount_P, iDisplacement_P,&
+               MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P,&
                MPI_REAL, 0, iComm, iError)
           if (iProc==0) Ppar_IC(iSpecies,:,:)=BufferRecv_C(:,:)
 
@@ -180,7 +180,7 @@ contains
              BufferSend_C(:,:)=&
                   eTimeAccumult_ICI(iSpecies,:,:,iEnergy)
              call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
-                  MPI_REAL, BufferRecv_C, iRecieveCount_P, iDisplacement_P, &
+                  MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
                   MPI_REAL, 0, iComm, iError)
              if (iProc==0) &
                   eTimeAccumult_ICI(iSpecies,:,:,iEnergy)=BufferRecv_C(:,:)
@@ -189,7 +189,7 @@ contains
              BufferSend_C(:,:)=&
                   pTimeAccumult_ICI(iSpecies,:,:,iEnergy)
              call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
-                  MPI_REAL, BufferRecv_C, iRecieveCount_P, iDisplacement_P, &
+                  MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
                   MPI_REAL, 0, iComm, iError)
              if (iProc==0) &
                   pTimeAccumult_ICI(iSpecies,:,:,iEnergy)=BufferRecv_C(:,:)
@@ -201,7 +201,7 @@ contains
                      eChangeOperator_VICI(iSpecies,:,:,iEnergy,iOperator)
                 call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), &
                      iSendCount, &
-                     MPI_REAL, BufferRecv_C, iRecieveCount_P, iDisplacement_P, &
+                     MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
                      MPI_REAL, 0, iComm, iError)
                 if (iProc==0) &
                      eChangeOperator_VICI(iSpecies,:,:,iEnergy,iOperator)=&
@@ -212,7 +212,7 @@ contains
                      pChangeOperator_VICI(iSpecies,:,:,iEnergy,iOperator)
                 call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), &
                      iSendCount, &
-                     MPI_REAL, BufferRecv_C, iRecieveCount_P, iDisplacement_P, &
+                     MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
                      MPI_REAL, 0, iComm, iError)
                 if (iProc==0) &
                      pChangeOperator_VICI(iSpecies,:,:,iEnergy,iOperator)=&
@@ -232,7 +232,7 @@ contains
        !gather Bmin
        BufferSend_C(:,:)=Bmin_C(:,:)
        call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
-            MPI_REAL, BufferRecv_C,iRecieveCount_P, iDisplacement_P, &
+            MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
             MPI_REAL, 0, iComm, iError)
        if (iProc==0) Bmin_C(:,:)=BufferRecv_C(:,:)
     endif
