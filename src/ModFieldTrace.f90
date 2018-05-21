@@ -57,7 +57,7 @@ contains
   ! given magnetic field configuration.
   ! Output: iba,irm,iw2,vel,ekev,pp,sinA,Have,alscone             
   !***********************************************************************
-  subroutine fieldpara(t,dt,c,q,rc,re,xlati,xmlt,phi,si,xme)
+  subroutine fieldpara(t,dt,c,q,rc,re,xlati,xmlt,phi,si,xme,IsRestart)
     use ModCimiPlanet,		ONLY: nspec
     use ModNumConst,		ONLY: pi => cPi, cDegToRad
     use ModCimiInitialize,	ONLY: xmm
@@ -69,6 +69,7 @@ contains
     common/geopack/aa(10),sps,cps,bb(3),ps,cc(11),kk(2),dd(8)
     external tsyndipoleSM,MHD_B
 
+    logical, intent(in) :: IsRestart
     real :: aa,sps,cps,bb,ps,cc,dd
     integer :: kk
     integer :: iday1
@@ -97,6 +98,8 @@ contains
     real, parameter :: LengthMax = 50.0
     integer :: iError
     real :: bmin
+
+    logical, save ::  IsFirstCall=.true.
     !--------------------------------------------------------------------------
     DstOutput=0.0
     ekev=0.0
@@ -522,7 +525,7 @@ contains
 
     ! Find iw2(m) (max invariant grid that fits in output energy grid)
     ! Set for midnight
-    if (iProc==iProcMidnight) then
+    if (iProc==iProcMidnight .and. IsFirstCall .and. .not.IsRestart) then
        do n=1,nspec
           do m=1,ik
              iw2(n,m)=iw
@@ -535,6 +538,7 @@ contains
              enddo find_iw2
           enddo
        enddo ! nspec
+       IsFirstCall=.false.
     endif
     ! When nProc>1 broadcast iw2 to all processors
     ! For somereason this bcast fails for 2 procs but works for >2procs...

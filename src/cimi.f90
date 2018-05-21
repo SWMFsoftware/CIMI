@@ -98,7 +98,7 @@ subroutine cimi_run(delta_t)
 
   call timing_start('cimi_fieldpara')
   call fieldpara(Time,dt,cLightSpeed,cElectronCharge,rc,re_m,xlat,xmlt,phi,xk,&
-                 dipmom)
+                 dipmom,IsRestart)
   call timing_stop('cimi_fieldpara')
 
   ! get Bmin, needs to be passed to GM for anisotropic pressure coupling
@@ -1078,8 +1078,8 @@ subroutine initial_f2(nspec,np,nt,iba,amu_I,vel,xjac,ib0)
               do m=1,nk
                  do k=1,iw2(n,m)
                     e1=log10(ekev(n,i,j,k,m)) 
-                   ! if (e1.le.ei(ie)) then
-                    if (e1.ge.ei(ie)) e1=ei(ie)    ! flat dist at high E
+                    if (e1.le.ei(ie)) then
+                    !if (e1.ge.ei(ie)) e1=ei(ie)    ! flat dist at high E
                        if (e1.lt.ei(1)) e1=ei(1)    ! flat dist. at low E
                        if (roii.lt.roi(1)) roii=roi(1) ! flat dist @ lowL
                        if (roii.gt.roi(il)) roii=roi(il) ! flat @ high L
@@ -1089,7 +1089,7 @@ subroutine initial_f2(nspec,np,nt,iba,amu_I,vel,xjac,ib0)
                    !   if (testDiff_aa) psd2=psd2*sinA(i,j,m)*sinA(i,j,m)  !  
                        if (testDiff_EE.or.testDiff_aE)  psd2=1.
                        f2(n,i,j,k,m)=psd2*xjac(n,i,k)*1.e20*1.e19 
-                   ! endif
+                    endif
                  enddo                            ! end of k loop
               enddo                               ! end of m loop
               
