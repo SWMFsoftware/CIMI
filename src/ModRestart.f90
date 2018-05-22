@@ -19,7 +19,7 @@ contains
          eTimeAccumult_ICI, eChangeOperator_VICI, eChangeGlobal, &
          pTimeAccumult_ICI, pChangeOperator_VICI, &
          driftin, driftout, rbsumGlobal, rcsumGlobal, nOperator
-    use ModCimiTrace, ONLY: iba
+    use ModCimiTrace, ONLY: iba, iw2
     use ModGmCimi,    ONLY: Den_IC
     use ModIoUnit,    ONLY: UnitTmp_
     use ModUtilities, ONLY: open_file, close_file
@@ -54,6 +54,7 @@ contains
        read(UnitTmp_) rcsumGlobal
        read(UnitTmp_) driftin
        read(UnitTmp_) driftout
+       read(UnitTmp_) iw2
        call close_file
     end if
     
@@ -82,6 +83,7 @@ contains
        call MPI_bcast(rcsumGlobal, nspec, MPI_REAL, 0, iComm, iError)
        call MPI_bcast(driftin, nspec, MPI_REAL, 0, iComm, iError)
        call MPI_bcast(driftout, nspec, MPI_REAL, 0, iComm, iError)
+       call MPI_bcast(iw2,nk*nspec,MPI_INTEGER,0,iComm,iError)
     endif
     
   end subroutine cimi_read_restart
@@ -95,7 +97,7 @@ contains
          eTimeAccumult_ICI, eChangeOperator_VICI, eChangeGlobal, &
          pTimeAccumult_ICI, pChangeOperator_VICI, &
          driftin, driftout, rbsumGlobal, rcsumGlobal, nOperator
-    use ModCimiTrace,ONLY: iba    
+    use ModCimiTrace,ONLY: iba,iw2    
     use ModGmCimi,    ONLY: Den_IC
     use ModIoUnit,    ONLY: UnitTmp_
     use ModUtilities, ONLY: open_file, close_file
@@ -258,6 +260,7 @@ contains
        write(UnitTmp_) rcsumGlobal
        write(UnitTmp_) driftin
        write(UnitTmp_) driftout
+       write(UnitTmp_) iw2
        call close_file
 
        call open_file(file=trim(NameRestartOutDir)//'restart.H', &
