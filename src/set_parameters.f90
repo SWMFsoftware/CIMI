@@ -8,26 +8,27 @@ subroutine CIMI_set_parameters(NameAction)
   use ModCimiPlot
   use ModCimiTrace,	 ONLY: UseEllipse, UseSmooth, UseCorotation, &
        UsePotential, SmoothWindow, imod, iLatTest, iLonTest
-  use ModCimi,           ONLY: UseMcLimiter, BetaLimiter, time, Pmin, &
+  use ModCimi,		 ONLY: UseMcLimiter, BetaLimiter, time, Pmin, &
        IsStandAlone, UseStrongDiff, UseDecay, DecayTimescale,&
        dt, dtmax, DoCalcPrecip, DtCalcPrecip
-  use ModCimiRestart,    ONLY: IsRestart, DtSaveRestart
-  use ModCimiPlanet,     ONLY: nspec, NameSpecies_I
-  use ModImTime,         ONLY: iStartTime_I, TimeMax
-  use ModCimiBoundary,   ONLY: &
+  use ModCimiRestart,	 ONLY: IsRestart, DtSaveRestart
+  use ModCimiPlanet,	 ONLY: nspec, NameSpecies_I
+  use ModImTime,	 ONLY: iStartTime_I, TimeMax
+  use ModCimiBoundary,	 ONLY: &
        UseBoundaryEbihara, UseYoungEtAl, CIMIboundary, Outputboundary
-  use ModIeCimi,         ONLY: UseWeimer
-  use ModPrerunField,    ONLY: DoWritePrerun, UsePrerun, DtRead
-  use ModGmCIMI,         ONLY: UseGm
-  use ModWaveDiff,       ONLY: &
+  use ModIeCimi,	 ONLY: UseWeimer
+  use ModPrerunField,	 ONLY: DoWritePrerun, UsePrerun, DtRead
+  use ModGmCIMI,	 ONLY: UseGm
+  use ModWaveDiff,	 ONLY: &
        UseWaveDiffusion, UseHiss, UseChorus, UseChorusUB, &
        DiffStartT, HissWavesD, ChorusWavesD, ChorusUpperBandD, &
        testDiff_aa, testDiff_EE, testDiff_aE, &
        NameAeFile, read_ae_wdc_kyoto
-  use DensityTemp, 	 ONLY: densityP
-  use ModImSat,          ONLY: DtSatOut, DoWritePrerunSat, UsePrerunSat, &
+  use DensityTemp,	 ONLY: densityP
+  use ModImSat,		 ONLY: DtSatOut, DoWritePrerunSat, UsePrerunSat, &
        DtReadSat, DoWriteSats, ReadRestartSat
   use ModCimiGrid
+  use ModLstar,		 ONLY: DoVerboseLstar
   
   implicit none
 
@@ -177,13 +178,6 @@ subroutine CIMI_set_parameters(NameAction)
 
               call read_var( 'DoSaveSeparateFiles', DoSaveSeparateFiles )
 
-              if (iProc == 0 ) then
-                 write(*,*) "DoSaveFlux: ", DoSaveFlux
-                 write(*,*) "DtFluxOutput: ", DtFluxOutput
-                 write(*,*) "DoSaveSeparateFluxFiles: ", &
-                      DoSaveSeparateFluxFiles
-              endif
-              
               PLOT_FLUX_SPECIES: if &
                    ( index( StringCIMIPlot, 'all' ) > 0 ) then
                  
@@ -257,25 +251,11 @@ subroutine CIMI_set_parameters(NameAction)
 
               endif PLOT_FLUX_SPECIES
               
-              if (iProc == 0 ) then
-                 write(*,*) "DoSaveFlux: ", DoSaveFlux
-                 write(*,*) "DtFluxOutput: ", DtFluxOutput
-                 write(*,*) "DoSaveSeparateFluxFiles: ", &
-                      DoSaveSeparateFluxFiles
-              endif
-              
            elseif &
                 ( index( StringCIMIPlot, 'psd' ) > 0 ) then
 
               call read_var( 'DoSaveSeparateFiles', DoSaveSeparateFiles )
 
-              if (iProc == 0 ) then
-                 write(*,*) "DoSavePSD: ", DoSavePSD
-                 write(*,*) "DtPSDOutput: ", DtPSDOutput
-                 write(*,*) "DoSaveSeparatePSDFiles: ", &
-                      DoSaveSeparatePSDFiles
-              endif
-              
               PLOT_PSD_SPECIES: if &
                    ( index( StringCIMIPlot, 'all' ) > 0 ) then
 
@@ -347,25 +327,11 @@ subroutine CIMI_set_parameters(NameAction)
                  
               endif PLOT_PSD_SPECIES
               
-              if (iProc == 0 ) then
-                 write(*,*) "DoSavePSD: ", DoSavePSD
-                 write(*,*) "DtPSDOutput: ", DtPSDOutput
-                 write(*,*) "DoSaveSeparatePSDFiles: ", &
-                      DoSaveSeparatePSDFiles
-              endif
-              
            elseif &
                 ( index( StringCIMIPlot, 'vl'  ) > 0 .or. &
                   index( StringCIMIPlot, 'vldrift' ) > 0 ) then
 
               call read_var( 'DoSaveSeparateFiles', DoSaveSeparateFiles )
-              
-              if (iProc == 0 ) then
-                 write(*,*) "DoSaveVLDrift: ", DoSaveVLDrift
-                 write(*,*) "DtVLDriftOutput: ", DtVLDriftOutput
-                 write(*,*) "DoSaveSeparateVLDriftFiles: ", &
-                      DoSaveSeparateVLDriftFiles
-              endif
               
               PLOT_VLDRIFT_SPECIES: if &
                    ( index( StringCIMIPlot, 'all' ) > 0 ) then
@@ -439,26 +405,12 @@ subroutine CIMI_set_parameters(NameAction)
                  
               endif PLOT_VLDRIFT_SPECIES
               
-              if (iProc == 0 ) then
-                 write(*,*) "DoSaveVLDrift: ", DoSaveVLDrift
-                 write(*,*) "DtVLDriftOutput: ", DtVLDriftOutput
-                 write(*,*) "DoSaveSeparateVLDriftFiles: ", &
-                      DoSaveSeparateVLDriftFiles
-              endif
-              
            elseif &
                 ( index( StringCIMIPlot, 'vp'  ) > 0 .or. &
                   index( StringCIMIPlot, 'vpdrift' ) > 0 ) then
 
               call read_var( 'DoSaveSeparateFiles', DoSaveSeparateFiles )
 
-              if (iProc == 0 ) then
-                 write(*,*) "DoSaveVPDrift: ", DoSaveVPDrift
-                 write(*,*) "DtVPDriftOutput: ", DtVPDriftOutput
-                 write(*,*) "DoSaveSeparateVPDriftFiles: ", &
-                      DoSaveSeparateVPDriftFiles
-              endif
-              
               PLOT_VPDRIFT_SPECIES: if &
                    ( index( StringCIMIPlot, 'all' ) > 0 ) then
                  
@@ -532,26 +484,12 @@ subroutine CIMI_set_parameters(NameAction)
                  
               endif PLOT_VPDRIFT_SPECIES
               
-              if (iProc == 0 ) then
-                 write(*,*) "DoSaveVPDrift: ", DoSaveVPDrift
-                 write(*,*) "DtVPDriftOutput: ", DtVPDriftOutput
-                 write(*,*) "DoSaveSeparateVPDriftFiles: ", &
-                      DoSaveSeparateVPDriftFiles
-              endif
-              
            elseif &
                 ( index( StringCIMIPlot, 'precipitation'  ) > 0 .or. &
                   index( StringCIMIPlot, 'precip' ) > 0 .or. &
                   index( StringCIMIPlot, 'preci' ) > 0 ) then
 
               call read_var( 'DoSaveSeparateFiles', DoSaveSeparateFiles )
-              
-              if (iProc == 0 ) then
-                 write(*,*) "DoSavePreci: ", DoSavePreci
-                 write(*,*) "DtPreciOutput: ", DtPreciOutput
-                 write(*,*) "DoSaveSeparatePreciFiles: ", &
-                      DoSaveSeparatePreciFiles
-              endif
               
               PLOT_PRECI_SPECIES: if &
                    ( index( StringCIMIPlot, 'all' ) > 0 ) then
@@ -626,21 +564,8 @@ subroutine CIMI_set_parameters(NameAction)
                  
               endif PLOT_PRECI_SPECIES
               
-              if (iProc == 0 ) then
-                 write(*,*) "DoSavePreci: ", DoSavePreci
-                 write(*,*) "DtPreciOutput: ", DtPreciOutput
-                 write(*,*) "DoSaveSeparatePreciFiles: ", &
-                      DoSaveSeparatePreciFiles
-              endif
-
            elseif &
                 ( index( StringCIMIPlot, '2d'  ) > 0 ) then
-
-              if (iProc == 0 ) then
-                 write(*,*) "DoSaveEq: ", DoSaveEq
-                 write(*,*) "DoSaveIono: ", DoSaveIono
-                 write(*,*) "DtOutput: ", DtOutput
-              endif
 
               PLOT_2D: if &
                    ( index( StringCIMIPlot, 'all'  ) > 0 .or. &
@@ -669,36 +594,16 @@ subroutine CIMI_set_parameters(NameAction)
                  
               endif PLOT_2D
 
-              if (iProc == 0 ) then
-                 write(*,*) "DoSaveEq: ", DoSaveEq
-                 write(*,*) "DoSaveIono: ", DoSaveIono
-                 write(*,*) "DtOutput: ", DtOutput
-              endif
-              
            elseif &
                 ( index( StringCIMIPlot, 'lstar'  ) > 0 .or. &
                   index( StringCIMIPlot, 'l*'  ) > 0 ) then
 
               call read_var( 'DoSaveSeparateFiles', DoSaveSeparateFiles )
 
-              if (iProc == 0 ) then
-                 write(*,*) "DoSaveLstar: ", DoSaveLstar
-                 write(*,*) "DtLstarOutput: ", DtLstarOutput
-                 write(*,*) "DoSaveSeparateLstarFiles: ", &
-                      DoSaveSeparateLstarFiles
-              endif
-              
               DoSaveLstar = .true.
               DtLstarOutput = DtOutputCIMIPlot
               DoSaveSeparateLstarFiles = DoSaveSeparateFiles
 
-              if (iProc == 0 ) then
-                 write(*,*) "DoSaveLstar: ", DoSaveLstar
-                 write(*,*) "DtLstarOutput: ", DtLstarOutput
-                 write(*,*) "DoSaveSeparateLstarFiles: ", &
-                      DoSaveSeparateLstarFiles
-              endif
-              
            else
               call CON_STOP( 'No plot type specified.' )
            endif
@@ -707,6 +612,9 @@ subroutine CIMI_set_parameters(NameAction)
 
         DoSavePlot = .true.
      
+     case('#VERBOSELSTAR')
+        call read_var('DoVerboseLstar',DoVerboseLstar)
+        
      case('#INITIALF2')
         call read_var('IsEmptyInitial',IsEmptyInitial)
         call read_var('IsGmInitial',   IsGmInitial)

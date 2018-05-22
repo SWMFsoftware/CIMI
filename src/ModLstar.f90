@@ -45,9 +45,12 @@
 !  * February 11, 2016 - allocable logBo_i(:) -> real logBo_i(ir)
 !                      - remove allocate and deallocate logBo_i
 !  * March 21, 2016    - Add calc_lstar2.f90
+!  * May 22, 2018      - Added verbose 
 !**************************************************************************
   Module ModLstar
 
+    logical :: DoVerboseLstar = .false.
+    
 contains
 
   subroutine calc_Lstar1(Lstar,Lstar_max,rc)
@@ -88,7 +91,8 @@ contains
              ii=ii-1
              B_island(ii,j)=1
            enddo
-           write(*,'(" bo(i,j) has a island at, j = ",i3,"  i = ",i3," -",i3 )') j,ii,i
+           if ( DoVerboseLstar ) &
+                write(*,'("IM0: bo(i,j) has a island at, j = ",i3,"  i = ",i3," -",i3 )') j,ii,i
         endif
 20      continue
      enddo
@@ -138,8 +142,12 @@ contains
      if (Lstar_max.gt.Lstar(iba(j),j)) Lstar_max=Lstar(iba(j),j)
   enddo
 
-  write(*,'("L*max =",f8.2)') Lstar_max
-  write(*,'("L* =",10f8.2)') (Lstar(i,1),i=1,ir)
+  if ( DoVerboseLstar ) then
+     
+     write(*,'("IM0: L*max =",f8.2)') Lstar_max
+     write(*,'("IM0: L* =",10f8.2)') (Lstar(i,1),i=1,ir)
+
+  endif
 
   end subroutine calc_Lstar1
 
@@ -186,7 +194,8 @@ contains
                 B_island(ii,j)=1
               go to 10
               endif
-              write(*,'(" bm(i,j,m) has a island at ,m,j = ",2i3,"  i = ",i3," -",i3 )') m,j,ii,i
+              if ( DoVerboseLstar ) &
+                   write(*,'("IM0: bm(i,j,m) has a island at ,m,j = ",2i3,"  i = ",i3," -",i3 )') m,j,ii,i
            endif
 20         continue
         enddo
@@ -235,10 +244,15 @@ contains
         if (Lstar_max(m).gt.Lstar(iba(j),j,m)) Lstar_max(m)=Lstar(iba(j),j,m)
      enddo
   enddo          ! end of k
-write(*,'("L*max =",8f8.2)') (Lstar_max(m),m=1,ik)
-write(*,'("L* =",10f8.2)') (Lstar(i,1,1),i=1,ir)
 
-  end subroutine calc_Lstar2
+  if ( DoVerboseLstar ) then
+     
+     write(*,'("IM0: L*max =",8f8.2)') (Lstar_max(m),m=1,ik)
+     write(*,'("IM0: L* =",10f8.2)') (Lstar(i,1,1),i=1,ir)
+
+  endif
+
+end subroutine calc_Lstar2
 
 !**************************************************************************
       subroutine locateB(xx,n,x,j)
