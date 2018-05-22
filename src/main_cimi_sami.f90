@@ -221,7 +221,8 @@ program cimi_sami
   iStep = 0
   TIMELOOP:do
      !report progress on proc 0
-     if (iProcGlobal==0)write(*,*) 'In Time Loop iStep,Time = ', iStep,Time
+     if ( iProcGlobal == 0 ) &
+          write(*,*) 'IM: In Time Loop iStep, Time = ', iStep, Time
      ! If Time exceeds max time then stop advancing
      if (Time >= TimeMax) exit TIMELOOP
      
