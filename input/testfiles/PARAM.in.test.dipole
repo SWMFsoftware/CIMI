@@ -34,11 +34,10 @@ F		UsePotential
 T		UseWeimer
 
 #SAVEPLOT
-10.0		DtSavePlot
-F		DoSaveFlux
-T		DoSaveDrifts
-F		DoSavePSD
-F		UseSeparatePlotFiles
+1		nCIMIPlotType
+vpdrift all	StringPlot
+60.		DtOutput
+F		DoSaveSeparateFiles
 
 #SAVELOG
 10.0		DtLogOut

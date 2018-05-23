@@ -32,11 +32,9 @@ t04		NameModel
 T		UseWeimer
 
 #SAVEPLOT
-10.0		DtSavePlot
-T		DoSaveFlux
-T		DoSaveDrifts
-T		DoSavePSD
-F		UseSeparatePlotFiles
+1		nCIMIPlotType
+2d eq		StringPlot
+60.		DtOutput
 
 #SAVELOG
 10.0		DtLogOut

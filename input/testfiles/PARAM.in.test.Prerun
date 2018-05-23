@@ -32,11 +32,15 @@ MHD		NameModel
 F		UseWeimer
 
 #SAVEPLOT
-10.0		DtSavePlot
-T		DoSaveFlux
-F		DoSaveDrifts
-T		DoSavePSD
-F		UseSeparatePlotFiles
+3		nCIMIPlotType
+fls all		StringPlot
+60.		DtOutput
+F		DoSaveSeparateFiles
+psd all		StringPlot
+60.		DtOutput
+F		DoSaveSeparateFiles
+2d eq		StringPlot
+60.		DtOutput
 
 #SAVELOG
 10.0		DtLogOut

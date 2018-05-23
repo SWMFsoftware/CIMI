@@ -71,7 +71,7 @@ test_all:
 	@echo "test_compile..." > test_cimi.diff
 	make   test_compile
 	@echo "test_rundir..." >> test_cimi.diff
-	make   test_rundir
+	make   test_rundir_all
 	@echo "test_run..."    >> test_cimi.diff
 	make   test_run
 	@echo "test_check..."  >> test_cimi.diff
@@ -164,6 +164,12 @@ test_rundir:
 	make rundir RUNDIR=${TESTDIR} STANDALONE=YES IMDIR=`pwd`
 	cp input/testfiles/*.dat ${TESTDIR}/
 	cp input/testfiles/PARAM.in.test.NOWAVES ${TESTDIR}/PARAM.in
+
+test_rundir_all:
+	rm -rf ${TESTDIR}
+	make rundir RUNDIR=${TESTDIR} STANDALONE=YES IMDIR=`pwd`
+	cp input/testfiles/*.dat ${TESTDIR}/
+	cp input/testfiles/PARAM.in.test.all ${TESTDIR}/PARAM.in
 
 test_rundir_WAVES:
 	rm -rf ${TESTDIR}
