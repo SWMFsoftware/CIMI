@@ -12,7 +12,7 @@ subroutine CIMI_set_parameters(NameAction)
        IsStandAlone, UseStrongDiff, UseDecay, DecayTimescale,&
        dt, dtmax, DoCalcPrecip, DtCalcPrecip
   use ModCimiRestart,	 ONLY: IsRestart, DtSaveRestart
-  use ModCimiPlanet,	 ONLY: nspec, NameSpecies_I
+  use ModCimiPlanet,	 ONLY: nspec
   use ModImTime,	 ONLY: iStartTime_I, TimeMax
   use ModCimiBoundary,	 ONLY: &
        UseBoundaryEbihara, UseYoungEtAl, CIMIboundary, Outputboundary
