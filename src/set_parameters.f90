@@ -12,7 +12,7 @@ subroutine CIMI_set_parameters(NameAction)
        IsStandAlone, UseStrongDiff, UseDecay, DecayTimescale,&
        dt, dtmax, DoCalcPrecip, DtCalcPrecip
   use ModCimiRestart,	 ONLY: IsRestart, DtSaveRestart
-  use ModCimiPlanet,	 ONLY: nspec, NameSpecies_I
+  use ModCimiPlanet,	 ONLY: nspec
   use ModImTime,	 ONLY: iStartTime_I, TimeMax
   use ModCimiBoundary,	 ONLY: &
        UseBoundaryEbihara, UseYoungEtAl, CIMIboundary, Outputboundary
@@ -146,18 +146,6 @@ subroutine CIMI_set_parameters(NameAction)
 
      case('#IEMODEL')
         call read_var('UseWeimer',UseWeimer)
-
-!!$     case('#SAVEPLOT')
-!!$        call read_var('DtSavePlot',DtOutput)
-!!$        call read_var('DoSaveFlux',DoSaveFlux)
-!!$        call read_var('DoSaveDrifts',DoSaveDrifts)
-!!$        call read_var('DoSavePSD',DoSavePSD)
-!!$        ! If saving flux then decide if it should be just one file or many
-!!$        if (DoSaveFlux .or. DoSaveDrifts .or. DoSavePSD) then
-!!$           call read_var('UseSeparatePlotFiles',UseSeparatePlotFiles)
-!!$        endif
-!!$        
-!!$        DoSavePlot = .true.
 
      case('#SAVELOG')
         call read_var('DtLogOut',DtLogOut)
@@ -574,6 +562,7 @@ subroutine CIMI_set_parameters(NameAction)
                  DoSaveEq = .true.
                  DoSaveIono = .true.
                  DtOutput = DtOutputCIMIPlot
+                 
               elseif &
                    ( index( StringCIMIPlot, 'equator' ) > 0 .or. &
                      index( StringCIMIPlot, 'eq' ) > 0 ) then
@@ -588,24 +577,26 @@ subroutine CIMI_set_parameters(NameAction)
                  DoSaveIono = .true.
                  DtOutput = DtOutputCIMIPlot
                  
+              elseif &
+                   ( index( StringCIMIPlot, 'lstar'  ) > 0 .or. &
+                     index( StringCIMIPlot, 'l*'  ) > 0 ) then
+                 
+                 call read_var( 'DoSaveSeparateFiles', DoSaveSeparateFiles )
+                 
+                 DoSaveLstar = .true.
+                 DtLstarOutput = DtOutputCIMIPlot
+                 DoSaveSeparateLstarFiles = DoSaveSeparateFiles
+                 
               else
 
                  call CON_STOP( 'No CIMI 2D Plot information; STOPPING' )
-                 
+
               endif PLOT_2D
 
-           elseif &
-                ( index( StringCIMIPlot, 'lstar'  ) > 0 .or. &
-                  index( StringCIMIPlot, 'l*'  ) > 0 ) then
-
-              call read_var( 'DoSaveSeparateFiles', DoSaveSeparateFiles )
-
-              DoSaveLstar = .true.
-              DtLstarOutput = DtOutputCIMIPlot
-              DoSaveSeparateLstarFiles = DoSaveSeparateFiles
-
            else
+              
               call CON_STOP( 'No plot type specified.' )
+              
            endif
 
         end do CIMI_PLOTTYPE
