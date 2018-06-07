@@ -51,3 +51,11 @@ run*
 
 # Backup files
 *~
+
+# CIMI Documentation Files	
+doc/CIMI.pdf
+doc/Tex/CIMI.aux   
+doc/Tex/CIMI.dvi
+doc/Tex/CIMI.log
+doc/Tex/CIMI.toc
+doc/Tex/CIMIXML.tex

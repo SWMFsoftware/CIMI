@@ -37,20 +37,161 @@ This command specifies the simulation time.
 <commandgroup name="INPUT/OUTPUT">
 
 <command name="SAVEPLOT">
-	<parameter name="DtSavePlot" type="real" />
-	<parameter name="DoSaveFlux" type="logical" default="F"/>
-	<parameter name="UseSeparatePlotFiles" type="logical" default="F"/>
-#SAVEPLOT
-2		DtSavePlot
-F		DoSaveFlux
-F		UseSeparatePlotFiles
+	<parameter name="nCIMIPlotType" type="integer" default="0"/>
 
-Define frequency of plots. When DoSaveFlux is false, only integrated
-values such as species pressure density etc is saved. When DoSaveFlux
-is true, then another file containing information needed to make plots
-of species flux in each energy bin is saved. Use SeparatePlotFiles
-defines if each time is saved in the same file or if a separate file
-is used for each time.
+	<for name="iPlot" from="1" to="$nCIMIPlotType">
+
+	  <parameter name="StringPlot" type="strings" min="2" max="2">
+
+	    <part name="plottype" type="string" input="select" required="T">
+	      <option value="fls" name="FLS"/>
+	      <option value="flux" name="FLS"/>
+	      <option value="psd" name="PSD"/>
+	      <option value="vl" name="VL"/>
+	      <option value="vldrift" name="VL"/>
+	      <option value="vp" name="VP"/>
+	      <option value="vpdrift" name="VP"/>
+	      <option value="precipitation" name="PRECI"/>
+	      <option value="precip" name="PRECI"/>
+	      <option value="preci" name="PRECI"/>
+	      <option value="2d" name="IDL"/>
+	    </part>
+
+	    <part name="plotoption" type="string" input="select">
+	      <option value="all" name="ALL"/>
+	      <option value="ions" name="IONS"/>
+	      <option value="electrons" name="ELECTRONS"/>
+	      <option value="e-" name="ELECTRONS"/>
+	      <option value="h+" name="HYDROGEN"/>
+	      <option value="he+" name="HELIUM"/>
+	      <option value="o+" name="OXYGEN"/>
+	      <option value="both" name="ALL"/>
+	      <option value="eq" name="EQUATOR"/>
+	      <option value="equator" name="EQUATOR"/>
+	      <option value="iono" name="IONOSPHERE"/>
+	      <option value="ionosphere" name="IONOSPHERE"/>
+	      <option value="lstar" name="LSTAR"/>
+	      <option value="l*" name="LSTAR"/>
+	    </part>
+	  </parameter>
+
+	  <parameter name="DtOutputCIMIPlot" type="real" min="60."
+		     default="60."/>
+
+	  <if expr="$plottype =~ fls" or expr="$plottype =~ flux" or expr="$plottype =~ psd" or	expr="$plottype =~ vl" or expr="$plottype =~ vldrift" or expr="$plottype =~ vp" or expr="$plottype =~ vpdrift" or expr="$plottype =~ precipitation" or expr="$plottype =~ precip" or expr="$plottype =~ preci" or expr="$plotoption =~ lstar" or expr="$plotoption =~ l*">
+
+	    <parameter name="DoSaveSeparateFiles" type="logical"
+		       default="F"/>
+	    
+	  </if>
+	</for>
+
+	
+#SAVEPLOT
+8		nCIMIFileType
+fls ions	StringPlot
+300.		DtOutput
+F		DoSaveSeparateFiles
+fls e-		StringPlot
+60.		DtOutput
+T		DoSaveSeparateFiles
+psd all		StringPlot
+60.		DtOutput
+F		DoSaveSeparateFiles
+vl H+		StringPlot
+60.		DtOutput
+T		DoSaveSeparateFiles
+vpdrift ions	StringPlot
+60.		DtOutput
+F		DoSaveSeparateFiles
+preci all	StringPlot
+60.		DtOutput
+F		DoSaveSeparateFiles
+2d both		StringPlot
+60.		DtOutput
+2d lstar	StringPlot
+60.		DtOutput
+F		DoSaveSeparateFiles
+
+The #SAVEPLOT command determines the number, type, and frequency of
+output from CIMI.
+
+The nCIMIPlotType sets the number of plot types to be read in and
+configured. For each plot type, the StringPlot parameters define the
+content of each file and species or domain to be plot.
+
+StringPlot must contain 2 parts:
+\begin{verbatim}
+PlotType PlotOption
+\end{verbatim}
+
+PlotType can take values:
+\begin{verbatim}
+`fls'		- PARTICLE flux information. Also accepts 'flux'
+`psd'		- PARTICLE Phase Space Density (PSD).
+`vl'		- PARTICLE radial drift. Also accepts 'vldrift'
+`vp'		- PARTICLE poloidal drift. Also accepts 'vpdrift'
+`preci'		- PARTICLE precipitation to the ionosphere.
+		  Also accepts 'precipitation' or 'precip'
+`2d'		- VARIABLE Data on the 2d simulation plane
+\end{verbatim}
+
+PlotOption controls species information where relevant or controls for
+domain of output (in the case of \verb|`2d'|). PlotOption takes on
+values for the aforementioned PARTICLE output types:
+\begin{verbatim}
+`all'			- Output all particle species.
+`ions'			- Output only the ion species' information.
+`e-' or `electrons'	- Output only the electron's information.
+`h+'			- Output only the hydrogen's information.
+`o+'			- Output only the oxygen's information.
+			  (Only available if CIMI is compiled with `-EarthHO' option.)
+`he+'			- Output only the helium's information.
+			  (Only available if CIMI is compiled with `-EarthHOHe' option.)
+\end{verbatim}
+
+For 2d output types, PlotOption specifies which VARIABLE output is to
+be saved.  PlotOption can take on values:
+\begin{verbatim}
+`lstar' or `l*'		- Output of VARIABLE L*, the adiabatic drift shell.
+`equator' or `eq'	- Output calculated VARIABLES on the minimum B surface.
+`ionosphere' or `iono'	- Output calculated VARIABLES in the ionosphere.
+`both' or `all'		- Output calculated VARIABLES at both the ionospher and minimum B surface.
+\end{verbatim}
+
+Plots are saved in IM/plots. PARTICLE flux, PSD, raidal drift,
+poloidal drift, precipitation files are saved with extensions
+\verb|'.fls', `.psd', `.vl', `.vp', `.preci'|, respectively. Lstar
+VARIABLE output is saved with extension \verb|`.lstar'|. Routines for
+reading these files can be found in CIMI/tools.
+
+VARIABLE output at the equator or ionosphere have extension
+\verb|`.outs'| and can be read with SWMF IDL visualization scripts.
+
+DtOutput is required to be read in for ALL output file types. The
+minimum output is currently set to 60 seconds simulation time.
+
+DoSaveSeparateFiles is a logical check to save individual output files
+for each time step; DoSaveSeparateFiles is required to be read for all
+PARTICLE output types and for Lstar output.
+
+Default is nCIMIPlotType=0 so no plot files are saved.
+
+</command>
+
+<command name="VERBOSELSTAR">
+  <parameter name="DoVerboseLstar" type="logical" default="F"/>
+
+#VERBOSELSTAR
+F		DoVerboseLstar
+
+Command controls for the output of the Lstar calculation to the
+screen, including information about magnetic island locations (those
+locations where B is not monotonically decreasing) and the maximum
+Lstar values for each value of the second adiabatic invariant, K.
+
+Default is DoVerboseLstar=F
+
 </command>
 
 <command name="SAVELOG">
