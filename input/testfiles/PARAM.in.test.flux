@@ -32,11 +32,10 @@ t04		NameModel
 T		UseWeimer
 
 #SAVEPLOT
-10.0		DtSavePlot
-T		DoSaveFlux
-F		DoSaveDrifts
-F		DoSavePSD
-F		UseSeparatePlotFiles
+1		nCIMIPlotType
+fls all		StringPlot
+60.		DtOutput
+F		DoSaveSeparateFiles
 
 #SAVELOG
 10.0		DtLogOut
@@ -45,7 +44,7 @@ F		UseSeparatePlotFiles
 F		IsEmptyInitial
 F		IsGmInitial
 T		IsDataInitial
-F		IsDataRBSP
+F		IsRBSPData
 
 #TYPEBOUNDARY
 Circle		TypeBoundary

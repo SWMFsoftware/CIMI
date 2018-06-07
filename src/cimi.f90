@@ -167,11 +167,11 @@ subroutine cimi_run(delta_t)
 
      if ( iProc == 0 ) then
 
-        if ( DoSaveEq .or. DoSaveIono ) then
+        call timing_start('calc_Lstar1')
+        call calc_Lstar1(Lstar_C,Lstar_max,rc)
+        call timing_stop('calc_Lstar1')
            
-           call timing_start('calc_Lstar1')
-           call calc_Lstar1(Lstar_C,Lstar_max,rc)
-           call timing_stop('calc_Lstar1')
+        if ( DoSaveEq .or. DoSaveIono ) then
            
            call timing_start('cimi_plot')
            call Cimi_plot( np, nt, xo, yo, &
@@ -345,14 +345,14 @@ subroutine cimi_run(delta_t)
 
   if ( iProc == 0 ) then
 
+     call timing_start('calc_Lstar1')
+     call calc_Lstar1(Lstar_C,Lstar_max,rc)
+     call timing_stop('calc_Lstar1')
+        
      ! Plot CIMI parameters at the ionosphere and equator.
      if ( ( DoSaveEq .or. DoSaveIono ) .and. &
           ( floor( ( Time + 1.0e-5 ) / DtOutput ) /= &
           floor( ( Time + 1.0e-5 - delta_t ) / DtOutput ) ) ) then
-        
-        call timing_start('calc_Lstar1')
-        call calc_Lstar1(Lstar_C,Lstar_max,rc)
-        call timing_stop('calc_Lstar1')
         
         call timing_start('cimi_plot')
         call Cimi_plot( np, nt, xo, yo, &
