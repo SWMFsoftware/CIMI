@@ -1,6 +1,7 @@
 subroutine cimi_run(delta_t)
   use ModConst,       	 ONLY: 	cLightSpeed, cElectronCharge
-  use ModCimiInitialize, ONLY: 	xmm, xk, dphi, dmm, dk, dmu, xjac
+  use ModCimiInitialize, ONLY: 	xmm, xk, dphi, dmm, dk, dmu, xjac, &
+                                varL, dvarL
   use ModCimi,        	 ONLY: &
        f2, dt, Time, phot, Ppar_IC, Pressure_IC, &
        PressurePar_IC, FAC_C, Bmin_C, &
@@ -493,8 +494,9 @@ subroutine cimi_init
   ! Variables determining the spacing of the mu and K grids
   real rw, rw1, rsi, rs1
   
+  real varLmin, varLmax
   real sina0, sina1
-  real xjac1, sqrtm
+  real xjac1, xjac2, xjacL, sqrtm
   real d2
 
   !-----------------------------------------------------------------------------
@@ -558,12 +560,24 @@ subroutine cimi_init
   re_m = rPlanet_I(Earth_)                            ! earth's radius (m)
   dipmom=abs(DipoleStrengthPlanet_I(Earth_)*re_m**3)  ! earth's dipole moment
   
-  ! CIMI xlat and xmlt grids
-  do i=1,np
-     xlat(i)=xlat_data(i)
-     dlat(i)=0.5*(xlat_data(i+1)-xlat_data(i-1))*cDegToRad    ! dlat in radian
+  ! CIMI xlat grid
+  varLmin=1./cos(xlat_data(1 )*cDegToRad)**2
+  varLmax=1./cos(xlat_data(np)*cDegToRad)**2
+  dvarL=(varLmax-varLmin)/(float(np)-1.)
+  do i=0,np+1
+     varL(i)=varLmin+(i-1)*dvarL
+     if (varL(i).lt.1.) varL(i)=1.
   enddo
-  xlatr=xlat*cDegToRad  
+  xlatr(1:np)=acos(1./sqrt(varL(1:np)))
+  xlat(1:np)=xlatr(1:np)/cDegToRad
+  do i=2,np-1
+     dlat(i)=0.5*(xlat(i+1)-xlat(i-1))
+  enddo
+  dlat(1)=0.5*(xlat(2)-acos(1./sqrt(varL(0))))
+  dlat(np)=0.5*(acos(1./sqrt(varL(np+1)))-xlat(np-1))
+
+
+  ! CIMI xmlt grid
   dphi=2.*cPi/nt
   do i=1,nt
      phi(i)=(i-1)*dphi
@@ -756,16 +770,18 @@ subroutine cimi_init
      xjac1=4.*sqrt(2.)*cPi*(1.673e-27*amu_I(n))*dipmom/(re_m+Hiono*1000.)
      sqrtm=sqrt(1.673e-27*amu_I(n))
      do i=1,np
+        xjacL=0.5/varL(i)/varL(i)/varL(i)/sin(xlatr(i))     ! Jacobian from varL
+        xjac2=sin(2.*xlatr(i))*xjacL
         do k=1,nm
-           xjac(n,i,k)=xjac1*sin(2.*xlatr(i))*sqrt(xmm(n,k))*sqrtm
+           xjac(n,i,k)=xjac1*xjac2*sqrt(xmm(n,k))*sqrtm
         enddo
      enddo
   enddo
 
   ! Calculate d4Element_C: dlat*dphi*dmm*dk
+    d2=dvarL*dphi
     do n=1,nspec
       do i=1,np
-         d2=dlat(i)*dphi
          do k=1,nm
             do m=1,nk
                d4Element_C(n,i,k,m)=d2*dmm(n,k)*dk(m)
@@ -1243,19 +1259,21 @@ subroutine driftV(nspec,np,nt,nm,nk,irm,re_m,Hiono,dipmom,dphi,xlat, &
   ! Output: vl,vp
   use ModCimiGrid, ONLY: iProc,nProc,iComm,MinLonPar,MaxLonPar, &
        iProcLeft, iLonLeft, iProcRight, iLonRight
+  use ModCimiInitialize, ONLY: varL,dvarL
   use ModMpi
   use ModCimiTrace, ONLY: UseCorotation
   implicit none
 
   integer nspec,np,nt,nm,nk,irm(nt),n,i,ii,j,k,m,i0,i2,j0,j2,icharge
   real kfactor,xlat(np),xlatr(np),dlat(np),ekev(nspec,np,nt,nm,nk),pot(np,nt)
-  real ksai,ksai1,xlat1,sf0,sf2,dlat2,re_m,Hiono,dipmom,dphi,pi,dphi2,cor
+  real ksai,ksai1,xlat1,sf0,sf2,dvarL2,re_m,Hiono,dipmom,dphi,pi,dphi2,cor
   real ham(np,nt), vl(nspec,0:np,nt,nm,nk), vp(nspec,0:np,nt,nm,nk)
 
   ! MPI status variable
   integer :: iStatus_I(MPI_STATUS_SIZE), iError
 
   pi=acos(-1.)
+  dvarL2=dvarL*2.
   dphi2=dphi*2.
   kfactor=dipmom/(re_m+Hiono*1000.)
   if (UseCorotation) then
@@ -1303,11 +1321,8 @@ subroutine driftV(nspec,np,nt,nm,nk,irm,re_m,Hiono,dipmom,dphi,xlat, &
 
            ! calculate drift velocities vl and vp
            iloop: do i=0,np
-              ii=i
-              if (i.eq.0) ii=1
-              if (i.ge.1) ksai=kfactor*sin(2.*xlatr(i))
-              if (i.lt.np) xlat1=0.5*(xlatr(ii)+xlatr(i+1))    ! xlat(i+0.5)
-              ksai1=kfactor*sin(2.*xlat1)                   ! ksai at i+0.5
+              ksai=kfactor/varL(i)**2
+              ksai1=kfactor/(varL(i)+0.5*dvarL)**2   ! varL(i+0.5)
               jloop: do j=MinLonPar,MaxLonPar
                  j0=j-1
                  if (j0.lt.1) j0=j0+nt
@@ -1330,10 +1345,9 @@ subroutine driftV(nspec,np,nt,nm,nk,irm,re_m,Hiono,dipmom,dphi,xlat, &
                        if (i.eq.1) i0=1
                        i2=i+1
                        if (i.eq.np) i2=np
-                       dlat2=xlatr(i2)-xlatr(i0)
                        sf0=0.5*(ham(i0,j2)+ham(i0,j))
                        sf2=0.5*(ham(i2,j2)+ham(i2,j))
-                       vp(n,i,j,k,m)=cor+(sf2-sf0)/dlat2/ksai  ! vp at (i,j+0.5)
+                       vp(n,i,j,k,m)=cor+(sf2-sf0)/dvarL2/ksai  ! vp at (i,j+0.5)
                     else
                        vp(n,i,j,k,m)=vp(n,i-1,j,k,m)
                     endif
@@ -1356,6 +1370,7 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
   ! Input: iw2,nspec,np,nt,nm,nk,iba,dt,dlat,dphi,brad,rb,vl,vp,fbi
   ! Input/Output: f2,ib0,driftin,driftout
   use ModCimiGrid, ONLY: MinLonPar, MaxLonPar
+  use ModCimiInitialize, ONLY: dvarL
   use ModCimiTrace, ONLY: iba, ekev
   use ModCimiGrid, ONLY: iProc,nProc,iComm,MinLonPar,MaxLonPar, &
        iProcLeft, iLonLeft, iProcRight, iLonRight, d4Element_C    
@@ -1368,7 +1383,7 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
   real dt,dlat(np),dphi,brad(np,nt),&
        vl(nspec,0:np,nt,nm,nk),vp(nspec,0:np,nt,nm,nk)
   real rb,fb(nspec,nt,nm,nk),f2(nspec,np,nt,nm,nk)
-  real f2d(np,nt),cmax,cl1,cp1,cmx,dt1,fb0(nt),fb1(nt),fo_log,fb_log,f_log
+  real f2d(np,nt),f2d0(np,nt),cmax,cl1,cp1,cmx,dt1,fb0(nt),fb1(nt),fo_log,fb_log,f_log
   real slope,cl(np,nt),cp(np,nt),fal(0:np,nt),fap(np,nt),&
        fupl(0:np,nt),fupp(np,nt)
   real driftin(nspec),driftout(nspec),dEner,dPart,&
@@ -1403,7 +1418,7 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
               if (j1.gt.nt) j1=j1-nt
               ibaj=max(iba(j),iba(j1))
               do i=1,ibaj
-                 cl1=dt/dlat(i)*vl(n,i,j,k,m)
+                 cl1=dt/dvarL*vl(n,i,j,k,m)
                  cp1=dt/dphi*vp(n,i,j,k,m)
                  cmx=max(abs(cl1),abs(cp1))
                  cmax=max(cmx,cmax)
@@ -1436,7 +1451,7 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
                  enddo
               endif
               do i=1,np
-                 cl(i,j)=dt1/dlat(i)*vl(n,i,j,k,m)
+                 cl(i,j)=dt1/dvarL*vl(n,i,j,k,m)
                  cp(i,j)=dt1/dphi*vp(n,i,j,k,m)
               enddo
            enddo
@@ -1506,13 +1521,13 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
                       11,iComm,iStatus_I,iError)
               endif
 
+              f2d0(:,:)=f2d(:,:)
               jloop: do j=MinLonPar,MaxLonPar
                  j_1=j-1
                  if (j_1.lt.1) j_1=j_1+nt
                  iloop: do i=1,iba(j)
-                    f2d(i,j)=f2d(i,j)+dt1/dlat(i)* &
-                         (vl(n,i-1,j,k,m)*fal(i-1,j)-vl(n,i,j,k,m)*fal(i,j))+ &
-                         cp(i,j_1)*fap(i,j_1)-cp(i,j)*fap(i,j)
+                    f2d(i,j)=f2d0(i,j) + cl(i-1,j)*fal(i-1,j)-cl(i,j)*fal(i,j)+ &
+                                        cp(i,j_1)*fap(i,j_1)-cp(i,j)*fap(i,j)
                     if (f2d(i,j).lt.0.) then
                        if (f2d(i,j).gt.-1.e-30) then
                           f2d(i,j)=0.
@@ -1526,8 +1541,7 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
                     endif
                  enddo iloop
                  ! Calculate gain or loss at the outer boundary
-                 dPartLocal_C(j) = -dt1/dlat(iba(j)) &
-                      *vl(n,iba(j),j,k,m)*fal(iba(j),j)*&
+                 dPartLocal_C(j) = -cl(iba(j),j)*fal(iba(j),j)*&
                       d4Element_C(n,iba(j),k,m)
                  dEnerLocal_C(j)=ekev(n,iba(j),j,k,m)*dPartLocal_C(j)
               enddo jloop
@@ -1540,8 +1554,8 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
                     j_1=j-1
                     if (j_1.lt.1) j_1=j_1+nt
                     iLoopUpwind: do i=1,iba(j)
-                       f2d(i,j)=f2d(i,j)+dt1/dlat(i)* &
-                        (vl(n,i-1,j,k,m)*fupl(i-1,j)-vl(n,i,j,k,m)*fupl(i,j))+ &
+                       f2d(i,j)=f2d0(i,j)+ &
+                        cl(i-1,j)*fupl(i-1,j)-cl(i,j)*fupl(i,j)+ &
                         cp(i,j_1)*fupp(i,j_1)-cp(i,j)*fupp(i,j)
                        if (f2d(i,j).lt.0.) then
                           if (f2d(i,j).gt.-1.e-30) then
@@ -1559,15 +1573,20 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
                                   'upwind scheme failed, making iba(j)=i'
                              write(*,*)'IM WARNING: '//&
                                   'repeated failure may need to be examined'
-                             f2d(i,j)=0.0
-                             iba(j)=i
+                             write(*,'(a,3E11.3)') 'f2d(i,j),f2d0(i,j),f2=',f2d(i,j),f2d0(i,j),f2(n,i,j,k,m)
+                             write(*,'(a,2E11.3)') 'fupl(i-1,j),fupl(i,j)= ',fupl(i-1,j),fupl(i,j)
+                             write(*,'(a,2E11.3)') '  cl(i-1,j),  cl(i,j)= ',cl(i-1,j),cl(i,j)
+                             write(*,'(a,2E11.3)') 'fupp(i-1,j),fupp(i,j)= ',fupp(i,j-1),fupp(i,j)
+                             write(*,'(a,2E11.3)') '  cp(i-1,j),  cp(i,j)= ',cl(i,j-1),cl(i,j)
+                             STOP
+                             !!f2d(i,j)=0.0
+                             !!iba(j)=i
                              exit iLoopUpwind
                           endif
                        endif
                     enddo iLoopUpwind
                     ! Calculate gain or loss at the outer boundary
-                    dPartLocal_C(j)=-dt1/dlat(iba(j))*&
-                         vl(n,iba(j),j,k,m)*fupl(iba(j),j)*&
+                    dPartLocal_C(j)=-cl(iba(j),j)*fupl(iba(j),j)*&
                          d4Element_C(n,iba(j),k,m)
                     dEnerLocal_C(j)=ekev(n,iba(j),j,k,m)*dPartLocal_C(j)
                  enddo
