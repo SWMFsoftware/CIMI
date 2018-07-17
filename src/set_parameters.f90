@@ -10,7 +10,7 @@ subroutine CIMI_set_parameters(NameAction)
        UsePotential, SmoothWindow, imod, iLatTest, iLonTest
   use ModCimi,		 ONLY: UseMcLimiter, BetaLimiter, time, Pmin, &
        IsStandAlone, UseStrongDiff, UseDecay, DecayTimescale,&
-       dt, dtmax, DoCalcPrecip, DtCalcPrecip
+       dt, dtmax, DoCalcPrecip, DtCalcPrecip, IsStrictDrift
   use ModCimiRestart,	 ONLY: IsRestart, DtSaveRestart
   use ModCimiPlanet,	 ONLY: nspec
   use ModImTime,	 ONLY: iStartTime_I, TimeMax
@@ -750,6 +750,9 @@ subroutine CIMI_set_parameters(NameAction)
         if (DoCalcPrecip) call read_var('DtCalcPrecip',DtCalcPrecip)
 !!$        if (DoCalcPrecip) call read_var('PrecipOutput',PrecipOutput)
 !!$        if (PrecipOutput) call read_var('DtPreOut',DtPreOut)
+
+     case('#DRIFT')
+        call read_var('IsStrictDrift',IsStrictDrift) ! .T : STOP when f2 < 0
 
      end select
      

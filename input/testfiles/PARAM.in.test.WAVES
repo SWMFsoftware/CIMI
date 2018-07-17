@@ -78,3 +78,6 @@ AE_Index.dat	NameAeFile
 #IMTIMESTEP
 30.		IMDeltaT [s]
 30.		IMDeltaTMax [s]
+
+#DRIFT
+T		IsStrictDrift

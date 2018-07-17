@@ -73,3 +73,6 @@ F		IsRestart
 #IMTIMESTEP
 30.		IMDeltaT [s]
 30.		IMDeltaTMax [s]
+
+#DRIFT
+T		IsStrictDrift

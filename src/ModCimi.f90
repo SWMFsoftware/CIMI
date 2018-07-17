@@ -7,7 +7,7 @@ Module ModCimi
 
   real    :: dt=1., dtmax=1. ! typical time step of cimi
   real    :: Time = 0.0
-  logical :: UseMcLimiter = .false., UseStrongDiff = .false., UseDecay = .false.
+  logical :: UseMcLimiter = .false., UseStrongDiff = .false., UseDecay =.false.
   real    :: BetaLimiter = 1.5
   real    :: Pmin = 1e-2
   real    :: DecayTimescale = 36000. ! Seconds
@@ -53,6 +53,7 @@ Module ModCimi
 
   logical :: IsStandAlone = .false.
   logical :: DoCalcPrecip = .false.
+  logical :: IsStrictDrift = .false.
   real :: DtCalcPrecip = 10.
   
 contains

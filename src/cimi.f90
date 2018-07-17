@@ -1371,6 +1371,7 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
   ! Input/Output: f2,ib0,driftin,driftout
   use ModCimiGrid, ONLY: MinLonPar, MaxLonPar
   use ModCimiInitialize, ONLY: dvarL
+  use ModCimi, ONLY: IsStrictDrift
   use ModCimiTrace, ONLY: iba, ekev
   use ModCimiGrid, ONLY: iProc,nProc,iComm,MinLonPar,MaxLonPar, &
        iProcLeft, iLonLeft, iProcRight, iLonRight, d4Element_C    
@@ -1394,7 +1395,7 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
   integer :: iStatus_I(MPI_STATUS_SIZE)
   integer :: iError
   real, allocatable :: cmax_P(:)
-  
+ 
   if (.not.allocated(cmax_P) .and. nProc>1) allocate(cmax_P(nProc))
   
   ! When nProc>1 pass iba from neighboring procs
@@ -1573,14 +1574,17 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
                                   'upwind scheme failed, making iba(j)=i'
                              write(*,*)'IM WARNING: '//&
                                   'repeated failure may need to be examined'
-                             write(*,'(a,3E11.3)') 'f2d(i,j),f2d0(i,j),f2=',f2d(i,j),f2d0(i,j),f2(n,i,j,k,m)
-                             write(*,'(a,2E11.3)') 'fupl(i-1,j),fupl(i,j)= ',fupl(i-1,j),fupl(i,j)
-                             write(*,'(a,2E11.3)') '  cl(i-1,j),  cl(i,j)= ',cl(i-1,j),cl(i,j)
-                             write(*,'(a,2E11.3)') 'fupp(i-1,j),fupp(i,j)= ',fupp(i,j-1),fupp(i,j)
-                             write(*,'(a,2E11.3)') '  cp(i-1,j),  cp(i,j)= ',cl(i,j-1),cl(i,j)
-                             STOP
-                             !!f2d(i,j)=0.0
-                             !!iba(j)=i
+                             if (IsStrictDrift) then
+                                write(*,'(a,3E11.3)') 'f2d(i,j),f2d0(i,j),f2=',f2d(i,j),f2d0(i,j),f2(n,i,j,k,m)
+                                write(*,'(a,2E11.3)') 'fupl(i-1,j),fupl(i,j)= ',fupl(i-1,j),fupl(i,j)
+                                write(*,'(a,2E11.3)') '  cl(i-1,j),  cl(i,j)= ',cl(i-1,j),cl(i,j)
+                                write(*,'(a,2E11.3)') 'fupp(i-1,j),fupp(i,j)= ',fupp(i,j-1),fupp(i,j)
+                                write(*,'(a,2E11.3)') '  cp(i-1,j),  cp(i,j)= ',cl(i,j-1),cl(i,j)
+                                call CON_STOP('CIMI dies in driftIM')
+                             else
+                                f2d(i,j)=0.0
+                                iba(j)=i
+                             endif
                              exit iLoopUpwind
                           endif
                        endif
