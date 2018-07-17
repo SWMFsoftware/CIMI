@@ -1367,6 +1367,10 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
   !-----------------------------------------------------------------------------
   ! Routine updates f2 due to drift
   !
+  ! Routine calculates dF/dt = d(vl * F)/dxlat + d(vp * F)/dphi
+  !               or   dF/dt = d(vl * F)/dvarL + d(vp * F)/dphi
+  !  where F = PSD * xjac 
+  !
   ! Input: iw2,nspec,np,nt,nm,nk,iba,dt,dlat,dphi,brad,rb,vl,vp,fbi
   ! Input/Output: f2,ib0,driftin,driftout
   use ModCimiGrid, ONLY: MinLonPar, MaxLonPar
@@ -1419,8 +1423,8 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
               if (j1.gt.nt) j1=j1-nt
               ibaj=max(iba(j),iba(j1))
               do i=1,ibaj
-                 cl1=dt/dvarL*vl(n,i,j,k,m)
-                 cp1=dt/dphi*vp(n,i,j,k,m)
+                 cl1=dt/dvarL*vl(n,i,j,k,m)  ! Courant number in L, unitless
+                 cp1=dt/dphi*vp(n,i,j,k,m)   ! Courant number in phi, unitless
                  cmx=max(abs(cl1),abs(cp1))
                  cmax=max(cmx,cmax)
               enddo
@@ -1432,14 +1436,19 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
               cmax=maxval(cmax_P)
            endif
 
+           ! NOTE: if Courant number > 1, drift speed in a time step is greater
+           !       than a grid size and makes the code unstable.
+           !       Thus, Courant number should be < 1 and time step is small
+           !       enough such that Courant number < 1.
            nrun=ifix(cmax/0.50)+1     ! nrun to limit the Courant number
            dt1=dt/nrun                ! new dt
+
            ! Setup boundary fluxes and Courant numbers
            do j=MinLonPar,MaxLonPar
               ib=iba(j)
               ibo=ib0(j)
-              fb0(j)=f2d(1,j)                   ! psd at inner boundary
-              fb1(j)=fb(n,j,k,m)              ! psd at outer boundary
+              fb0(j)=f2d(1,j)                   ! f2 at inner boundary
+              fb1(j)=fb(n,j,k,m)              ! f2 at outer boundary
               if (ib.gt.ibo) then             ! during dipolarization
                  fo_log=-50.
                  if (f2d(ibo,j).gt.1.e-50) fo_log=log10(f2d(ibo,j))
@@ -1451,6 +1460,7 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
                     f2d(i,j)=10.**f_log
                  enddo
               endif
+              ! Recalculate Courant numbers
               do i=1,np
                  cl(i,j)=dt1/dvarL*vl(n,i,j,k,m)
                  cp(i,j)=dt1/dphi*vp(n,i,j,k,m)
@@ -1496,6 +1506,15 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
                  call MPI_recv(fb1(iLonLeft),1,MPI_REAL,iProcLeft,&
                       8,iComm,iStatus_I,iError)
               endif
+
+              ! calculate fluxes at the cell surface for finite volume scheme.
+              !  dF/dt     = d(vl * F)/dL  +  d(vp * F)/dphi
+              !  F_(t+1,i,j) = F_(t,i,j)  +  cl_(iup,j) * F_(t,iup,j) - cl(idown,j) * F(t,idown,j)   
+              !                           +  cp_(i,jup) * F_(t,i,jup) - cl(i,jdown) * F(t,i,jdown)
+              !  iup: upstream from i, i-1 < iup < i when cl > 0, i < iup < i+1 when cl < 0
+              !  idown: downstream from i, i < idown < i+1 when cl > 0, i-1 < iup < i when cl < 0
+              !  jup: upstream from j, j-1 < jup < j when cp > 0, j < jup < j+1 when cl < 0
+              !  jdown: downstream from j, j < jdown < j+1 when cp > 0, j-1 < jup < j when cp < 0
               call FLS_2D(np,nt,iba,fb0,fb1,cl,cp,f2d,fal,fap,fupl,fupp)
               fal(0,1:nt)=f2d(1,1:nt)
               ! When nProc>1 pass needed ghost cell info for fap,fupp and cp
@@ -1522,7 +1541,7 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
                       11,iComm,iStatus_I,iError)
               endif
 
-              f2d0(:,:)=f2d(:,:)
+              f2d0(:,:)=f2d(:,:)   ! save f2 in the current time step
               jloop: do j=MinLonPar,MaxLonPar
                  j_1=j-1
                  if (j_1.lt.1) j_1=j_1+nt
@@ -2662,8 +2681,15 @@ end subroutine cimi_precip_calc
 !-------------------------------------------------------------------------------
 subroutine FLS_2D(np,nt,iba,fb0,fb1,cl,cp,f2d,fal,fap,fupl,fupp)
 !-------------------------------------------------------------------------------
-  !  Routine calculates the inter-flux, fal(i+0.5,j) and fap(i,j+0.5), using
+  !  Routine calculates the inter-flux, fal(idown,j) and fap(i,jdown), using
   !  2nd order flux limited scheme with super-bee flux limiter method
+  !   where
+  !   fal(i-1up,j)=fal(idown,j) and fal(idown,j)=fal(i+1up,j)  
+  !   fap(i,j-1up)=fap(i,jdown) and fap(i,jdown)=fap(i,j+1up)  
+  !   iup: upstream from i, i-1 < iup < i when cl > 0, i < iup < i+1 when cl < 0
+  !   idown: downstream from i, i < idown < i+1 when cl > 0, i-1 < iup < i when cl < 0
+  !   jup: upstream from j, j-1 < jup < j when cp > 0, j < jup < j+1 when cl < 0
+  !   jdown: downstream from j, j < jdown < j+1 when cp > 0, j-1 < jup < j when cp < 0
   !
   !  Input: np,nt,iba,fb0,fb1,cl,cp,f2d
   !  Output: fal,fap
@@ -2696,6 +2722,9 @@ subroutine FLS_2D(np,nt,iba,fb0,fb1,cl,cp,f2d,fal,fap,fupl,fupp)
      iloop: do i=1,np
         ! find fal
         xsign=sign(1.,cl(i,j))
+        ! Upwind Scheme
+        ! fupl(idown,j) = fwbc(i,j) when cl(idown,j) > 0
+        !                 fwbc(i+1,j) when cl(idwon,j) < 0
         fupl(i,j)=0.5*(1.+xsign)*fwbc(i,j)+0.5*(1.-xsign)*fwbc(i+1,j) ! upwind
         flw=0.5*(1.+cl(i,j))*fwbc(i,j)+0.5*(1.-cl(i,j))*fwbc(i+1,j)   ! LW
         x=fwbc(i+1,j)-fwbc(i,j)
