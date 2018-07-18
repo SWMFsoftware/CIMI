@@ -224,8 +224,8 @@ subroutine cimi_run(delta_t)
   
   ! calculate the drift velocity
   call timing_start('cimi_driftV')
-  call driftV(nspec,np,nt,nm,nk,irm,re_m,Hiono,dipmom,dphi,xlat, &
-       dlat,ekev,pot,vl,vp)
+  call driftV(nspec,np,nt,nm,nk,irm,re_m,Hiono,dipmom,dphi, &
+       ekev,pot,vl,vp)
   call timing_stop('cimi_driftV')
 
   ! calculate the depreciation factor, achar, due to charge exchange loss
@@ -783,6 +783,12 @@ subroutine cimi_init
      enddo
   enddo
 
+  ! Calculate Lfactor, which is used in subroutine driftV
+  do i=0,np+1
+     Lfactor(i)=varNpower*varL(i)**(1.+2./varNpower)
+     Lfactor1(i)=varNpower*(varL(i)+0.5*dvarL)**(1.+2./varNpower)
+  enddo
+
   ! Calculate d4Element_C: dlat*dphi*dmm*dk
     d2=dvarL*dphi
     do n=1,nspec
@@ -1255,8 +1261,8 @@ end subroutine set_cimi_potential
 
 
 !-------------------------------------------------------------------------------
-subroutine driftV(nspec,np,nt,nm,nk,irm,re_m,Hiono,dipmom,dphi,xlat, &
-     dlat,ekev,pot,vl,vp)
+subroutine driftV(nspec,np,nt,nm,nk,irm,re_m,Hiono,dipmom,dphi, &
+     ekev,pot,vl,vp)
   !-----------------------------------------------------------------------------
   ! Routine calculates the drift velocities
   !
@@ -1264,13 +1270,13 @@ subroutine driftV(nspec,np,nt,nm,nk,irm,re_m,Hiono,dipmom,dphi,xlat, &
   ! Output: vl,vp
   use ModCimiGrid, ONLY: iProc,nProc,iComm,MinLonPar,MaxLonPar, &
        iProcLeft, iLonLeft, iProcRight, iLonRight
-  use ModCimiInitialize, ONLY: varL,dvarL
+  use ModCimiInitialize, ONLY: varL,dvarL,Lfactor,Lfactor1
   use ModMpi
   use ModCimiTrace, ONLY: UseCorotation
   implicit none
 
   integer nspec,np,nt,nm,nk,irm(nt),n,i,ii,j,k,m,i0,i2,j0,j2,icharge
-  real kfactor,xlat(np),xlatr(np),dlat(np),ekev(nspec,np,nt,nm,nk),pot(np,nt)
+  real kfactor,ekev(nspec,np,nt,nm,nk),pot(np,nt)
   real ksai,ksai1,xlat1,sf0,sf2,dvarL2,re_m,Hiono,dipmom,dphi,pi,dphi2,cor
   real ham(np,nt), vl(nspec,0:np,nt,nm,nk), vp(nspec,0:np,nt,nm,nk)
 
@@ -1280,13 +1286,12 @@ subroutine driftV(nspec,np,nt,nm,nk,irm,re_m,Hiono,dipmom,dphi,xlat, &
   pi=acos(-1.)
   dvarL2=dvarL*2.
   dphi2=dphi*2.
-  kfactor=dipmom/(re_m+Hiono*1000.)
+  kfactor=2.*dipmom/(re_m+Hiono*1000.)
   if (UseCorotation) then
      cor=2.*pi/86400.                        ! corotation speed in rad/s
   else
      cor=0.
   endif
-  xlatr=xlat*pi/180.
 
   nloop: do n=1,nspec
      if (n < nspec) then
@@ -1326,8 +1331,10 @@ subroutine driftV(nspec,np,nt,nm,nk,irm,re_m,Hiono,dipmom,dphi,xlat, &
 
            ! calculate drift velocities vl and vp
            iloop: do i=0,np
-              ksai=kfactor/varL(i)**2
-              ksai1=kfactor/(varL(i)+0.5*dvarL)**2   ! varL(i+0.5)
+              ii=i
+              if (i.eq.0) ii=1
+              ksai=kfactor/Lfactor(i)
+              ksai1=kfactor/Lfactor1(i)
               jloop: do j=MinLonPar,MaxLonPar
                  j0=j-1
                  if (j0.lt.1) j0=j0+nt
@@ -1443,7 +1450,7 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
 
            ! NOTE: if Courant number > 1, drift speed in a time step is greater
            !       than a grid size and makes the code unstable.
-           !       Thus, Courant number should be < 1 and time step is small
+           !       Thus, Courant number must be < 1 and time step is small
            !       enough such that Courant number < 1.
            nrun=ifix(cmax/0.50)+1     ! nrun to limit the Courant number
            dt1=dt/nrun                ! new dt
@@ -1599,11 +1606,11 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
                              write(*,*)'IM WARNING: '//&
                                   'repeated failure may need to be examined'
                              if (IsStrictDrift) then
-                                write(*,'(a,3E11.3)') 'f2d(i,j),f2d0(i,j),f2=',f2d(i,j),f2d0(i,j),f2(n,i,j,k,m)
-                                write(*,'(a,2E11.3)') 'fupl(i-1,j),fupl(i,j)= ',fupl(i-1,j),fupl(i,j)
-                                write(*,'(a,2E11.3)') '  cl(i-1,j),  cl(i,j)= ',cl(i-1,j),cl(i,j)
-                                write(*,'(a,2E11.3)') 'fupp(i-1,j),fupp(i,j)= ',fupp(i,j-1),fupp(i,j)
-                                write(*,'(a,2E11.3)') '  cp(i-1,j),  cp(i,j)= ',cl(i,j-1),cl(i,j)
+                                write(*,'(a,1p3E11.3)') 'f2d(i,j),f2d0(i,j),f2=',f2d(i,j),f2d0(i,j),f2(n,i,j,k,m)
+                                write(*,'(a,1p2E11.3)') 'fupl(i-1,j),fupl(i,j)= ',fupl(i-1,j),fupl(i,j)
+                                write(*,'(a,1p2E11.3)') '  cl(i-1,j),  cl(i,j)= ',cl(i-1,j),cl(i,j)
+                                write(*,'(a,1p2E11.3)') 'fupp(i-1,j),fupp(i,j)= ',fupp(i,j-1),fupp(i,j)
+                                write(*,'(a,1p2E11.3)') '  cp(i-1,j),  cp(i,j)= ',cl(i,j-1),cl(i,j)
                                 call CON_STOP('CIMI dies in driftIM')
                              else
                                 f2d(i,j)=0.0
