@@ -4,7 +4,8 @@ subroutine CIMI_set_parameters(NameAction)
   use ModReadParam
   use ModUtilities,	 ONLY: lower_case
   use ModCimiInitialize, ONLY: &
-       IsEmptyInitial, IsDataInitial, IsRBSPData, IsGmInitial
+       IsEmptyInitial, IsDataInitial, IsRBSPData, IsGmInitial,&
+       DoDefineVarNpower,varNpower
   use ModCimiPlot
   use ModCimiTrace,	 ONLY: UseEllipse, UseSmooth, UseCorotation, &
        UsePotential, SmoothWindow, imod, iLatTest, iLonTest
@@ -753,6 +754,11 @@ subroutine CIMI_set_parameters(NameAction)
 
      case('#DRIFT')
         call read_var('IsStrictDrift',IsStrictDrift) ! .T : STOP when f2 < 0
+
+     case('#LATITUDINALGRID')
+        call read_var('DoDefineVarNpower',DoDefineVarNpower) 
+        call read_var('varNpower',varNpower)   ! n in L = 1/cos(xlat)**n
+
 
      end select
      

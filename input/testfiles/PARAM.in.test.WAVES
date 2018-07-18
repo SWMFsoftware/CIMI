@@ -81,3 +81,7 @@ AE_Index.dat	NameAeFile
 
 #DRIFT
 T		IsStrictDrift
+
+#LATITUDINALGRID
+T		DoDefineVarNpower
+3.		varNpower

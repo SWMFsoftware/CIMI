@@ -69,3 +69,7 @@ F		IsRestart
 
 #DRIFT
 T		IsStrictDrift
+
+#LATITUDINALGRID
+T		DoDefineVarNpower
+3.		varNpower

@@ -1,7 +1,7 @@
 subroutine cimi_run(delta_t)
   use ModConst,       	 ONLY: 	cLightSpeed, cElectronCharge
   use ModCimiInitialize, ONLY: 	xmm, xk, dphi, dmm, dk, dmu, xjac, &
-                                varL, dvarL
+                                varL, dvarL, DoDefineVarNpower,varNpower
   use ModCimi,        	 ONLY: &
        f2, dt, Time, phot, Ppar_IC, Pressure_IC, &
        PressurePar_IC, FAC_C, Bmin_C, &
@@ -559,23 +559,28 @@ subroutine cimi_init
   ! Define constants
   re_m = rPlanet_I(Earth_)                            ! earth's radius (m)
   dipmom=abs(DipoleStrengthPlanet_I(Earth_)*re_m**3)  ! earth's dipole moment
-  
+ 
+ 
   ! CIMI xlat grid
-  varLmin=1./cos(xlat_data(1 )*cDegToRad)**2
-  varLmax=1./cos(xlat_data(np)*cDegToRad)**2
+  if (.not.DoDefineVarNpower) varNpower=3.   ! defaul L = 1/cos(xlat)**3
+  varLmin=1./cos(xlat_data(1 )*cDegToRad)**varNpower
+  varLmax=1./cos(xlat_data(np)*cDegToRad)**varNpower
   dvarL=(varLmax-varLmin)/(float(np)-1.)
   do i=0,np+1
      varL(i)=varLmin+(i-1)*dvarL
      if (varL(i).lt.1.) varL(i)=1.
   enddo
-  xlatr(1:np)=acos(1./sqrt(varL(1:np)))
+  xlatr(1:np)=acos(1./(varL(1:np))**(1./varNpower))
   xlat(1:np)=xlatr(1:np)/cDegToRad
   do i=2,np-1
      dlat(i)=0.5*(xlat(i+1)-xlat(i-1))
   enddo
   dlat(1)=0.5*(xlat(2)-acos(1./sqrt(varL(0))))
   dlat(np)=0.5*(acos(1./sqrt(varL(np+1)))-xlat(np-1))
-
+  write(*,*) ' xlat grid  (deg)'
+  write(*,'(10f8.2)') xlat(1:np)
+  write(*,*) ' L-shell / ri  (RE)'
+  write(*,'(10f8.3)') varL(1:np)**(2./varNpower)
 
   ! CIMI xmlt grid
   dphi=2.*cPi/nt
@@ -770,7 +775,7 @@ subroutine cimi_init
      xjac1=4.*sqrt(2.)*cPi*(1.673e-27*amu_I(n))*dipmom/(re_m+Hiono*1000.)
      sqrtm=sqrt(1.673e-27*amu_I(n))
      do i=1,np
-        xjacL=0.5/varL(i)/varL(i)/varL(i)/sin(xlatr(i))     ! Jacobian from varL
+        xjacL=1./varL(i)**(1.+1./varNpower)/sin(xlatr(i))/varNpower     ! Jacobian from varL
         xjac2=sin(2.*xlatr(i))*xjacL
         do k=1,nm
            xjac(n,i,k)=xjac1*xjac2*sqrt(xmm(n,k))*sqrtm
