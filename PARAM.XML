@@ -31,6 +31,19 @@ default value is shown.
 This command specifies the simulation time. 
 </command>
 
+<command name="STRICTDRIFT">
+	<parameter name="IsStrictDrift" type="logical" min="F"/>
+
+#STRICTDRIFT
+F		IsStrictDrift
+
+This command specifies whether to force phase space density to be
+$\ge0$.  If set to TRUE and phase space density goes negative for any
+species, the code will immediately stop.  Default shown.
+
+</command>
+
+
 
 </commandgroup>
 
@@ -168,6 +181,30 @@ Command sets the output energy grid to exactly the energy centroids of
 the Van Allen Probes' MagEIS and REPT instruments. If this parameter
 is set, the #ENERGYGRID and #SETENERGYGRID commands are
 ignored. Default shown.
+
+</command>
+
+<command name="VERBOSELSTAR">
+  	<parameter name="DoVerboseLstar" type="logical" default="F"/>
+
+#VERBOSELSTAR
+F		DoVerboseLstar
+
+Command controls the printing of Lstar values and magnetic island
+information to screen. Default shown.
+
+shown.
+
+</command>
+
+<command name="VERBOSELATGRID">
+  	<parameter name="DoVerboseLatGrid" type="logical" default="F"/>
+
+#VERBOSELATGRID
+F		DoVerboseLatGrid
+
+Prints to screen latitude and equatorial grid information. Default
+shown.
 
 </command>
 
