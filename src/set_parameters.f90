@@ -4,8 +4,8 @@ subroutine CIMI_set_parameters(NameAction)
   use ModReadParam
   use ModUtilities,	 ONLY: lower_case
   use ModCimiInitialize, ONLY: &
-       IsEmptyInitial, IsDataInitial, IsRBSPData, IsGmInitial,&
-       DoDefineVarNpower,varNpower
+       IsEmptyInitial, IsDataInitial, IsRBSPData, IsGmInitial, &
+       DoDefineVarNpower, varNpower
   use ModCimiPlot
   use ModCimiTrace,	 ONLY: UseEllipse, UseSmooth, UseCorotation, &
        UsePotential, SmoothWindow, imod, iLatTest, iLonTest
@@ -752,13 +752,15 @@ subroutine CIMI_set_parameters(NameAction)
 !!$        if (DoCalcPrecip) call read_var('PrecipOutput',PrecipOutput)
 !!$        if (PrecipOutput) call read_var('DtPreOut',DtPreOut)
 
-     case('#DRIFT')
+     case('#STRICTDRIFT')
         call read_var('IsStrictDrift',IsStrictDrift) ! .T : STOP when f2 < 0
 
      case('#LATITUDINALGRID')
         call read_var('DoDefineVarNpower',DoDefineVarNpower) 
         call read_var('varNpower',varNpower)   ! n in L = 1/cos(xlat)**n
 
+     case('#VERBOSELATGRID')
+        call read_var( 'DoVerboseLatGrid', DoVerboseLatGrid )
 
      end select
      

@@ -80,3 +80,6 @@ T		UsePrerunSat
 #IMTIMESTEP
 30.		IMDeltaT [s]
 30.		IMDeltaTMax [s]
+
+#STRICTDRIFT
+T		IsStrictDrift

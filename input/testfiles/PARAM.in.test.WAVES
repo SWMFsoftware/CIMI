@@ -12,6 +12,9 @@ T
 #STOP
 100.0		TimeMax
 
+#STRONGDIFFUSION
+F
+
 #NGDC_INDICES
 Indices.dat	NameNgdcFile
 
@@ -32,7 +35,7 @@ T		UseWeimer
 3		nCIMIPlotType
 2d eq		StringPlot
 60.		DtOutput
-PSD e-		StringPlot
+psd e-		StringPlot
 60.		DtOutput
 F		DoSaveSeparateFiles
 flux e-		StringPlot
@@ -79,9 +82,5 @@ AE_Index.dat	NameAeFile
 30.		IMDeltaT [s]
 30.		IMDeltaTMax [s]
 
-#DRIFT
+#STRICTDRIFT
 T		IsStrictDrift
-
-#LATITUDINALGRID
-T		DoDefineVarNpower
-3.		varNpower

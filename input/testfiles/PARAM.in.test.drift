@@ -67,9 +67,5 @@ F		IsRestart
 30.		IMDeltaT [s]
 30.		IMDeltaTMax [s]
 
-#DRIFT
+#STRICTDRIFT
 T		IsStrictDrift
-
-#LATITUDINALGRID
-T		DoDefineVarNpower
-3.		varNpower

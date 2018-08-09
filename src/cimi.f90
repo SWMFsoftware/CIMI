@@ -787,7 +787,6 @@ subroutine cimi_init
   
   xk( nk + 1 ) = xk( nk ) * rsi
 
-  if ( iProc == 0 ) write(*,*) "DoUseUniformLGrid: ", DoUseUniformLGrid
   ! Calculate Jacobian, xjac
   do n=1,nspec 
      xjac1=4.*sqrt(2.)*cPi*(1.673e-27*amu_I(n))*dipmom/(re_m+Hiono*1000.)
