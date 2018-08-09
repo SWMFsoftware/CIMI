@@ -4,7 +4,7 @@ Module ModCimiGrid
 
   implicit none
 
-  logical, parameter :: DoUseUniformLGrid = .false.
+  logical, parameter :: DoUseUniformLGrid = .true.
   logical :: DoVerboseLatGrid = .false.
   
   ! define dimensions of CIMI grids

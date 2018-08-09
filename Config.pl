@@ -43,6 +43,7 @@ foreach (@Arguments){
     if(/^-earthh$/i)            {$NewPlanet="EarthH";              next};
     if(/^-griddefault$/i)       {$NewGrid="GridDefault";           next};
     if(/^-gridexpanded$/i)      {$NewGrid="GridExpanded";          next};
+    if(/^-griduniforml$/i)      {$NewGrid="GridUniformL";          next};
     if(/^-s$/)                  {$Show=1;                          next};
     if(/^-compiler=(.*)$/i)     {$Compiler=$1;                     next};        
     warn "WARNING: Unknown flag $_\n" if $Remaining{$_};
@@ -134,6 +135,7 @@ sub set_grid{
 
     $Files .= " $Dir/ModGrid_default.f90"   if $Grid eq "GridDefault";
     $Files .= " $Dir/ModGrid_expanded.f90"  if $Grid eq "GridExpanded";
+    $Files .= " $Dir/ModGrid_UniformL.f90"  if $Grid eq "GridUniformL";
 
     &shell_command("cp $Files src/ModGrid.f90");
 
