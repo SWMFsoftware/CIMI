@@ -2433,21 +2433,21 @@ c Now we know alts glats glons and we need to send them to master
 
 *******************************************
 *******************************************
-
+           
       subroutine blonp0a
 
       include 'param3_mpi-1.98.inc'
       include 'com3_mpi-1.98.inc'
 
-      real*8 theta(nltp1),blon0r(nlt) 
+      real*8 theta(nltp1)
  
-      open (1232,file='longitude.inp',form='unformatted') 
-      read (1232) blon0r 
-      close(1232) 
- 
-      do n = 1,nlt 
-        theta(n) =  blon0r(n) 
-      enddo 
+      theta_min = 0.
+      theta_max = 360.
+      dtheta    = theta_max/float(nlt)
+                        
+      do i = 1,nlt
+        theta(i) = float(i-1) * dtheta
+      enddo
  
       theta(nlt+1) = 360. 
  
@@ -2459,15 +2459,10 @@ c Now we know alts glats glons and we need to send them to master
       blonp0t(1)     = blonp0t(nlt+1) - blonp0t(nlt+2) 
       blonp0t(nlt+3) = blonp0t(nlt+2) + blonp0t(3) 
 
-      if ( taskid .eq. 0) then
-       do i = 1,nlt+3
-!         print *,i,blonp0t(i)
-       enddo
-      endif
-
       return
       end
            
+
 
 ! *********************
 !
