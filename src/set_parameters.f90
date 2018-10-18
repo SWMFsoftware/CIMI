@@ -24,7 +24,8 @@ subroutine CIMI_set_parameters(NameAction)
        UseWaveDiffusion, UseHiss, UseChorus, UseChorusUB, &
        DiffStartT, HissWavesD, ChorusWavesD, ChorusUpperBandD, &
        testDiff_aa, testDiff_EE, testDiff_aE, &
-       NameAeFile, read_ae_wdc_kyoto
+       NameAeFile, read_ae_wdc_kyoto, &
+       UseKpIndex
   use DensityTemp,	 ONLY: densityP
   use ModImSat,		 ONLY: DtSatOut, DoWritePrerunSat, UsePrerunSat, &
        DtReadSat, DoWriteSats, ReadRestartSat
@@ -700,6 +701,7 @@ subroutine CIMI_set_parameters(NameAction)
            call read_var('ChorusUpperBandD', ChorusUpperBandD)
            call read_var('NameAeFile',NameAeFile)
            call read_ae_wdc_kyoto(iError)
+           call read_var('UseKpIndex',UseKpIndex)
 
            if (iError /= 0) then
               write(*,*) "read AE index was not successful "//&

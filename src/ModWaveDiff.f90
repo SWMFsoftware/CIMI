@@ -94,6 +94,7 @@ logical            :: UseWaveDiffusion = .false.
 logical            :: UseHiss  = .false.
 logical            :: UseChorus  = .false.
 logical            :: UseChorusUB = .false.
+logical            :: UseKpIndex = .false.
 real               :: DiffStartT = 0.
 character(len=100)  :: HissWavesD = ' '
 character(len=100)  :: ChorusWavesD= ' '
@@ -317,7 +318,7 @@ contains
 
 
 !*******************************************************************************
-  subroutine WavePower(t,AE,iba)
+  subroutine WavePower(t,AE,Kp,iba)
 !*******************************************************************************
 ! Routine determines Chorus and hiss wave power (pT)^2 and fpe/fce as a function
 ! of location
@@ -332,21 +333,33 @@ contains
 
   implicit none
   integer iba(ip),iae,jae,i,j
-  real t,AE,ro1,xmlt1
+  real t,AE,Kp,ro1,xmlt1
   real r_hiss
 
   r_wave=2.5               ! lower boundary in RE of wave diffusion
   r_hiss=8.                ! upper boundary in RE of hiss
 
 ! Determine AE level in chorus wave power data provided by Meredith
-  if (AE.lt.100.) iae=1
-  if (AE.ge.100..and.AE.lt.300.) iae=2
-  if (AE.ge.300.) iae=3
+  if (UseKpIndex) then
+     if (Kp.lt.2.) iae=1
+     if (Kp.ge.2..and.Kp.lt.4.) iae=2
+     if (Kp.ge.4.) iae=3
+  else
+     if (AE.lt.100.) iae=1
+     if (AE.ge.100..and.AE.lt.300.) iae=2
+     if (AE.ge.300.) iae=3
+  endif
 
 ! Determine AE level in hiss wave power data provided by Meredith
-  if (AE.lt.100.) jae=1
-  if (AE.ge.100..and.AE.lt.500.) jae=2
-  if (AE.ge.500.) jae=3
+  if (.not.UseKpIndex) then  ! this Kp scales for Hiss should be reviewed
+     if (Kp.lt.2.) jae=1
+     if (Kp.ge.2..and.Kp.lt.5.) jae=2
+     if (Kp.ge.5.) jae=3
+  else
+     if (AE.lt.100.) jae=1
+     if (AE.ge.100..and.AE.lt.500.) jae=2
+     if (AE.ge.500.) jae=3
+  endif
 
 ! Determine wave power (in pT^2), and ompe (fpe/fce)
   CHpower=0.

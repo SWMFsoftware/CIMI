@@ -38,7 +38,7 @@ subroutine cimi_run(delta_t)
        CIMIboundary, Outputboundary
   use ModMpi
   use ModWaveDiff,    	 ONLY: &
-       UseWaveDiffusion, ReadDiffCoef, WavePower, & 
+       UseWaveDiffusion, UseKpIndex, ReadDiffCoef, WavePower, & 
        diffuse_aa, diffuse_EE, diffuse_aE, DiffStartT, &
        testDiff_aa, testDiff_EE, testDiff_aE, &
        TimeAeIndex_I, AeIndex_I, interpolate_ae
@@ -60,7 +60,8 @@ subroutine cimi_run(delta_t)
        fb(nspec,nt,nm,nk), rc
   integer iLat, iLon, iSpecies, iSat, iOperator
   logical, save :: IsFirstCall =.true.
-  real  AE_temp,Kp_temp
+  real  :: AE_temp = 0. ,&   
+           Kp_temp = 0.   
   real Lstar_C(np,nt),Lstar_max,Lstarm(np,nt,nk),Lstar_maxm(nk)
 
   integer iError
@@ -134,7 +135,8 @@ subroutine cimi_run(delta_t)
   if (Time.ge.DiffStartT .and. UseWaveDiffusion) then
 
      ! calculate wave power for the first time; the second time is in the loop
-     call interpolate_ae(CurrentTime, AE_temp)
+     if (.not.UseKpIndex) &
+        call interpolate_ae(CurrentTime, AE_temp)
 
      ! Determines if the simple plasmasphere model needs to be used.
      if ( .not. DoCoupleSami ) then
@@ -144,7 +146,7 @@ subroutine cimi_run(delta_t)
         call timing_stop('cimi_simp_psphere')
      end if
 
-     call WavePower(Time,AE_temp,iba)
+     call WavePower(Time,AE_temp,Kp_temp,iba)
   end if
 
   ! calculate the ionospheric potential (if not using MHD potential)
@@ -282,7 +284,8 @@ subroutine cimi_run(delta_t)
         call sume_cimi(OpWaves_)
         call timing_stop('cimi_WaveDiffusion')
         
-        call interpolate_ae(CurrentTime, AE_temp)
+        if (.not.UseKpIndex) &
+           call interpolate_ae(CurrentTime, AE_temp)
 
         if ( .not. DoCoupleSami ) then
            call timing_start('cimi_simp_psphere')
@@ -291,7 +294,7 @@ subroutine cimi_run(delta_t)
            call timing_stop('cimi_simp_psphere')
         end if
 
-        call WavePower(Time,AE_temp,iba)
+        call WavePower(Time,AE_temp,Kp_temp,iba)
      endif
 
      if ( UseStrongDiff ) then
