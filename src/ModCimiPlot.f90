@@ -234,7 +234,7 @@ contains
     use ModCimiGrid,	ONLY:	&
          nLat=>np, nLon=>nt, nEnergy=>neng, nPitchAng=>npit, &
          sinAo, xlat, xmlt
-    use ModCimiPlanet,	ONLY:	nSpecies=>nspec
+    use ModCimiPlanet,	ONLY:	nSpecies=>nspec,NameSpeciesExtension_I
     use ModCimiTrace,	ONLY:	ro,bo,xmlto,irm
     use ModCimiRestart,	ONLY: 	IsRestart
     use ModImTime,	ONLY: 	iCurrentTime_I
@@ -255,18 +255,7 @@ contains
 !!$    do n=1,nSpecies
        energy_temp(1:nEnergy)=energy(n,1:nEnergy)
        If (DoSaveSeparateFluxFiles(n)) then
-          
-          if (n==1) &
-               open(unit=UnitTmp_,file='IM/plots/'//outnameSep//'_h.fls',&
-               status='unknown')
-          if (n==2 .and. n /= nSpecies) &
-               open(unit=UnitTmp_,file='IM/plots/'//outnameSep//'_o.fls',&
-               status='unknown')
-          if (n==3 .and. n /= nSpecies) &
-               open(unit=UnitTmp_,file='IM/plots/'//outnameSep//'_he.fls',&
-               status='unknown')
-          if (n==nSpecies) &
-               open(unit=UnitTmp_,file='IM/plots/'//outnameSep//'_e.fls',&
+          open(unit=UnitTmp_,file='IM/plots/'//outnameSep//NameSpeciesExtension_I(n)//'.fls',&
                status='unknown')
           write(UnitTmp_,"(f10.6,5i6,6x,'! rc in Re,nr,ip,je,ig,ntime')") &
                rc,nLat-1,nLon,nEnergy,nPitchAng,nprint
@@ -276,17 +265,7 @@ contains
           write(UnitTmp_,'(10f8.3)') (xlat(i),i=2,nLat)
        else
           if (IsFirstCall(n) .and. .not. IsRestart) then
-             if (n==1) &
-                  open(unit=UnitTmp_,file='IM/plots/CimiFlux_h.fls',&
-                  status='unknown')
-             if (n==2 .and. n /= nSpecies) &
-                  open(unit=UnitTmp_,file='IM/plots/CimiFlux_o.fls',&
-                  status='unknown')
-             if (n==3 .and. n /= nSpecies) &
-                  open(unit=UnitTmp_,file='IM/plots/CimiFlux_he.fls',&
-                  status='unknown')
-             if (n==nSpecies) &
-                  open(unit=UnitTmp_,file='IM/plots/CimiFlux_e.fls',&
+             open(unit=UnitTmp_,file='IM/plots/CimiFlux'//NameSpeciesExtension_I(n)//'.fls',&
                   status='unknown')
              write(UnitTmp_,"(f10.6,5i6,6x,'! rc in Re,nr,ip,je,ig,ntime')") &
                   rc,nLat-1,nLon,nEnergy,nPitchAng,nprint
@@ -295,17 +274,7 @@ contains
              write(UnitTmp_,'(6f9.5)') (sinAo(m),m=1,nPitchAng)
              write(UnitTmp_,'(10f8.3)') (xlat(i),i=2,nLat)
           else
-             if (n==1) &
-                  open(unit=UnitTmp_,file='IM/plots/CimiFlux_h.fls',&
-                  status='old', position='append')
-             if (n==2 .and. n /= nSpecies)&
-                  open(unit=UnitTmp_,file='IM/plots/CimiFlux_o.fls',&
-                  status='old', position='append')
-             if (n==3 .and. n /= nSpecies)&
-                  open(unit=UnitTmp_,file='IM/plots/CimiFlux_he.fls',&
-                  status='old', position='append')
-             if (n==nSpecies)&
-                  open(unit=UnitTmp_,file='IM/plots/CimiFlux_e.fls', &
+             open(unit=UnitTmp_,file='IM/plots/CimiFlux'//NameSpeciesExtension_I(n)//'.fls',&
                   status='old', position='append')
           endif
        endif
@@ -342,7 +311,7 @@ contains
     use ModIoUnit,	ONLY: UnitTmp_
     use ModCimi, 	ONLY: energy, ebound
     use ModCimiGrid,	ONLY: nLat=>np, nLon=>nt, nm, nk, xlat, xmlt
-    use ModCimiPlanet,	ONLY: nSpecies=>nspec,re_m
+    use ModCimiPlanet,	ONLY: nSpecies=>nspec,re_m,NameSpeciesExtension_I
     use ModCimiTrace,	ONLY: ro,bo,xmlto,irm
     use ModCimiRestart,	ONLY: IsRestart
     use ModImTime,	ONLY: iCurrentTime_I
@@ -365,18 +334,7 @@ contains
 !!$    do n=1,nSpecies
 !!$       energy_temp(1:nEnergy)=energy(n,1:nEnergy)
        If (DoSaveSeparatePSDFiles(n)) then
-          
-          if (n==1) &
-               open(unit=UnitTmp_,file='IM/plots/'//outnameSep//'_h.psd',&
-               status='unknown')
-          if (n==2 .and. n /= nSpecies) &
-               open(unit=UnitTmp_,file='IM/plots/'//outnameSep//'_o.psd',&
-               status='unknown')
-          if (n==3 .and. n /= nSpecies) &
-               open(unit=UnitTmp_,file='IM/plots/'//outnameSep//'_he.psd',&
-               status='unknown')
-          if (n==nSpecies) &
-               open(unit=UnitTmp_,file='IM/plots/'//outnameSep//'_e.psd',&
+          open(unit=UnitTmp_,file='IM/plots/'//outnameSep//NameSpeciesExtension_I(n)//'.psd',&
                status='unknown')
           write(UnitTmp_,"(f10.6,5i6,6x,'! rc in Re,nr,ip,nm,nk,ntime')") &
                rc,nLat-1,nLon,nint(nm/2.),nint(nk/2.),nprint
@@ -389,17 +347,7 @@ contains
           write(UnitTmp_,'(10f8.3)') (xlat(i),i=2,nLat)
        else
           if (IsFirstCall(n) .and. .not. IsRestart) then
-             if (n==1) &
-                  open(unit=UnitTmp_,file='IM/plots/CimiPSD_h.psd',&
-                  status='unknown')
-             if (n==2 .and. n /= nSpecies) &
-                  open(unit=UnitTmp_,file='IM/plots/CimiPSD_o.psd',&
-                  status='unknown')
-             if (n==3 .and. n /= nSpecies) &
-                  open(unit=UnitTmp_,file='IM/plots/CimiPSD_he.psd',&
-                  status='unknown')
-             if (n==nSpecies) &
-                  open(unit=UnitTmp_,file='IM/plots/CimiPSD_e.psd',&
+             open(unit=UnitTmp_,file='IM/plots/CimiPSD'//NameSpeciesExtension_I(n)//'.psd',&
                   status='unknown')
              write(UnitTmp_,"(f10.6,5i6,6x,'! rc in Re,nr,ip,nm,nk,ntime')") &
                   rc,nLat-1,nLon,nint(nm/2.),nint(nk/2.),nprint
@@ -411,17 +359,7 @@ contains
                   ( xmm( n, m ) / 1e3 / cElectronCharge / 1e9, m = 1, nm, 2 )
              write(UnitTmp_,'(10f8.3)') (xlat(i),i=2,nLat)
           else
-             if (n==1) &
-                  open(unit=UnitTmp_,file='IM/plots/CimiPSD_h.psd',&
-                  status='old', position='append')
-             if (n==2 .and. n /= nSpecies)&
-                  open(unit=UnitTmp_,file='IM/plots/CimiPSD_o.psd',&
-                  status='old', position='append')
-             if (n==3 .and. n /= nSpecies)&
-                  open(unit=UnitTmp_,file='IM/plots/CimiPSD_he.psd',&
-                  status='old', position='append')
-             if (n==nSpecies)&
-                  open(unit=UnitTmp_,file='IM/plots/CimiPSD_e.psd', &
+             open(unit=UnitTmp_,file='IM/plots/CimiPSD'//NameSpeciesExtension_I(n)//'.psd',&
                   status='old', position='append')
           endif
        endif
@@ -458,7 +396,7 @@ contains
     use ModCimiGrid,	ONLY:	&
          nLat => np, nLon => nt, nEnergy => neng, nPitchAng => npit, &
          sinAo, xlat, xmlt
-    use ModCimiPlanet,	ONLY:	nSpecies => nspec
+    use ModCimiPlanet,	ONLY:	nSpecies => nspec,NameSpeciesExtension_I
     use ModCimiTrace,	ONLY:	ro, bo, xmlto, irm
     use ModCimiRestart,	ONLY: 	IsRestart
     use ModImTime,	ONLY:	iCurrentTime_I
@@ -481,18 +419,7 @@ contains
 !!$    do n=1,nSpecies
        energy_temp(1:nEnergy)=energy(n,1:nEnergy)
        If (DoSaveSeparateVLDriftFiles(n)) then
-          
-          if (n==1) &
-               open(unit=UnitTmp_,file='IM/plots/'//outnameSep//'_h.vl',&
-               status='unknown')
-          if (n==2 .and. n /= nSpecies) &
-               open(unit=UnitTmp_,file='IM/plots/'//outnameSep//'_o.vl',&
-               status='unknown')
-          if (n==3 .and. n /= nSpecies) &
-               open(unit=UnitTmp_,file='IM/plots/'//outnameSep//'_he.vl',&
-               status='unknown')
-          if (n==nSpecies) &
-               open(unit=UnitTmp_,file='IM/plots/'//outnameSep//'_e.vl',&
+          open(unit=UnitTmp_,file='IM/plots/'//outnameSep//NameSpeciesExtension_I(n)//'.vl',&
                status='unknown')
           write(UnitTmp_,"(f10.6,5i6,6x,'! rc in Re,nr,ip,je,ig,ntime')") &
                rc,nLat-1,nLon,nEnergy,nPitchAng,nprint
@@ -502,17 +429,7 @@ contains
           write(UnitTmp_,'(10f8.3)') (xlat(i),i=2,nLat)
        else
           if (IsFirstCall(n) .and. .not. IsRestart) then
-             if (n==1) &
-                  open(unit=UnitTmp_,file='IM/plots/CimiDrift_h.vl',&
-                  status='unknown')
-             if (n==2 .and. n /= nSpecies) &
-                  open(unit=UnitTmp_,file='IM/plots/CimiDrift_o.vl',&
-                  status='unknown')
-             if (n==3 .and. n /= nSpecies) &
-                  open(unit=UnitTmp_,file='IM/plots/CimiDrift_he.vl',&
-                  status='unknown')
-             if (n==nSpecies) &
-                  open(unit=UnitTmp_,file='IM/plots/CimiDrift_e.vl',&
+             open(unit=UnitTmp_,file='IM/plots/CimiDrift'//NameSpeciesExtension_I(n)//'.vl',&
                   status='unknown')
              write(UnitTmp_,"(f10.6,5i6,6x,'! rc in Re,nr,ip,je,ig,ntime')") &
                   rc,nLat-1,nLon,nEnergy,nPitchAng,nprint
@@ -521,18 +438,9 @@ contains
              write(UnitTmp_,'(6f9.5)') (sinAo(m),m=1,nPitchAng)
              write(UnitTmp_,'(10f8.3)') (xlat(i),i=2,nLat)
           else
-             if (n==1) &
-                  open(unit=UnitTmp_,file='IM/plots/CimiDrift_h.vl',&
+             open(unit=UnitTmp_,file='IM/plots/CimiDrift'//NameSpeciesExtension_I(n)//'.vl',&
                   status='old', position='append')
-             if (n==2 .and. n /= nSpecies)&
-                  open(unit=UnitTmp_,file='IM/plots/CimiDrift_o.vl',&
-                  status='old', position='append')
-             if (n==3 .and. n /= nSpecies)&
-                  open(unit=UnitTmp_,file='IM/plots/CimiDrift_he.vl',&
-                  status='old', position='append')
-             if (n==nSpecies)&
-                  open(unit=UnitTmp_,file='IM/plots/CimiDrift_e.vl', &
-                  status='old', position='append')
+
           endif
        endif
        write(UnitTmp_,'(f8.3,10f9.2,"    ! hour,  parmod")') &
@@ -567,7 +475,7 @@ contains
     use ModCimiGrid,	ONLY:	&
          nLat => np, nLon => nt, nEnergy => neng, nPitchAng => npit,&
          sinAo, xlat, xmlt
-    use ModCimiPlanet,	ONLY:	nSpecies => nspec
+    use ModCimiPlanet,	ONLY:	nSpecies => nspec,NameSpeciesExtension_I
     use ModCimiTrace,	ONLY:	ro, bo, xmlto, irm
     use ModCimiRestart,	ONLY: 	IsRestart
     use ModImTime,	ONLY:	iCurrentTime_I
@@ -588,19 +496,9 @@ contains
 !!$    do n=1,nSpecies
        energy_temp( 1 : nEnergy ) = energy( n, 1 :nEnergy )
        If (DoSaveSeparateVPDriftFiles(n)) then
-          
-          if (n==1) &
-               open(unit=UnitTmp_,file='IM/plots/'//outnameSep//'_h.vp',&
+          open(unit=UnitTmp_,file='IM/plots/'//outnameSep//NameSpeciesExtension_I(n)//'.vp',&
                status='unknown')
-          if (n==2 .and. n /= nSpecies) &
-               open(unit=UnitTmp_,file='IM/plots/'//outnameSep//'_o.vp',&
-               status='unknown')
-          if (n==3 .and. n /= nSpecies) &
-               open(unit=UnitTmp_,file='IM/plots/'//outnameSep//'_he.vp',&
-               status='unknown')
-          if (n==nSpecies) &
-               open(unit=UnitTmp_,file='IM/plots/'//outnameSep//'_e.vp',&
-               status='unknown')
+
           write(UnitTmp_,"(f10.6,5i6,6x,'! rc in Re,nr,ip,je,ig,ntime')") &
 !               rc,nlat-1,nLon,nEnergy,nPitchAng,nprint
                rc,1,nLon,nEnergy,nPitchAng,nprint          
@@ -610,18 +508,9 @@ contains
           write(UnitTmp_,'(10f8.3)') (xlat(i),i=2,nLat)
        else
           if (IsFirstCall(n) .and. .not. IsRestart) then
-             if (n==1) &
-                  open(unit=UnitTmp_,file='IM/plots/CimiDrift_h.vp',&
+                  open(unit=UnitTmp_,file='IM/plots/CimiDrift'//NameSpeciesExtension_I(n)//'.vp',&
                   status='unknown')
-             if (n==2 .and. n /= nSpecies) &
-                  open(unit=UnitTmp_,file='IM/plots/CimiDrift_o.vp',&
-                  status='unknown')
-             if (n==3 .and. n /= nSpecies) &
-                  open(unit=UnitTmp_,file='IM/plots/CimiDrift_he.vp',&
-                  status='unknown')
-             if (n==nSpecies) &
-                  open(unit=UnitTmp_,file='IM/plots/CimiDrift_e.vp',&
-                  status='unknown')
+
              write(UnitTmp_,"(f10.6,5i6,6x,'! rc in Re,nr,ip,je,ig,ntime')") &
                   rc,nLat-1,nLon,nEnergy,nPitchAng,nprint
              write(UnitTmp_,'(6f9.3)') (energy_temp(k),k=1,nEnergy)
@@ -629,17 +518,7 @@ contains
              write(UnitTmp_,'(6f9.5)') (sinAo(m),m=1,nPitchAng)
              write(UnitTmp_,'(10f8.3)') (xlat(i),i=2,nLat)
           else
-             if (n==1) &
-                  open(unit=UnitTmp_,file='IM/plots/CimiDrift_h.vp',&
-                  status='old', position='append')
-             if (n==2 .and. n /= nSpecies)&
-                  open(unit=UnitTmp_,file='IM/plots/CimiDrift_o.vp',&
-                  status='old', position='append')
-             if (n==3 .and. n /= nSpecies)&
-                  open(unit=UnitTmp_,file='IM/plots/CimiDrift_he.vp',&
-                  status='old', position='append')
-             if (n==nSpecies)&
-                  open(unit=UnitTmp_,file='IM/plots/CimiDrift_e.vp', &
+             open(unit=UnitTmp_,file='IM/plots/CimiDrift'//NameSpeciesExtension_I(n)//'.vp',&
                   status='old', position='append')
           endif
        endif
@@ -747,7 +626,7 @@ contains
    use ModCimi,		ONLY: energy
    use ModCimiGrid,    ONLY:nLat=>np, nLon=>nt, nEnergy=>neng,&
                             xlat,xmlt
-   use ModCimiPlanet,  ONLY: nSpecies=>nspec,re_m
+   use ModCimiPlanet,  ONLY: nSpecies=>nspec,re_m,NameSpeciesExtension_I
    use ModCimiTrace,  ONLY:ro,bo,xmlto,irm
    use ModCimiRestart, ONLY: IsRestart
    use ModImTime,      ONLY:iCurrentTime_I   ! for separate files only do need right now
@@ -770,54 +649,36 @@ contains
 !!$   do n=1,nSpecies
      energy_temp(1:nEnergy) = energy(n,1:nEnergy)
      if (IsFirstCall .and. .not. IsRestart) then
-             if (n==1) &
-                  open(unit=UnitTmp_,file='IM/plots/CimiFlux_h.preci',&
-                  status='unknown')
-             if (n==2 .and. n /= nSpecies) &
-                  open(unit=UnitTmp_,file='IM/plots/CimiFlux_o.preci',&
-                  status='unknown')
-             if (n==3 .and. n /= nSpecies) &
-                  open(unit=UnitTmp_,file='IM/plots/CimiFlux_he.preci',&
-                  status='unknown')
-             if (n==nSpecies) &
-                  open(unit=UnitTmp_,file='IM/plots/CimiFlux_e.preci',&
-                  status='unknown')
-             write(UnitTmp_,"(f10.6,4i6,6x,'! rc in Re,nr,ip,je,ntime')") &
-                  rc,nLat,nLon,nEnergy,nprint
-             write(UnitTmp_,'(10f8.3)') (xlat(i),i=1,nLat)
-             write(UnitTmp_,'(10f8.3)') (xmlt(j),j=1,nLon)
-             write(UnitTmp_,'(10f8.3)') (energy_temp(k),k=1,nEnergy)
-          else
-             if (n==1) &
-                  open(unit=UnitTmp_,file='IM/plots/CimiFlux_h.preci',&
-                  status='old', position='append')
-             if (n==2 .and. n /= nSpecies)&
-                  open(unit=UnitTmp_,file='IM/plots/CimiFlux_o.preci',&
-                  status='old', position='append')
-             if (n==3 .and. n /= nSpecies)&
-                  open(unit=UnitTmp_,file='IM/plots/CimiFlux_he.preci',&
-                  status='old', position='append')
-             if (n==nSpecies)&
-                  open(unit=UnitTmp_,file='IM/plots/CimiFlux_e.preci', &
-                  status='old', position='append')
-          endif
-
-       write(UnitTmp_,*) time/3600., DstOutput, '      ! hour, Dst'
-
-       do iLat=1,nLat             ! Write precipitation @ fixed E grid
-          do iLon=1,nLon
-             write(UnitTmp_,'(f8.3,f8.2,1pE12.4,a)') &
-                 xlat(iLat),xmlt(iLon),Eje1(n,iLat,iLon),&
-                    '  ! mlat(deg), mlt(hr), Eflux (mW/m2), particles'
-              write(UnitTmp_,'(1p,6e12.4)') PreF(n,iLat,iLon,1:nEnergy+2)  
-              write(UnitTmp_,'(1p,6e12.4)') PreP(n,iLat,iLon,1:nEnergy+2)
-          enddo
-       enddo
-       close(UnitTmp_)
+        open(unit=UnitTmp_,file='IM/plots/CimiFlux'//NameSpeciesExtension_I(n)//'.preci',&
+             status='unknown')
+        
+        write(UnitTmp_,"(f10.6,4i6,6x,'! rc in Re,nr,ip,je,ntime')") &
+             rc,nLat,nLon,nEnergy,nprint
+        write(UnitTmp_,'(10f8.3)') (xlat(i),i=1,nLat)
+        write(UnitTmp_,'(10f8.3)') (xmlt(j),j=1,nLon)
+        write(UnitTmp_,'(10f8.3)') (energy_temp(k),k=1,nEnergy)
+     else
+        open(unit=UnitTmp_,file='IM/plots/CimiFlux'//NameSpeciesExtension_I(n)//'.preci',&
+             status='old', position='append')
+        
+     endif
+     
+     write(UnitTmp_,*) time/3600., DstOutput, '      ! hour, Dst'
+     
+     do iLat=1,nLat             ! Write precipitation @ fixed E grid
+        do iLon=1,nLon
+           write(UnitTmp_,'(f8.3,f8.2,1pE12.4,a)') &
+                xlat(iLat),xmlt(iLon),Eje1(n,iLat,iLon),&
+                '  ! mlat(deg), mlt(hr), Eflux (mW/m2), particles'
+           write(UnitTmp_,'(1p,6e12.4)') PreF(n,iLat,iLon,1:nEnergy+2)  
+           write(UnitTmp_,'(1p,6e12.4)') PreP(n,iLat,iLon,1:nEnergy+2)
+        enddo
+     enddo
+     close(UnitTmp_)
 !!$      enddo  ! species loop
-
-    IsFirstCall=.false.
-  end subroutine cimi_plot_precip 
+     
+     IsFirstCall=.false.
+   end subroutine cimi_plot_precip
 
   !============================================================================
 
