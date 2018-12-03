@@ -268,7 +268,9 @@ contains
     DoMultiFluidGMCoupling = .false.
     DoAnisoPressureGMCoupling = .false.
 
-    if(NameVar == 'x:y:bmin:I_I:S_I:R_I:B_I:rho:p:Hprho:Oprho:Hpp:Opp')then
+    if(NameVar == 'x:y:bmin:I_I:S_I:R_I:B_I:rho:p:Hprho:Oprho:Hpp:Opp' .or.&
+         NameVar == &
+         'x:y:bmin:I_I:S_I:R_I:B_I:rho:p:SwRho:Hprho:Oprho:SwP:Hpp:Opp')then
        DoMultiFluidGMCoupling = .true.
     elseif(NameVar == 'x:y:bmin:I_I:S_I:R_I:B_I:rho:p:ppar')then
        DoAnisoPressureGMCoupling = .true.
@@ -553,7 +555,7 @@ contains
     DoCoupleSw=.false.
     if(NameVar == 'p:rho:Hpp:Opp:Hprho:Oprho')then
        DoMultiFluidGMCoupling = .true.
-    elseif('p:rho:Hpp:Opp:Hprho:Oprho:Swprho:Swpp')then
+    elseif(NameVar == 'p:rho:Hpp:Opp:Hprho:Oprho:Swprho:Swpp')then
        DoMultiFluidGMCoupling = .true.
        DoCoupleSw=.true.
     elseif(NameVar == 'p:rho:ppar:bmin')then
