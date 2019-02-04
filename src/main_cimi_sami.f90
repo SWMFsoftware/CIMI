@@ -24,6 +24,8 @@ program cimi_sami
   use ModCimiRestart, ONLY: DtSaveRestart,cimi_write_restart
   use ModReadParam
   use ModPrerunField, ONLY: UsePrerun, read_prerun, read_prerun_IE, DtRead
+  use ModImSat,ONLY: UsePrerunSat, read_prerun_sat, DtReadSat, &
+       IsFirstWrite
   use ModIeCimi,      ONLY: UseWeimer
   use CON_planet, ONLY: init_planet_const, set_planet_defaults
 !  use ModPrerunField, ONLY: UsePrerun, read_prerun, read_prerun_IE
@@ -31,10 +33,9 @@ program cimi_sami
   implicit none
  
 
-  ! This is hardcoded for now, CIMI runs on 24 procs and SAMI on 24 so 48 total
-  integer,parameter :: nProcCIMItmp = 24, nProcSAMItmp = 24
-!!$  integer,parameter :: nProcCIMItmp = 8, nProcSAMItmp = 9
-!!$  integer,parameter :: nProcCIMItmp = 1, nProcSAMItmp = 9
+  ! This is hardcoded for now, CIMI runs on 12 procs and SAMI on 9
+  ! procs (8 workers) so 21 PEs in total
+  integer,parameter :: nProcCIMItmp = 12, nProcSAMItmp = 9
 
   !set some mpi parameters
   integer :: iProcsCIMI_I(nProcCIMItmp),iProcsSAMI_I(nProcSAMItmp)
@@ -236,7 +237,14 @@ program cimi_sami
         exit TIMELOOP
      endif
      
-     If(IsCimiProc) then
+     If(IsCimiProc) then 
+        ! Read next prerun sat file if using prerun sat files and it
+        ! is time to read.
+        if (floor((Time+1.0e-5)/DtReadSat) /= &
+             floor((Time+1.0e-5+DtAdvance)/DtReadSat)) then
+           if (UsePrerunSat) call read_prerun_sat(Time+DtAdvance)
+        endif
+
         ! Call cimi_run to advance the Timestep
         call timing_step(iStep)
         call timing_start('cimi_run')     
