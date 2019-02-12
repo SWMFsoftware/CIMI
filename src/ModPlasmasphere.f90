@@ -32,8 +32,10 @@ Module ModPlasmasphere
 
   !copy of CIMI grid for use in interpolation
   integer :: nLatCimi,nLonCimi
+  integer,allocatable :: ibCimi(:)
   real, allocatable :: xlatCimi(:),phiCimi(:),roCimi(:,:),volumeCimi(:,:),&
-       potentCimi(:,:),phi2Cimi(:,:),ibCimi(:)
+       potentCimi(:,:),phi2Cimi(:,:)
+  
 
   
   ! Setup the trough by trough(6.6)*dipolevolumep(6.6) as in pbo_2.f
@@ -77,7 +79,7 @@ contains
     ibtest(:)=nltest
     volume0=9.14e-4*re_m**4/DipM
     do i=1,nl
-       coslat=cos(xlatp(i))
+       coslat=cos(xlattest(i))
        Lshell(i)=rc/coslat/coslat
        L7=Lshell(i)**7  
        volume1=volume0*L7
@@ -104,9 +106,13 @@ contains
 
     
     call init_plasmasphere(nltest,nptest,xlatTest,phitest,ibtest,.false.)
+
+    !initial potent is 0
+    potenttest=0.0
     call cimi_put_to_plasmasphere(nltest,nptest,rotest,phitest2,volumetest,&
          potenttest,ibtest)
 
+    write(*,*) maxval(Nion),maxval(denSat)
     call save_plot_plasmasphere(tsec,0,.false.)
     
     ! Run the model with Vollend-Stern field (or potential in cimi)
@@ -533,9 +539,11 @@ contains
           rop(iLat,iLon) = &
                bilinear(roCimi,1,nLatCimi,1,nLonCimi,LatLon_D, &
                xlatCimi,phiCimi,DoExtrapolate=.true.)
+
           volumep(iLat,iLon) = &
                bilinear(volumeCimi,1,nLatCimi,1,nLonCimi,LatLon_D, &
                xlatCimi,phiCimi,DoExtrapolate=.true.)
+
           potentp(iLat,iLon) = &
                bilinear(potentCimi,1,nLatCimi,1,nLonCimi,LatLon_D, &
                xlatCimi,phiCimi,DoExtrapolate=.true.)
