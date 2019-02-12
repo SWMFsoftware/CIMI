@@ -509,3 +509,24 @@ rundir_sami:
 		cd ${RUNDIR} ; \
 		touch core ; chmod 444 core;\
 	fi);
+
+########## UNIT Tests
+PLASMASPHERE_compile:
+	@cd ${SHAREDIR};        make LIB
+	@cd src;        make unit_test_plasmasphere_compile
+PLASMASPHERE_rundir:
+	rm -rf ${TESTDIR}
+	@make rundir RUNDIR=${TESTDIR}
+	@cd ${TESTDIR}; ln -s ${BINDIR}/unit_test_plasmasphere.exe
+#PLASMASPHERE_check:
+#        @echo "test_check..." >> test_plasmasphere.diff
+#        -@(${SCRIPTDIR}/DiffNum.pl -b -r=1e-8 \
+#                ${TESTDIR}/plasmasphere.out \
+#                data/output/plasmasphere.out \
+#                > test_plasmasphere.diff)
+PLASMASPHERE:
+	make PLASMASPHERE_compile
+	make PLASMASPHERE_rundir
+	@cd ${TESTDIR};   ./unit_test_plasmasphere.exe
+
+
