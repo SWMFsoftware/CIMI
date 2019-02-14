@@ -45,7 +45,9 @@ Module ModPlasmasphere
   real Bi(nl),dilatp(nl),dlatp(nl)
 
   character*1 Ndon(nl,np),Sdon(nl,np)
-  
+
+  logical, public :: UseCorePsModel=.false.
+  real   , public :: PlasSpinUpTime=86400. !one day
   public :: unit_test_plasmasphere
 contains
 
@@ -94,7 +96,8 @@ contains
     ! More setup and output the initial density
     delt=30.      ! call plasmasphere every delt seconds
     tmin=0.
-    tmax=86400.   
+    tmax=86400.
+    !tmax=1800.   
     Nstep=ifix((tmax-tmin)/delt)
     Nstep4=Nstep/4
     Kpi=1.
@@ -104,19 +107,22 @@ contains
     ! xKp=3.   
     tsec=tmin
 
-    
-    call init_plasmasphere(nltest,nptest,xlatTest,phitest,ibtest,.false.)
-
     !initial potent is 0
     potenttest=0.0
+
+    !note for morning: the cimi values need to be put into init_plasmasphere
+    !or else the initialization calculation will be garbage
+    call init_plasmasphere(nltest,nptest,xlattest,phitest,ibtest,&
+         rotest,phitest2,volumetest,potenttest,.false.)
+    
     call cimi_put_to_plasmasphere(nltest,nptest,rotest,phitest2,volumetest,&
          potenttest,ibtest)
 
-    write(*,*) maxval(Nion),maxval(denSat)
     call save_plot_plasmasphere(tsec,0,.false.)
     
     ! Run the model with Vollend-Stern field (or potential in cimi)
     do n=1,Nstep
+       write(*,*) n,tsec
        tsec=tmin+n*delt
        if (n.le.Nstep4) xKp=xKp+dKpdt*delt
        if (n.gt.Nstep4) xKp=xKp-dKpdt*delt
@@ -157,14 +163,14 @@ contains
     real, allocatable   :: Coord_DII(:,:,:), PlotState_IIV(:,:,:)
     
     integer             :: iLat,iLon,iSpecies,nLat,nLon
-    integer, parameter  :: x_=1, y_=2, nDim=2,nVar=1
+    integer, parameter  :: x_=1, y_=2, nDim=2,nVar=3
     real                :: Theta, Phi
     character(len=21)   :: NamePlotEq  = 'IM/plots/Plas_eq.outs'
 
     character(len=6)    :: TypePosition  ! 'rewind' or 'append'
     real, parameter     :: Gamma = 5./3., rBody = 1.0
     logical,save             :: IsFirstCall = .true.
-    character(len=100)  :: NamePlotVar='x y density g rbody'
+    character(len=100)  :: NamePlotVar='x y density vol potent g rbody'
     character(len=5)    :: TypePlot   = 'ascii'
     
     !--------------------------------------------------------------------------
@@ -174,8 +180,8 @@ contains
     allocate(Coord_DII(nDim,nLat,nLon+1), &
          PlotState_IIV(nLat,nLon+1,nVar),X_C(nLat,nLon), Y_C(nLat,nLon))
 
-    do iLat=1,nLat
-       do iLon=1,nLon
+    do iLon=1,nLon
+       do iLat=1,nLat
           X_C(iLat,iLon)=rop(iLat,iLon)*cos(phip(iLat,iLon))
           Y_C(iLat,iLon)=rop(iLat,iLon)*sin(phip(iLat,iLon))
        enddo
@@ -197,17 +203,26 @@ contains
     !Set plot data
     do iLon = 1, nLon
        PlotState_IIV( 1 : ibp( iLon ), iLon, 1) = &
-            densityp(1 : ibp( iLon ), iLon ) 
+            densityp(1 : ibp( iLon ), iLon )
+       PlotState_IIV( 1 : ibp( iLon ), iLon, 2) = &
+            volumep(1 : ibp( iLon ), iLon )
+       PlotState_IIV( 1 : ibp( iLon ), iLon, 3) = &
+            potentp(1 : ibp( iLon ), iLon ) 
     end do
 
     !fill ghost cells of plot data
     PlotState_IIV(:,nLon+1,1)= &
          PlotState_IIV(:,1,1)
+    PlotState_IIV(:,nLon+1,2)= &
+         PlotState_IIV(:,1,2)
+    PlotState_IIV(:,nLon+1,3)= &
+         PlotState_IIV(:,1,3)
 
 
     TypePosition = 'append'
     if(IsFirstCall .and. .not. IsRestart) TypePosition = 'rewind'
     IsFirstCall = .false.
+
 
     ! equatorial plot
     call save_plot_file( NamePlotEq, TypePositionIn = TypePosition, &
@@ -222,30 +237,6 @@ contains
   end subroutine save_plot_plasmasphere
 
 
-
-!  !=============================================================================
-!  subroutine save_plot_plasmaphere(Time,KpIn,IsRestart
-!
-!    
-!  open(unit=UnitTmp_,file='IM/plasmasphere_cimi.txt')
-!  write(UnitTmp_,*) nl,np,'     ; nl,np'
-!  write(UnitTmp_,*) rop
-!  write(UnitTmp_,*) phip
-!
-!
-!  write(UnitTmp_,*) tsec,xKp,'     ; tsec,Kp'
-!  write(UnitTmp_,*) densityp
-!
-!
-!  
-!
-!  write(1,*) tsec,xKp,'     ; tsec,Kp'
-!  write(1,*) densityp
-!  
-!    close(UnitTmp_
-!  end subroutine save_plot_plasmaphere
-!
-!  !=============================================================================
   
 !-------------------------------------------------------------------------------
   subroutine advance_plasmasphere(delt) 
@@ -284,18 +275,7 @@ contains
     ! calculate convection velocity and Courant numbers
     call Vconvect(dt, dt1,nrun,vl,vp,cl,cp)
 
-    write(*,*) maxval(cl),minval(cl)
-    write(*,*) maxval(vl),minval(vl)
-    write(*,*) maxval(dlatp),minval(dlatp)
-    write(*,*) maxval(cp),minval(cp)
-
-    do i=1,nl
-       do j=1,np
-          write(*,*) i, j, vl(i,j)
-       enddo
-    enddo
     
-    stop
     ! time loop to update Nion    
     do n=1,nstep    
        call trough(nl,np)
@@ -315,9 +295,11 @@ contains
     
   end subroutine advance_plasmasphere
   !==========================================================================
-  subroutine init_plasmasphere(nLatIn,nLonIn,xlatIn,phiIn,ibIn,IsRestart)
+  subroutine init_plasmasphere(nLatIn,nLonIn,xlatIn,phiIn,ibIn,&
+       roIn,phi2In,VolumeIn,potentIn,IsRestart)
     integer, intent(in) :: nLatIn,nLonIn
-    real,    intent(in) :: xlatIn(nLatIn),phiIn(nLonIn)
+    real,    intent(in) :: xlatIn(nLatIn),phiIn(nLonIn),roIn(nLatIn,nLonIn),&
+         phi2In(nLatIn,nLonIn),volumeIn(nLatIn,nLonIn),potentIn(nLatIn,nLonIn)
     integer, intent(in) :: ibIn(nLonIn)
     logical, intent(in) :: IsRestart
 
@@ -362,7 +344,14 @@ contains
     xlatCimi = xlatIn
     phiCimi  = phiIn
     ibCimi   = ibIn
-    
+
+    !save initial cimi values
+    roCimi=roIn
+    volumeCimi=volumeIn
+    potentCimi=potentIn
+    phi2Cimi=phi2In
+
+        
     !set up plasmasphere grid
     xlat1=20.
     xlat2=71.
@@ -418,8 +407,12 @@ contains
        enddo
     enddo
 
+    !interpolate initial values to plasmasphere grid
+    call interpolate_cimi_to_plasmasphere
 
+    
     !set initial plasmasphere condition
+    Nion=0.0
     if (.not.IsRestart) then
        ! Setup initial flux tube content assuming saturated condition
        Nsat(:,:)=0.
@@ -433,6 +426,16 @@ contains
     else
        call load_restart_plasmasphere
     endif
+
+    !set initial density
+    !ibp is zero here!
+    densityp(:,:)=0.0
+    do j=1,np
+       do i=1,ibp(j)
+          densityp(i,j)=Nion(i,j)/volumep(i,j)
+       enddo
+    enddo
+
     
   end subroutine init_plasmasphere
 
@@ -511,16 +514,20 @@ contains
     do iLon = 1, nLonCimi
        LatBcTmp(iLon)=xlatCimi(ibCimi(iLon))
     enddo
-
+    
     !for each longitude, interpolate to find boundary lat
     do iLon=1,np
        LatBcPlasTmp=linear(LatBcTmp,1,nLonCimi,pphi(iLon),phiCimi,&
             DoExtrapolate=.true.)      
-        
+
+       !is this loop executing on first step???
        !find the corresponding ibp
        lat_loop: do iLat=1,nl
-          if (xlatp(iLat)>=LatBcPlasTmp) then
+          if (xlatp(iLat)>LatBcPlasTmp) then
              ibp(iLon) = iLat-1
+             exit lat_loop
+          elseif(iLat==nl)then
+             ibp(iLon) = iLat
              exit lat_loop
           endif
        enddo lat_loop
@@ -553,7 +560,6 @@ contains
                xlatCimi,phiCimi,DoExtrapolate=.true.)
        enddo
     enddo
-
 
     
   end subroutine interpolate_cimi_to_plasmasphere
@@ -592,7 +598,7 @@ contains
 
   integer i,j,j0,j2,i0,i2,nrun
   real vl(nl,np),vp(nl,np)
-  real cl(nl,np),cp(nl,np),dlatp(nl)
+  real cl(nl,np),cp(nl,np)
   real pi,dphi2,kfactor,cor,ksai,xlatp1,ksai1,sf0,sf2,dlat2,dt,dt1,cmax,cmx
 
   pi=acos(-1.)
