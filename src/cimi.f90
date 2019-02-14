@@ -3,7 +3,7 @@ subroutine cimi_run(delta_t)
   use ModCimiInitialize, ONLY: 	xmm, xk, dphi, dmm, dk, dmu, xjac, &
                                 varL, dvarL, DoDefineVarNpower,varNpower
   use ModCimi,        	 ONLY: &
-       f2, dt, Time, phot, Ppar_IC, Pressure_IC, &
+       f2, dt, dtmaxTime, phot, Ppar_IC, Pressure_IC, &
        PressurePar_IC, FAC_C, Bmin_C, &
        OpDrift_, OpBfield_, OpChargeEx_, &
        OpWaves_, OpStrongDiff_, OpLossCone_, &
@@ -21,7 +21,7 @@ subroutine cimi_run(delta_t)
        re_m, dipmom, Hiono, nspec, amu_I, dFactor_I, tFactor_I
   use ModCimiTrace,  	 ONLY: &
        fieldpara, brad => ro, ftv => volume, xo, yo, rb, irm,&
-       ekev, iba, bo, pp, Have, sinA, vel, alscone, iw2, xmlto, bm
+       ekev, iba, bo, pp, Have, sinA, vel, alscone, iw2, xmlto, bm,phi2o
   use ModGmCimi,      	 ONLY: Den_IC, UseGm
   use ModIeCimi,      	 ONLY: UseWeimer, pot
   use ModCimiPlot
@@ -46,7 +46,7 @@ subroutine cimi_run(delta_t)
   use DensityTemp,    	 ONLY: density, simple_plasmasphere
   use ModIndicesInterfaces
   use ModLstar,       	 ONLY: calc_Lstar1, calc_Lstar2 
-
+  use ModPlasmasphere,   ONLY: UseCorePsModel,PlasSpinUpTime,init_plasmasphere,advance_plasmasphere,nLatPlas=>nl,nLonPlas=>np
   implicit none
 
   !regular variables
@@ -72,7 +72,7 @@ subroutine cimi_run(delta_t)
 
   integer :: tmp_I(6)
   !----------------------------------------------------------------------------
-
+  dt=dtmax
   if (dt==0) then
      nstep = 0
      dt = 0.0
@@ -93,6 +93,19 @@ subroutine cimi_run(delta_t)
                  dipmom,IsRestart)
   call timing_stop('cimi_fieldpara')
 
+  !when using 2D plasmasphere
+  if (UseCorePsModel .and. IsFirstCall .and. iProc=0) then
+     !initial the 2d core plasmasphere model
+     call init_plasmasphere(np,nt,xlatr,phi,iba,&
+          brad,phi2o,ftv,pot,.false.)
+     !spin up the core plasmasphere model by running for one day
+     call advance_plasmasphere(PlasSpinUpTime)
+  endif
+  if (UseCorePsModel .and. nProc>1) then
+     call MPI_bcast(PlasDensity_C,nLonPlas*nLatPlas,MPI_REAL,0,iComm,iError)
+  endif
+  
+  
   ! get Bmin, needs to be passed to GM for anisotropic pressure coupling
   Bmin_C = bo
 
@@ -245,6 +258,15 @@ subroutine cimi_run(delta_t)
   ! time loop
   do n=1,nstep
 
+     !when using 2D plasmasphere
+     if (UseCorePsModel .and. iProc=0) then
+        !spin up the core plasmasphere model by running for one day
+        call advance_plasmasphere(dt)
+
+        if (nProc>1) &
+             call MPI_bcast(PlasDensity_C,nLonPlas*nLatPlas,MPI_REAL,0,iComm,iError)
+     endif
+     
      call timing_start('cimi_driftIM')
      call driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
           fb,f2,driftin,driftout,ib0)
