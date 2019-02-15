@@ -10,6 +10,7 @@ include Makefile.RULES
 OBJECTS = \
         ModPlanet.o\
 	ModCimi.o\
+	ModPlasmasphere.o\
 	ModCimiPlot.o\
 	ModFieldTrace.o\
 	ModGmCIMI.o\

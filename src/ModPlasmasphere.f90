@@ -19,7 +19,7 @@ Module ModPlasmasphere
  
 
   !grid and saturation density values
-  integer,parameter :: nl=209,np=192
+  integer,parameter,public :: nl=209,np=192
   integer ibp(np)
   real xlatp(nl),pphi(np),rop(nl,np),phip(nl,np),dphip,volumep(nl,np),&
        Nsat(nl,np),Nion(nl,np),potentp(nl,np),denSat(nl,np)
@@ -46,9 +46,15 @@ Module ModPlasmasphere
 
   character*1 Ndon(nl,np),Sdon(nl,np)
 
+  logical, public :: DoSavePlas
+  real,    public :: DtPlasOutput
   logical, public :: UseCorePsModel=.false.
   real   , public :: PlasSpinUpTime=86400. !one day
   public :: unit_test_plasmasphere
+  public :: init_plasmasphere
+  public :: advance_plasmasphere
+  public :: cimi_put_to_plasmasphere
+  public :: save_plot_plasmasphere
 contains
 
   !============================================================================

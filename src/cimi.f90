@@ -3,7 +3,7 @@ subroutine cimi_run(delta_t)
   use ModCimiInitialize, ONLY: 	xmm, xk, dphi, dmm, dk, dmu, xjac, &
                                 varL, dvarL, DoDefineVarNpower,varNpower
   use ModCimi,        	 ONLY: &
-       f2, dt, dtmaxTime, phot, Ppar_IC, Pressure_IC, &
+       f2, dt, dtmax,Time, phot, Ppar_IC, Pressure_IC, &
        PressurePar_IC, FAC_C, Bmin_C, &
        OpDrift_, OpBfield_, OpChargeEx_, &
        OpWaves_, OpStrongDiff_, OpLossCone_, &
@@ -32,7 +32,7 @@ subroutine cimi_run(delta_t)
   use ModCimiGrid,    	 ONLY: &
        iProc, nProc, iComm, nLonPar, nLonPar_P, nLonBefore_P, &
        MinLonPar, MaxLonPar, nt, np, neng, npit, nm, nk, dlat, &
-       phi, sinao, xlat, xmlt
+       phi, sinao, xlat, xlatr, xmlt
   use ModCimiBoundary,	 ONLY: &
        cimi_set_boundary_mhd, cimi_set_boundary_empirical, &
        CIMIboundary, Outputboundary
@@ -46,7 +46,9 @@ subroutine cimi_run(delta_t)
   use DensityTemp,    	 ONLY: density, simple_plasmasphere
   use ModIndicesInterfaces
   use ModLstar,       	 ONLY: calc_Lstar1, calc_Lstar2 
-  use ModPlasmasphere,   ONLY: UseCorePsModel,PlasSpinUpTime,init_plasmasphere,advance_plasmasphere,nLatPlas=>nl,nLonPlas=>np
+  use ModPlasmasphere,   ONLY: UseCorePsModel,PlasSpinUpTime,init_plasmasphere, &
+       advance_plasmasphere,DoSavePlas, DtPlasOutput,&
+       PlasDensity_C,save_plot_plasmasphere!,nLatPlas=>nl,nLonPlas=>np,
   implicit none
 
   !regular variables
@@ -94,15 +96,22 @@ subroutine cimi_run(delta_t)
   call timing_stop('cimi_fieldpara')
 
   !when using 2D plasmasphere
-  if (UseCorePsModel .and. IsFirstCall .and. iProc=0) then
-     !initial the 2d core plasmasphere model
-     call init_plasmasphere(np,nt,xlatr,phi,iba,&
-          brad,phi2o,ftv,pot,.false.)
-     !spin up the core plasmasphere model by running for one day
-     call advance_plasmasphere(PlasSpinUpTime)
+  if (UseCorePsModel .and. IsFirstCall) then
+     if (iProc==0)then
+        !initial the 2d core plasmasphere model
+        call init_plasmasphere(np,nt,xlatr,phi,iba,&
+             brad,phi2o,ftv,pot,.false.)
+        !spin up the core plasmasphere model by running for one day
+        call advance_plasmasphere(PlasSpinUpTime)
+     else
+        !for iProc>0 make sure PlasDensity_C is allocated for broadcast
+        if (allocated(PlasDensity_C)) deallocate(PlasDensity_C)
+        allocate(PlasDensity_C(np,nt))
+
+     endif
   endif
   if (UseCorePsModel .and. nProc>1) then
-     call MPI_bcast(PlasDensity_C,nLonPlas*nLatPlas,MPI_REAL,0,iComm,iError)
+     call MPI_bcast(PlasDensity_C,np*nt,MPI_REAL,0,iComm,iError)
   endif
   
   
@@ -214,7 +223,10 @@ subroutine cimi_run(delta_t)
            call Cimi_plot_Lstar(rc,xk,time,Lstarm,Lstar_maxm)
 
         endif
-        
+
+        if ( DoSavePlas .and. UseCorePsModel) then
+           call save_plot_plasmasphere(time,floor(real(time)/dtmax),IsRestart)
+        endif
 
         do iSpecies = 1, nspec
 
@@ -259,13 +271,14 @@ subroutine cimi_run(delta_t)
   do n=1,nstep
 
      !when using 2D plasmasphere
-     if (UseCorePsModel .and. iProc=0) then
+     if (UseCorePsModel .and. iProc==0) then
         !spin up the core plasmasphere model by running for one day
         call advance_plasmasphere(dt)
-
-        if (nProc>1) &
-             call MPI_bcast(PlasDensity_C,nLonPlas*nLatPlas,MPI_REAL,0,iComm,iError)
      endif
+
+     if (nProc>1 .and. UseCorePsModel) &
+          call MPI_bcast(PlasDensity_C,np*nt,MPI_REAL,0,iComm,iError)
+
      
      call timing_start('cimi_driftIM')
      call driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
@@ -400,6 +413,10 @@ subroutine cimi_run(delta_t)
         call Cimi_plot_Lstar( rc, xk, time, Lstarm, Lstar_maxm )
 
      endif
+     if ( DoSavePlas .and. UseCorePsModel .and. iProc==0) then
+        call save_plot_plasmasphere(time,floor(real(time)/dtmax),IsRestart)
+     endif
+
      
      do iSpecies = 1, nspec
         

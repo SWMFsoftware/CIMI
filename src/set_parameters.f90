@@ -31,6 +31,7 @@ subroutine CIMI_set_parameters(NameAction)
        DtReadSat, DoWriteSats, ReadRestartSat
   use ModCimiGrid
   use ModLstar,		 ONLY: DoVerboseLstar
+  use ModPlasmasphere,   ONLY: DoSavePlas, DtPlasOutput,UseCorePsModel
   
   implicit none
 
@@ -597,6 +598,12 @@ subroutine CIMI_set_parameters(NameAction)
               endif PLOT_2D
 
            elseif &
+                ( index( StringCIMIPlot, 'coreplas' ) > 0 ) then
+              
+              DoSavePlas = .true.
+              DtPlasOutput = DtOutputCIMIPlot
+              
+           elseif &
                 ( index( StringCIMIPlot, 'lstar'  ) > 0 .or. &
                   index( StringCIMIPlot, 'l*'  ) > 0 ) then
 
@@ -740,6 +747,9 @@ subroutine CIMI_set_parameters(NameAction)
         
      case('#PLASMAPAUSEDENSITY')
         call read_var('DensityP [m^3]',densityP)
+
+     case('#COREPLASMASPHERE')
+        call read_var('UseCorePsModel',UseCorePsModel)
         
      case('#SETRB')
         call read_var('rb [R_E]', rb)
