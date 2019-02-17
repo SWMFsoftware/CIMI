@@ -1,3 +1,4 @@
+
 !-------------------------------------------------------------------------------
 !                            plasmasphere_cimi.f90
 ! 
@@ -351,6 +352,7 @@ contains
     phiCimi  = phiIn
     ibCimi   = ibIn
 
+    
     !save initial cimi values
     roCimi=roIn
     volumeCimi=volumeIn
@@ -548,7 +550,7 @@ contains
        do iLat = 1, ibp(iLon)
           LatLon_D(1) = xlatp(iLat)
           LatLon_D(2) = pphi(iLon)!modulo(phip(iLon)+cPi,cTwoPi)
-          
+
           rop(iLat,iLon) = &
                bilinear(roCimi,1,nLatCimi,1,nLonCimi,LatLon_D, &
                xlatCimi,phiCimi,DoExtrapolate=.true.)

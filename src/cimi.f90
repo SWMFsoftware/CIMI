@@ -48,7 +48,7 @@ subroutine cimi_run(delta_t)
   use ModLstar,       	 ONLY: calc_Lstar1, calc_Lstar2 
   use ModPlasmasphere,   ONLY: UseCorePsModel,PlasSpinUpTime,init_plasmasphere, &
        advance_plasmasphere,DoSavePlas, DtPlasOutput,&
-       PlasDensity_C,save_plot_plasmasphere!,nLatPlas=>nl,nLonPlas=>np,
+       PlasDensity_C,save_plot_plasmasphere,cimi_put_to_plasmasphere!,nLatPlas=>nl,nLonPlas=>np,
   implicit none
 
   !regular variables
@@ -97,6 +97,8 @@ subroutine cimi_run(delta_t)
 
   !when using 2D plasmasphere
   if (UseCorePsModel .and. IsFirstCall) then
+     !gather info needed for core plasmasphere model
+     call core_ps_gather
      if (iProc==0)then
         !initial the 2d core plasmasphere model
         call init_plasmasphere(np,nt,xlatr,phi,iba,&
@@ -271,11 +273,19 @@ subroutine cimi_run(delta_t)
   do n=1,nstep
 
      !when using 2D plasmasphere
-     if (UseCorePsModel .and. iProc==0) then
-        !spin up the core plasmasphere model by running for one day
-        call advance_plasmasphere(dt)
-     endif
+     if (UseCorePsModel) then
+        !gather variable for core plasmasphere
+        call core_ps_gather
 
+        if (iProc==0) then
+           !update cimi values in the plasmasphere module
+           call cimi_put_to_plasmasphere(np,nt,brad,phi2o,ftv,&
+                pot,iba)
+           
+           !advance plasmasphere by dt
+           call advance_plasmasphere(dt)
+        endif
+     endif
      if (nProc>1 .and. UseCorePsModel) &
           call MPI_bcast(PlasDensity_C,np*nt,MPI_REAL,0,iComm,iError)
 
@@ -2756,7 +2766,59 @@ subroutine cimi_gather( delta_t, psd, flux, vlea, vpea )
    deallocate( iReceiveCount_P, iDisplacement_P )
 
 end subroutine cimi_gather
- 
+
+!==============================================================================
+! gather subset of variables needed for core plasmasphere
+subroutine core_ps_gather
+  use ModCimiGrid,	ONLY: &
+       iProc, nProc, iComm, nLonPar, nLonPar_P, nLonBefore_P, &
+       MinLonPar, MaxLonPar,np,nt
+  use ModCimiTrace,	ONLY: &
+       ftv => volume, phi2o, brad => ro, iba
+  use ModMPI
+
+  !Vars for mpi passing
+  integer, allocatable :: iBufferSend_I(:), iBufferRecv_I(:)
+  integer, allocatable :: iReceiveCount_P(:), iDisplacement_P(:)
+  integer :: iSendCount, iError,  &
+       iRecvLower, iRecvUpper
+  real :: BufferSend_C( np, nt ), BufferRecv_C( np, nt )
+  integer :: BufferSend_I( nt ), BufferRecv_I( nt )
+  integer :: iStatus_I( MPI_STATUS_SIZE )
+
+  allocate( iReceiveCount_P( nProc ), iDisplacement_P( nProc ) )
+
+  !Gather to root
+  iSendCount = np * nLonPar
+  iReceiveCount_P = np * nLonPar_P
+  iDisplacement_P = np * nLonBefore_P
+  
+  BufferSend_I(:) = iba(:)
+  call MPI_GATHERV(BufferSend_I(MinLonPar:MaxLonPar), nLonPar, &
+       MPI_INTEGER, BufferRecv_I, nLonPar_P, nLonBefore_P, &
+       MPI_INTEGER, 0, iComm, iError)
+  if (iProc==0) iba(:)=BufferRecv_I(:)
+  
+  BufferSend_C(:,:)=ftv(:,:)
+  call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
+       MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
+       MPI_REAL, 0, iComm, iError)
+  if (iProc==0) ftv(:,:)=BufferRecv_C(:,:)
+  
+  BufferSend_C(:,:)=phi2o(:,:)
+  call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
+       MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
+       MPI_REAL, 0, iComm, iError)
+  if (iProc==0) phi2o(:,:)=BufferRecv_C(:,:)
+  
+  BufferSend_C(:,:)=brad(:,:)
+  call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
+       MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
+       MPI_REAL, 0, iComm, iError)
+  if (iProc==0) brad(:,:)=BufferRecv_C(:,:)
+  
+end subroutine core_ps_gather
+
 
 subroutine cimi_precip_calc(rc,dsec)
 
