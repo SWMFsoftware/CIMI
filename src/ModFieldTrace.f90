@@ -142,7 +142,11 @@ contains
                iCurrentTime_I(5),iCurrentTime_I(6))
        endif
     endif
-
+    
+    !initialize to zero
+    ro=0.0
+    phi2o=0.0
+    volume=0.0
     !  Start field line tracing.  
     call timing_start('cimi_trace')
     LONGITUDE: do j=MinLonPar,MaxLonPar
