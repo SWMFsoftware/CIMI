@@ -115,6 +115,12 @@ subroutine cimi_run(delta_t)
   if (UseCorePsModel .and. nProc>1) then
      call MPI_bcast(PlasDensity_C,np*nt,MPI_REAL,0,iComm,iError)
   endif
+  if (UseCorePsModel) then
+     !when using the core PS model overwrite the density in the
+     !wave calculation
+     density=PlasDensity_C
+  endif
+  
   
   
   ! get Bmin, needs to be passed to GM for anisotropic pressure coupling
@@ -163,7 +169,7 @@ subroutine cimi_run(delta_t)
         call interpolate_ae(CurrentTime, AE_temp)
 
      ! Determines if the simple plasmasphere model needs to be used.
-     if ( .not. DoCoupleSami ) then
+     if ( .not. DoCoupleSami .and. .not. UseCorePsModel) then
         call timing_start('cimi_simp_psphere')
         call get_kp(CurrentTime, Kp_temp, iError)        
         call simple_plasmasphere(Kp_temp)
@@ -289,6 +295,12 @@ subroutine cimi_run(delta_t)
      if (nProc>1 .and. UseCorePsModel) &
           call MPI_bcast(PlasDensity_C,np*nt,MPI_REAL,0,iComm,iError)
 
+     if (UseCorePsModel) then
+        !when using the core PS model overwrite the density in the
+        !wave calculation
+        density=PlasDensity_C
+     endif
+
      
      call timing_start('cimi_driftIM')
      call driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
@@ -332,7 +344,7 @@ subroutine cimi_run(delta_t)
         if (.not.UseKpIndex) &
            call interpolate_ae(CurrentTime, AE_temp)
 
-        if ( .not. DoCoupleSami ) then
+        if ( .not. DoCoupleSami .and. .not. UseCorePsModel) then
            call timing_start('cimi_simp_psphere')
            call get_kp(CurrentTime, Kp_temp, iError)        
            call simple_plasmasphere(Kp_temp)
