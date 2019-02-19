@@ -56,6 +56,7 @@ Module ModPlasmasphere
   public :: advance_plasmasphere
   public :: cimi_put_to_plasmasphere
   public :: save_plot_plasmasphere
+  public :: save_restart_plasmasphere
 contains
 
   !============================================================================

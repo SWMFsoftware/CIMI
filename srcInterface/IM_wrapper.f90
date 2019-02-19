@@ -218,13 +218,15 @@ contains
 
   subroutine IM_save_restart(TimeSimulation)
     use ModCimiRestart, ONLY: cimi_write_restart
-
+    use ModPlasmasphere,   ONLY: UseCorePsModel,save_restart_plasmasphere
+    
     real,     intent(in) :: TimeSimulation   ! seconds from start time
     character(len=*), parameter :: NameSub='IM_save_restart'
 
     !-------------------------------------------------------------------------
     call cimi_write_restart
-
+    if (UseCorePsModel) call save_restart_plasmasphere
+    
   end subroutine IM_save_restart
   !===========================================================================
 
