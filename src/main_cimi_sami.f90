@@ -10,22 +10,24 @@
 !******************************************************************************
 
 program cimi_sami
-  use ModSAMI,        ONLY: iProcSAMI=>iProc,nProcSAMI=>nProc,iCommSAMI=>iComm
-  use ModCimiGrid,    ONLY: iProcCIMI=>iProc,nProcCIMI=>nProc,iCommCIMI=>iComm
-  use ModCoupleSami,  ONLY: cimi_set_global_mpi,cimi_get_init_for_sami, &
+  use ModSAMI,		ONLY: iProcSAMI=>iProc,nProcSAMI=>nProc,iCommSAMI=>iComm
+  use ModCimiGrid,	ONLY: iProcCIMI=>iProc,nProcCIMI=>nProc,iCommCIMI=>iComm
+  use ModCoupleSami,	ONLY: cimi_set_global_mpi,cimi_get_init_for_sami, &
        cimi_send_to_sami,cimi_put_init_from_sami,cimi_get_from_sami
-  use ModCoupleCimi,  ONLY: sami_set_global_mpi,sami_put_init_from_cimi, &
+  use ModCoupleCimi,	ONLY: sami_set_global_mpi,sami_put_init_from_cimi, &
        sami_get_from_cimi,sami_send_to_cimi,sami_get_init_for_cimi
-  use ModCIMI,        ONLY: IsStandalone,TimeCIMI=>time
+  use ModCIMI,		ONLY: IsStandalone,TimeCIMI=>time
   use ModMpi
-  use ModCimi,        ONLY: init_mod_cimi
-  use ModCimiTrace,  ONLY: init_mod_field_trace
-  use ModImTime,      ONLY: TimeMaxCIMI=>TimeMax
-  use ModCimiRestart, ONLY: DtSaveRestart,cimi_write_restart
+  use ModCimi,		ONLY: init_mod_cimi
+  use ModCimiTrace,	ONLY: init_mod_field_trace
+  use ModImTime,	ONLY: TimeMaxCIMI=>TimeMax
+  use ModCimiRestart,	ONLY: DtSaveRestart,cimi_write_restart
   use ModReadParam
-  use ModPrerunField, ONLY: UsePrerun, read_prerun, read_prerun_IE, DtRead
-  use ModIeCimi,      ONLY: UseWeimer
-  use CON_planet, ONLY: init_planet_const, set_planet_defaults
+  use ModPrerunField,	ONLY: UsePrerun, read_prerun, read_prerun_IE, DtRead
+  use ModImSat,		ONLY: UsePrerunSat, read_prerun_sat, DtReadSat, &
+       IsFirstWrite
+  use ModIeCimi,	ONLY: UseWeimer
+  use CON_planet,	ONLY: init_planet_const, set_planet_defaults
 !  use ModPrerunField, ONLY: UsePrerun, read_prerun, read_prerun_IE
  
   implicit none
@@ -237,11 +239,20 @@ program cimi_sami
      endif
      
      If(IsCimiProc) then
+
+        ! Read next prerun sat file if using prerun sat files and it is
+        ! time to read.     
+        if (floor((Time+1.0e-5)/DtReadSat) /= &
+             floor((Time+1.0e-5+DtAdvance)/DtReadSat)) then
+           if (UsePrerunSat) call read_prerun_sat(Time+DtAdvance)
+        endif
+
         ! Call cimi_run to advance the Timestep
         call timing_step(iStep)
         call timing_start('cimi_run')     
         call cimi_run(DtAdvance)
         call timing_stop('cimi_run')
+        
      else
         ! Call cimi_run to advance the Timestep
         call timing_step(iStep)

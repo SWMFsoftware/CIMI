@@ -127,12 +127,12 @@ PlotType PlotOption
 
 PlotType can take values:
 \begin{verbatim}
-`fls'		- PARTICLE flux information. Also accepts 'flux'
+`fls'		- PARTICLE flux information. Also accepts `flux'
 `psd'		- PARTICLE Phase Space Density (PSD).
-`vl'		- PARTICLE radial drift. Also accepts 'vldrift'
-`vp'		- PARTICLE poloidal drift. Also accepts 'vpdrift'
+`vl'		- PARTICLE radial drift. Also accepts `vldrift'
+`vp'		- PARTICLE poloidal drift. Also accepts `vpdrift'
 `preci'		- PARTICLE precipitation to the ionosphere.
-		  Also accepts 'precipitation' or 'precip'
+		  Also accepts 'precipitation' or `precip'
 `2d'		- VARIABLE Data on the 2d simulation plane
 \end{verbatim}
 
@@ -161,9 +161,9 @@ be saved.  PlotOption can take on values:
 
 Plots are saved in IM/plots. PARTICLE flux, PSD, raidal drift,
 poloidal drift, precipitation files are saved with extensions
-\verb|'.fls', `.psd', `.vl', `.vp', `.preci'|, respectively. Lstar
-VARIABLE output is saved with extension \verb|`.lstar'|. Routines for
-reading these files can be found in CIMI/tools.
+\verb|`.fls', `.psd', `.vl', `.vp', `.preci'|, respectively. Lstar
+VARIABLE output is saved with extension \verb|`.lstar'|. IDL scripts
+for reading these files can be found in CIMI/tools.
 
 VARIABLE output at the equator or ionosphere have extension
 \verb|`.outs'| and can be read with SWMF IDL visualization scripts.
@@ -172,8 +172,16 @@ DtOutput is required to be read in for ALL output file types. The
 minimum output is currently set to 60 seconds simulation time.
 
 DoSaveSeparateFiles is a logical check to save individual output files
-for each time step; DoSaveSeparateFiles is required to be read for all
-PARTICLE output types and for Lstar output.
+for each time step; otherwise a single appended file is
+saved. DoSaveSeparateFiles is required to be read for all PARTICLE
+output types and for Lstar VARIABLE output.  Files contain the same
+information as their appended counterparts and can read with the IDL
+scripts found in CIMI/tools.  Individual PARTICLE files are saved with
+name format YYYYMMDD_HHMMSS_PARTICLE.EXTENSION where particle
+currently can be \verb|`{h,o,he,e}'| for hydrogen, oxygen, helium and
+electrons, respectively; values for EXTENSION are detailed above.
+Separate files for the Lstar VARIABLE are output as
+YYYYMMDD_HHMMSS.lstar.
 
 Default is nCIMIPlotType=0 so no plot files are saved.
 
