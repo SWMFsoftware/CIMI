@@ -211,8 +211,10 @@ contains
              enddo
           enddo
           ! Write header
-          write(UnitTmp_, '(2a)')'IM results for SWMF trajectory file ', &
-               trim(NameSat_I(iSatIn))//NameSpecies
+          write(UnitTmp_, '(2a,A,I3.3,A,I3.3)') &
+               'IM results for SWMF trajectory file ', &
+               trim(NameSat_I(iSatIn))//NameSpecies, &
+               ' nEnergy=',nEnergy,' nAngle=',nAngle
           write(UnitTmp_,"(A)") trim(HeadVar)
        else
           open(unit=UnitTmp_, file=trim(NameSatFile), status='OLD',&

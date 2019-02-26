@@ -234,7 +234,7 @@ test_check_WAVES:
 		output/CIMIeq.outs.WAVES \
 		>> test_cimi_waves.diff
 	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
-		${TESTDIR}/IM/plots/CIMI.log \
+		${TESTDIR}/IM/plots/CIMI_n00000000.log \
 		output/CIMI.log.WAVES \
 		>> test_cimi_waves.diff
 
@@ -294,7 +294,7 @@ test_check_dipole:
 		output/CimiDrift_e.vp.dipole \
 		>> test_cimi_dipole.diff
 	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
-		${TESTDIR}/IM/plots/CIMI.log \
+		${TESTDIR}/IM/plots/CIMI_n00000000.log \
 		output/CIMI.log.dipole \
 		>> test_cimi_dipole.diff
 
@@ -306,7 +306,7 @@ test_check_eq:
 
 test_check_log:
 	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
-		${TESTDIR}/IM/plots/CIMI.log \
+		${TESTDIR}/IM/plots/CIMI_n00000000.log \
 		output/CIMI.log \
 		> test_cimi_log.diff
 
@@ -364,7 +364,7 @@ test_check_Prerun:
 		output/CIMIeq.outs.Prerun \
 		>> test_cimi_Prerun.diff
 	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
-		${TESTDIR}/IM/plots/CIMI.log \
+		${TESTDIR}/IM/plots/CIMI_n00000000.log \
 		output/CIMI.log.Prerun \
 		>> test_cimi_Prerun.diff
 

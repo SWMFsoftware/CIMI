@@ -245,12 +245,12 @@ contains
                      Lstar1
     integer       :: iLat,iLon,k,m,n,i,nprint
     logical, dimension(nspec), save :: IsFirstCall = .true.
-    character(len=13):: outnameSep
+    character(len=15):: outnameSep
     !--------------------------------------------------------------------------
-    nprint=ifix(time/DtOutput)
-    write(outnameSep,"(i4.4,i2.2,i2.2,a,i2.2,i2.2)") & 
+    nprint=ifix(time/DtFluxOutput(n))
+    write(outnameSep,"(i4.4,i2.2,i2.2,a,i2.2,i2.2,i2.2)") & 
          iCurrentTime_I(1),iCurrentTime_I(2),iCurrentTime_I(3),'_',&
-         iCurrentTime_I(4),iCurrentTime_I(5)
+         iCurrentTime_I(4),iCurrentTime_I(5),iCurrentTime_I(6)
     
 !!$    do n=1,nSpecies
        energy_temp(1:nEnergy)=energy(n,1:nEnergy)
@@ -354,13 +354,12 @@ contains
     real          :: parmod(1:10)=0.0,lat,ro1,xmlt1,bo1
     integer       :: iLat,iLon,k,m,n,i,nprint
     logical, dimension(nspec), save :: IsFirstCall = .true.
-    character(len=13):: outnameSep
+    character(len=15):: outnameSep
     !--------------------------------------------------------------------------
-
-    nprint=ifix(time/DtOutput)
-    write(outnameSep,"(i4.4,i2.2,i2.2,a,i2.2,i2.2)") & 
+    nprint=ifix(time/DtPSDOutput(n))
+    write(outnameSep,"(i4.4,i2.2,i2.2,a,i2.2,i2.2,i2.2)") & 
          iCurrentTime_I(1),iCurrentTime_I(2),iCurrentTime_I(3),'_',&
-         iCurrentTime_I(4),iCurrentTime_I(5)
+         iCurrentTime_I(4),iCurrentTime_I(5),iCurrentTime_I(6)
     
 !!$    do n=1,nSpecies
 !!$       energy_temp(1:nEnergy)=energy(n,1:nEnergy)
@@ -471,12 +470,12 @@ contains
          energy_temp( 1 : nEnergy )
     integer       :: iLat,iLon,k,m,n,i,nprint
     logical, dimension(nspec), save :: IsFirstCall = .true.
-    character(len=13):: outnameSep
+    character(len=15):: outnameSep
     !--------------------------------------------------------------------------
-    nprint=ifix(time/DtOutput)
-    write(outnameSep,"(i4.4,i2.2,i2.2,a,i2.2,i2.2)") & 
+    nprint=ifix(time/DtVLDriftOutput(n))
+    write(outnameSep,"(i4.4,i2.2,i2.2,a,i2.2,i2.2,i2.2)") & 
          iCurrentTime_I(1),iCurrentTime_I(2),iCurrentTime_I(3),'_',&
-         iCurrentTime_I(4),iCurrentTime_I(5)
+         iCurrentTime_I(4),iCurrentTime_I(5),iCurrentTime_I(6)
     
 !!$    do n=1,nSpecies
        energy_temp(1:nEnergy)=energy(n,1:nEnergy)
@@ -577,13 +576,12 @@ contains
          parmod(1:10) = 0.0, lat, ro1, xmlt1, bo1, energy_temp( 1 : nEnergy )
     integer		:: iLat, iLon, k, m, n, i, nprint
     logical, dimension(nspec), save :: IsFirstCall = .true.
-    character(len=13):: outnameSep
+    character(len=15):: outnameSep
     !--------------------------------------------------------------------------
-    nprint=ifix(time/DtOutput)
-    write(outnameSep,"(i4.4,i2.2,i2.2,a,i2.2,i2.2)") & 
+    nprint=ifix(time/DtVPDriftOutput(n))
+    write(outnameSep,"(i4.4,i2.2,i2.2,a,i2.2,i2.2,i2.2)") & 
          iCurrentTime_I(1),iCurrentTime_I(2),iCurrentTime_I(3),'_',&
-         iCurrentTime_I(4),iCurrentTime_I(5)
-    
+         iCurrentTime_I(4),iCurrentTime_I(5),iCurrentTime_I(6)
     
 !!$    do n=1,nSpecies
        energy_temp( 1 : nEnergy ) = energy( n, 1 :nEnergy )
@@ -683,24 +681,31 @@ contains
     
     real, intent(in) :: Time
     logical, save :: IsFirstCall=.true.
-    integer       :: iSpecies
+    integer       :: iSpecies, nprint
+    character(len=18), save :: LogFileName
     !--------------------------------------------------------------------------
 
+    ! Calculate iteration number (just use time in seconds)
+    nprint=nint(Time/dt)
+    
     ! Open file and write header if no restart on first call
-    If (IsFirstCall .and. .not.IsRestart) then
-       open(unit=UnitTmp_,file='IM/plots/CIMI.log',&
+    If ( IsFirstCall ) then
+       write(LogFileName,"(a6,i8.8,a4)") "CIMI_n",nprint,".log"
+       write(*,*) LogFileName
+    
+       open(unit=UnitTmp_,file='IM/plots/'//LogFileName,&
                   status='unknown')
        write(UnitTmp_,'(A)') 'CIMI Logfile'
        write(UnitTmp_,'(A)') TRIM(NamePlotVarLog)
        IsFirstCall = .false.
     else
-       open(unit=UnitTmp_,file='IM/plots/CIMI.log',&
+       open(unit=UnitTmp_,file='IM/plots/'//LogFileName,&
                   status='old', position='append')      
        IsFirstCall = .false.
     endif
 
-    ! Write out iteration number (just use time in seconds)
-    write(UnitTmp_,'(I18)',ADVANCE='NO') nint(Time/dt)
+    ! Write out iteration number
+    write(UnitTmp_,'(I18)',ADVANCE='NO') nprint
 
     ! write time 
     write(UnitTmp_,'(1es18.08E3)',ADVANCE='NO') time
@@ -763,57 +768,82 @@ contains
 
    logical, save :: IsFirstCall = .true.
    integer       :: n,i,j,k,nprint,iLat,iLon
-
-   nprint=ifix(time/DtLogOut)   
+   character(len=15):: outnameSep
+   !--------------------------------------------------------------------------
+   nprint=ifix(time/DtPreciOutput(n))
+   write(outnameSep,"(i4.4,i2.2,i2.2,a,i2.2,i2.2,i2.2)") & 
+        iCurrentTime_I(1),iCurrentTime_I(2),iCurrentTime_I(3),'_',&
+        iCurrentTime_I(4),iCurrentTime_I(5),iCurrentTime_I(6)
 
 !   area1=rc*rc*re_m*re_m*dphi
 !!$   do n=1,nSpecies
-     energy_temp(1:nEnergy) = energy(n,1:nEnergy)
-     if (IsFirstCall .and. .not. IsRestart) then
-             if (n==1) &
-                  open(unit=UnitTmp_,file='IM/plots/CimiFlux_h.preci',&
-                  status='unknown')
-             if (n==2 .and. n /= nSpecies) &
-                  open(unit=UnitTmp_,file='IM/plots/CimiFlux_o.preci',&
-                  status='unknown')
-             if (n==3 .and. n /= nSpecies) &
-                  open(unit=UnitTmp_,file='IM/plots/CimiFlux_he.preci',&
-                  status='unknown')
-             if (n==nSpecies) &
-                  open(unit=UnitTmp_,file='IM/plots/CimiFlux_e.preci',&
-                  status='unknown')
-             write(UnitTmp_,"(f10.6,4i6,6x,'! rc in Re,nr,ip,je,ntime')") &
-                  rc,nLat,nLon,nEnergy,nprint
-             write(UnitTmp_,'(10f8.3)') (xlat(i),i=1,nLat)
-             write(UnitTmp_,'(10f8.3)') (xmlt(j),j=1,nLon)
-             write(UnitTmp_,'(10f8.3)') (energy_temp(k),k=1,nEnergy)
-          else
-             if (n==1) &
-                  open(unit=UnitTmp_,file='IM/plots/CimiFlux_h.preci',&
-                  status='old', position='append')
-             if (n==2 .and. n /= nSpecies)&
-                  open(unit=UnitTmp_,file='IM/plots/CimiFlux_o.preci',&
-                  status='old', position='append')
-             if (n==3 .and. n /= nSpecies)&
-                  open(unit=UnitTmp_,file='IM/plots/CimiFlux_he.preci',&
-                  status='old', position='append')
-             if (n==nSpecies)&
-                  open(unit=UnitTmp_,file='IM/plots/CimiFlux_e.preci', &
-                  status='old', position='append')
-          endif
-
-       write(UnitTmp_,*) time/3600., DstOutput, '      ! hour, Dst'
-
-       do iLat=1,nLat             ! Write precipitation @ fixed E grid
-          do iLon=1,nLon
-             write(UnitTmp_,'(f8.3,f8.2,1pE12.4,a)') &
+   energy_temp(1:nEnergy) = energy(n,1:nEnergy)
+   If (DoSaveSeparatePreciFiles(n)) then
+      if (n==1) &
+           open(unit=UnitTmp_,file='IM/plots/'//outnameSep//'_h.preci',&
+           status='unknown')
+      if (n==2 .and. n /= nSpecies) &
+           open(unit=UnitTmp_,file='IM/plots/'//outnameSep//'_o.preci',&
+           status='unknown')
+      if (n==3 .and. n /= nSpecies) &
+           open(unit=UnitTmp_,file='IM/plots/'//outnameSep//'_he.preci',&
+           status='unknown')
+      if (n==nSpecies) &
+           open(unit=UnitTmp_,file='IM/plots/'//outnameSep//'_e.preci',&
+           status='unknown')
+      write(UnitTmp_,"(f10.6,4i6,6x,'! rc in Re,nr,ip,je,ntime')") &
+           rc,nLat,nLon,nEnergy,nprint
+      write(UnitTmp_,'(10f8.3)') (xlat(i),i=1,nLat)
+      write(UnitTmp_,'(10f8.3)') (xmlt(j),j=1,nLon)
+      write(UnitTmp_,'(10f8.3)') (energy_temp(k),k=1,nEnergy)
+   else
+          
+      if (IsFirstCall .and. .not. IsRestart) then
+         if (n==1) &
+              open(unit=UnitTmp_,file='IM/plots/CimiFlux_h.preci',&
+              status='unknown')
+         if (n==2 .and. n /= nSpecies) &
+              open(unit=UnitTmp_,file='IM/plots/CimiFlux_o.preci',&
+              status='unknown')
+         if (n==3 .and. n /= nSpecies) &
+              open(unit=UnitTmp_,file='IM/plots/CimiFlux_he.preci',&
+              status='unknown')
+         if (n==nSpecies) &
+              open(unit=UnitTmp_,file='IM/plots/CimiFlux_e.preci',&
+              status='unknown')
+         write(UnitTmp_,"(f10.6,4i6,6x,'! rc in Re,nr,ip,je,ntime')") &
+              rc,nLat,nLon,nEnergy,nprint
+         write(UnitTmp_,'(10f8.3)') (xlat(i),i=1,nLat)
+         write(UnitTmp_,'(10f8.3)') (xmlt(j),j=1,nLon)
+         write(UnitTmp_,'(10f8.3)') (energy_temp(k),k=1,nEnergy)
+      else
+         if (n==1) &
+              open(unit=UnitTmp_,file='IM/plots/CimiFlux_h.preci',&
+              status='old', position='append')
+         if (n==2 .and. n /= nSpecies)&
+              open(unit=UnitTmp_,file='IM/plots/CimiFlux_o.preci',&
+              status='old', position='append')
+         if (n==3 .and. n /= nSpecies)&
+              open(unit=UnitTmp_,file='IM/plots/CimiFlux_he.preci',&
+              status='old', position='append')
+         if (n==nSpecies)&
+              open(unit=UnitTmp_,file='IM/plots/CimiFlux_e.preci', &
+              status='old', position='append')
+      endif
+   endif
+   
+      write(UnitTmp_,*) time/3600., DstOutput, '      ! hour, Dst'
+      
+      do iLat=1,nLat             ! Write precipitation @ fixed E grid
+         do iLon=1,nLon
+            write(UnitTmp_,'(f8.3,f8.2,1pE12.4,a)') &
                  xlat(iLat),xmlt(iLon),Eje1(n,iLat,iLon),&
-                    '  ! mlat(deg), mlt(hr), Eflux (mW/m2), particles'
-              write(UnitTmp_,'(1p,6e12.4)') PreF(n,iLat,iLon,1:nEnergy+2)  
-              write(UnitTmp_,'(1p,6e12.4)') PreP(n,iLat,iLon,1:nEnergy+2)
-          enddo
-       enddo
-       close(UnitTmp_)
+                 '  ! mlat(deg), mlt(hr), Eflux (mW/m2), particles'
+            write(UnitTmp_,'(1p,6e12.4)') PreF(n,iLat,iLon,1:nEnergy+2)  
+            write(UnitTmp_,'(1p,6e12.4)') PreP(n,iLat,iLon,1:nEnergy+2)
+         enddo
+      enddo
+      close(UnitTmp_)
 !!$      enddo  ! species loop
 
     IsFirstCall=.false.
@@ -828,26 +858,41 @@ contains
     use ModCimiPlanet,	ONLY: nSpecies=>nspec,re_m
     use ModCimiTrace,	ONLY: ro,bm,xmlto,irm
     use ModCimiRestart,	ONLY: IsRestart
+    use ModImTime,      ONLY:iCurrentTime_I   ! for separate files
+                                              ! only do need right now
 
     real, intent(in) :: rc,xk(nk),time,Lstarm(nLat,nLon,nk),Lstar_maxm(nk)
     
     real          :: lat,ro1,xmlt1,bm1(nk)
     integer       :: iLat,iLon,k,m,n,i,nprint
     logical, save :: IsFirstCall = .true.
+    character(len=15):: outnameSep
     !--------------------------------------------------------------------------
+    nprint=ifix(time/DtLstarOutput)
+    write(outnameSep,"(i4.4,i2.2,i2.2,a,i2.2,i2.2,i2.2)") & 
+         iCurrentTime_I(1),iCurrentTime_I(2),iCurrentTime_I(3),'_',&
+         iCurrentTime_I(4),iCurrentTime_I(5),iCurrentTime_I(6)
 
-    nprint=ifix(time/DtOutput)
-          
-    if (IsFirstCall .and. .not. IsRestart) then
-       open(unit=UnitTmp_,file='IM/plots/Cimi.lstar',status='unknown')
+    If (DoSaveSeparateLstarFiles) then
+       open(unit=UnitTmp_,file='IM/plots/'//outnameSep//'.lstar',&
+            status='unknown')
        write(UnitTmp_,"(f10.6,4i6,6x,'! rc in Re,nr,ip,nm,nk,ntime')") &
             rc, nLat-1, nLon, nint(nk/2.), nprint            
        write(UnitTmp_,'(1p,7e11.3)') (xk(k)*sqrt(1.e9)/re_m,k=1,nk,2)
        write(UnitTmp_,'(8f8.3)') (xlat(i),i=2,nLat)
     else
-       open(unit=UnitTmp_,file='IM/plots/Cimi.lstar',status='old',&
-           position='append')
+       if (IsFirstCall .and. .not. IsRestart) then
+          open(unit=UnitTmp_,file='IM/plots/Cimi.lstar',status='unknown')
+          write(UnitTmp_,"(f10.6,4i6,6x,'! rc in Re,nr,ip,nm,nk,ntime')") &
+               rc, nLat-1, nLon, nint(nk/2.), nprint            
+          write(UnitTmp_,'(1p,7e11.3)') (xk(k)*sqrt(1.e9)/re_m,k=1,nk,2)
+          write(UnitTmp_,'(8f8.3)') (xlat(i),i=2,nLat)
+       else
+          open(unit=UnitTmp_,file='IM/plots/Cimi.lstar',status='old',&
+               position='append')
+       endif
     endif
+    
     write(UnitTmp_,'(8f8.3)') &
          time/3600.,(Lstar_maxm(m),m=1,nk)
     do iLat=2,nLat            
