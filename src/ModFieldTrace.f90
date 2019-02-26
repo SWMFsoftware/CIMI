@@ -74,7 +74,7 @@ contains
     integer :: kk
     integer :: iday1
 
-    integer, parameter :: np=2545,nd=3
+    integer, parameter :: np=3000,nd=3
     real :: rc, re,xme,dt,t,c
     real xlati(ir),phi(ip),si(0:ik+1),&
          si3(np),bm1(np),rm(np),rs(np),dss(np),&
