@@ -27,6 +27,7 @@ contains
          AveP_,AvePpar_,AveDens_, AveDen_I,AveP_I,iLatMin,&
          DoMultiFluidGMCoupling,DoAnisoPressureGMCoupling
     use ModCimiTrace,  ONLY: irm, iba
+    use ModConst, ONLY: cProtonMass
     integer :: iSpecies, iLon, iLat
     real, parameter :: cJouleToEv=6.2415e18  
     real :: FactorTotalDens
@@ -103,7 +104,7 @@ contains
                  !Inside MHD boundary set den and temp to value at boundary
                  Den_IC(iSpecies,iLat,iLon) = &
                       StateBmin_IIV(iLatMin,iLon,AveDen_I(iSpecies))&
-                      / amu_I(iSpecies)
+                      / (cProtonMass*amu_I(iSpecies))
                  Temp_IC(iSpecies,iLat,iLon) = &
                       StateBmin_IIV(iLatMin,iLon,AveP_I(iSpecies))&
                       /(Den_IC(iSpecies,iLat,iLon)) &
@@ -114,7 +115,7 @@ contains
                  !Outside MHD boundary set den and temp from MHD
                  Den_IC(iSpecies,iLat,iLon) = &
                       StateBmin_IIV(iLat,iLon,AveDen_I(iSpecies))&
-                      / amu_I(iSpecies)
+                      / (cProtonMass*amu_I(iSpecies))
                  Temp_IC(iSpecies,iLat,iLon) = &
                       StateBmin_IIV(iLat,iLon,AveP_I(iSpecies))&
                       /(Den_IC(iSpecies,iLat,iLon)) &

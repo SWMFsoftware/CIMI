@@ -3,7 +3,10 @@ Module ModCimiGrid
   use ModCimiPlanet,   ONLY: nspec
 
   implicit none
- 
+
+  logical, parameter :: DoUseUniformLGrid = .false.
+  logical :: DoVerboseLatGrid = .false.
+  
   ! define dimensions of CIMI grids
   integer,parameter :: np1=76,nt1=48,npit1=18!,nspec1=1  
   integer,parameter :: nm=48,nk=29 ! dimension of CIMI magnetic moment and K
@@ -15,7 +18,6 @@ Module ModCimiGrid
 
   ! These have to be initialized so that IM_set_grid does not fail on non-IM PEs
   real:: xlat(np) = 0.0, phi(nt1)=0.0
-
 
   real, parameter :: xlat_data(0:77)=(/ &
        09.8403398252184129, 11.8094287214197298, 13.7766188250317825, &

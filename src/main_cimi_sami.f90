@@ -33,10 +33,9 @@ program cimi_sami
   implicit none
  
 
-  ! This is hardcoded for now, CIMI runs on 24 procs and SAMI on 24 so 48 total
-  integer,parameter :: nProcCIMItmp = 24, nProcSAMItmp = 24
-!!$  integer,parameter :: nProcCIMItmp = 8, nProcSAMItmp = 9
-!!$  integer,parameter :: nProcCIMItmp = 1, nProcSAMItmp = 9
+  ! This is hardcoded for now, CIMI runs on 12 procs and SAMI on 9
+  ! procs (8 workers) so 21 PEs in total
+  integer,parameter :: nProcCIMItmp = 12, nProcSAMItmp = 9
 
   !set some mpi parameters
   integer :: iProcsCIMI_I(nProcCIMItmp),iProcsSAMI_I(nProcSAMItmp)
@@ -238,10 +237,10 @@ program cimi_sami
         exit TIMELOOP
      endif
      
-     If(IsCimiProc) then
+     If(IsCimiProc) then 
+        ! Read next prerun sat file if using prerun sat files and it
+        ! is time to read.
 
-        ! Read next prerun sat file if using prerun sat files and it is
-        ! time to read.     
         if (floor((Time+1.0e-5)/DtReadSat) /= &
              floor((Time+1.0e-5+DtAdvance)/DtReadSat)) then
            if (UsePrerunSat) call read_prerun_sat(Time+DtAdvance)

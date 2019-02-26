@@ -12,6 +12,9 @@ T
 #STOP
 100.0		TimeMax
 
+#STRONGDIFFUSION
+F
+
 #NGDC_INDICES
 Indices.dat	NameNgdcFile
 
@@ -32,7 +35,7 @@ T		UseWeimer
 3		nCIMIPlotType
 2d eq		StringPlot
 60.		DtOutput
-PSD e-		StringPlot
+psd e-		StringPlot
 60.		DtOutput
 F		DoSaveSeparateFiles
 flux e-		StringPlot
@@ -74,7 +77,11 @@ D_hiss_UCLA.dat    HissWavesD
 D_LBchorus_merge.dat    ChorusWavesD
 THE_FILE_IS_NOT_READY_YET    ChorusUpperBandD
 AE_Index.dat	NameAeFile
+F		UseKpIndex
 
 #IMTIMESTEP
 30.		IMDeltaT [s]
 30.		IMDeltaTMax [s]
+
+#STRICTDRIFT
+T		IsStrictDrift

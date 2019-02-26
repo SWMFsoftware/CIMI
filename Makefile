@@ -96,6 +96,17 @@ test_all:
 	make   test_check_Prerun
 	ls -l test_*.diff
 
+test_UniformL:
+	@echo "test_compile..." > test_cimi.diff
+	make   test_compile_UniformL
+	@echo "test_rundir_UniformL..." >> test_cimi.diff
+	make   test_rundir_UniformL
+	@echo "test_run..."    >> test_cimi.diff
+	make   test_run
+	@echo "test_check_UniformL..."  >> test_cimi.diff
+	make   test_check_UniformL
+	ls -l test_*.diff
+
 test_WAVES:
 	@echo "test_compile..." > test_cimi.diff
 	make   test_compile
@@ -159,6 +170,10 @@ test_compile:
 	./Config.pl -EarthHO -GridDefault -show
 	make CIMI
 
+test_compile_UniformL:
+	./Config.pl -EarthHO -GridUniformL -show
+	make CIMI
+
 test_rundir:
 	rm -rf ${TESTDIR}
 	make rundir RUNDIR=${TESTDIR} STANDALONE=YES IMDIR=`pwd`
@@ -176,6 +191,12 @@ test_rundir_WAVES:
 	make rundir RUNDIR=${TESTDIR} STANDALONE=YES IMDIR=`pwd`
 	cp input/testfiles/*.dat ${TESTDIR}/
 	cp input/testfiles/PARAM.in.test.WAVES ${TESTDIR}/PARAM.in
+
+test_rundir_UniformL:
+	rm -rf ${TESTDIR}
+	make rundir RUNDIR=${TESTDIR} STANDALONE=YES IMDIR=`pwd`
+	cp input/testfiles/*.dat ${TESTDIR}/
+	cp input/testfiles/PARAM.in.test.UniformL ${TESTDIR}/PARAM.in
 
 test_rundir_flux:
 	rm -rf ${TESTDIR}
@@ -237,6 +258,52 @@ test_check_WAVES:
 		${TESTDIR}/IM/plots/CIMI_n00000000.log \
 		output/CIMI.log.WAVES \
 		>> test_cimi_waves.diff
+
+test_check_UniformL:
+	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+		${TESTDIR}/IM/plots/CIMIeq.outs \
+		output/CIMIeq.outs.UniformL \
+		> test_cimi_UniformL.diff
+	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+		${TESTDIR}/IM/plots/CimiPSD_h.psd \
+		output/CimiPSD_h.psd.UniformL \
+		>> test_cimi_UniformL.diff
+	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+		${TESTDIR}/IM/plots/CimiPSD_o.psd \
+		output/CimiPSD_o.psd.UniformL \
+		>> test_cimi_UniformL.diff
+	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+		${TESTDIR}/IM/plots/CimiPSD_e.psd \
+		output/CimiPSD_e.psd.UniformL \
+		>> test_cimi_UniformL.diff
+	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+		${TESTDIR}/IM/plots/CimiFlux_h.fls \
+		output/CimiFlux_h.fls.UniformL \
+		>> test_cimi_UniformL.diff
+	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+		${TESTDIR}/IM/plots/CimiFlux_o.fls \
+		output/CimiFlux_o.fls.UniformL \
+		>> test_cimi_UniformL.diff
+	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+		${TESTDIR}/IM/plots/CimiFlux_e.fls \
+		output/CimiFlux_e.fls.UniformL \
+		>> test_cimi_UniformL.diff
+	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+		${TESTDIR}/IM/plots/CimiDrift_h.vp \
+		output/CimiDrift_h.vp.UniformL \
+		>> test_cimi_UniformL.diff
+	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+		${TESTDIR}/IM/plots/CimiDrift_o.vp \
+		output/CimiDrift_o.vp.UniformL \
+		>> test_cimi_UniformL.diff
+	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+		${TESTDIR}/IM/plots/CimiDrift_e.vp \
+		output/CimiDrift_e.vp.UniformL \
+		>> test_cimi_UniformL.diff
+	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+		${TESTDIR}/IM/plots/CIMI.log \
+		output/CIMI.log.UniformL \
+		>> test_cimi_UniformL.diff
 
 test_check_flux:
 	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
@@ -442,3 +509,24 @@ rundir_sami:
 		cd ${RUNDIR} ; \
 		touch core ; chmod 444 core;\
 	fi);
+
+########## UNIT Tests
+PLASMASPHERE_compile:
+	@cd ${SHAREDIR};        make LIB
+	@cd src;        make unit_test_plasmasphere_compile
+PLASMASPHERE_rundir:
+	rm -rf ${TESTDIR}
+	@make rundir RUNDIR=${TESTDIR}
+	@cd ${TESTDIR}; ln -s ${BINDIR}/unit_test_plasmasphere.exe
+#PLASMASPHERE_check:
+#        @echo "test_check..." >> test_plasmasphere.diff
+#        -@(${SCRIPTDIR}/DiffNum.pl -b -r=1e-8 \
+#                ${TESTDIR}/plasmasphere.out \
+#                data/output/plasmasphere.out \
+#                > test_plasmasphere.diff)
+PLASMASPHERE:
+	make PLASMASPHERE_compile
+	make PLASMASPHERE_rundir
+	@cd ${TESTDIR};   ./unit_test_plasmasphere.exe
+
+

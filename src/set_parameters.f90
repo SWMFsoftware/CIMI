@@ -4,13 +4,14 @@ subroutine CIMI_set_parameters(NameAction)
   use ModReadParam
   use ModUtilities,	 ONLY: lower_case
   use ModCimiInitialize, ONLY: &
-       IsEmptyInitial, IsDataInitial, IsRBSPData, IsGmInitial
+       IsEmptyInitial, IsDataInitial, IsRBSPData, IsGmInitial, &
+       DoDefineVarNpower, varNpower
   use ModCimiPlot
   use ModCimiTrace,	 ONLY: UseEllipse, UseSmooth, UseCorotation, &
        UsePotential, SmoothWindow, imod, iLatTest, iLonTest
   use ModCimi,		 ONLY: UseMcLimiter, BetaLimiter, time, Pmin, &
        IsStandAlone, UseStrongDiff, UseDecay, DecayTimescale,&
-       dt, dtmax, DoCalcPrecip, DtCalcPrecip
+       dt, dtmax, DoCalcPrecip, DtCalcPrecip, IsStrictDrift
   use ModCimiRestart,	 ONLY: IsRestart, DtSaveRestart
   use ModCimiPlanet,	 ONLY: nspec
   use ModImTime,	 ONLY: iStartTime_I, TimeMax
@@ -23,12 +24,14 @@ subroutine CIMI_set_parameters(NameAction)
        UseWaveDiffusion, UseHiss, UseChorus, UseChorusUB, &
        DiffStartT, HissWavesD, ChorusWavesD, ChorusUpperBandD, &
        testDiff_aa, testDiff_EE, testDiff_aE, &
-       NameAeFile, read_ae_wdc_kyoto
+       NameAeFile, read_ae_wdc_kyoto, &
+       UseKpIndex
   use DensityTemp,	 ONLY: densityP
   use ModImSat,		 ONLY: DtSatOut, DoWritePrerunSat, UsePrerunSat, &
        DtReadSat, DoWriteSats, ReadRestartSat
   use ModCimiGrid
   use ModLstar,		 ONLY: DoVerboseLstar
+  use ModPlasmasphere,   ONLY: DoSavePlas, DtPlasOutput,UseCorePsModel
   
   implicit none
 
@@ -156,16 +159,16 @@ subroutine CIMI_set_parameters(NameAction)
         call read_var( 'nCIMIPlotType', nCIMIPlotType )
 
         CIMI_PLOTTYPE: do iCIMIPlotType = 1, nCIMIPlotType
-
+           
            call read_var( 'StringPlot', StringCIMIPlot )
            call lower_case( StringCIMIPlot )
            call read_var( 'DtOutput', DtOutputCIMIPlot )
            
            if ( index( StringCIMIPlot, 'fls'  ) > 0 .or. &
                 index( StringCIMIPlot, 'flux' ) > 0 ) then
-
+              
               call read_var( 'DoSaveSeparateFiles', DoSaveSeparateFiles )
-
+              
               PLOT_FLUX_SPECIES: if &
                    ( index( StringCIMIPlot, 'all' ) > 0 ) then
                  
@@ -184,7 +187,7 @@ subroutine CIMI_set_parameters(NameAction)
                  
               elseif &
                    ( index( StringCIMIPlot, 'electrons' ) > 0 .or. &
-                     index( StringCIMIPlot, 'e-' ) > 0 ) then
+                   index( StringCIMIPlot, 'e-' ) > 0 ) then
                  
                  DoSaveFlux( nspec ) = .true.
                  DtFluxOutput( nspec ) = DtOutputCIMIPlot
@@ -215,68 +218,68 @@ subroutine CIMI_set_parameters(NameAction)
                          'with ModEarthHO or ModEarthHOHe options.' )
                     
                  endif
-
+                 
               elseif &
                    ( index( StringCIMIPlot, 'he+' ) > 0 ) then
-
+                 
                  if ( nspec .gt. 3 ) then
                     
                     DoSaveFlux( 3 ) = .true. 
                     DtFluxOutput( 3 ) = DtOutputCIMIPlot
                     DoSaveSeparateFluxFiles( 3 ) = &
                          DoSaveSeparateFiles
-
+                    
                  else
-
+                    
                     call CON_STOP( 'He+ not configured; Recompile CIMI '//&
                          'with ModEarthHOHe option.' )
-
+                    
                  endif
-
+                 
               else
-
+                 
                  call CON_STOP( 'No flux species information; STOPPING' )
-
+                 
               endif PLOT_FLUX_SPECIES
               
            elseif &
                 ( index( StringCIMIPlot, 'psd' ) > 0 ) then
-
+              
               call read_var( 'DoSaveSeparateFiles', DoSaveSeparateFiles )
-
+              
               PLOT_PSD_SPECIES: if &
                    ( index( StringCIMIPlot, 'all' ) > 0 ) then
-
+                 
                  DoSavePSD( 1 : nspec ) = .true.
                  DtPSDOutput( 1 : nspec ) = DtOutputCIMIPlot
                  DoSaveSeparatePSDFiles( 1 : nspec ) = &
                       DoSaveSeparateFiles
-
+                 
               elseif &
                    ( index( StringCIMIPlot, 'ions' ) > 0 ) then
-
+                 
                  DoSavePSD( 1 : nspec - 1 ) = .true.
                  DtPSDOutput( 1 : nspec - 1 ) = DtOutputCIMIPlot
                  DoSaveSeparatePSDFiles( 1 : nspec - 1 ) = &
                       DoSaveSeparateFiles
-
+                 
               elseif &
-
+                   
                    ( index( StringCIMIPlot, 'electrons' ) > 0 .or. &
                      index( StringCIMIPlot, 'e-' ) > 0 ) then
                  DoSavePSD( nspec ) = .true.
                  DtPSDOutput( nspec ) = DtOutputCIMIPlot
                  DoSaveSeparatePSDFiles( nspec ) = &
                       DoSaveSeparateFiles
-
+                 
               elseif &
                    ( index( StringCIMIPlot, 'h+' ) > 0 ) then
-
+                 
                  DoSavePSD( 1 ) = .true.
                  DtPSDOutput( 1 ) = DtOutputCIMIPlot
                  DoSaveSeparatePSDFiles( 1 ) = &
                       DoSaveSeparateFiles
-
+                 
               elseif &
                    ( index( StringCIMIPlot, 'o+' ) > 0 ) then
 
@@ -318,7 +321,7 @@ subroutine CIMI_set_parameters(NameAction)
            elseif &
                 ( index( StringCIMIPlot, 'vl'  ) > 0 .or. &
                   index( StringCIMIPlot, 'vldrift' ) > 0 ) then
-
+              
               call read_var( 'DoSaveSeparateFiles', DoSaveSeparateFiles )
               
               PLOT_VLDRIFT_SPECIES: if &
@@ -418,7 +421,7 @@ subroutine CIMI_set_parameters(NameAction)
               elseif &
                    ( index( StringCIMIPlot, 'electrons' ) > 0 .or. &
                      index( StringCIMIPlot, 'e-' ) > 0 ) then
-
+                 
                  DoSaveVPDrift( nspec ) = .true.
                  DtVPDriftOutput( nspec ) = DtOutputCIMIPlot
                  DoSaveSeparateVPDriftFiles( nspec ) = &
@@ -498,7 +501,7 @@ subroutine CIMI_set_parameters(NameAction)
               elseif &
                    ( index( StringCIMIPlot, 'electrons' ) > 0 .or. &
                      index( StringCIMIPlot, 'e-' ) > 0 ) then
-
+                 
                  DoSavePreci( nspec ) = .true.
                  DtPreciOutput( nspec ) = DtOutputCIMIPlot
                  DoSaveSeparatePreciFiles( nspec ) = &
@@ -554,7 +557,7 @@ subroutine CIMI_set_parameters(NameAction)
               
            elseif &
                 ( index( StringCIMIPlot, '2d'  ) > 0 ) then
-
+              
               PLOT_2D: if &
                    ( index( StringCIMIPlot, 'all'  ) > 0 .or. &
                      index( StringCIMIPlot, 'both'  ) > 0 ) then
@@ -566,10 +569,10 @@ subroutine CIMI_set_parameters(NameAction)
               elseif &
                    ( index( StringCIMIPlot, 'equator' ) > 0 .or. &
                      index( StringCIMIPlot, 'eq' ) > 0 ) then
-
+                 
                  DoSaveEq = .true.
                  DtOutput = DtOutputCIMIPlot
-
+                 
               elseif &
                    ( index( StringCIMIPlot, 'ionosphere' ) > 0 .or. &
                      index( StringCIMIPlot, 'iono' ) > 0 ) then
@@ -587,10 +590,16 @@ subroutine CIMI_set_parameters(NameAction)
                  DtLstarOutput = DtOutputCIMIPlot
                  DoSaveSeparateLstarFiles = DoSaveSeparateFiles
                  
+              elseif &
+                   ( index( StringCIMIPlot, 'coreplas' ) > 0 ) then
+                 
+                 DoSavePlas = .true.
+                 DtPlasOutput = DtOutputCIMIPlot
+                 
               else
 
                  call CON_STOP( 'No CIMI 2D Plot information; STOPPING' )
-
+                 
               endif PLOT_2D
 
            else
@@ -602,6 +611,8 @@ subroutine CIMI_set_parameters(NameAction)
         end do CIMI_PLOTTYPE
 
         DoSavePlot = .true.
+
+!!  END OF SAVEPLOT ROUTINE        
      
      case('#VERBOSELSTAR')
         call read_var('DoVerboseLstar',DoVerboseLstar)
@@ -690,6 +701,7 @@ subroutine CIMI_set_parameters(NameAction)
            call read_var('ChorusUpperBandD', ChorusUpperBandD)
            call read_var('NameAeFile',NameAeFile)
            call read_ae_wdc_kyoto(iError)
+           call read_var('UseKpIndex',UseKpIndex)
 
            if (iError /= 0) then
               write(*,*) "read AE index was not successful "//&
@@ -728,6 +740,9 @@ subroutine CIMI_set_parameters(NameAction)
         
      case('#PLASMAPAUSEDENSITY')
         call read_var('DensityP [m^3]',densityP)
+
+     case('#COREPLASMASPHERE')
+        call read_var('UseCorePsModel',UseCorePsModel)
         
      case('#SETRB')
         call read_var('rb [R_E]', rb)
@@ -741,6 +756,16 @@ subroutine CIMI_set_parameters(NameAction)
         if (DoCalcPrecip) call read_var('DtCalcPrecip',DtCalcPrecip)
 !!$        if (DoCalcPrecip) call read_var('PrecipOutput',PrecipOutput)
 !!$        if (PrecipOutput) call read_var('DtPreOut',DtPreOut)
+
+     case('#STRICTDRIFT')
+        call read_var('IsStrictDrift',IsStrictDrift) ! .T : STOP when f2 < 0
+
+     case('#LATITUDINALGRID')
+        call read_var('DoDefineVarNpower',DoDefineVarNpower) 
+        call read_var('varNpower',varNpower)   ! n in L = 1/cos(xlat)**n
+
+     case('#VERBOSELATGRID')
+        call read_var( 'DoVerboseLatGrid', DoVerboseLatGrid )
 
      end select
      

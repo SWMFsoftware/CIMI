@@ -22,7 +22,7 @@ contains
     use ModInterpolate, ONLY: bilinear, trilinear
     use ModNumConst,    ONLY: cDegToRad,cRadToDeg
     use ModCimi,        ONLY: t=>time, Energy
-    use ModCimiPlanet,  ONLY: nSpecies=>nspec
+    use ModCimiPlanet,  ONLY: nSpecies=>nspec,NameSpeciesExtension_I
     use ModCimiGrid,    ONLY: LonGrid_I=>phi, LatGrid_I=>xlat, &
                               AngleGrid_I=>sinAo
     use ModCimiTrace,  ONLY: BfieldEq_C => bo, iba
@@ -49,7 +49,6 @@ contains
     integer             :: iSatLat, iSatLonMin,iSatLonMax, &
          iSatAng, iAngle, iEnergy
     integer             :: iSpecies
-    character(len=2)    :: NameSpecies
     character(len=20)   :: NameChannel
     character(len=4)    :: numChannels
     !-------------------------------------------------------------------------
@@ -169,28 +168,10 @@ contains
        
        ! Build file name; 
        if (IsFirstWrite(iSpecies,iSatIn)) iStartTime = int(t)
-       
-       !set the file name for each species
-       SELECT CASE (iSpecies)
-       CASE (1)
-          if (iSpecies==nSpecies) then
-             NameSpecies='_e'
-          else
-             NameSpecies='_h'
-          endif
-       CASE (2)
-          if (iSpecies==nSpecies) then
-             NameSpecies='_e'
-          else
-             NameSpecies='_o'
-          endif
-       CASE DEFAULT
-          NameSpecies='_e'
-       END SELECT
-       
+              
        write(NameSatFile, '(a, i6.6, a)')                    &
             'IM/plots/'//'sat_'//trim(NameSat_I(iSatIn))// &
-             NameSpecies//'flux_t',iStartTime,'.sat'
+             NameSpeciesExtension_I(iSpecies)//'flux_t',iStartTime,'.sat'
        
        ! Open file in appropriate mode.  Write header if necessary.
        inquire(file=NameSatFile, exist=IsExist)
@@ -211,9 +192,9 @@ contains
              enddo
           enddo
           ! Write header
-          write(UnitTmp_, '(2a,A,I3.3,A,I3.3)') &
-               'IM results for SWMF trajectory file ', &
-               trim(NameSat_I(iSatIn))//NameSpecies, &
+          write(UnitTmp_, "(A,I3.3,a,i3.3)") &
+               'IM results for SWMF trajectory file '//&
+               trim(NameSat_I(iSatIn))//NameSpeciesExtension_I(iSpecies)//&
                ' nEnergy=',nEnergy,' nAngle=',nAngle
           write(UnitTmp_,"(A)") trim(HeadVar)
        else

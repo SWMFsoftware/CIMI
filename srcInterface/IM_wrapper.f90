@@ -218,13 +218,15 @@ contains
 
   subroutine IM_save_restart(TimeSimulation)
     use ModCimiRestart, ONLY: cimi_write_restart
-
+    use ModPlasmasphere,   ONLY: UseCorePsModel,save_restart_plasmasphere
+    
     real,     intent(in) :: TimeSimulation   ! seconds from start time
     character(len=*), parameter :: NameSub='IM_save_restart'
 
     !-------------------------------------------------------------------------
     call cimi_write_restart
-
+    if (UseCorePsModel) call save_restart_plasmasphere
+    
   end subroutine IM_save_restart
   !===========================================================================
 
@@ -268,7 +270,9 @@ contains
     DoMultiFluidGMCoupling = .false.
     DoAnisoPressureGMCoupling = .false.
 
-    if(NameVar == 'x:y:bmin:I_I:S_I:R_I:B_I:rho:p:Hprho:Oprho:Hpp:Opp')then
+    if(NameVar == 'x:y:bmin:I_I:S_I:R_I:B_I:rho:p:Hprho:Oprho:Hpp:Opp' .or.&
+         NameVar == &
+         'x:y:bmin:I_I:S_I:R_I:B_I:rho:p:SwRho:Hprho:Oprho:SwP:Hpp:Opp')then
        DoMultiFluidGMCoupling = .true.
     elseif(NameVar == 'x:y:bmin:I_I:S_I:R_I:B_I:rho:p:ppar')then
        DoAnisoPressureGMCoupling = .true.
@@ -535,11 +539,12 @@ contains
     !LOCAL VARIABLES:
     real :: tSimulation
     integer, parameter :: pres_=1, dens_=2, parpres_=3, bmin_=4,&
-         Hpres_=3, Opres_=4, Hdens_=5, Odens_=6
+         Hpres_=3, Opres_=4, Hdens_=5, Odens_=6,Swdens_=7,Swpres_=8
 
     integer :: i,j,k
     logical :: DoTest, DoTestMe
     character(len=100) :: NameOut
+    logical :: DoCoupleSw
     !--------------------------------------------------------------------------
 
     call CON_set_do_test(NameSub, DoTest, DoTestMe)
@@ -549,9 +554,12 @@ contains
 
     DoMultiFluidGMCoupling = .false.
     DoAnisoPressureGMCoupling = .false.
-
+    DoCoupleSw=.false.
     if(NameVar == 'p:rho:Hpp:Opp:Hprho:Oprho')then
        DoMultiFluidGMCoupling = .true.
+    elseif(NameVar == 'p:rho:Hpp:Opp:Hprho:Oprho:Swprho:Swpp')then
+       DoMultiFluidGMCoupling = .true.
+       DoCoupleSw=.true.
     elseif(NameVar == 'p:rho:ppar:bmin')then
        DoAnisoPressureGMCoupling = .true.
     elseif(NameVar /= 'p:rho')then
@@ -580,6 +588,10 @@ contains
              Buffer_IIV(i,j,Opres_) = -1.
              Buffer_IIV(i,j,Hdens_) = -1.
              Buffer_IIV(i,j,Odens_) = -1.
+             if (DoCoupleSw) then
+                Buffer_IIV(i,j,Swdens_) = -1.
+                Buffer_IIV(i,j,Swpres_) = -1.
+             endif
           end if
        else
           ! make sure pressure passed to GM is not lower than Pmin [nPa]
@@ -600,7 +612,17 @@ contains
              Buffer_IIV(i,j,Opres_) = max(Pressure_IC(2,i,j), Pmin)*1e-9
              Buffer_IIV(i,j,Odens_) = &
                   Den_IC (2,i,j)*cProtonMass*amu_I(2)
-
+             if (DoCoupleSw) then
+                Buffer_IIV(i,j,Swdens_) = &
+                     Den_IC (1,i,j)*cProtonMass*amu_I(1)
+                Buffer_IIV(i,j,Swpres_) = max(Pressure_IC(1,i,j), Pmin)*1e-9
+                Buffer_IIV(i,j,Hpres_) = max(Pressure_IC(2,i,j), Pmin)*1e-9
+                Buffer_IIV(i,j,Hdens_) = &
+                     Den_IC (2,i,j)*cProtonMass*amu_I(2)
+                Buffer_IIV(i,j,Opres_) = max(Pressure_IC(3,i,j), Pmin)*1e-9
+                Buffer_IIV(i,j,Odens_) = &
+                     Den_IC (3,i,j)*cProtonMass*amu_I(3)
+             endif
           end if
        end if
 

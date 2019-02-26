@@ -22,6 +22,7 @@ program cimi
        IsFirstWrite
   use ModIeCimi,      ONLY: UseWeimer
   use ModGmCimi,      ONLY: init_gm_cimi
+  use ModPlasmasphere,   ONLY: UseCorePsModel,save_restart_plasmasphere
   use CON_planet, ONLY: init_planet_const, set_planet_defaults
 !  use ModPrerunField, ONLY: UsePrerun, read_prerun, read_prerun_IE
  
@@ -125,6 +126,7 @@ program cimi
      if (floor((Time+1.0e-5)/DtSaveRestart) /= &
           floor((Time+1.0e-5-DtAdvance)/DtSaveRestart)) then
         call cimi_write_restart
+        if (UseCorePsModel) call save_restart_plasmasphere
      endif
      
      ! Read new prerun file if using prerun fields and it is time to read
@@ -140,7 +142,8 @@ program cimi
 
   ! Save restart at TimeMax
   call cimi_write_restart
-
+  if (UseCorePsModel) call save_restart_plasmasphere
+  
   ! Finalize timing commands
   call timing_stop('CIMI')
 

@@ -7,6 +7,9 @@ Module ModCimiPlanet
   !Species Information: Number of Ion Species (Earth=H+,O+,He+)
   integer,parameter :: nspec=4  ! number of species
 
+  !define the species extensions
+  character(len=2) :: NameSpeciesExtension_I(nspec)=(/'_h','_o','he','_e'/)
+  
   ! a0,a1,... are coef. of a polynomial which defines the 
   ! exponent of the charge exchange cross section
   real,parameter,dimension(nspec-1) :: a0_I = (/-18.767,-18.987,-20.789/)

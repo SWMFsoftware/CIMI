@@ -7,7 +7,7 @@
 !*******************************************
 
 !      total number of workers
-       integer,parameter :: numwork = 23
+       integer,parameter :: numwork = 8
 
 !      number of altitudes (e.g., field lines)
 
@@ -35,7 +35,7 @@
 
 !      number of grid cells in longitudinal direction per worker
 
-      integer, parameter ::  nl   = 6
+      integer, parameter ::  nl   = 14
       integer, parameter ::nlp1 = nl + 1
       integer, parameter ::nlm1 = nl - 1  
 

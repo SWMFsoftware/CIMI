@@ -15,7 +15,7 @@ Module ModCimiTrace
        Have(:,:,:), pp(:,:,:,:,:), vel(:,:,:,:,:),&
        ekev(:,:,:,:,:), rmir(:,:,:), alscone(:,:,:,:,:),&
        tanA2(:,:,:), volume(:,:), bm(:,:,:), gamma(:,:,:,:),&
-       xo(:,:), yo(:,:), tya(:,:,:), gridoc(:,:)
+       xo(:,:), yo(:,:), tya(:,:,:), gridoc(:,:),phi2o(:,:)
 
   real	  :: parmod(10)
 
@@ -44,7 +44,7 @@ contains
     allocate( bo(ir,ip),ro(ir,ip),xmlto(ir,ip),sinA(ir,ip,0:ik+1),&
          Have(ir,ip,ik),pp(nspec,ir,ip,iw,ik),vel(nspec,ir,ip,iw,ik),&
          ekev(nspec,ir,ip,iw,ik),rmir(ir,ip,ik),alscone(nspec,ir,ip,iw,ik),&
-         tanA2(ir,ip,0:ik+1),&
+         tanA2(ir,ip,0:ik+1),phi2o(ir,ip),&
          volume(ir,ip),bm(ir,ip,ik),gamma(ir,ip,iw,ik),&
          xo(ir,ip),yo(ir,ip),tya(ir,ip,0:ik+1),gridoc(ir,ip) )
 
@@ -142,7 +142,11 @@ contains
                iCurrentTime_I(5),iCurrentTime_I(6))
        endif
     endif
-
+    
+    !initialize to zero
+    ro=0.0
+    phi2o=0.0
+    volume=0.0
     !  Start field line tracing.  
     call timing_start('cimi_trace')
     LONGITUDE: do j=MinLonPar,MaxLonPar
@@ -172,7 +176,8 @@ contains
           xmlto(i,j)=xmlt1
           bo(i,j)=bo1
           phi1=xmlt1*pi/12.+pi         ! phi1=0 corresponing to noon
-
+          phi2o(i,j)=phi1
+          
           xo(i,j)=ro1*cos(phi1)
           yo(i,j)=ro1*sin(phi1)
           gridoc(i,j)=1.

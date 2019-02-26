@@ -2,7 +2,7 @@ module ModIeCimi
   use ModCimiGrid,ONLY: np, nt
   implicit none 
   
-  real :: pot(np,nt)
+  real :: pot(np,nt)=0.0
   logical :: UseIe =.true.
   logical :: UseWeimer =.false.
 contains

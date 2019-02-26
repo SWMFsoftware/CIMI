@@ -10,6 +10,7 @@ include Makefile.RULES
 OBJECTS = \
         ModPlanet.o\
 	ModCimi.o\
+	ModPlasmasphere.o\
 	ModCimiPlot.o\
 	ModFieldTrace.o\
 	ModGmCIMI.o\
@@ -120,3 +121,21 @@ clean: cleanfiles
 
 distclean: clean
 	rm -f ModPlanet.f90 ModGrid.f90
+
+
+
+
+
+######## UNIT TEST TARGETS
+OBJ_PLASMASPHERE = \
+        ModPlasmasphere.o
+
+
+unit_test_plasmasphere_compile:
+	@(make ModPlasmasphere.o)
+	@(make unit_test_plasmasphere.o) 
+	${LINK.f90} -o ${BINDIR}/unit_test_plasmasphere.exe \
+		${OBJ_PLASMASPHERE} \
+		unit_test_plasmasphere.o \
+		-L${LIBDIR} -lSHARE ${Lflag1}
+
