@@ -4,7 +4,7 @@ Module DensityTemp
 
   implicit none
   
-  real 			:: 	density( ir, ip ) = 0.0
+  real 			:: 	density( ir, ip ) = 0.1
 
   ! plasmaspheric density (m^-3) to define plasmapause; needed to
   ! avoid applying chorus and hiss at the same time
