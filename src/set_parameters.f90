@@ -4,8 +4,7 @@ subroutine CIMI_set_parameters(NameAction)
   use ModReadParam
   use ModUtilities,	 ONLY: lower_case
   use ModCimiInitialize, ONLY: &
-       IsEmptyInitial, IsDataInitial, IsRBSPData, IsGmInitial, &
-       DoDefineVarNpower, varNpower
+       IsEmptyInitial, IsDataInitial, IsRBSPData, IsGmInitial
   use ModCimiPlot
   use ModCimiTrace,	 ONLY: UseEllipse, UseSmooth, UseCorotation, &
        UsePotential, SmoothWindow, imod, iLatTest, iLonTest

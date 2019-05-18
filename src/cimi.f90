@@ -1,7 +1,6 @@
 subroutine cimi_run(delta_t)
   use ModConst,       	 ONLY: 	cLightSpeed, cElectronCharge
-  use ModCimiInitialize, ONLY: 	xmm, xk, dphi, dmm, dk, dmu, xjac, &
-                                varL, dvarL, DoDefineVarNpower,varNpower
+  use ModCimiInitialize, ONLY: 	xmm, xk, dphi, dmm, dk, dmu, xjac
   use ModCimi,        	 ONLY: &
        f2, dt, dtmax,Time, phot, Ppar_IC, Pressure_IC, &
        PressurePar_IC, FAC_C, Bmin_C, &
@@ -560,7 +559,6 @@ subroutine cimi_init
   ! Variables determining the spacing of the mu and K grids
   real rw, rw1, rsi, rs1
   
-  real varLmin, varLmax
   real sina0, sina1
   real xjac1, xjac2, xjacL, sqrtm
   real d2
@@ -625,43 +623,46 @@ subroutine cimi_init
   ! Define constants
   re_m = rPlanet_I(Earth_)                            ! earth's radius (m)
   dipmom=abs(DipoleStrengthPlanet_I(Earth_)*re_m**3)  ! earth's dipole moment
+
+  ! Define latitude grid
+  call init_lat
  
-  if ( DoUseUniformLGrid ) then
-     
-     ! CIMI xlat grid for Uniform spacing in L-parameter
-     varLmin=1./cos(xlat_data(1 )*cDegToRad)**varNpower
-     varLmax=1./cos(xlat_data(np)*cDegToRad)**varNpower
-     dvarL=(varLmax-varLmin)/(float(np)-1.)
-     do i=0,np+1
-        varL(i)=varLmin+(i-1)*dvarL
-        if (varL(i).lt.1.) varL(i)=1.
-     enddo
-     xlatr(1:np)=acos(1./(varL(1:np))**(1./varNpower))
-     xlat(1:np)=xlatr(1:np)/cDegToRad
-     do i=2,np-1
-        dlat(i)=0.5*(xlat(i+1)-xlat(i-1))
-     enddo
-     dlat(1)=0.5*(xlat(2)-acos(1./sqrt(varL(0))))
-     dlat(np)=0.5*(acos(1./sqrt(varL(np+1)))-xlat(np-1))
-
-  else
-
-     ! CIMI xlat grid for non-uniform grid
-     do i=1,np
-        xlat(i)=xlat_data(i)
-        ! dlat in radian
-        dlat(i)=0.5*(xlat_data(i+1)-xlat_data(i-1))*cDegToRad    
-     enddo
-     xlatr=xlat*cDegToRad
-     
-  endif
+!!!!  if ( DoUseUniformLGrid ) then
+!!!!     
+!!!!     ! CIMI xlat grid for Uniform spacing in L-parameter
+!!!!     varLmin=1./cos(xlat_data(1 )*cDegToRad)**varNpower
+!!!!     varLmax=1./cos(xlat_data(np)*cDegToRad)**varNpower
+!!!!     dvarL=(varLmax-varLmin)/(float(np)-1.)
+!!!!     do i=0,np+1
+!!!!        varL(i)=varLmin+(i-1)*dvarL
+!!!!        if (varL(i).lt.1.) varL(i)=1.
+!!!!     enddo
+!!!!     xlatr(1:np)=acos(1./(varL(1:np))**(1./varNpower))
+!!!!     xlat(1:np)=xlatr(1:np)/cDegToRad
+!!!!     do i=2,np-1
+!!!!        dlat(i)=0.5*(xlat(i+1)-xlat(i-1))
+!!!!     enddo
+!!!!     dlat(1)=0.5*(xlat(2)-acos(1./sqrt(varL(0))))
+!!!!     dlat(np)=0.5*(acos(1./sqrt(varL(np+1)))-xlat(np-1))
+!!!!
+!!!!  else
+!!!!
+!!!!     ! CIMI xlat grid for non-uniform grid
+!!!!     do i=1,np
+!!!!        xlat(i)=xlat_data(i)
+!!!!        ! dlat in radian
+!!!!        dlat(i)=0.5*(xlat_data(i+1)-xlat_data(i-1))*cDegToRad    
+!!!!     enddo
+!!!!     xlatr=xlat*cDegToRad
+!!!!     
+!!!!  endif
      
   if ( DoVerboseLatGrid ) then
      
      write(*,*) 'IM: xlat grid  (deg)'
-     write(*,'(A, 10f8.2)') 'IM: ', xlat(1:np)
+     write(*,'(10f8.2)') xlat(1:np)
      write(*,*) 'IM: L-shell / ri  (RE)'
-     write(*,'(A, 10f8.3)') 'IM: ', varL(1:np)**(2./varNpower)
+     write(*,'(10f8.3)') varL(1:np)**(2./varNpower)
      
   endif
      
@@ -1367,8 +1368,9 @@ subroutine driftV(nspec,np,nt,nm,nk,irm,re_m,Hiono,dipmom,dphi,xlat,dlat, &
   ! Input: re_m,Hiono,dipmom,dphi,xlat,dlat,ekev,pot,nspec,np,nt,nm,nk,irm
   ! Output: vl,vp
   use ModCimiGrid, ONLY: iProc, nProc, iComm, MinLonPar, MaxLonPar, &
-       iProcLeft, iLonLeft, iProcRight, iLonRight, DoUseUniformLGrid!, xlatr
-  use ModCimiInitialize, ONLY: varL,dvarL,Lfactor,Lfactor1
+       iProcLeft, iLonLeft, iProcRight, iLonRight, DoUseUniformLGrid,&!, xlatr
+       varL,dvarL,Lfactor,Lfactor1
+  use ModCimiInitialize, ONLY: 
   use ModMpi
   use ModCimiTrace, ONLY: UseCorotation
   implicit none
@@ -1500,8 +1502,7 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
   !
   ! Input: iw2,nspec,np,nt,nm,nk,iba,dt,dlat,dphi,brad,rb,vl,vp,fbi
   ! Input/Output: f2,ib0,driftin,driftout
-  use ModCimiGrid, ONLY: MinLonPar, MaxLonPar, DoUseUniformLGrid
-  use ModCimiInitialize, ONLY: dvarL
+  use ModCimiGrid, ONLY: MinLonPar, MaxLonPar, DoUseUniformLGrid, dvarL
   use ModCimi, ONLY: IsStrictDrift
   use ModCimiTrace, ONLY: iba, ekev
   use ModCimiGrid, ONLY: iProc,nProc,iComm,MinLonPar,MaxLonPar, &
