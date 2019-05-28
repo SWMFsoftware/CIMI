@@ -854,6 +854,12 @@ subroutine cimi_init
   
   xk( nk + 1 ) = xk( nk ) * rsi
 
+  ! Calculate Lfactor, which is used in subroutine driftV
+  do i=0,np+1
+     Lfactor(i)=0.5*varNpower*varL(i)**(1.+2./varNpower)
+     Lfactor1(i)=0.5*varNpower*(varL(i)+0.5*dvarL)**(1.+2./varNpower)
+  enddo
+
   ! Calculate Jacobian, xjac
   do n=1,nspec 
      xjac1=4.*sqrt(2.)*cPi*(1.673e-27*amu_I(n))*dipmom/(re_m+Hiono*1000.)
@@ -863,15 +869,17 @@ subroutine cimi_init
         if (DoUseUniformLGrid) then
            
            ! Jacobian from varL
-           xjacL=1./varL(i)**(1.+1./varNpower)/sin(xlatr(i))/varNpower
+           !!xjacL=1./varL(i)**(1.+1./varNpower)/sin(xlatr(i))/varNpower
+           xjac2 = 1./Lfactor(i)
 
         else
 
-           xjacL = 1.
+           !!xjacL = 1.
+           xjac2 = sin(2.*xlatr(i))
 
         endif
 
-        xjac2 = sin(2.*xlatr(i))*xjacL
+        !!xjac2 = sin(2.*xlatr(i))*xjacL
 
         do k=1,nm
 
@@ -879,12 +887,6 @@ subroutine cimi_init
 
         enddo
      enddo
-  enddo
-
-  ! Calculate Lfactor, which is used in subroutine driftV
-  do i=0,np+1
-     Lfactor(i)=varNpower*varL(i)**(1.+2./varNpower)
-     Lfactor1(i)=varNpower*(varL(i)+0.5*dvarL)**(1.+2./varNpower)
   enddo
 
   ! Calculate d4Element_C: dlat*dphi*dmm*dk
@@ -1385,11 +1387,7 @@ subroutine driftV(nspec,np,nt,nm,nk,irm,re_m,Hiono,dipmom,dphi,xlat,dlat, &
 
   pi=acos(-1.)
   dphi2=dphi*2.
-  if ( DoUseUniformLGrid ) then
-     kfactor = 2. * dipmom / ( re_m + Hiono * 1000. )
-  else
-     kfactor = dipmom / ( re_m + Hiono * 1000. )
-  endif
+  kfactor = dipmom / ( re_m + Hiono * 1000. )
   if (UseCorotation) then
      cor=2.*pi/86400.                        ! corotation speed in rad/s
   else
@@ -1551,7 +1549,11 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
               if (j1.gt.nt) j1=j1-nt
               ibaj=max(iba(j),iba(j1))
               do i=1,ibaj
-                 cl1=dt/dlat(i)*vl(n,i,j,k,m)  ! Courant number in L, unitless
+                 if (DoUseUniformLGrid) then
+                    cl1=dt/dvarL*vl(n,i,j,k,m)  ! Courant number in L, unitless
+                 else
+                    cl1=dt/dlat(i)*vl(n,i,j,k,m)  ! Courant number in L, unitless
+                 endif
                  cp1=dt/dphi*vp(n,i,j,k,m)   ! Courant number in phi, unitless
                  cmx=max(abs(cl1),abs(cp1))
                  cmax=max(cmx,cmax)
@@ -1590,7 +1592,11 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
               endif
               ! Recalculate Courant numbers
               do i=1,np
-                 cl(i,j)=dt1/dlat(i)*vl(n,i,j,k,m)
+                 if (DoUseUniformLGrid) then
+                    cl(i,j)=dt1/dvarL*vl(n,i,j,k,m)
+                 else
+                    cl(i,j)=dt1/dlat(i)*vl(n,i,j,k,m)
+                 endif
                  cp(i,j)=dt1/dphi*vp(n,i,j,k,m)
               enddo
            enddo
@@ -1673,7 +1679,7 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
               jloop: do j=MinLonPar,MaxLonPar
                  j_1=j-1
                  if (j_1.lt.1) j_1=j_1+nt
-                 iloop: do i=1,iba(j)
+                 iloop: do i=2,iba(j)
                     if ( DoUseUniformLGrid ) then
                        f2d(i,j) = f2d0(i,j) + &
                             cl(i-1,j) * fal(i-1,j) - cl(i,j) * fal(i,j) + &
