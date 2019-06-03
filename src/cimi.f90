@@ -1504,12 +1504,13 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
   use ModCimi, ONLY: IsStrictDrift
   use ModCimiTrace, ONLY: iba, ekev
   use ModCimiGrid, ONLY: iProc,nProc,iComm,MinLonPar,MaxLonPar, &
-       iProcLeft, iLonLeft, iProcRight, iLonRight, d4Element_C    
+       iProcLeft, iLonLeft, iProcRight, iLonRight, d4Element_C   
+  use ModInterFlux, only: UseHigherOrder,FLS_2D_ho 
   use ModMpi
   implicit none
 
   integer nk,nspec,np,nt,nm,ib0(nt)
-  integer n,i,j,k,m,j1,j_1,ibaj,ib,ibo,nrun,nn
+  integer n,i,j,k,m,j1,j_1,j_2,ibaj,ib,ibo,nrun,nn
   integer iw2(nspec,nk)
   real dt,dlat(np),dphi,brad(np,nt),&
        vl(nspec,0:np,nt,nm,nk),vp(nspec,0:np,nt,nm,nk)
@@ -1519,6 +1520,7 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
        fupl(0:np,nt),fupp(np,nt)
   real driftin(nspec),driftout(nspec),dEner,dPart,&
        dEnerLocal_C(nt),dPartLocal_C(nt)
+  real f_upwind
   logical :: UseUpwind=.false.
 
   ! MPI status variable
@@ -1649,7 +1651,11 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
               !  idown: downstream from i, i < idown < i+1 when cl > 0, i-1 < iup < i when cl < 0
               !  jup: upstream from j, j-1 < jup < j when cp > 0, j < jup < j+1 when cl < 0
               !  jdown: downstream from j, j < jdown < j+1 when cp > 0, j-1 < jup < j when cp < 0
-              call FLS_2D(np,nt,iba,fb0,fb1,cl,cp,f2d,fal,fap,fupl,fupp)
+              if (.not.UseHigherOrder) then
+                 call FLS_2D(np,nt,iba,fb0,fb1,cl,cp,f2d,fal,fap,fupl,fupp)
+              else
+                 call FLS_2D_ho(np,nt,iba,fb0,fb1,cl,cp,f2d,fal,fap,fupl,fupp)
+              endif
               fal(0,1:nt)=f2d(1,1:nt)
               ! When nProc>1 pass needed ghost cell info for fap,fupp and cp
               if (nProc>1) then
@@ -1678,7 +1684,9 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
               f2d0(:,:)=f2d(:,:)   ! save f2 in the current time step
               jloop: do j=MinLonPar,MaxLonPar
                  j_1=j-1
+                 j_2=j-2
                  if (j_1.lt.1) j_1=j_1+nt
+                 if (j_2.lt.1) j_2=j_2+nt
                  iloop: do i=2,iba(j)
                     if ( DoUseUniformLGrid ) then
                        f2d(i,j) = f2d0(i,j) + &
@@ -1695,11 +1703,57 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
                        if (f2d(i,j).gt.-1.e-30) then
                           f2d(i,j)=0.
                        else
-                          write(*,*)'IM WARNING: f2d < 0 in drift ',n,i,j,k,m
-                          write(*,*)'IM WARNING: '//&
-                               'Retrying step with upwind scheme'
-                          UseUpwind=.true.
-                          exit jloop
+                          if (.not.UseHigherOrder) then
+                             write(*,'(a,5i4)')'IM WARNING: f2d < 0 in drift at n,i,j,k,m =',n,i,j,k,m
+                             write(*,*)'IM WARNING: '//&
+                                  'Retrying step with upwind scheme'
+                             UseUpwind=.true.
+                             exit jloop
+                          else
+                             ! calculate with upwind scheme
+                             fal(i  ,j)=fupl(i  ,j) 
+                             fal(i-1,j)=fupl(i-1,j) 
+                             fap(i  ,j)=fupp(i  ,j) 
+                             fap(i,j_1)=fupp(i,j_1) 
+                             f2d(i,j) = f2d0(i,j) + &
+                                        cl(i-1,j) * fal(i-1,j) &
+                                      - cl(i,j) * fal(i,j) + &
+                                        cp(i,j_1) * fap(i,j_1) &
+                                      - cp(i,j) * fap(i,j)
+                             if (f2d(i,j).lt.0.) then
+                                write(*,'(a,5i4)')'IM WARNING: f2d < 0 in drift at n,i,j,k,m =',n,i,j,k,m
+                                write(*,*)'IM WARNING: '//&
+                                     'upwind scheme failed, making iba(j)=i'
+                                write(*,*)'IM WARNING: '//&
+                                     'repeated failure may need to be examined'
+                                if ( IsStrictDrift ) then
+                                   write(*,'(a,i4)') 'iba =',iba(j) 
+                                   write(*,'(a,1p3E11.3)') 'IM: f2d(i,j),f2d0(i,j),f2=',f2d(i,j),f2d0(i,j),f2(n,i,j,k,m)
+                                   write(*,'(a,1p2E11.3)') 'IM: fupl(i-1,j),fupl(i,j)= ',fupl(i-1,j),fupl(i,j)
+                                   write(*,'(a,1p2E11.3)') 'IM:   cl(i-1,j),  cl(i,j)= ',cl(i-1,j),cl(i,j)
+                                   write(*,'(a,1p2E11.3)') 'IM: fupp(i,j-1),fupp(i,j)= ',fupp(i,j-1),fupp(i,j)
+                                   write(*,'(a,1p2E11.3)') 'IM:   cp(i,j-1),  cp(i,j)= ',cl(i,j-1),cl(i,j)
+                                   call CON_STOP('IM: CIMI dies in driftIM')
+                                else
+                                   f2d(i,j)=0.0
+                                   iba(j)=i
+                                endif
+                             endif
+                             if (i.ge.2) then
+                                f_upwind = f2d0(i-1,j) + &
+                                            cl(i-2,j) * fal(i-2,j) &
+                                          - cl(i-1,j) * fal(i-1,j) + &
+                                            cp(i-1,j_1) * fap(i-1,j_1) &
+                                          - cp(i-1,j) * fap(i-1,j)
+                                if (f_upwind.gt.0.) f2d(i-1,j) = f_upwind
+                             endif
+                             f_upwind = f2d0(i,j_1) + &
+                                         cl(i-1,j_1) * fal(i-1,j_1) &
+                                       - cl(i,j_1) * fal(i,j_1) + &
+                                         cp(i,j_2) * fap(i,j_2) &
+                                       - cp(i,j_1) * fap(i,j_1)
+                             if (f_upwind.gt.0.) f2d(i-1,j) = f2d(i,j_1)
+                          endif
                        endif
                     endif
                  enddo iloop
@@ -1724,7 +1778,7 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
                  do j=MinLonPar,MaxLonPar
                     j_1=j-1
                     if (j_1.lt.1) j_1=j_1+nt
-                    iLoopUpwind: do i=1,iba(j)
+                    iLoopUpwind: do i=2,iba(j)
                        if ( DoUseUniformLGrid ) then
                           f2d(i,j) = &
                                f2d0(i,j) + &

@@ -71,3 +71,13 @@ T		IsStrictDrift
 
 #VERBOSELATGRID
 T		DoVerboseLatGrid
+
+#LATITUDINALGRID
+T		DoDefineVarNpower
+2. 		varNpower
+72.4356255492731975	xlatmax
+
+#HIGHERORDERDRIFT
+T		UseHigherOrder 
+7		iOrderLat
+7		iOrderLon

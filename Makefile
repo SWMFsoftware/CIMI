@@ -253,9 +253,9 @@ test_rundir_Highorder:
 	make rundir RUNDIR=${TESTDIR} STANDALONE=YES IMDIR=`pwd`
 	cp input/testfiles/*.dat ${TESTDIR}/
 	cp input/testfiles/PARAM.in.test.HighOrder ${TESTDIR}/PARAM.in
-	cp input/gaussian_test.fin ${IMDIR}/quiet_e.fin
-	cp input/gaussian_test.fin ${IMDIR}/quiet_h.fin
-	cp input/gaussian_test.fin ${IMDIR}/quiet_o.fin
+	cp input/gaussian_test.fin ${TESTDIR}/IM/quiet_e.fin
+	cp input/gaussian_test.fin ${TESTDIR}/IM/quiet_h.fin
+	cp input/gaussian_test.fin ${TESTDIR}/IM/quiet_o.fin
 
 test_run:
 	cd ${TESTDIR}; ${MPIRUN} ./cimi.exe > runlog 
