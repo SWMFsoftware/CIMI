@@ -536,6 +536,7 @@ subroutine cimi_init
   !         xmm1,xk1,phi1,dlat1,dphi1,dmm1,dk1,delE1,dmu1,xjac,d4,amu (through 
   !         common block cinitialization
 
+  use ModInterFlux,   ONLY: set_nghostcell_scheme
   use ModPlanetConst, ONLY: Earth_,DipoleStrengthPlanet_I,rPlanet_I
   use ModConst,       ONLY: cElectronCharge, cLightSpeed, cProtonMass
   use ModNumConst,    ONLY: cDegToRad,cRadToDeg,cPi
@@ -615,6 +616,10 @@ subroutine cimi_init
   else
      iProcMidnight=0
   endif
+
+  !set the number of ghostcells in lon based on the order of the scheme
+  call set_nghostcell_scheme
+  
   ! Set start time
 
   call time_int_to_real(iStartTime_I,CurrentTime)
@@ -1505,7 +1510,7 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
   use ModCimiTrace, ONLY: iba, ekev
   use ModCimiGrid, ONLY: iProc,nProc,iComm,MinLonPar,MaxLonPar, &
        iProcLeft, iLonLeft, iProcRight, iLonRight, d4Element_C   
-  use ModInterFlux, only: UseHigherOrder,FLS_2D_ho 
+  use ModInterFlux, only: UseHigherOrder,FLS_2D_ho,nGhostLonLeft,nGhostLonRight
   use ModMpi
   implicit none
 
@@ -1608,41 +1613,90 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
               UseUpwind=.false.
               ! When nProc>1, pass fb0, fb1, and f2d
               !send to neigboring Procs
-             if (nProc>1) then
-                 !send f2d ghostcells
-                 call MPI_send(f2d(1:np,MaxLonPar),np,MPI_REAL,iProcRight,&
-                      3,iComm,iError)
-                 call MPI_send(f2d(1:np,MinLonPar:MinLonPar+1),2*np,MPI_REAL,&
+
+              !this case should be eliminated after testing 
+!             if (nProc>1 .and. .not.UseHigherOrder) then
+!                 !send f2d ghostcells
+!                 call MPI_send(f2d(1:np,MaxLonPar),np,MPI_REAL,iProcRight,&
+!                      3,iComm,iError)
+!                 call MPI_send(f2d(1:np,MinLonPar:MinLonPar+1),2*np,MPI_REAL,&
+!                      iProcLeft,4,iComm,iError)
+!                 !recieve f2d ghostcells from neigboring Procs
+!                 call MPI_recv(f2d(1:np,iLonLeft),np,MPI_REAL,iProcLeft,&
+!                      3,iComm,iStatus_I,iError)
+!                 call MPI_recv(f2d(1:np,iLonRight:iLonRight+1),2*np,MPI_REAL,&
+!                      iProcRight,4,iComm,iStatus_I,iError)
+!
+!                 !send fb0 ghostcells
+!                 call MPI_send(fb0(MinLonPar:MinLonPar+1),2,MPI_REAL,&
+!                      iProcLeft,5,iComm,iError)
+!                 call MPI_send(fb0(MaxLonPar),1,MPI_REAL,iProcRight,&
+!                      6,iComm,iError)
+!                 !recieve fb0 from neigboring Procs
+!                 call MPI_recv(fb0(iLonRight:iLonRight+1),2,MPI_REAL,&
+!                      iProcRight,5,iComm,iStatus_I,iError)
+!                 call MPI_recv(fb0(iLonLeft),1,MPI_REAL,iProcLeft,&
+!                      6,iComm,iStatus_I,iError)
+!
+!                 !send fb1 ghostcells
+!                 call MPI_send(fb1(MinLonPar:MinLonPar+1),2,MPI_REAL,&
+!                      iProcLeft,7,iComm,iError)
+!                 call MPI_send(fb1(MaxLonPar),1,MPI_REAL,iProcRight,&
+!                      8,iComm,iError)
+!                 !recieve fb1 from neigboring Procs
+!                 call MPI_recv(fb1(iLonRight:iLonRight+1),2,MPI_REAL,&
+!                      iProcRight,7,iComm,iStatus_I,iError)
+!                 call MPI_recv(fb1(iLonLeft),1,MPI_REAL,iProcLeft,&
+!                      8,iComm,iStatus_I,iError)
+!
+!              elseif(nProc>1 .and. UseHigherOrder) then
+              !send f2d ghostcells
+              if(nProc>1 ) then
+                 call MPI_send(f2d(1:np,MaxLonPar-nGhostLonLeft+1:MaxLonPar),&
+                      nGhostLonLeft*np,&
+                      MPI_REAL,iProcRight,3,iComm,iError)
+                 call MPI_send(f2d(1:np,MinLonPar:MinLonPar+nGhostLonRight-1),&
+                      nGhostLonRight*np,MPI_REAL,&
                       iProcLeft,4,iComm,iError)
                  !recieve f2d ghostcells from neigboring Procs
-                 call MPI_recv(f2d(1:np,iLonLeft),np,MPI_REAL,iProcLeft,&
-                      3,iComm,iStatus_I,iError)
-                 call MPI_recv(f2d(1:np,iLonRight:iLonRight+1),2*np,MPI_REAL,&
+                 call MPI_recv(f2d(1:np,iLonLeft-nGhostLonLeft+1:iLonLeft),&
+                      nGhostLonLeft*np,MPI_REAL,&
+                      iProcLeft,3,iComm,iStatus_I,iError)
+                 call MPI_recv(f2d(1:np,iLonRight:iLonRight+nGhostLonRight-1),&
+                      nGhostLonRight*np,MPI_REAL,&
                       iProcRight,4,iComm,iStatus_I,iError)
-
+                 
                  !send fb0 ghostcells
-                 call MPI_send(fb0(MinLonPar:MinLonPar+1),2,MPI_REAL,&
+                 call MPI_send(fb0(MinLonPar:MinLonPar+nGhostLonRight-1),&
+                      nGhostLonRight,MPI_REAL,&
                       iProcLeft,5,iComm,iError)
-                 call MPI_send(fb0(MaxLonPar),1,MPI_REAL,iProcRight,&
+                 call MPI_send(fb0(MaxLonPar-nGhostLonLeft+1:MaxLonPar),&
+                      nGhostLonLeft,MPI_REAL,iProcRight,&
                       6,iComm,iError)
                  !recieve fb0 from neigboring Procs
-                 call MPI_recv(fb0(iLonRight:iLonRight+1),2,MPI_REAL,&
+                 call MPI_recv(fb0(iLonRight:iLonRight+nGhostLonRight-1),&
+                      nGhostLonRight,MPI_REAL,&
                       iProcRight,5,iComm,iStatus_I,iError)
-                 call MPI_recv(fb0(iLonLeft),1,MPI_REAL,iProcLeft,&
+                 call MPI_recv(fb0(iLonLeft-nGhostLonLeft+1:iLonLeft),&
+                      nGhostLonLeft,MPI_REAL,iProcLeft,&
                       6,iComm,iStatus_I,iError)
-
+                 
                  !send fb1 ghostcells
-                 call MPI_send(fb1(MinLonPar:MinLonPar+1),2,MPI_REAL,&
+                 call MPI_send(fb1(MinLonPar:MinLonPar+nGhostLonRight-1),&
+                      nGhostLonRight,MPI_REAL,&
                       iProcLeft,7,iComm,iError)
-                 call MPI_send(fb1(MaxLonPar),1,MPI_REAL,iProcRight,&
+                 call MPI_send(fb1(MaxLonPar-nGhostLonLeft+1:MaxLonPar),&
+                      nGhostLonLeft,MPI_REAL,iProcRight,&
                       8,iComm,iError)
                  !recieve fb1 from neigboring Procs
-                 call MPI_recv(fb1(iLonRight:iLonRight+1),2,MPI_REAL,&
+                 call MPI_recv(fb1(iLonRight:iLonRight+nGhostLonRight-1),&
+                      nGhostLonRight,MPI_REAL,&
                       iProcRight,7,iComm,iStatus_I,iError)
-                 call MPI_recv(fb1(iLonLeft),1,MPI_REAL,iProcLeft,&
+                 call MPI_recv(fb1(iLonLeft-nGhostLonLeft+1:iLonLeft),&
+                      nGhostLonLeft,MPI_REAL,iProcLeft,&
                       8,iComm,iStatus_I,iError)
               endif
-
+              
               ! calculate fluxes at the cell surface for finite volume scheme.
               !  dF/dt     = d(vl * F)/dL  +  d(vp * F)/dphi
               !  F_(t+1,i,j) = F_(t,i,j)  +  cl_(iup,j) * F_(t,iup,j) - cl(idown,j) * F(t,idown,j)   
@@ -1660,25 +1714,25 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
               ! When nProc>1 pass needed ghost cell info for fap,fupp and cp
               if (nProc>1) then
                  !send fap ghostcells
-                 call MPI_send(fap(:,MaxLonPar),np,MPI_REAL,iProcRight,&
-                      9,iComm,iError)
+                 call MPI_send(fap(:,MaxLonPar-1:MaxLonPar),2*np,MPI_REAL,&
+                      iProcRight,9,iComm,iError)
                  !recieve fap from neigboring Procs
-                 call MPI_recv(fap(:,iLonLeft),np,MPI_REAL,iProcLeft,&
-                      9,iComm,iStatus_I,iError)
+                 call MPI_recv(fap(:,iLonLeft-1:iLonLeft),1*np,MPI_REAL,&
+                      iProcLeft,9,iComm,iStatus_I,iError)
 
                  !send fupp ghostcells
-                 call MPI_send(fupp(:,MaxLonPar),np,MPI_REAL,iProcRight,&
-                      10,iComm,iError)
+                 call MPI_send(fupp(:,MaxLonPar-1:MaxLonPar),2*np,MPI_REAL,&
+                      iProcRight,10,iComm,iError)
                  !recieve fupp from neigboring Procs
-                 call MPI_recv(fupp(:,iLonLeft),np,MPI_REAL,iProcLeft,&
-                      10,iComm,iStatus_I,iError)
+                 call MPI_recv(fupp(:,iLonLeft-1:iLonLeft),2*np,MPI_REAL,&
+                      iProcLeft,10,iComm,iStatus_I,iError)
 
                  !send cp ghostcells
-                 call MPI_send(cp(:,MaxLonPar),np,MPI_REAL,iProcRight,&
-                      11,iComm,iError)
+                 call MPI_send(cp(:,MaxLonPar-1:MaxLonPar),2*np,MPI_REAL,&
+                      iProcRight,11,iComm,iError)
                  !recieve cp from neigboring Procs
-                 call MPI_recv(cp(:,iLonLeft),np,MPI_REAL,iProcLeft,&
-                      11,iComm,iStatus_I,iError)
+                 call MPI_recv(cp(:,iLonLeft-1:iLonLeft),2*np,MPI_REAL,&
+                      iProcLeft,11,iComm,iStatus_I,iError)
               endif
 
               f2d0(:,:)=f2d(:,:)   ! save f2 in the current time step
@@ -1739,7 +1793,7 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
                                    iba(j)=i
                                 endif
                              endif
-                             if (i.ge.2) then
+                             if (i.ge.3) then
                                 f_upwind = f2d0(i-1,j) + &
                                             cl(i-2,j) * fal(i-2,j) &
                                           - cl(i-1,j) * fal(i-1,j) + &

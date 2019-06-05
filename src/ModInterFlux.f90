@@ -1,10 +1,21 @@
    module ModInterFlux
 
-   integer iOrderLat,iOrderLon
+   integer :: iOrderLat=2,iOrderLon=2
    logical :: UseHigherOrder=.false.  ! use higher order inter-flux
 
-   contains
-
+   !the number of ghost cells required for a given scheme order
+   !Fill at set time
+   integer :: nGhostLonLeft, nGhostLonRight
+   
+ contains
+   !Set the number of longitude ghostcells based on the order of the scheme
+   subroutine set_nghostcell_scheme
+     nGhostLonLeft  = iOrderLon/2
+     nGhostLonRight = iOrderLon/2+1
+   end subroutine set_nghostcell_scheme
+   
+     
+     
 !*******************************************************************************
 !                            FLS_2D_ho
 !
