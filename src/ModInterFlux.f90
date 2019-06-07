@@ -326,7 +326,11 @@
            if (acurv.ge.adel) then
               fhol(i,j)=fc
            else
-              ref=fu+(fc-fu)/cl1
+              if (cl1.ne.0.) then
+                 ref=fu+(fc-fu)/cl1
+              else
+                 ref=fu
+              endif
               if (del.gt.0.) then
                  flim=max(fhol(i,j),fc)
                  fhol(i,j)=min(flim,min(ref,fd))            
@@ -353,7 +357,11 @@
            if (acurv.ge.adel) then
               fhop(i,j)=fc
            else
-              ref=fu+(fc-fu)/cp1
+              if (cl1.ne.0.) then
+                 ref=fu+(fc-fu)/cp1
+              else
+                 ref=fu
+              endif
               if (del.gt.0.) then
                  flim=max(fhop(i,j),fc)
                  fhop(i,j)=min(flim,min(ref,fd))            

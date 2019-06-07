@@ -1717,7 +1717,7 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
                  call MPI_send(fap(:,MaxLonPar-1:MaxLonPar),2*np,MPI_REAL,&
                       iProcRight,9,iComm,iError)
                  !recieve fap from neigboring Procs
-                 call MPI_recv(fap(:,iLonLeft-1:iLonLeft),1*np,MPI_REAL,&
+                 call MPI_recv(fap(:,iLonLeft-1:iLonLeft),2*np,MPI_REAL,&
                       iProcLeft,9,iComm,iStatus_I,iError)
 
                  !send fupp ghostcells
