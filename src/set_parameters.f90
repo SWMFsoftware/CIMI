@@ -4,8 +4,7 @@ subroutine CIMI_set_parameters(NameAction)
   use ModReadParam
   use ModUtilities,	 ONLY: lower_case
   use ModCimiInitialize, ONLY: &
-       IsEmptyInitial, IsDataInitial, IsRBSPData, IsGmInitial, &
-       DoDefineVarNpower, varNpower
+       IsEmptyInitial, IsDataInitial, IsRBSPData, IsGmInitial
   use ModCimiPlot
   use ModCimiTrace,	 ONLY: UseEllipse, UseSmooth, UseCorotation, &
        UsePotential, SmoothWindow, imod, iLatTest, iLonTest
@@ -32,6 +31,7 @@ subroutine CIMI_set_parameters(NameAction)
   use ModCimiGrid
   use ModLstar,		 ONLY: DoVerboseLstar
   use ModPlasmasphere,   ONLY: DoSavePlas, DtPlasOutput,UseCorePsModel
+  use ModInterFlux,      ONLY: UseHigherOrder,iOrderLat,iOrderLon
   
   implicit none
 
@@ -763,9 +763,15 @@ subroutine CIMI_set_parameters(NameAction)
      case('#LATITUDINALGRID')
         call read_var('DoDefineVarNpower',DoDefineVarNpower) 
         call read_var('varNpower',varNpower)   ! n in L = 1/cos(xlat)**n
+        call read_var('xlatmax',xlatmax)       ! upper boundary latitude
 
      case('#VERBOSELATGRID')
         call read_var( 'DoVerboseLatGrid', DoVerboseLatGrid )
+
+     case('#HIGHERORDERDRIFT')   ! use higher order drift
+        call read_var('UseHigherOrder',UseHigherOrder) 
+        call read_var('iOrderLat',iOrderLat)   ! order in latitude
+        call read_var('iOrderLon',iOrderLon)   ! order in longitude
 
      end select
      

@@ -166,6 +166,8 @@ sub print_help{
 
 -GridExpanded    Configure CIMI with a grid expanded to higher lat
 
+-GridUniformL    Configure CIMI to use uniform L parameter for drift in lat
+
 These flags are case insensitive.
 
 In the future, other ions could be added, or other planets such as Jupiter or 
