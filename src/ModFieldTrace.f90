@@ -941,8 +941,9 @@ contains
     integer, parameter :: nd=3
     integer ::i,j,n,ii,iopt,ind(np),iPoint,iAlt
     integer, parameter :: I_=1,S_=2,R_=3,B_=4
-    real,    parameter :: LatMin = .886  ! 50.7degrees, below this, fieldline 
+    real :: LatMin = .886  ! 50.7degrees, below this, fieldline 
     ! extends below 2.5Re
+
 
     real xa(np),ya(np),za(np),x0(3),xend(3),f(3),t0,tend,h,h1,aza(np)
     real dir,pas,xwrk(4,nd),rlim,Bmid,dss(np),ss,yint(np)
@@ -950,6 +951,9 @@ contains
     Logical IsFoundLine,UseDipole
     !---------------------------------------------------------------------------
 
+    !Calculate LatMin below which we must use dipole
+    LatMin=acos(sqrt(1.0/(rBodyGM)))
+    
     ! Put BufferLine_VI indexed by line number into StateLine_CIIV
 
     ! Start after MinAlt points inside rBody

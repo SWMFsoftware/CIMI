@@ -44,6 +44,13 @@ Module ModCimiPlanet
   integer, parameter          :: Beq_=21,Vol_=22,Pot_=23, FAC_=24, Lstar_=25, &
                                  Plas_=26, nVar=26
 
+  !set coupling variables for GM
+  character(len=*), parameter :: &
+       NameVarCouple = 'Rho Ppar p HpRho HpPpar HpP OpRho OpPpar OpP HpPsRho HpPsP &
+       &Pe PePar'
+
+  !number of variables to send to GM
+  integer :: nVarImToGm = 13
   !set Logplot parameters
 
 !  integer, parameter :: nLogVars = 8

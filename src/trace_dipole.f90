@@ -1,5 +1,6 @@
 subroutine trace_dipoleIM(Re,LatStart,nStep,nStepInside,&
      LineLength_I,Bfield_I,RadialDist_I,L)
+  use ModGmCimi, ONLY: rBodyGm
   use ModCimiPlanet,  ONLY: MagCoef => dipmom
   implicit none
   
@@ -9,20 +10,24 @@ subroutine trace_dipoleIM(Re,LatStart,nStep,nStepInside,&
                         RadialDist_I(nStep)
   
 !  real, parameter :: MagCoef = 7.84e15   ! T m^3
-  real, parameter :: rBoundary = 2.5
+  !  real, parameter :: rBoundary = 2.5
+  real :: rBoundary
   real    :: Lat, dLat, Length, LatMax, Length1,LatOuter,LatInner 
   integer :: iStep
 
   character(len=*), parameter :: NameSub='trace_dipoleIM'
   !----------------------------------------------------------------------------
 
+  rBoundary = rBodyGm
+  
   L  = 1.0 / cos(LatStart)**2.0
   
   ! If no data from MHD solution fill entire space with dipole solution
   if (nStep == 2*nStepInside) then
      dLat = (2.0*LatStart)/nStep
   else
-     LatMax   = acos(sqrt(rBoundary/L))
+     !write(*,*) 'rBoundary,L',rBoundary,L
+     LatMax   = acos(sqrt(min(rBoundary/L,1.0)))
      dLat     = (LatStart-LatMax)/nStepInside
   endif
 
@@ -51,9 +56,17 @@ subroutine trace_dipoleIM(Re,LatStart,nStep,nStepInside,&
      do iStep = nStepInside+1, nStep-nStepInside
         LineLength_I(iStep) = LineLength_I(iStep) + Length1
      enddo
-     if(RadialDist_I(nStep-nStepInside) > L) &
-          call CON_stop(NameSub//'Radial distance exceeds L!')
-     LatOuter = -acos(sqrt(RadialDist_I(nStep - nStepInside)/L))
+!     if(RadialDist_I(nStep-nStepInside) > L) &
+!          call CON_stop(NameSub//'Radial distance exceeds L!')
+!     LatOuter = -acos(sqrt(RadialDist_I(nStep - nStepInside)/L))
+
+     !kludge                                           
+     if(RadialDist_I(nStep-nStepInside) > L) then
+        LatOuter=0.0
+     else
+        LatOuter = -acos(sqrt(RadialDist_I(nStep - nStepInside)/L))
+     endif
+
   else
      ! Continue with other half
      LatOuter = Lat

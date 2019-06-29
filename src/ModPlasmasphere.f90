@@ -49,7 +49,7 @@ Module ModPlasmasphere
 
   logical, public :: DoSavePlas
   real,    public :: DtPlasOutput
-  logical, public :: UseCorePsModel=.false.
+  logical, public :: UseCorePsModel=.true.
   real   , public :: PlasSpinUpTime=86400. !one day
   public :: unit_test_plasmasphere
   public :: init_plasmasphere

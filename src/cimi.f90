@@ -915,7 +915,7 @@ subroutine initial_f2(nspec,np,nt,iba,amu_I,vel,xjac,ib0)
   ! Output: ib0,f2,rbsum,xleb,xled,xlel,xlee,xles,driftin,driftout
   !         (through common block cinitial_f2)
   use ModIoUnit, ONLY: UnitTmp_
-  use ModGmCimi, ONLY: Den_IC, Temp_IC, Temppar_IC, DoAnisoPressureGMCoupling
+  use ModGmCimi, ONLY: Den_IC, Temp_IC, Temppar_IC
   use ModCimi,   ONLY: f2
   use ModCimiInitialize,   ONLY: IsEmptyInitial, IsDataInitial, IsRBSPData, &
        IsGmInitial
@@ -954,29 +954,29 @@ subroutine initial_f2(nspec,np,nt,iba,amu_I,vel,xjac,ib0)
      f2(:,:,:,:,:)=1.0e-40
   elseif(IsGmInitial) then
      ! Set initial f2 based on Maxwellian or bi-Maxwellian
-     if(DoAnisoPressureGMCoupling) &
-          Tempperp_IC(:,:,:) = (3*Temp_IC(:,:,:) - Temppar_IC(:,:,:))/2.
+     Tempperp_IC(:,:,:) = (3*Temp_IC(:,:,:) - Temppar_IC(:,:,:))/2.
      do n=1,nspec
         xmass=amu_I(n)*1.673e-27
         chmass=1.6e-19/xmass
         do j=MinLonPar,MaxLonPar
            do i=1,iba(j)
-              if(DoAnisoPressureGMCoupling)then
-                 f21=Den_IC(n,i,j)/(2.*pi*xmass*Temppar_IC(n,i,j)*1.6e-19)**0.5 &
-                      /(2.*pi*xmass*Tempperp_IC(n,i,j)*1.6e-19)
-              else
-                 f21=Den_IC(n,i,j)/(2.*pi*xmass*Temp_IC(n,i,j)*1.6e-19)**1.5
-              end if
+!              write(*,*) n,i,j,iba(j),Den_IC(n,i,j), Temppar_IC(n,i,j), Tempperp_IC(n,i,j)
+              f21=Den_IC(n,i,j)/(2.*pi*xmass*Temppar_IC(n,i,j)*1.6e-19)**0.5 &
+                   /(2.*pi*xmass*Tempperp_IC(n,i,j)*1.6e-19)
+              !following lines were for when we had isotropic option
+              !else
+              !   f21=Den_IC(n,i,j)/(2.*pi*xmass*Temp_IC(n,i,j)*1.6e-19)**1.5
+              !end if
               do k=1,nm
                  do m=1,nk
-                    if(DoAnisoPressureGMCoupling)then
-                       velperp2 = (vel(n,i,j,k,m)*sinA(i,j,m))**2
-                       velpar2 = vel(n,i,j,k,m)**2 - velperp2
-                       vtchm = -velpar2/(2*Temppar_IC(n,i,j)*chmass) &
-                            -velperp2/(2*Tempperp_IC(n,i,j)*chmass)
-                    else                    
-                       vtchm = -vel(n,i,j,k,m)**2/(2*Temp_IC(n,i,j)*chmass)
-                    end if
+                    velperp2 = (vel(n,i,j,k,m)*sinA(i,j,m))**2
+                    velpar2 = vel(n,i,j,k,m)**2 - velperp2
+                    vtchm = -velpar2/(2*Temppar_IC(n,i,j)*chmass) &
+                         -velperp2/(2*Tempperp_IC(n,i,j)*chmass)
+                    !from when having an isotropic option
+                    !else                    
+                    !   vtchm = -vel(n,i,j,k,m)**2/(2*Temp_IC(n,i,j)*chmass)
+                    !end if
                     f2(n,i,j,k,m)=xjac(n,i,k)*f21*exp(vtchm)
                  end do
               end do
@@ -1107,7 +1107,7 @@ subroutine boundaryIM(nspec,neng,np,nt,nm,nk,iba,irm,amu_I,xjac,energy,vel,fb)
   ! Input: nspec,np,nt,nm,nk,iba,irm,amu,xjac,Den_IC,Temp_IC,vel
   ! Output: fb
   ! 
-  Use ModGmCimi, ONLY:  Temp_IC, Temppar_IC, DoAnisoPressureGMCoupling
+  Use ModGmCimi, ONLY:  Temp_IC, Temppar_IC
   use ModCimi,        ONLY: MinLonPar,MaxLonPar, f2
   use ModCimiGrid, ONLY: MinLonPar,MaxLonPar
   use ModCimiTrace,  ONLY: sinA,ekev,iw2,pp
@@ -1137,14 +1137,13 @@ subroutine boundaryIM(nspec,neng,np,nt,nm,nk,iba,irm,amu_I,xjac,energy,vel,fb)
    !   defining Pperp and Ppar for both cases, anisotropic and isotropic.
    !   Advantages: use the same form of Maxwellian/kappa dist
    !   since in the case of isotropic PSD 
-  
-  if(DoAnisoPressureGMCoupling) then    !  
-          BoundaryTempperp_IC(:,:) = &
-             (3*BoundaryTemp_IC(:,:) - BoundaryTempPar_IC(:,:))/2
-  else
-         BoundaryTempperp_IC(:,:) =  BoundaryTemp_IC(:,:)
-         BoundaryTempPar_IC(:,:) = BoundaryTemp_IC(:,:)
-  endif
+
+  do n=1,nspec
+     do j=MinLonPar,MaxLonPar
+        BoundaryTempperp_IC(n,j) = &
+             (3*BoundaryTemp_IC(n,j) - BoundaryTempPar_IC(n,j))/2
+     enddo
+  enddo
 
   fb(1:nspec,MinLonPar:MaxLonPar,1:nm,1:nk)=0.
   do n=1,nspec
@@ -2175,7 +2174,8 @@ subroutine cimi_output( &
 
   real, intent(out) 	:: &
        flux(nspec,np,nt,neng,npit), fac(np,nt), phot(nspec,np,nt), &
-       Ppar_IC(nspec,np,nt), Pressure_IC(nspec,np,nt), PressurePar_IC(nspec,np,nt), &
+       Ppar_IC(nspec,np,nt), Pressure_IC(nspec,np,nt), &
+       PressurePar_IC(nspec,np,nt), &
        vlEa(nspec,np,nt,neng,npit), vpEa(nspec,np,nt,neng,npit), &
        psd(nspec,np,nt,nm,nk)
   real ftv1, aloge(nspec,neng), rion, ekev(nspec,np,nt,nm,nk)
@@ -2206,6 +2206,7 @@ subroutine cimi_output( &
   phot=0.
   Ppar_IC = 0.
   PressurePar_IC = 0.
+  Pressure_IC = 0.
   psd = 0.
   
   ! Some constants for pressure, fac calculations

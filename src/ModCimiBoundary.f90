@@ -24,18 +24,24 @@ contains
   !============================================================================
   subroutine cimi_set_boundary_mhd
     use ModGmCimi,      ONLY: Den_IC,Temp_IC,Temppar_IC,StateBmin_IIV,&
-         AveP_,AvePpar_,AveDens_, AveDen_I,AveP_I,iLatMin,&
-         DoMultiFluidGMCoupling,DoAnisoPressureGMCoupling
+         TotalP_,TotalPpar_,TotalRho_, iBufferRho_I,iBufferP_I,&
+         iBufferPpar_I, iLatMin,&
+         UseTotalRhoGm, UseTotalPGm, UseTotalPparGm, UseMultiRhoGm , &
+         UseMultiPGm, UseMultiPparGm, DoFeedbackPs, UsePeGm, TotalPe_      
+    
     use ModCimiTrace,  ONLY: irm, iba
     use ModConst, ONLY: cProtonMass
-    integer :: iSpecies, iLon, iLat
+    integer :: iSpecies, iLon, iLat, jLat
     real, parameter :: cJouleToEv=6.2415e18  
     real :: FactorTotalDens
     integer :: ib1
     !---------------------------------------------------------------------------
 
     !set boundary density and temperature inside irm
-    if (.not. DoMultiFluidGMCoupling) then
+    if (UseTotalRhoGm &
+         .and. .not. UseMultiRhoGm &
+         .and. .not. UseMultiPGm   &
+         .and. .not. UseMultiPparGm) then
      ! When not Multifluid we get the total density from Rho_MHD as follows:
      ! Rho = (m1n1+m2n2+...) = n * sum(m_i*dFactor_i)
      ! where sum(dFactor_i)=1 (over ions) and n_i=dFactor_i*n 
@@ -50,117 +56,171 @@ contains
            do iLat=1,irm(iLon) 
               if (iLat < iLatMin) then
                  !Inside MHD boundary set den and temp to value at boundary
-                 Den_IC(iSpecies,iLat,iLon) = dFactor_I(iSpecies) * &
-                      StateBmin_IIV(iLatMin,iLon,AveDens_)/FactorTotalDens
-                 Temp_IC(iSpecies,iLat,iLon) = tFactor_I(iSpecies) * &
-                      StateBmin_IIV(iLatMin,iLon,AveP_) * FactorTotalDens &
-                      / StateBmin_IIV(iLatMin,iLon,AveDens_) &
-                      * cJouleToEv
-                 if(DoAnisoPressureGMCoupling) &
-                      Temppar_IC(iSpecies,iLat,iLon) = tFactor_I(iSpecies) * &
-                      StateBmin_IIV(iLatMin,iLon,AvePpar_) * FactorTotalDens &
-                      / StateBmin_IIV(iLatMin,iLon,AveDens_) &
-                      * cJouleToEv
-!                 Den_IC(iSpecies,iLat,iLon) = dFactor_I(iSpecies) * 1.0e6
-!                 Temp_IC(iSpecies,iLat,iLon) = tFactor_I(iSpecies)* 5000.0
+                 !set ion density
+                 jLat = iLatMin
               else
-                 !Outside MHD boundary set den and temp from MHD
-                 Den_IC(iSpecies,iLat,iLon) = dFactor_I(iSpecies) * &
-                      StateBmin_IIV(iLat,iLon,AveDens_)/FactorTotalDens
-                 Temp_IC(iSpecies,iLat,iLon) = tFactor_I(iSpecies) * &
-                      StateBmin_IIV(iLat,iLon,AveP_) * FactorTotalDens &
-                      / StateBmin_IIV(iLat,iLon,AveDens_) &
+                 !Outsdie MHD Boundary set den and temp at actual Bminlocation
+                 jLat = iLat
+              endif
+              !write(*,*)StateBmin_IIV(jLat,iLon,TotalRho_)
+              Den_IC(iSpecies,iLat,iLon) = dFactor_I(iSpecies) * &
+                   StateBmin_IIV(jLat,iLon,TotalRho_)&
+                   /(cProtonMass * FactorTotalDens)
+              Temp_IC(iSpecies,iLat,iLon) = tFactor_I(iSpecies) * &
+                   StateBmin_IIV(jLat,iLon,TotalP_) &
+                   * cProtonMass * FactorTotalDens &
+                   / StateBmin_IIV(jLat,iLon,TotalRho_) &
+                   * cJouleToEv
+              if(UseTotalPparGm) then
+                 Temppar_IC(iSpecies,iLat,iLon) = tFactor_I(iSpecies) * &
+                      StateBmin_IIV(jLat,iLon,TotalPpar_) &
+                      * cProtonMass * FactorTotalDens &
+                      / StateBmin_IIV(jLat,iLon,TotalRho_) &
                       * cJouleToEv
-                 if(DoAnisoPressureGMCoupling) &
-                      Temppar_IC(iSpecies,iLat,iLon) = tFactor_I(iSpecies) * &
-                      StateBmin_IIV(iLat,iLon,AvePpar_) * FactorTotalDens &
-                      / StateBmin_IIV(iLat,iLon,AveDens_) &
-                      * cJouleToEv
+              else
+                 Temppar_IC(iSpecies,iLat,iLon) = Temp_IC(iSpecies,iLat,iLon)
               endif
            end do
         end do
-        BOUNDARY_FILL: do iLon=MinLonPar,MaxLonPar
-           ! Fill boundary arrays
-           ib1=min(iba(iLon)+1,irm(iLon))
-           BoundaryDens_IC(iSpecies,iLon) = &
-                Den_IC (iSpecies,ib1,iLon)
-           BoundaryTemp_IC(iSpecies,iLon) = &
-                Temp_IC(iSpecies,ib1,iLon)
-           if(DoAnisoPressureGMCoupling) then
-              BoundaryTempPar_IC(iSpecies,iLon) = &
-                   Temppar_IC(iSpecies,ib1,iLon)
+     end do
+  elseif (UseMultiRhoGm  &
+       .and. UseTotalPGm &
+       .and. .not. UseMultiPGm   &
+       .and. .not. UseMultiPparGm) then
+     !Multispecies Case
+     
+     do iLon=MinLonPar,MaxLonPar
+        ! Set boundary index consistant with boundaryIM
+        ib1=min(iba(iLon)+1,irm(iLon))
+        do iLat=1,irm(iLon) 
+           if (iLat < iLatMin) then
+              !Inside MHD boundary set den and temp to value at boundary
+              !set ion density
+              jLat = iLatMin
+           else
+              !Outsdie MHD Boundary set den and temp at actual Bminlocation
+              jLat = iLat
            endif
-        end do BOUNDARY_FILL
+
+           do iSpecies = 1, nspec-1
+              Den_IC(iSpecies,iLat,iLon) = &
+                   StateBmin_IIV(jLat,iLon,iBufferRho_I(iSpecies))&
+                   / (cProtonMass*amu_I(iSpecies))
+           enddo
+           !set electron density
+           Den_IC(nspec,iLat,iLon) = sum(Den_IC(1:nspec-1,jLat,iLon))
+           
+           !set temperatures
+           Temp_IC(1:nspec,iLat,iLon) = tFactor_I(1:nspec) * &
+                StateBmin_IIV(jLat,iLon,TotalP_)  &
+                /(Den_IC(nspec,jLat,iLon)) &
+                * cJouleToEv
+           if(UseTotalPparGm) then
+              Temppar_IC(1:nspec,iLat,iLon) = tFactor_I(iSpecies) * &
+                   StateBmin_IIV(jLat,iLon,TotalPpar_) &
+                   / (Den_IC(nspec,jLat,iLon)) &
+                   * cJouleToEv
+           else
+              Temppar_IC(:,iLat,iLon) = Temp_IC(:,iLat,iLon)
+           endif
+           
+        end do
+     end do
+
+
+  elseif (UseMultiRhoGm  &
+       .and. UseMultiPGm ) then
+     !Multifluid Case
+     
+     do iLon=MinLonPar,MaxLonPar
+        ! Set boundary index consistant with boundaryIM
+        ib1=min(iba(iLon)+1,irm(iLon))
+        do iLat=1,irm(iLon) 
+           if (iLat < iLatMin) then
+              !Inside MHD boundary set den and temp to value at boundary
+              !set ion density
+              jLat = iLatMin
+           else
+              !Outsdie MHD Boundary set den and temp at actual Bminlocation
+              jLat = iLat
+           endif
+
+           do iSpecies = 1, nspec-1
+              Den_IC(iSpecies,iLat,iLon) = &
+                   StateBmin_IIV(jLat,iLon,iBufferRho_I(iSpecies))&
+                   / (cProtonMass*amu_I(iSpecies))
+              
+              !set temperatures
+              Temp_IC(iSpecies,iLat,iLon) = &
+                   StateBmin_IIV(jLat,iLon,iBufferP_I(iSpecies))  &
+                   /(Den_IC(iSpecies,iLat,iLon)) &
+                   * cJouleToEv
+              if(UseMultiPparGm) then
+                 Temppar_IC(iSpecies,iLat,iLon) = &
+                      StateBmin_IIV(jLat,iLon,iBufferPpar_I(iSpecies)) &
+                      / (Den_IC(iSpecies,iLat,iLon)) &
+                      * cJouleToEv
+              else
+                 Temppar_IC(iSpecies,iLat,iLon) = Temp_IC(iSpecies,iLat,iLon)
+              endif
+           enddo
+
+           !set electron density
+           Den_IC(nspec,iLat,iLon) = sum(Den_IC(1:nspec-1,iLat,iLon))
+           
+           !set electron temperatures
+           Temp_IC(nSpec,iLat,iLon) = &
+                sum(StateBmin_IIV(jLat,iLon,iBufferP_I(1:nSpec-1)))  &
+                /(Den_IC(nspec,iLat,iLon)) &
+                * cJouleToEv
+           Temppar_IC(nspec,iLat,iLon) = Temp_IC(nspec,iLat,iLon)
+        end do
      end do
   else
-     !Multifluid Case
-     !Set Ion density and temperature
-     do iSpecies = 1, nspec-1
-        do iLon=MinLonPar,MaxLonPar
-           ! Set boundary index consistant with boundaryIM
-           ib1=min(iba(iLon)+1,irm(iLon))
-           do iLat=1,irm(iLon) 
-              if (iLat < iLatMin) then
-                 !Inside MHD boundary set den and temp to value at boundary
-                 Den_IC(iSpecies,iLat,iLon) = &
-                      StateBmin_IIV(iLatMin,iLon,AveDen_I(iSpecies))&
-                      / (cProtonMass*amu_I(iSpecies))
-                 Temp_IC(iSpecies,iLat,iLon) = &
-                      StateBmin_IIV(iLatMin,iLon,AveP_I(iSpecies))&
-                      /(Den_IC(iSpecies,iLat,iLon)) &
-                        * cJouleToEv
-!                 Den_IC(iSpecies,iLat,iLon) = dFactor_I(iSpecies) * 1.0e6
-!                 Temp_IC(iSpecies,iLat,iLon) = tFactor_I(iSpecies)* 5000.0
-              else
-                 !Outside MHD boundary set den and temp from MHD
-                 Den_IC(iSpecies,iLat,iLon) = &
-                      StateBmin_IIV(iLat,iLon,AveDen_I(iSpecies))&
-                      / (cProtonMass*amu_I(iSpecies))
-                 Temp_IC(iSpecies,iLat,iLon) = &
-                      StateBmin_IIV(iLat,iLon,AveP_I(iSpecies))&
-                      /(Den_IC(iSpecies,iLat,iLon)) &
-                         * cJouleToEv
-              endif
-           end do
-        end do
-        MULTIFLUID_BOUNDARY_FILL: do iLon=MinLonPar,MaxLonPar
-           ! Fill boundary arrays
-           ib1=min(iba(iLon)+1,irm(iLon))
-           BoundaryDens_IC(iSpecies,iLon) = &
-                Den_IC (iSpecies,ib1,iLon)
-           BoundaryTemp_IC(iSpecies,iLon) = &
-                Temp_IC(iSpecies,ib1,iLon)
-           if(DoAnisoPressureGMCoupling) then
-              BoundaryTempPar_IC(iSpecies,iLon) = &
-                   Temppar_IC(iSpecies,ib1,iLon)
-           endif
-        end do MULTIFLUID_BOUNDARY_FILL
-     end do
-     !Set Electron density and temperature
+     !unknown case
+     write(*,*) 'Unknown condition in CIMI boundary'
+     call con_stop('')
+  endif
+  
+  !Overwrite e temperature if solving for Pe in GM
+  if (UsePeGm) then
      do iLon=MinLonPar,MaxLonPar
+        ! Set boundary index consistant with boundaryIM
+        ib1=min(iba(iLon)+1,irm(iLon))
         do iLat=1,irm(iLon) 
-           ! Density set by quasineutrality
-           Den_IC(nspec,iLat,iLon)  = sum(Den_IC(1:nspec-1,iLat,iLon))
-           ! Temp is set by 1/7 of weighted sum of ion temperatures
-           Temp_IC(nspec,iLat,iLon) = 0.128205 * sum( &
-                Den_IC(1:nspec-1,iLat,iLon)*Temp_IC(1:nspec-1,iLat,iLon)) &
-                / Den_IC(nspec,iLat,iLon)
+           if (iLat < iLatMin) then
+              !Inside MHD boundary set den and temp to value at boundary
+              !set ion density
+              jLat = iLatMin
+           else
+              !Outsdie MHD Boundary set den and temp at actual Bminlocation
+              jLat = iLat
+           endif
+
+           Temp_IC(nspec,iLat,iLon) = StateBmin_IIV(jLat,iLon,TotalPe_)&
+                / Den_IC(nspec,iLat,iLon)* cJouleToEv
+           Temppar_IC(nspec,iLat,iLon) = Temp_IC(nspec,iLat,iLon)
         end do
      end do
-     MULTIFLUID_E_BOUNDARY_FILL: do iLon=MinLonPar,MaxLonPar
-        ! Fill boundary arrays
-        ib1=min(iba(iLon)+1,irm(iLon))
-        BoundaryDens_IC(nspec,iLon) = &
-             Den_IC (nspec,ib1,iLon)
-        BoundaryTemp_IC(nspec,iLon) = &
-             Temp_IC(nspec,ib1,iLon)
-        if(DoAnisoPressureGMCoupling) then
-           BoundaryTempPar_IC(nspec,iLon) = &
-                Temppar_IC(nspec,ib1,iLon)
-        endif
-     end do MULTIFLUID_E_BOUNDARY_FILL
   endif
 
+
+  
+  ! Fill the boundary n, T, and T||
+  do iSpecies = 1,nspec
+     BOUNDARY_FILL: do iLon=MinLonPar,MaxLonPar
+        ! Fill boundary arrays
+        ib1=min(iba(iLon)+1,irm(iLon))
+        !write(*,*) iSpecies, ib1,iLon,Temp_IC (iSpecies,ib1,iLon) 
+        BoundaryDens_IC(iSpecies,iLon) = &
+             Den_IC (iSpecies,ib1,iLon)
+        BoundaryTemp_IC(iSpecies,iLon) = &
+             Temp_IC(iSpecies,ib1,iLon)
+        BoundaryTempPar_IC(iSpecies,iLon) = &
+             Temppar_IC(iSpecies,ib1,iLon)
+        
+     end do BOUNDARY_FILL
+  enddo
 
   end subroutine cimi_set_boundary_mhd
 

@@ -93,6 +93,7 @@ contains
   subroutine IM_set_grid
 
     use ModCimiGrid,      ONLY: np, nt, xlat, phi
+    use ModCimiPlanet,    ONLY: NameVarCouple, nVarImToGm
     use ModNumConst,      ONLY: cDegToRad
     use CON_coupler,      ONLY: set_grid_descriptor, is_proc, IM_
 
@@ -132,8 +133,8 @@ contains
          Coord2_I=phi,                             & ! longitude in radians
          Coord3_I=Radius_I,                        & ! radial size in meters
          IsPeriodic_D=(/.false.,.true./),          & ! periodic in longitude
-         nVar = 7,                                 & ! number of "fluid" vars
-         NameVar = 'p rho ppar Hpp Opp Hprho Oprho') ! names of "fluid" vars
+         nVar = nVarImToGm,                        & ! number of "fluid" vars
+         NameVar = NameVarCouple) ! names of "fluid" vars
 
   end subroutine IM_set_grid
 
@@ -144,7 +145,7 @@ contains
     use ModCimiGrid,      ONLY: np, xlat
     use ModCimi,          ONLY: init_mod_cimi, Time
     use ModCimiTrace,     ONLY: init_mod_field_trace
-    use ModGmCimi,        ONLY: init_gm_cimi
+    !use ModGmCimi,        ONLY: init_gm_cimi
     use ModImTime
     use ModTimeConvert,   ONLY: time_real_to_int
     use CON_physics,      ONLY: get_time
@@ -158,7 +159,7 @@ contains
     call init_mod_cimi
     call init_mod_field_trace
     call cimi_init
-    call init_gm_cimi
+    !call init_gm_cimi
     
     call get_time(tStartOut = StartTime)
     Time = TimeSimulation
@@ -231,19 +232,28 @@ contains
   !===========================================================================
 
   subroutine IM_put_from_gm_crcm(Buffer_IIV,BufferKp,iSizeIn,jSizeIn,nVarIn,&
-       BufferLine_VI,nVarLine,nPointLine,NameVar,tSimulation)
-    use ModGmCIMI
-    use ModCimiGrid,  ONLY: nLat => np, nLon => nt, iProc, nProc
-    use ModCimiPlanet,ONLY: rEarth => re_m
+       BufferLine_VI,nVarLine,nPointLine,NameVar,BufferSolarWind_V,tSimulation)
+    use ModGmCIMI,    ONLY: nVar, KpGm, UseGmKp, iLineIndex_II, &
+         DoneGmCoupling, UseTotalRhoGm, UseTotalPGm, UseTotalPparGm, &
+         UseMultiRhoGm, UseMultiPGm, UseMultiPparGm, DoFeedbackPs, UsePeGm,  &
+         TotalRho_, TotalP_, TotalPpar_, TotalPe_, &
+         iBufferRho_I, iBufferP_I, iBufferPpar_I,  &
+         StateLine_VI, StateBmin_IIV, nPoint, nVarBmin,rBodyGm,iLatMin
+    use ModCimiGrid,  ONLY: nLat => np, nLon => nt, iProc, nProc,xlatr
+    use ModCimiPlanet,ONLY: rEarth => re_m, NameVarCouple,nVarImToGm
     use ModTsyInput,  ONLY: xnswa,vswa,bxw,byw,bzw,nsw,iyear,iday,UseSmooth
     use ModPrerunField,ONLY: DoWritePrerun, save_prerun
     use ModIoUnit, ONLY: UnitTmp_
+    use CON_coupler, ONLY: nVarBuffer, GM_, IM_, nVarBuffer_CC, &
+         iVarTarget_VCC, lComp_I
+    use ModUtilities,       ONLY: split_string
     !  use ModPrerunField,ONLY: DoWritePrerun, save_prerun
 
     integer, intent(in) :: iSizeIn, jSizeIn, nVarIn
     real,    intent(in) :: Buffer_IIV(iSizeIn,jSizeIn,nVarIn),BufferKp
     integer, intent(in) :: nVarLine, nPointLine
     real,    intent(in) :: BufferLine_VI(nVarLine, nPointLine)
+    real,    intent(in) :: BufferSolarWind_V(8)
 
     character (len=*),intent(in) :: NameVar
     real, intent(in) :: tSimulation
@@ -255,9 +265,21 @@ contains
     character(len=*), parameter :: NameSub='IM_put_from_gm_crcm'
     logical,save :: IsFirstCall = .true.
     character(len=100) :: NameOut
+
+    integer :: iRho, iP, iPpar, iVarBuffer
+
+    real :: LatBodyGM
+    ! indexes of registered components
+    integer :: iGm=0, iIm=0
+    ! indexes of passed variables
+    integer, allocatable :: iVarTarget_V(:)
+
+    integer :: nVarCouple
+    !integer,parameter :: nVarMax=
+    character (len=15),allocatable :: NameVarCouple_V(:) 
     !-------------------------------------------------------------------------
     call CON_set_do_test(NameSub, DoTest, DoTestMe)
-
+    
     !if BufferKp >0 then GM is passing Kp and we will store it
     if (BufferKp>0) then
        KpGm=BufferKp
@@ -266,25 +288,123 @@ contains
        KpGm=-1.0
        UseGmKp = .false.
     endif
+    
+    if(.not.allocated(iVarTarget_V))then
+       iGm = lComp_I(GM_)
+       iIm = lComp_I(IM_)
+       allocate(iVarTarget_V(nVarBuffer))
+       iVarTarget_V = iVarTarget_VCC(1:nVarBuffer,iGm,iIm)
+
+
+!       do iVarBuffer = 1, nVarBuffer
+!          iVarTarget = iVarTarget_V(iVarBuffer)
+!
+!          iSpecies = iVarTarget / 3 + 1
+!          iType    = modulo(iVarTarget,3) + 1
+!
+!          select case(iType)
+!          case(1)
+!             if(IsMultiDensityGm)then
+!                Density(...,iSpecies) = Buffer_IIV(iLon,iLat,iVarBuffer)
+!             else
+!                ! Split total density among species
+!             end if
+!          case(2)
+!             
+!          if(iSpecies == nSpec) iType = iType + 1
+       !\
+       ! Based on CON_couple_gm_im we need to take the paired variables between
+       ! IM and GM and match them up with the IM variables. Also fill in the
+       ! index arrays to link each incomming mass density and pressure to
+       ! an element of Buffer_IIV
+       !/
        
-    DoMultiFluidGMCoupling = .false.
-    DoAnisoPressureGMCoupling = .false.
+       !counters for filling index arrays
+       iRho=1
+       iP=1
+       iPpar=1
+       
+       allocate(NameVarCouple_V(nVarImToGm)) 
+       call split_string(NameVarCouple, NameVarCouple_V, &
+            nStringOut=nVarCouple)
 
-    if(NameVar == 'x:y:bmin:I_I:S_I:R_I:B_I:rho:p:Hprho:Oprho:Hpp:Opp' .or.&
-         NameVar == &
-         'x:y:bmin:I_I:S_I:R_I:B_I:rho:p:SwRho:Hprho:Oprho:SwP:Hpp:Opp')then
-       DoMultiFluidGMCoupling = .true.
-    elseif(NameVar == 'x:y:bmin:I_I:S_I:R_I:B_I:rho:p:ppar')then
-       DoAnisoPressureGMCoupling = .true.
-    elseif(NameVar /= 'x:y:bmin:I_I:S_I:R_I:B_I:rho:p')then
-       call CON_stop(NameSub//' invalid NameVar='//NameVar)
-    end if
+!       if (nVarCouple /= nVarBuffer) then
+!          write(*,*) 'ERROR: in:', NameSub
+!          write(*,*) 'nVarBuffer does not match number of &
+!               &variables in NameVarCouple'
+!          write(*,*) 'nVarBuffer = ', nVarBuffer
+!          write(*,*) 'nVarCouple = ', nVarCouple
+!          call con_stop('')
+!       endif
 
+        
+       do iVarBuffer = 1,nVarBuffer
+          select case(trim(NameVarCouple_V(iVarTarget_V(iVarBuffer))))
+          case('Rho','rho')
+             !write(*,*) 'Rho=',iVarBuffer
+             TotalRho_ = iVarBuffer + 3
+             UseTotalRhoGm = .true.
+          case('p','P')
+             !write(*,*) 'p=',iVarBuffer
+             TotalP_ = iVarBuffer + 3
+             UseTotalPGm = .true.
+          case('Ppar','ppar')
+             !write(*,*) 'Ppar=',iVarBuffer
+             TotalPpar_ = iVarBuffer + 3
+             UseTotalPparGm = .true.
+          case('Pe','pe')
+             TotalPe_ = iVarBuffer + 3
+             UsePeGm = .true.
+          case('HpRho','hprho')
+             UseMultiRhoGm = .true.
+             iBufferRho_I(iRho) = iVarBuffer+3
+             iRho=iRho+1
+          case('HpP','hpp')
+             UseMultiPGm = .true.
+             iBufferP_I(iP) = iVarBuffer+3
+             iP = iP+1
+          case('HpPpar','hppar')
+             UseMultiPparGm = .true.
+             iBufferPpar_I(iPpar) = iVarBuffer+3
+             iPpar=iPpar+1
+          case('OpRho','oprho')
+             UseMultiRhoGm = .true.
+             iBufferRho_I(iRho) = iVarBuffer+3
+             iRho=iRho+1
+          case('OpP','opp')
+             UseMultiPGm = .true.
+             iBufferP_I(iP) = iVarBuffer+3
+             iP = iP+1
+          case('OpPpar','opppar')
+             UseMultiPparGm = .true.
+             iBufferPpar_I(iPpar) = iVarBuffer+3
+             iPpar=iPpar+1
+          case('HpSwRho','hpswrho')
+             UseMultiRhoGm = .true.
+             iBufferRho_I(iRho) = iVarBuffer+3
+             iRho=iRho+1
+          case('HpSwP','hpswp')
+             UseMultiPGm = .true.
+             iBufferP_I(iP) = iVarBuffer+3
+             iP = iP+1
+          case('HpSwPpar','hpswppar')
+             UseMultiPparGm = .true.
+             iBufferPpar_I(iPpar) = iVarBuffer+3
+             iPpar=iPpar+1
+          case('HpPsRho','hppsrho')
+             DoFeedbackPs = .true.
+          end select
+       end do
+       
+    endif
+        
     if(nVarLine /= nVar) then
        write(*,*)'nVarLine=',nVarLine
        call CON_stop(NameSub//' invalid nVarLine (should be 4)')
     end if
+    
     DoneGmCoupling=.true.
+
     if(DoTestMe)then
        write(*,*)NameSub,' iSizeIn,jSizeIn,nVarIn=',&
             iSizeIn,jSizeIn,nVarIn
@@ -320,22 +440,34 @@ contains
     StateLine_VI(2,:) = StateLine_VI(2,:) / rEarth ! m --> Earth Radii
     StateLine_VI(3,:) = StateLine_VI(3,:) / rEarth ! m --> Earth Radii
 
+    ! save the GM inner Boundary which is taken to be the
+    ! lowest field trace point
+    rBodyGM=minval(StateLine_VI(3,:))
+    LatBodyGm = acos(sqrt(1.0/(rBodyGM)))
+    !set iLatMin for Minimum latitude in MHD boundary
+    FIND_iLatMin: do iLat=1,nLat
+       if (xlatr(iLat)>=LatBodyGm) then
+          iLatMin=iLat
+          exit FIND_iLatMin
+       end if
+    end do FIND_iLatMin
+!    write(*,*) 'iLatMin',iLatMin,rBodyGm,StateBmin_IIV(iLatMin,1,iBufferRho_I(1)),StateBmin_IIV(iLatMin,1,iBufferRho_I(1))
+    
     ! for anisopressure coupling 
-    if(DoTest .and. DoAnisoPressureGMCoupling)then
-       write(NameOut,"(a,f6.1)") 'StateBmin_t_',tSimulation
-       open(UnitTmp_,FILE=NameOut)
-       write(UnitTmp_,"(a)") &
-            'IM_put_from_gm_crcm, StateBmin_IIV, last index 1:5 and 7 '
-       write(UnitTmp_,"(a)") &
-            'Xeq Yeq Beq rho p ppar'
-       do iLat =iSizeIn,1,-1
-          do iLon =1,jSizeIn
-             write(UnitTmp_,"(100es18.10)")StateBmin_IIV(iLat,iLon,1:5), &
-                  StateBmin_IIV(iLat,iLon,7)
-          enddo
-       enddo
-       close(UnitTmp_)
-    end if
+    !if(DoTest .and. DoAnisoPressureGMCoupling)then
+    !   write(NameOut,"(a,f6.1)") 'StateBmin_t_',tSimulation
+    !   open(UnitTmp_,FILE=NameOut)
+    !   write(UnitTmp_,"(a)") &
+    !        'IM_put_from_gm_crcm, StateBmin_IIV, last index 1:5 '
+    !   write(UnitTmp_,"(a)") &
+    !        'Xeq Yeq Beq rho p ppar'
+    !   do iLat =iSizeIn,1,-1
+    !      do iLon =1,jSizeIn
+    !         write(UnitTmp_,"(100es18.10)")StateBmin_IIV(iLat,iLon,1:5)
+    !      enddo
+    !   enddo
+    !   close(UnitTmp_)
+    !end if
 
     !  if (nProc == 1) then
     !     write(NameOut,"(a,i2.2)") 'StateBmin1_0_iproc_',iProc
@@ -362,8 +494,8 @@ contains
 
     !Solar wind values
     if(IsFirstCall .or. (.not. UseSmooth)) then
-       xnswa(1) = Buffer_IIV(1,1,6)*1.0e-6                   !m^-3 -->/cc
-       vswa (1) = sqrt(sum(Buffer_IIV(2:4,1,6)**2.0))*1.0e-3 !m/s-->km/s
+       xnswa(1) = BufferSolarWind_V(1)*1.0e-6                   !m^-3 -->/cc
+       vswa (1) = sqrt(sum(BufferSolarWind_V(2:4)**2.0))*1.0e-3 !m/s-->km/s
     else
        ! Update Solar wind value, but do not let them change 
        ! more than 5 percent per update
@@ -371,14 +503,14 @@ contains
        SwDensMin = 0.95*xnswa(1)
        SwVelMax  = 1.05*vswa(1)
        SwVelMin  = 0.95*vswa(1)
-       xnswa(1) = min(SwDensMax,Buffer_IIV(1,1,6)*1.0e-6)
+       xnswa(1) = min(SwDensMax,BufferSolarWind_V(1)*1.0e-6)
        xnswa(1) = max(SwDensMin,xnswa(1))
-       vswa(1)  = min(SwVelMax,sqrt(sum(Buffer_IIV(2:4,1,6)**2.0))*1.0e-3)
+       vswa(1)  = min(SwVelMax,sqrt(sum(BufferSolarWind_V(2:4)**2.0))*1.0e-3)
        vswa(1)  = max(SwVelMin,vswa(1))
     endif
-    bxw(1) = Buffer_IIV(5,1,6)*1.0e9      !T --> nT
-    byw(1) = Buffer_IIV(6,1,6)*1.0e9      !T --> nT
-    bzw(1) = Buffer_IIV(7,1,6)*1.0e9      !T --> nT
+    bxw(1) = BufferSolarWind_V(5)*1.0e9      !T --> nT
+    byw(1) = BufferSolarWind_V(6)*1.0e9      !T --> nT
+    bzw(1) = BufferSolarWind_V(7)*1.0e9      !T --> nT
 
     nsw = 1
 
@@ -522,8 +654,333 @@ contains
     !use CON_time, ONLY : get_time
     use ModCimiGrid,  ONLY: iSize=>np, jSize=>nt, iProc
     use ModCimi,      ONLY: Pressure_IC, PressurePar_IC, Bmin_C, Time, Pmin
-    use ModGmCimi,    ONLY: Den_IC, iLatMin, DoMultiFluidGMCoupling, &
-         DoAnisoPressureGMCoupling
+    use ModGmCimi,    ONLY: Den_IC, iLatMin!, DoMultiFluidGMCoupling, &
+         !DoAnisoPressureGMCoupling
+    use ModCimiTrace,ONLY: iba
+    use ModCimiPlanet,ONLY: nspec,amu_I, NameVarCouple,nVarImToGm
+    use ModNumConst,  ONLY: cRadToDeg
+    use ModConst,     ONLY: cProtonMass, cBoltzmann
+    use ModIoUnit, ONLY: UnitTmp_
+    use ModUtilities,       ONLY: split_string
+    use ModPlasmasphere, ONLY: PlasDensity_C
+    character (len=*),parameter :: NameSub='IM_get_for_gm'
+
+    integer, intent(in)                                :: iSizeIn,jSizeIn,nVar
+    real, dimension(iSizeIn,jSizeIn,nVar), intent(out) :: Buffer_IIV
+    character (len=*),intent(in)                       :: NameVar
+
+    !LOCAL VARIABLES:
+    real :: tSimulation
+    !integer, parameter :: pres_=1, dens_=2, parpres_=3, bmin_=4,&
+    !     Hpres_=3, Opres_=4, Hdens_=5, Odens_=6,Swdens_=7,Swpres_=8
+
+    integer :: i,j,k
+    logical :: DoTest, DoTestMe
+    character(len=100) :: NameOut
+    !logical :: DoCoupleSw
+    !temp for one way testing
+    !logical DoMultiFluidGmCoupling, DoAnisoPressureGmCoupling
+
+    character (len=15),allocatable :: NameVarCouple_V(:)
+    integer :: nVarCouple, iVarCimi
+
+    !assumed plasmapshere temperature in kelvin
+    real :: Tplas=11000.0
+    !--------------------------------------------------------------------------
+
+    call CON_set_do_test(NameSub, DoTest, DoTestMe)
+    if (DoTestMe) &
+         write(*,*)NameSub,' starting with iSizeIn,jSizeIn,nVar,NameVar=',&
+         iSizeIn,jSizeIn,nVar,NameVar
+
+    if(iSizeIn /= iSize .or. jSizeIn /= jSize)then
+       write(*,*)NameSub//' incorrect buffer size=',iSizeIn,jSizeIn
+       call CON_stop(NameSub//' SWMF_ERROR')
+    end if
+
+    Buffer_IIV = 0.
+    
+    allocate(NameVarCouple_V(nVarImToGm)) 
+    call split_string(NameVarCouple, NameVarCouple_V, &
+         nStringOut=nVarCouple)
+    
+    do iVarCimi = 1,nVarImToGm
+       select case(trim(NameVarCouple_V(iVarCimi)))
+       case('Rho')
+          do i=1,iSize; do j=1,jSize
+             if( i<iLatMin .or.  i > iba(j) ) then
+                Buffer_IIV(i,j,iVarCimi) = -1.
+             else
+                Buffer_IIV(i,j,iVarCimi) = &
+                     sum(Den_IC (1:nspec-1,i,j)*cProtonMass*amu_I(1:nspec-1))
+             end if
+          enddo; enddo
+       case('p')
+          do i=1,iSize; do j=1,jSize
+             if( i<iLatMin .or.  i > iba(j) ) then
+                Buffer_IIV(i,j,iVarCimi) = -1.
+             else
+                ! make sure pressure passed to GM is not lower than Pmin [nPa]
+                ! to avoid too low GM pressure (only ion pressure) 
+                Buffer_IIV(i,j,iVarCimi) = &
+                     max(sum(Pressure_IC(1:nspec-1,i,j)), Pmin)*1e-9
+             end if
+          enddo; enddo
+!          write(*,*) 'IM max min p',maxval(Buffer_IIV(:,:,iVarCimi)),minval(Buffer_IIV(:,:,iVarCimi))
+       case('Ppar')
+          do i=1,iSize; do j=1,jSize
+             if( i<iLatMin .or.  i > iba(j) ) then
+                Buffer_IIV(i,j,iVarCimi) = -1.
+             else
+                ! make sure pressure passed to GM is not lower than Pmin [nPa]
+                ! to avoid too low GM pressure 
+                Buffer_IIV(i,j,iVarCimi) = &
+                     max(sum(PressurePar_IC(1:nspec-1,i,j)), Pmin)*1e-9
+             end if
+          enddo; enddo
+!          write(*,*) 'IM max min ppar',maxval(Buffer_IIV(:,:,iVarCimi)),minval(Buffer_IIV(:,:,iVarCimi))
+       case('Pe')
+          do i=1,iSize; do j=1,jSize
+             if( i<iLatMin .or.  i > iba(j) ) then
+                Buffer_IIV(i,j,iVarCimi) = -1.
+             else
+                ! make sure pressure passed to GM is not lower than Pmin [nPa]
+                ! to avoid too low GM pressure (only ion pressure) 
+                Buffer_IIV(i,j,iVarCimi) = &
+                     max(Pressure_IC(nspec-1,i,j), Pmin)*1e-9
+             end if
+          enddo; enddo       
+       case('HpRho')
+          do i=1,iSize; do j=1,jSize
+             if( i<iLatMin .or.  i > iba(j) ) then
+                Buffer_IIV(i,j,iVarCimi) = -1.
+             else
+                Buffer_IIV(i,j,iVarCimi) = &
+                     Den_IC (1,i,j)*cProtonMass*amu_I(1)
+             end if
+          enddo; enddo
+       case('HpP')
+          do i=1,iSize; do j=1,jSize
+             if( i<iLatMin .or.  i > iba(j) ) then
+                Buffer_IIV(i,j,iVarCimi) = -1.
+             else
+                ! make sure pressure passed to GM is not lower than Pmin [nPa]
+                ! to avoid too low GM pressure (only ion pressure) 
+                Buffer_IIV(i,j,iVarCimi) = &
+                     max(Pressure_IC(1,i,j), Pmin)*1e-9
+             end if
+          enddo; enddo
+       case('HpPpar')
+          do i=1,iSize; do j=1,jSize
+             if( i<iLatMin .or.  i > iba(j) ) then
+                Buffer_IIV(i,j,iVarCimi) = -1.
+             else
+                ! make sure pressure passed to GM is not lower than Pmin [nPa]
+                ! to avoid too low GM pressure 
+                Buffer_IIV(i,j,iVarCimi) = &
+                     max(PressurePar_IC(1,i,j), Pmin)*1e-9
+             end if
+          enddo; enddo
+       case('OpRho')
+           do i=1,iSize; do j=1,jSize
+             if( i<iLatMin .or.  i > iba(j) ) then
+                Buffer_IIV(i,j,iVarCimi) = -1.
+             else
+                Buffer_IIV(i,j,iVarCimi) = &
+                     Den_IC (2,i,j)*cProtonMass*amu_I(2)
+             end if
+          enddo; enddo
+       case('OpP')
+          do i=1,iSize; do j=1,jSize
+             if( i<iLatMin .or.  i > iba(j) ) then
+                Buffer_IIV(i,j,iVarCimi) = -1.
+             else
+                ! make sure pressure passed to GM is not lower than Pmin [nPa]
+                ! to avoid too low GM pressure (only ion pressure) 
+                Buffer_IIV(i,j,iVarCimi) = &
+                     max(Pressure_IC(2,i,j), Pmin)*1e-9
+             end if
+          enddo; enddo
+       case('OpPpar')
+          do i=1,iSize; do j=1,jSize
+             if( i<iLatMin .or.  i > iba(j) ) then
+                Buffer_IIV(i,j,iVarCimi) = -1.
+             else
+                ! make sure pressure passed to GM is not lower than Pmin [nPa]
+                ! to avoid too low GM pressure 
+                Buffer_IIV(i,j,iVarCimi) = &
+                     max(PressurePar_IC(2,i,j), Pmin)*1e-9
+             end if
+          enddo; enddo
+       case('HpSwRho')
+           do i=1,iSize; do j=1,jSize
+             if( i<iLatMin .or.  i > iba(j) ) then
+                Buffer_IIV(i,j,iVarCimi) = -1.
+             else
+                Buffer_IIV(i,j,iVarCimi) = &
+                     Den_IC (3,i,j)*cProtonMass*amu_I(3)
+             end if
+          enddo; enddo
+       case('HpSwP')
+          do i=1,iSize; do j=1,jSize
+             if( i<iLatMin .or.  i > iba(j) ) then
+                Buffer_IIV(i,j,iVarCimi) = -1.
+             else
+                ! make sure pressure passed to GM is not lower than Pmin [nPa]
+                ! to avoid too low GM pressure (only ion pressure) 
+                Buffer_IIV(i,j,iVarCimi) = &
+                     max(Pressure_IC(3,i,j), Pmin)*1e-9
+             end if
+          enddo; enddo
+       case('HpSwPpar')
+          do i=1,iSize; do j=1,jSize
+             if( i<iLatMin .or.  i > iba(j) ) then
+                Buffer_IIV(i,j,iVarCimi) = -1.
+             else
+                ! make sure pressure passed to GM is not lower than Pmin [nPa]
+                ! to avoid too low GM pressure 
+                Buffer_IIV(i,j,iVarCimi) = &
+                     max(PressurePar_IC(3,i,j), Pmin)*1e-9
+             end if
+          enddo; enddo
+       case('HpPsRho')
+          do i=1,iSize; do j=1,jSize
+             if( i<iLatMin .or.  i > iba(j) ) then
+                Buffer_IIV(i,j,iVarCimi) = -1.
+             else
+                Buffer_IIV(i,j,iVarCimi) = &
+                     PlasDensity_C (i,j)*cProtonMass
+             end if
+          enddo; enddo
+       case('HpPsP')
+          do i=1,iSize; do j=1,jSize
+             if( i<iLatMin .or.  i > iba(j) ) then
+                Buffer_IIV(i,j,iVarCimi) = -1.
+             else
+                Buffer_IIV(i,j,iVarCimi) = &
+                     PlasDensity_C (i,j) * Tplas * cBoltzmann * 1e-9
+             end if
+          enddo; enddo
+       end select
+    end do
+    
+    do i=1,iSize; do j=1,jSize
+       if( i<iLatMin .or.  i > iba(j) ) then
+          Buffer_IIV(i,j,iVarCimi) = -1.
+       else
+          ! After cimi vars add the bmin which is needed for the coupling
+          Buffer_IIV(i,j,nVarImToGm+1) = Bmin_C(i,j)
+       end if
+    enddo; enddo
+!  write(*,*) 'IM max min',maxval(Buffer_IIV(:,:,nVarImToGm+1)),minval(Buffer_IIV(:,:,nVarImToGm+1))
+
+
+
+    !add nan checking?
+!       ! Only a not-a-number can be less than zero and larger than one
+!       if(  .not. Buffer_IIV(i,j,pres_) > 0 .and. &
+!            .not. Buffer_IIV(i,j,pres_) < 1) then
+!          write(*,*)NameSub,': ERROR IN PRESSURE'
+!          write(*,*)NameSub,': i,j,Buffer =',i,j,Buffer_IIV(i,j,pres_)
+!          call CON_stop(NameSub//': Not a number found in IM pressure!')
+!       end if
+!       if(  .not. Buffer_IIV(i,j,dens_) > 0 .and. &
+!            .not. Buffer_IIV(i,j,dens_) < 1) then
+!          write(*,*)NameSub,': ERROR IN DENSITY'
+!          write(*,*)NameSub,': i,j,Buffer =',i,j,Buffer_IIV(i,j,dens_)
+!          call CON_stop(NameSub//': Not a number found in IM density!')
+!       end if
+!
+!       !multi-fluid
+!       if(DoMultiFluidGMCoupling)then
+!          if(  .not. Buffer_IIV(i,j,Hpres_) > 0 .and. &
+!               .not. Buffer_IIV(i,j,Hpres_) < 1) then
+!             write(*,*)NameSub,': ERROR IN PRESSURE'
+!             write(*,*)NameSub,': i,j,Buffer =',i,j,Buffer_IIV(i,j,Hpres_)
+!             call CON_stop(NameSub//': Not a number found in IM Hp pressure!')
+!          end if
+!          if(  .not. Buffer_IIV(i,j,Hdens_) > 0 .and. &
+!               .not. Buffer_IIV(i,j,Hdens_) < 1) then
+!             write(*,*)NameSub,': ERROR IN DENSITY'
+!             write(*,*)NameSub,': i,j,Buffer =',i,j,Buffer_IIV(i,j,Hdens_)
+!             call CON_stop(NameSub//': Not a number found in IM Hp density!')
+!          end if
+!          if(  .not. Buffer_IIV(i,j,Opres_) > 0 .and. &
+!               .not. Buffer_IIV(i,j,Opres_) < 1) then
+!             write(*,*)NameSub,': ERROR IN PRESSURE'
+!             write(*,*)NameSub,': i,j,Buffer =',i,j,Buffer_IIV(i,j,Opres_)
+!             call CON_stop(NameSub//': Not a number found in IM Op pressure!')
+!          end if
+!          if(  .not. Buffer_IIV(i,j,Odens_) > 0 .and. &
+!               .not. Buffer_IIV(i,j,Odens_) < 1) then
+!             write(*,*)NameSub,': ERROR IN DENSITY'
+!             call CON_stop(NameSub//': Not a number found in IM Op density!')
+!          end if
+!       end if
+!
+!       !aniso pressure
+!       if(DoAnisoPressureGMCoupling)then
+!          if(  .not. Buffer_IIV(i,j,parpres_) > 0 .and. &
+!               .not. Buffer_IIV(i,j,parpres_) < 1) then
+!             write(*,*)NameSub,': ERROR IN PRESSURE'
+!             write(*,*)NameSub,': i,j,Buffer =',i,j,Buffer_IIV(i,j,parpres_)
+!             call CON_stop(NameSub// &
+!                  ': Not a number found in IM parallel pressure !')
+!          end if
+!       endif
+!    end do; end do
+
+!    !for anisopressure IM coupling
+!    if(DoTest .and. iProc == 0) then
+!       write(NameOut,"(a,f6.1,a)") 'IM_Buffer_IIV_t', Time, '.out'
+!       open(UnitTmp_,FILE=NameOut)
+!       write(UnitTmp_,"(a)") 'IM_get_for_GM, Buffer_IIV:'
+!       !    write(UnitTmp_,"(a)") ' '
+!       !    write(UnitTmp_,"(a)") ' '
+!       !    write(UnitTmp_,"(a)") ' '
+!       write(UnitTmp_,"(a)") 'bmin rho p ppar'
+!       do i = iSizeIn, 1, -1                                                                       
+!          do j =1,jSizeIn 
+!             write(UnitTmp_,"(4es18.10)") &
+!                  Buffer_IIV(i,j,bmin_), Buffer_IIV(i,j,dens_), &
+!                  Buffer_IIV(i,j,pres_), Buffer_IIV(i,j,parpres_)
+!          end do
+!       end do
+!       close(UnitTmp_)
+!    end if
+
+    ! Units of rcm_mass_density are kg/m3
+    !  where(Buffer_IIV(:,:,dens_) > 0.0) &
+    !       Buffer_IIV(:,:,dens_) = Buffer_IIV(:,:,dens_)
+
+    !  if(DoMultiFluidGMCoupling)then
+!!!! ADD MultiFluid Coupling Later !!!
+    !     ! MultiFluid                                                                  
+    !     where(Buffer_IIV(:,:,Hpres_) > 0.0) &
+    !          Buffer_IIV(:,:,Hpres_) = Buffer_IIV(:,:,Hpres_) * 1.67E-35
+    !     where(Buffer_IIV(:,:,Opres_) > 0.0) &
+    !          Buffer_IIV(:,:,Opres_) = Buffer_IIV(:,:,Opres_) * 1.67E-35
+    !     ! Units of rcm_mass_density are kg/m3                                                
+    !     where(Buffer_IIV(:,:,Hdens_) > 0.0) &
+    !          Buffer_IIV(:,:,Hdens_) = Buffer_IIV(:,:,Hdens_) / 6.37E+15
+    !     where(Buffer_IIV(:,:,Odens_) > 0.0) &
+    !          Buffer_IIV(:,:,Odens_) = Buffer_IIV(:,:,Odens_) / 6.37E+15
+    !  endif
+
+    if(DoTestMe)write(*,*) NameSub,' finished'
+
+  end subroutine IM_get_for_gm
+
+
+    !============================================================================
+
+  subroutine IM_get_for_gm_old(Buffer_IIV,iSizeIn,jSizeIn,nVar,NameVar)
+
+    !use CON_time, ONLY : get_time
+    use ModCimiGrid,  ONLY: iSize=>np, jSize=>nt, iProc
+    use ModCimi,      ONLY: Pressure_IC, PressurePar_IC, Bmin_C, Time, Pmin
+    use ModGmCimi,    ONLY: Den_IC, iLatMin!, DoMultiFluidGMCoupling, &
+         !DoAnisoPressureGMCoupling
     use ModCimiTrace,ONLY: iba
     use ModCimiPlanet,ONLY: nspec,amu_I
     use ModNumConst,  ONLY: cRadToDeg
@@ -545,6 +1002,8 @@ contains
     logical :: DoTest, DoTestMe
     character(len=100) :: NameOut
     logical :: DoCoupleSw
+    !temp for one way testing
+    logical DoMultiFluidGmCoupling, DoAnisoPressureGmCoupling
     !--------------------------------------------------------------------------
 
     call CON_set_do_test(NameSub, DoTest, DoTestMe)
@@ -718,7 +1177,7 @@ contains
 
     if(DoTestMe)write(*,*) NameSub,' finished'
 
-  end subroutine IM_get_for_gm
+  end subroutine IM_get_for_gm_old
 
   !============================================================================
 
