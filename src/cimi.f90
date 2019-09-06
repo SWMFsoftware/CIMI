@@ -48,6 +48,12 @@ subroutine cimi_run(delta_t)
   use ModPlasmasphere,   ONLY: UseCorePsModel,PlasSpinUpTime,init_plasmasphere, &
        advance_plasmasphere,DoSavePlas, DtPlasOutput,&
        PlasDensity_C,save_plot_plasmasphere,cimi_put_to_plasmasphere!,nLatPlas=>nl,nLonPlas=>np,
+  use ModDiagDiff, only: UseDiagDiffusion,&
+                         calc_DQQ,&
+                         interpol_D_coefK,&
+                         diffuse_Q1,&
+                         diffuse_Q2
+                         
   implicit none
 
   !regular variables
@@ -143,6 +149,7 @@ subroutine cimi_run(delta_t)
   !  read wave models 
   if (IsFirstCall) then
      if (UseWaveDiffusion) call ReadDiffCoef(rc)
+     if (UseDiagDiffusion) call calc_DQQ
   endif
   
   ! setup initial distribution
@@ -317,14 +324,28 @@ subroutine cimi_run(delta_t)
      if (Time.ge.DiffStartT .and. UseWaveDiffusion) then
 
         call timing_start('cimi_WaveDiffusion')
-        
-        call timing_start('cimi_Diffuse_aa')
-        call diffuse_aa(f2,dt,xjac,iba,iw2)
-        call timing_stop('cimi_Diffuse_aa')
-
-        call timing_start('cimi_Diffuse_EE')
-        call diffuse_EE(f2,dt,xmm,xjac,iw2,iba)
-        call timing_stop('cimi_Diffuse_EE')
+       
+        if (.not.UseDiagDiffusion) then
+           call timing_start('cimi_Diffuse_aa')
+           call diffuse_aa(f2,dt,xjac,iba,iw2)
+           call timing_stop('cimi_Diffuse_aa')
+           
+           call timing_start('cimi_Diffuse_EE')
+           call diffuse_EE(f2,dt,xmm,xjac,iw2,iba)
+           call timing_stop('cimi_Diffuse_EE')
+        else 
+           call timing_start('cimi_interpol_D_coefK')
+           call interpol_D_coefK
+           call timing_stop('cimi_interpol_D_coefK')
+           
+           call timing_start('cimi_Diffuse_Q2')
+           call diffuse_Q2
+           call timing_stop('cimi_Diffuse_Q2')
+           
+           call timing_start('cimi_Diffuse_Q1')
+           call diffuse_Q1
+           call timing_stop('cimi_Diffuse_Q1')
+        endif 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!        

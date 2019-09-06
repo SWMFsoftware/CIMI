@@ -257,6 +257,13 @@ test_rundir_Highorder:
 	cp input/gaussian_test.fin ${TESTDIR}/IM/quiet_h.fin
 	cp input/gaussian_test.fin ${TESTDIR}/IM/quiet_o.fin
 
+test_rundir_DiagDiff:
+	rm -rf ${TESTDIR}
+	make rundir RUNDIR=${TESTDIR} STANDALONE=YES IMDIR=`pwd`
+	cp input/testfiles/*.dat ${TESTDIR}/
+	cp input/testfiles/PARAM.in.test.DiagDiff ${TESTDIR}/PARAM.in
+	cp tools/constq.pro ${TESTDIR}/
+
 test_run:
 	cd ${TESTDIR}; ${MPIRUN} ./cimi.exe > runlog 
 

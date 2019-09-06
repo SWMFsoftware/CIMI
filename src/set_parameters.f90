@@ -25,6 +25,7 @@ subroutine CIMI_set_parameters(NameAction)
        testDiff_aa, testDiff_EE, testDiff_aE, &
        NameAeFile, read_ae_wdc_kyoto, &
        UseKpIndex
+  use ModDiagDiff,       ONLY: UseDiagDiffusion
   use DensityTemp,	 ONLY: densityP
   use ModImSat,		 ONLY: DtSatOut, DoWritePrerunSat, UsePrerunSat, &
        DtReadSat, DoWriteSats, ReadRestartSat
@@ -709,6 +710,9 @@ subroutine CIMI_set_parameters(NameAction)
            end if
 
         end if
+
+     case('#DIAGONALIZEDDIFFUSION')
+        call read_var('UseDiagDiffusion',UseDiagDiffusion)
 
      case('#ENERGYGRID')
         call read_var('MinIonEnergy (in keV), MinElectronEnergy x10',&

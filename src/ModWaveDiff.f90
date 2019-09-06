@@ -169,9 +169,11 @@ contains
 
  ichor=0
  if (UseChorus) then 
-   if ( trim(ChorusWavesD) .eq.'D_LBchorus_merge.dat') ichor=2
- else 
-  ichor=1
+    if ( trim(ChorusWavesD) .eq.'D_LBchorus_merge.dat') then 
+       ichor=2
+    else 
+       ichor=1
+    endif
  endif
 
  iUBC=0

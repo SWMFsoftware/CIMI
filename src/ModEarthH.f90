@@ -39,8 +39,8 @@ Module ModCimiPlanet
   integer, dimension(nspec+1) :: iPhotplot_I =(/7,8,9/) 
   integer, dimension(nspec+1) :: iPparhotplot_I =(/10,11,12/)
   integer, dimension(nspec+1) :: iNplot_I    =(/12,14,15/)
-  integer, parameter          :: Beq_=16,Vol_=17,Pot_=18, FAC_=19, FAC_=20,&
-                                 Lstar_=21, Plas_=22, nVar=22
+  integer, parameter          :: Beq_=16,Vol_=17,Pot_=18, FAC_=19, Lstar_=20,&
+                                 Plas_=21, nVar=21
 
   !set Logplot parameters
   character(len=500), parameter :: & 

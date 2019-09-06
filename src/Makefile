@@ -31,6 +31,7 @@ OBJECTS = \
 	trace_dipole.o\
 	geopack.o\
         ModWaveDiff.o\
+        ModDiagDiff.o\
         ModLstar.o
 
 DEPEND:
