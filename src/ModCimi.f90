@@ -9,7 +9,7 @@ Module ModCimi
   real    :: Time = 0.0
   logical :: UseMcLimiter = .false., UseStrongDiff = .false., UseDecay =.false.
   real    :: BetaLimiter = 1.5
-  real    :: Pmin = 1e-2
+  real    :: Pmin = 1e-6
   real    :: DecayTimescale = 36000. ! Seconds
   real, allocatable:: SDtime(:,:,:,:), f2(:,:,:,:,:)
   real, allocatable:: phot(:,:,:), Ppar_IC(:,:,:), &

@@ -131,7 +131,7 @@ contains
   elseif (UseMultiRhoGm  &
        .and. UseMultiPGm ) then
      !Multifluid Case
-     
+     write(*,*) 'multifluid case in im'
      do iLon=MinLonPar,MaxLonPar
         ! Set boundary index consistant with boundaryIM
         ib1=min(iba(iLon)+1,irm(iLon))

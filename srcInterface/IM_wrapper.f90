@@ -337,7 +337,12 @@ contains
 !          call con_stop('')
 !       endif
 
-        
+       !write(*,*)len(NameVarCouple_V)
+       !do iVarBuffer = 1,nVarBuffer
+          !write(*,*) 'buffer in im', iVarTarget_V(iVarBuffer), NameVarCouple_V(iVarTarget_V(iVarBuffer)) 
+       !enddo
+       !write(*,*)''
+       
        do iVarBuffer = 1,nVarBuffer
           select case(trim(NameVarCouple_V(iVarTarget_V(iVarBuffer))))
           case('Rho','rho')
@@ -353,45 +358,56 @@ contains
              TotalPpar_ = iVarBuffer + 3
              UseTotalPparGm = .true.
           case('Pe','pe')
+             !write(*,*) 'pe=',iVarBuffer
              TotalPe_ = iVarBuffer + 3
              UsePeGm = .true.
           case('HpRho','hprho')
+             !write(*,*) 'HpRho=',iVarBuffer
              UseMultiRhoGm = .true.
              iBufferRho_I(iRho) = iVarBuffer+3
              iRho=iRho+1
           case('HpP','hpp')
+             !write(*,*) 'HpP=',iVarBuffer
              UseMultiPGm = .true.
              iBufferP_I(iP) = iVarBuffer+3
              iP = iP+1
           case('HpPpar','hppar')
+             !write(*,*) 'HpPpar=',iVarBuffer
              UseMultiPparGm = .true.
              iBufferPpar_I(iPpar) = iVarBuffer+3
              iPpar=iPpar+1
           case('OpRho','oprho')
+             !write(*,*) 'OpRho=',iVarBuffer
              UseMultiRhoGm = .true.
              iBufferRho_I(iRho) = iVarBuffer+3
              iRho=iRho+1
           case('OpP','opp')
+             !write(*,*) 'OpP=',iVarBuffer
              UseMultiPGm = .true.
              iBufferP_I(iP) = iVarBuffer+3
              iP = iP+1
           case('OpPpar','opppar')
+             !write(*,*) 'OpPpar=',iVarBuffer
              UseMultiPparGm = .true.
              iBufferPpar_I(iPpar) = iVarBuffer+3
              iPpar=iPpar+1
           case('HpSwRho','hpswrho')
+             !write(*,*) 'HpSwRho=',iVarBuffer
              UseMultiRhoGm = .true.
              iBufferRho_I(iRho) = iVarBuffer+3
              iRho=iRho+1
           case('HpSwP','hpswp')
+             !write(*,*) 'HpSwP=',iVarBuffer
              UseMultiPGm = .true.
              iBufferP_I(iP) = iVarBuffer+3
              iP = iP+1
           case('HpSwPpar','hpswppar')
+             !write(*,*) 'HpPpar=',iVarBuffer
              UseMultiPparGm = .true.
              iBufferPpar_I(iPpar) = iVarBuffer+3
              iPpar=iPpar+1
           case('HpPsRho','hppsrho')
+             !write(*,*) 'HpPs=',iVarBuffer
              DoFeedbackPs = .true.
           end select
        end do
@@ -431,6 +447,8 @@ contains
     StateLine_VI      = BufferLine_VI
     StateBmin_IIV(:,:,:) = Buffer_IIV(:,:,:)
 
+    
+    
     ! convert unit of locations X and Y
     StateBmin_IIV(:,:,1:2) = StateBmin_IIV(:,:,1:2)/rEarth ! m --> Earth Radii
 
@@ -657,7 +675,7 @@ contains
     use ModGmCimi,    ONLY: Den_IC, iLatMin!, DoMultiFluidGMCoupling, &
          !DoAnisoPressureGMCoupling
     use ModCimiTrace,ONLY: iba
-    use ModCimiPlanet,ONLY: nspec,amu_I, NameVarCouple,nVarImToGm
+    use ModCimiPlanet,ONLY: nspec,amu_I, NameVarCouple,nVarImToGm, Sw_, H_, O_, e_
     use ModNumConst,  ONLY: cRadToDeg
     use ModConst,     ONLY: cProtonMass, cBoltzmann
     use ModIoUnit, ONLY: UnitTmp_
@@ -747,7 +765,7 @@ contains
                 ! make sure pressure passed to GM is not lower than Pmin [nPa]
                 ! to avoid too low GM pressure (only ion pressure) 
                 Buffer_IIV(i,j,iVarCimi) = &
-                     max(Pressure_IC(nspec-1,i,j), Pmin)*1e-9
+                     max(Pressure_IC(e_,i,j), Pmin)*1e-9
              end if
           enddo; enddo       
        case('HpRho')
@@ -756,7 +774,7 @@ contains
                 Buffer_IIV(i,j,iVarCimi) = -1.
              else
                 Buffer_IIV(i,j,iVarCimi) = &
-                     Den_IC (1,i,j)*cProtonMass*amu_I(1)
+                     Den_IC (H_,i,j)*cProtonMass*amu_I(H_)
              end if
           enddo; enddo
        case('HpP')
@@ -767,7 +785,7 @@ contains
                 ! make sure pressure passed to GM is not lower than Pmin [nPa]
                 ! to avoid too low GM pressure (only ion pressure) 
                 Buffer_IIV(i,j,iVarCimi) = &
-                     max(Pressure_IC(1,i,j), Pmin)*1e-9
+                     max(Pressure_IC(H_,i,j), Pmin)*1e-9
              end if
           enddo; enddo
        case('HpPpar')
@@ -778,7 +796,7 @@ contains
                 ! make sure pressure passed to GM is not lower than Pmin [nPa]
                 ! to avoid too low GM pressure 
                 Buffer_IIV(i,j,iVarCimi) = &
-                     max(PressurePar_IC(1,i,j), Pmin)*1e-9
+                     max(PressurePar_IC(H_,i,j), Pmin)*1e-9
              end if
           enddo; enddo
        case('OpRho')
@@ -787,7 +805,7 @@ contains
                 Buffer_IIV(i,j,iVarCimi) = -1.
              else
                 Buffer_IIV(i,j,iVarCimi) = &
-                     Den_IC (2,i,j)*cProtonMass*amu_I(2)
+                     Den_IC (O_,i,j)*cProtonMass*amu_I(O_)
              end if
           enddo; enddo
        case('OpP')
@@ -798,7 +816,7 @@ contains
                 ! make sure pressure passed to GM is not lower than Pmin [nPa]
                 ! to avoid too low GM pressure (only ion pressure) 
                 Buffer_IIV(i,j,iVarCimi) = &
-                     max(Pressure_IC(2,i,j), Pmin)*1e-9
+                     max(Pressure_IC(O_,i,j), Pmin)*1e-9
              end if
           enddo; enddo
        case('OpPpar')
@@ -809,7 +827,7 @@ contains
                 ! make sure pressure passed to GM is not lower than Pmin [nPa]
                 ! to avoid too low GM pressure 
                 Buffer_IIV(i,j,iVarCimi) = &
-                     max(PressurePar_IC(2,i,j), Pmin)*1e-9
+                     max(PressurePar_IC(O_,i,j), Pmin)*1e-9
              end if
           enddo; enddo
        case('HpSwRho')
@@ -818,7 +836,7 @@ contains
                 Buffer_IIV(i,j,iVarCimi) = -1.
              else
                 Buffer_IIV(i,j,iVarCimi) = &
-                     Den_IC (3,i,j)*cProtonMass*amu_I(3)
+                     Den_IC (Sw_,i,j)*cProtonMass*amu_I(Sw_)
              end if
           enddo; enddo
        case('HpSwP')
@@ -829,7 +847,7 @@ contains
                 ! make sure pressure passed to GM is not lower than Pmin [nPa]
                 ! to avoid too low GM pressure (only ion pressure) 
                 Buffer_IIV(i,j,iVarCimi) = &
-                     max(Pressure_IC(3,i,j), Pmin)*1e-9
+                     max(Pressure_IC(Sw_,i,j), Pmin)*1e-9
              end if
           enddo; enddo
        case('HpSwPpar')
@@ -840,7 +858,7 @@ contains
                 ! make sure pressure passed to GM is not lower than Pmin [nPa]
                 ! to avoid too low GM pressure 
                 Buffer_IIV(i,j,iVarCimi) = &
-                     max(PressurePar_IC(3,i,j), Pmin)*1e-9
+                     max(PressurePar_IC(Sw_,i,j), Pmin)*1e-9
              end if
           enddo; enddo
        case('HpPsRho')

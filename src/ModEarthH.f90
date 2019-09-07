@@ -9,7 +9,13 @@ Module ModCimiPlanet
 
   !define the species extensions
   character(len=2) :: NameSpeciesExtension_I(nspec)=(/'_h','_e'/)
-    
+
+  !named index for species order
+  integer :: H_=1, e_=2
+
+  !unset indexes needed for GM coupling
+  integer :: He_=-1, Sw_-1, O_=-1
+
   ! a0,a1,... are coef. of a polynomial which defines the 
   ! exponent of the charge exchange cross section
   real,parameter,dimension(nspec-1) :: a0_I = (/-18.767/)
