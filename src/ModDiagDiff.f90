@@ -142,18 +142,18 @@
                     write(*,'(1p3E15.7)') PSD(k-1:k+1,m)
                     write(*,'(1pE15.7)') fnew(k)
                     write(*,'(1p2E15.7)') Dqq2m(k-1:k)/G_Q2(k)
-                    stop
+                    call CON_STOP('IM: CIMI dies in diffuse_Q2')
                  endif
                  if (fnew(k).ne.fnew(k).or.fnew(k).lt.-1.e-50) then
-                     write(*,'(a,i3,a,i3,a,i3,a,i3,a)') &
-                     'At i =',i,' j=',j,', k=',k,', m =',m,' in diffusion_Q2'
-                     write(*,*) fnew(k)
-                     write(*,'(1p10E11.3)') fnew(2:iq-1)
-                     write(*,*) ' f2(t-1)'
-                     write(*,'(1p10E11.3)') PSD(:,m)
-                     write(*,*) ' D_Q2Q2(t)'
-                     write(*,'(1p10E11.3)') Dqq2m(1:iq-1)/G_Q2(1:iq-1)
-                     stop
+                    write(*,'(a,i3,a,i3,a,i3,a,i3,a)') &
+                    'At i =',i,' j=',j,', k=',k,', m =',m,' in diffusion_Q2'
+                    write(*,*) fnew(k)
+                    write(*,'(1p10E11.3)') fnew(2:iq-1)
+                    write(*,*) ' f2(t-1)'
+                    write(*,'(1p10E11.3)') PSD(:,m)
+                    write(*,*) ' D_Q2Q2(t)'
+                    write(*,'(1p10E11.3)') Dqq2m(1:iq-1)/G_Q2(1:iq-1)
+                    call CON_STOP('IM: CIMI dies in diffuse_Q2')
                  endif
               enddo       ! end of k
 !(11) Update PSD_Q
@@ -214,7 +214,7 @@
 !(3) outside plasmasphere
            Po=(BLc0/bo(i,j))*CHpower(i,j)/Cpower0
            DoDiff=.True.
-        else if (ihiss.eq.1) then
+        else if (ihiss.ge.1) then
 !(4) inside plasmasphere
            Po=(BLh0/bo(i,j))*HIpower(i,j)/Hpower0
            DoDiff=.True.
@@ -258,21 +258,21 @@
 !(10) Make sure f2 > 0
               do m=1,ik     ! start of m
                  if (fnew(m).ne.fnew(m).or.fnew(m).lt.-1.e-50) then
-                     write(*,'(a,i3,a,i3,a,i3,a,i3,a)') &
-                     'At i =',i,' j=',j,', k=',k,', m =',m,' in diffusion_Q1'
-                     write(*,*) fnew(m)
-                     write(*,'(1p10E11.3)') fnew(1:ik)
-                     write(*,*) ' f2(t-1) in #s3/m6/kg3'
-                     write(*,'(1p10E11.3)') PSD(k,:)
-                     write(*,*) ' DKK(t) in 1/s'
-                     write(*,'(1p10E11.3)') Dqq1m(0:ik)/G_Q1(0:ik)
-                     write(*,*) ' a0(t) in deg'
-                     write(*,'(10f11.4)') asin(y(i,j,0:ik+1))*57.2957795
-                     write(*,*) ' Daa(t) in 1/s'
-                     write(*,'(1p10E11.3)') Daa1(k,0:ik+1)
-                     write(*,*) ' T(y) in RE'
-                     write(*,'(1p10E11.3)') tya(i,j,0:ik+1)
-                     stop
+                    write(*,'(a,i3,a,i3,a,i3,a,i3,a)') &
+                    'At i =',i,' j=',j,', k=',k,', m =',m,' in diffusion_Q1'
+                    write(*,*) fnew(m)
+                    write(*,'(1p10E11.3)') fnew(1:ik)
+                    write(*,*) ' f2(t-1) in #s3/m6/kg3'
+                    write(*,'(1p10E11.3)') PSD(k,:)
+                    write(*,*) ' DKK(t) in 1/s'
+                    write(*,'(1p10E11.3)') Dqq1m(0:ik)/G_Q1(0:ik)
+                    write(*,*) ' a0(t) in deg'
+                    write(*,'(10f11.4)') asin(y(i,j,0:ik+1))*57.2957795
+                    write(*,*) ' Daa(t) in 1/s'
+                    write(*,'(1p10E11.3)') Daa1(k,0:ik+1)
+                    write(*,*) ' T(y) in RE'
+                    write(*,'(1p10E11.3)') tya(i,j,0:ik+1)
+                    call CON_STOP('IM: CIMI dies in diffuse_Q1')
                  endif
               enddo       ! end of k
 !(11) Update PSD_Q
@@ -343,14 +343,14 @@
      do i=1,iba(j)      ! start of i
         ompe1=ompe(i,j)                         ! fpe/fce
         if (ichor.ge.1) then
-           call locate1(cOmpe,ipc,ompe1,ipc1)
+           call locate1(cOmpe,ipc,ompe1,ipc1,'find_ompe_index')
            if (ipc1.eq.0) ipc1=1
            if (ipc1.gt.ipc) ipc1=ipc
            if ((cOmpe(ipc1+1)-ompe1).lt.(ompe1-cOmpe(ipc1))) ipc1=ipc1+1
            ipc0(i,j)=ipc1
         endif
         if (ihiss.ge.1) then
-           call locate1(hOmpe,iph,ompe1,iph1)
+           call locate1(hOmpe,iph,ompe1,iph1,'find_ompe_index')
            if (iph1.eq.0) iph1=1
            if (iph1.gt.iph) iph1=iph
            if ((hOmpe(iph1+1)-ompe1).lt.(ompe1-hOmpe(iph1))) iph1=iph1+1
@@ -382,7 +382,7 @@
                          ckeV,hkeV,&
                          cDEE,cDaa,cDaE,&
                          hDEE,hDaa,hDaE,&
-                         cPA,cOmpe
+                         cPA,cOmpe,hOmpe
   !!use diagDiffCoef, only: iq,VarQ,E_Q2c,E_Q2h,cDqq1,cDqq2,hDqq1,hDqq2,&
   !!                        cSign,hSign,Dqq1K,Dqq2K,dQ2dEK,E_Q2K
   implicit none
@@ -415,21 +415,43 @@
      allocate (cDqq1(ipc,iq,ipa),cDqq2(ipc,iq,ipa))
 
 !(3) calculate energy crossponding to constant Q
-     call calc_Q_curve(cDaa0,cDaE0,Eq,cPA*pi/180,ipc,0,iq+1,ipa,E_Q2c)
+     call calc_Q_curve(cDaa0,cDaE0,Eq,cPA*pi/180,ipc,0,iq+1,ipa,E_Q2c,'chorus')
 
 !(4) calculate Daa and Dqq2 at the fixed grids of (a0,Q2)
-     call DaEtoDQQ(cDaa0,cDEE0,cDaE0,Eq,E_Q2c,VarQ,ipc,iq,iq,cDqq1,cDqq2)
+     call DaEtoDQQ(cDaa0,cDEE0,cDaE0,Eq,E_Q2c,VarQ,ipc,iq,iq,&
+                   cDqq1,cDqq2,'chorus')
   endif
-  if (ihiss.eq.1) then
+
+!(5) Hiss
+  if (ihiss.ge.1) then
      allocate (hSign(iph,iwh,ipa))
      hSign(:,:,:)=sign(1.,hDaE(:,:,:))
      where (hDaE(:,:,:).eq.0.) hSign(:,:,:)=1.
+!(6) interpolate diffusion coef. to same grids of Q for hiss
      call interpol_D_coef(hDaa,hDaE,hDEE,hSign,hkeV,logEq,iph,iwh,iq,hDaa0,hDaE0,hDEE0)
-     call calc_Q_curve(hDaa0,hDaE0,Eq,cPA*pi/180,iph,0,iq+1,ipa,E_Q2h)
-     call DaEtoDQQ(hDaa0,hDEE0,hDaE0,Eq,E_Q2h,VarQ,ipc,iq,iq,hDqq1,hDqq2)
+     allocate (E_Q2h(iph,0:iq+1,ipa))
+     allocate (hDqq1(iph,iq,ipa),hDqq2(iph,iq,ipa))
+
+!(7) calculate energy crossponding to constant Q for hiss
+     call calc_Q_curve(hDaa0,hDaE0,Eq,cPA*pi/180,iph,0,iq+1,ipa,E_Q2h,'hiss')
+
+!(8) calculate Daa and Dqq2 at the fixed grids of (a0,Q2) for hiss
+     call DaEtoDQQ(hDaa0,hDEE0,hDaE0,Eq,E_Q2h,VarQ,ipc,iq,iq,&
+                   hDqq1,hDqq2,'hiss')
   endif
 
-  call write_Q2info(cDEE,cDaE,cDaa0,cDaE0,cDEE0,cDqq1,cDqq2,ckeV,Eq,E_Q2c,ipc,iwc,iq)
+  call write_Q2info(cDEE,cDaE,cDaa0,cDaE0,cDEE0,&
+                    cDqq1,cDqq2,&
+                    ckeV,cOmpe,Eq,E_Q2c,ipc,iwc,iq,&
+                    'IM/plots/chorus_constQ.dat',&
+                    'IM/plots/chorus_constQ2.dat',&
+                    'IM/plots/D_LBchorus_QQ.dat')
+  call write_Q2info(hDEE,hDaE,hDaa0,hDaE0,hDEE0,&
+                    hDqq1,hDqq2,&
+                    hkeV,hOmpe,Eq,E_Q2h,iph,iwh,iq,&
+                    'IM/plots/hiss_constQ.dat',&
+                    'IM/plots/hiss_constQ2.dat',&
+                    'IM/plots/D_hiss_QQ.dat')
   call interpol_D_coefK
   
   end subroutine calc_DQQ
@@ -439,7 +461,7 @@
 !                           calc_Q_curve    
 !  Routine calculates energy E(a,Q) corresponding to contant Q curve.
 !*****************************************************************************
-  subroutine calc_Q_curve(Daa,DaE,keV,a0,ip,iw0,iw,ipa,E)
+  subroutine calc_Q_curve(Daa,DaE,keV,a0,ip,iw0,iw,ipa,E,NameWave)
   use ModNumConst, only: pi=>cPi
   implicit none
 
@@ -447,6 +469,7 @@
   real,dimension(ip,iw0:iw,ipa),intent(in) :: Daa,DaE
   real,intent(in) :: keV(iw0:iw),a0(ipa)
   real,intent(out) :: E(ip,iw0:iw,ipa)
+  character(len=*),intent(in) :: NameWave
   real,allocatable :: da(:),keV1(:),dEda(:,:)
   real r,dEdam,dEda1
   integer j,k,m,m0,k1,k2,kk,iww
@@ -486,10 +509,10 @@
               if (E(j,k2,m)/E(j,k,m).ge.0.97) then
                  !!E(j,k,m)=0.97*E(j,k2,m)
               else
-                 stop
+                 call CON_STOP('IM: CIMI dies in calc_Q_curve for '//NameWave)
                  write(*,'(f6.2,a)') E(j,k2,m)/E(j,k,m)*100.,' %'
               endif
-              stop
+              call CON_STOP('IM: CIMI dies in calc_Q_curve for '//NameWave)
               !!E1=E(j,k2,m)*r
               !!E(j,k,m)=E1
            endif
@@ -507,7 +530,7 @@
 !  Routine calculates DQQ(a0,Q) at fixed grids of (a0,Q)
 !   from Daa,DEE,DaE at fixed grids of (a0,E)
 !*****************************************************************************
-     subroutine DaEtoDQQ(Daa,DEE,DaE,keV,E,VarQ,ip,iw,iq,Dqq1,Dqq2)
+     subroutine DaEtoDQQ(Daa,DEE,DaE,keV,E,VarQ,ip,iw,iq,Dqq1,Dqq2,NameWave)
      use ModWaveDiff, only:ipa
      implicit none
 
@@ -515,6 +538,7 @@
      real,dimension(ip,0:iw+1,ipa),intent(in) :: Daa,DEE,DaE
      real,dimension(ip,0:iq+1,ipa),intent(in) :: E
      real,intent(in) :: keV(0:iw+1),VarQ(0:iq+1)
+     character(len=*),intent(in) :: NameWave
      real,dimension(ip,iq,ipa),intent(out) :: Dqq1,Dqq2
      real,dimension(iw+2) ::  keVlog,logDaa,logDEE,logDaE
      real,dimension(0:iq+1) :: logE,VarQ2,E2
@@ -545,9 +569,9 @@
                 logDEE(1:iw+2)=log(DEE(j,0:iw+1,m))      !  in s^-1
            do k=1,iq
               if (logE(k).ge.keVlog(1).and.logE(k).le.keVlog(iw+2)) then
-                 call lintp(keVlog(:),logDaa(:),iw+2,logE(k),logDaa1)
-                 call lintp(keVlog(:),logDaE(:),iw+2,logE(k),logDaE1)
-                 call lintp(keVlog(:),logDEE(:),iw+2,logE(k),logDEE1)
+                 call lintp(keVlog(:),logDaa(:),iw+2,logE(k),logDaa1,'DaEtoDQQ')
+                 call lintp(keVlog(:),logDaE(:),iw+2,logE(k),logDaE1,'DaEtoDQQ')
+                 call lintp(keVlog(:),logDEE(:),iw+2,logE(k),logDEE1,'DaEtoDQQ')
                  if (logDaa1.gt.-70.) then
                     Daa1=exp(logDaa1)
                  else
@@ -579,10 +603,11 @@
                     Dqq2(j,k,m)=DQQ0*dQdE*dQdE*E2(k)/VarQ2(k) ! Dqq2/Q^2 in 1/s
                  endif
                  if (Dqq2(j,k,m).lt.0.) then
+                    write(*,*) ' Dqq2 has to be positive definite!'
                     write(*,'(a,3i3,a,1p5E11.3)')&
                      ' At j,k,m =',j,k,m,', DQQ,Daa,DEE,DaE =',&
                      Dqq2(j,k,m),Daa1,DEE1,DaE1,DEE1-DaE1*DaE1/Daa1
-                    stop
+                    call CON_STOP('IM: CIMI dies in mapping DaE to Dqq for '//NameWave)
                  endif
               endif
            enddo
@@ -623,7 +648,8 @@
            where(Daa(j,:,m).gt.0.) logDoo(:)=log(Daa(j,:,m))
            do k=0,iq+1
            ! linear interpolation
-              call lintp(keVlog,logDoo,iw,logE(k),Daa0(j,k,m))
+              call lintp(keVlog,logDoo,iw,logE(k),Daa0(j,k,m),&
+                         'interpol_D_coef')
               if (Daa0(j,k,m).ge.minDoo) then
                  Daa0(j,k,m)=exp(Daa0(j,k,m))
               else
@@ -637,7 +663,8 @@
            where(DEE(j,:,m).gt.0.) logDoo(:)=log(DEE(j,:,m))
            do k=0,iq+1
            ! linear interpolation
-              call lintp(keVlog,logDoo,iw,logE(k),DEE0(j,k,m))
+              call lintp(keVlog,logDoo,iw,logE(k),DEE0(j,k,m),&
+                         'interpol_D_coef')
               if (DEE0(j,k,m).ge.minDoo) then
                  DEE0(j,k,m)=exp(DEE0(j,k,m))
               else
@@ -651,8 +678,10 @@
            where(abs(DaE(j,:,m)).gt.0.) logDoo(:)=log(abs(DaE(j,:,m)))
            do k=0,iq+1
            ! linear interpolation
-              call lintp(keVlog,logDoo,iw,logE(k),DaE0(j,k,m))
-              call lintp(keVlog,xSign(j,:,m),iw,logE(k),sign1)
+              call lintp(keVlog,logDoo,iw,logE(k),DaE0(j,k,m),&
+                         'interpol_D_coef')
+              call lintp(keVlog,xSign(j,:,m),iw,logE(k),sign1,&
+                         'interpol_D_coef')
               if (DaE0(j,k,m).ge.minDoo) then
                  DaE0(j,k,m)=sign(exp(DaE0(j,k,m)),sign1)
               else
@@ -712,9 +741,12 @@
                  if (m.ge.m2) m2=m
 !(2) interpolate Dqq1, Dqq2 to y grids
                  do k=1,iq
-                    call lintp(cPA,cDqq1(ipc1,k,:),ipa,a0(m),Dqq1K(i,j,k,m))
-                    call lintp(cPA,cDqq2(ipc1,k,:),ipa,a0(m),Dqq2K(i,j,k,m))
-                    call lintp(cPA,E_Q2c(ipc1,k,:),ipa,a0(m),E_Q2K(i,j,k,m))
+                    call lintp(cPA,cDqq1(ipc1,k,:),ipa,a0(m),Dqq1K(i,j,k,m),&
+                               'interpol_D_coefK')
+                    call lintp(cPA,cDqq2(ipc1,k,:),ipa,a0(m),Dqq2K(i,j,k,m),&
+                               'interpol_D_coefK')
+                    call lintp(cPA,E_Q2c(ipc1,k,:),ipa,a0(m),E_Q2K(i,j,k,m),&
+                               'interpol_D_coefK')
                  enddo   ! end of k
               endif
            enddo         ! end of m
@@ -743,7 +775,7 @@
   do j=1,ip
 !(5) interpolate begins when L>Lpp for hiss
      do i=i,iLpp(j)
-        if (ihiss.eq.1) then
+        if (ihiss.ge.1) then
            iph1=iph0(i,j)
            a0(:)=asin(y(i,j,:))*180./pi
            m1=ik+1
@@ -754,9 +786,12 @@
                  if (m.ge.m2) m2=m
 !(6) interpolate Dqq1, Dqq2 to y grids
                  do k=1,iq
-                    call lintp(cPA,hDqq1(iph1,k,:),ipa,a0(m),Dqq1K(i,j,k,m))
-                    call lintp(cPA,hDqq2(iph1,k,:),ipa,a0(m),Dqq2K(i,j,k,m))
-                    call lintp(cPA,E_Q2h(ipc1,k,:),ipa,a0(m),E_Q2K(i,j,k,m))
+                    call lintp(cPA,hDqq1(iph1,k,:),ipa,a0(m),Dqq1K(i,j,k,m),&
+                               'interpol_D_coefK')
+                    call lintp(cPA,hDqq2(iph1,k,:),ipa,a0(m),Dqq2K(i,j,k,m),&
+                               'interpol_D_coefK')
+                    call lintp(cPA,E_Q2h(ipc1,k,:),ipa,a0(m),E_Q2K(i,j,k,m),&
+                               'interpol_D_coefK')
                  enddo   ! end of k
               endif
            enddo         ! end of m
@@ -817,7 +852,7 @@
         DoMapping=.False.
         if (ichor.eq.1.and.i.gt.iLpp(j)) then
            DoMapping=.True.
-        else if (ihiss.eq.1.and.i.le.iLpp(j)) then
+        else if (ihiss.ge.1.and.i.le.iLpp(j)) then
            DoMapping=.True.
         endif
         if (DoMapping) then
@@ -829,21 +864,22 @@
               logPSD(:)=log(psd0)
               where(psd0(:).lt.1.e-50) logPSD(:)=-50.
 !(1) find cubic spline interpolation coefficients.
-              call spline (logEkeV, logPSD, b, c, d, iw)
-              call locate1(E_Q2K(i,j,:,m),iq,ekev0(1 ),k1)
-              call locate1(E_Q2K(i,j,:,m),iq,ekev0(iw),k2)
+              call spline (logEkeV, logPSD, b, c, d, iw, 'mapPSDtoQ')
+              call locate1(E_Q2K(i,j,:,m),iq,ekev0(1 ),k1,'mapPSDtoQ')
+              call locate1(E_Q2K(i,j,:,m),iq,ekev0(iw),k2,'mapPSDtoQ')
               k1=k1+1
               do k=k1,k2
 !(2) map PSD to fixed Q2 grids
                  EQ=E_Q2K(i,j,k,m)
                  logEQ=log(EQ)
-                 call locate1(logEkeV,iw,logEQ,kk)
+                 call locate1(logEkeV,iw,logEQ,kk,'mapPSDtoQ')
                  dE=logEQ-logEkeV(kk)
                  dE2=dE*dE
                  logPSD1=logPSD(kk)+b(kk)*dE+c(kk)*dE2+d(kk)*dE2*dE
                  if (logPSD1.lt.min(logPSD(kk),logPSD(kk+1)).or.&
                      logPSD1.gt.max(logPSD(kk),logPSD(kk+1))) &
-                    call lintp(logEkeV,logPSD,iw,logEQ,logPSD1)
+                    call lintp(logEkeV,logPSD,iw,logEQ,logPSD1,&
+                               'mapPSDtoQ')
                  PSD_Q(i,j,k,m)=exp(logPSD1)
               enddo      ! end of k
 !(3) fill PSD beyond interpolation ranges
@@ -888,7 +924,7 @@
         DoMapping=.False.
         if (ichor.eq.1.and.i.gt.iLpp(j)) then
            DoMapping=.True.
-        else if (ihiss.eq.1.and.i.le.iLpp(j)) then
+        else if (ihiss.ge.1.and.i.le.iLpp(j)) then
            DoMapping=.True.
         endif
         if (DoMapping) then
@@ -898,18 +934,19 @@
               logEQ(:)=log(EQ)
               logPSD(:)=log(PSD_Q(i,j,1:iq,m))
               where(logPSD(:).lt.-50.) logPSD(:)=-50.
-              call spline (logEQ, logPSD, b, c, d, iq)
+              call spline (logEQ, logPSD, b, c, d, iq, 'mapPSDtoE')
               do k=2,iw    ! keep PSD(k=1) unchanged during mapping
                  ekev0=ekev(nel,i,j,k,m)
                  if (ekev0.ge.EQ(1).and.ekeV0.le.EQ(iq)) then
                     logEkeV=log(ekev0)
-                    call locate1(EQ,iq,ekev0,kk)
+                    call locate1(EQ,iq,ekev0,kk,'mapPSDtoE')
                     dE=logEkeV-logEQ(kk)
                     dE2=dE*dE
                     logPSD1=logPSD(kk)+b(kk)*dE+c(kk)*dE2+d(kk)*dE2*dE
                     if (logPSD1.lt.min(logPSD(kk),logPSD(kk+1)).or.&
                         logPSD1.gt.max(logPSD(kk),logPSD(kk+1))) &
-                       call lintp(logEq,logPSD,iq,logEkeV,logPSD1)
+                       call lintp(logEq,logPSD,iq,logEkeV,logPSD1,&
+                                  'mapPSDtoE')
                     !!f2(nel,i,j,k,m)=exp(logPSD1)*xjac(nel,i,k,m)
                     f2(nel,i,j,k,m)=exp(logPSD1)*xjac(nel,i,k) 
                  endif
@@ -947,10 +984,10 @@
       y1=y_out(i_1)
       dt1=dt(i_1)
       dt2=0.5*dt1
-      call lintp2(y,t,dydt,ny,nt,y1,t(i_1),k1)
-      call lintp2(y,t,dydt,ny,nt,y1+dt2*k1,t(i_1)+dt2,k2)
-      call lintp2(y,t,dydt,ny,nt,y1+dt2*k2,t(i_1)+dt2,k3)
-      call lintp2(y,t,dydt,ny,nt,y1+dt1*k3,t(i_1)+dt1,k4)
+      call lintp2(y,t,dydt,ny,nt,y1,t(i_1),k1,'rk4')
+      call lintp2(y,t,dydt,ny,nt,y1+dt2*k1,t(i_1)+dt2,k2,'rk4')
+      call lintp2(y,t,dydt,ny,nt,y1+dt2*k2,t(i_1)+dt2,k3,'rk4')
+      call lintp2(y,t,dydt,ny,nt,y1+dt1*k3,t(i_1)+dt1,k4,'rk4')
       y_out(i)=y1+dt1*(k1 + 2.*k2 + 2*k3 + k4)/6.
    enddo
 
@@ -964,7 +1001,9 @@
 !   (2) constant Q2 in (a0,E), setting Q1=a0
 !   (3) Daa, Dq2,q2
 !*****************************************************************************
-  subroutine write_Q2info(DEE,DaE,Daa0,DaE0,DEE0,Dqq1,Dqq2,keV,Eq,E,ip,iw,iq)
+  subroutine write_Q2info(DEE,DaE,Daa0,DaE0,DEE0,Dqq1,Dqq2,keV,Ompe,&
+                          Eq,E,ip,iw,iq,&
+                          FileName1,FileName2,FileName3)
   use ModWaveDiff, only: ipa,cPA,cOmpe,hOmpe
   !!use diagDiffCoef, only: VarQ
   implicit none
@@ -973,15 +1012,16 @@
   real,intent(in),dimension(ip,iw,ipa) :: DEE,DaE
   real,intent(in),dimension(ip,0:iq+1,ipa) :: Daa0,DaE0,DEE0,E
   real,intent(in),dimension(ip,iq,ipa) :: Dqq1,Dqq2
-  real,intent(in) :: keV(iw),Eq(0:iq+1)
+  real,intent(in) :: keV(iw),Eq(0:iq+1),Ompe(ip)
+  character(len=*),intent(in) :: FileName1,FileName2,FileName3
   real a(iw),DaEEE(iw,ipa),dE
   integer j,k,m
 
 !!!! write Dqq
-  open(unit=48,file='D_LBchorus_QQ.dat')
+  open(unit=48,file=trim(FileName3))
   write(48,'(f7.0,f7.2)') 10000.,6.5 
   write(48,*) ip,iq,ipa
-  write(48,'(10f7.2)') cOmpe
+  write(48,'(10f7.2)') Ompe
   write(48,'(8f12.5)') VarQ(1:iq)  
   do j=1,ip
      do k=1,iq
@@ -995,7 +1035,7 @@
   close(48)
   write(*,*) 'write Dq1q1, Dq2q2'
      
-  open(unit=60,file='constQ.dat')
+  open(unit=60,file=trim(FileName1))
   write(60,*) ip,iw,ipa
   write(60,'(1p10E11.3)') keV(:)
   do j=1,ip
@@ -1011,7 +1051,7 @@
      enddo
   enddo
   close(60)
-  open(unit=60,file='constQ2.dat')
+  open(unit=60,file=trim(FileName2))
   write(60,*) ip,iq,ipa
   write(60,'(1p10E11.3)') Eq(1:iq)
   do j=1,ip
@@ -1050,91 +1090,107 @@
 ! Below subroutines are copied from CIMI standalone
 !/  
 !-----------------------------------------------------------------------
-      subroutine lintp(xx,yy,n,x,y)
+  subroutine lintp(xx,yy,n,x,y,NameCaller)
 !-----------------------------------------------------------------------
 !  Routine does 1-D interpolation.  xx must be increasing or decreasing
 !  monotonically. 
+   implicit none
 
-      real xx(n),yy(n)
+   integer,intent(in) :: n
+   real,intent(in) :: xx(n),yy(n),x
+   character(len=*),intent(in) :: NameCaller
+   real,intent(out) :: y
+   integer i,jl,ju,jm,j
+   real d   
+
 
 !  Make sure xx is increasing or decreasing monotonically
-      do i=2,n
-         if (xx(n).gt.xx(1).and.xx(i).lt.xx(i-1)) then
-            write(*,*) ' lintp: xx is not increasing monotonically '
-            write(*,*) n,(xx(j),j=1,n)
-            stop
-          endif
-         if (xx(n).lt.xx(1).and.xx(i).gt.xx(i-1)) then
-            write(*,*) ' lintp: xx is not decreasing monotonically '
-            write(*,*) n,(xx(j),j=1,n)
-            stop
-          endif
-      enddo
+  do i=2,n
+     if (xx(n).gt.xx(1).and.xx(i).lt.xx(i-1)) then
+        write(*,*) ' lintp: xx is not increasing monotonically '
+        write(*,*) n,(xx(j),j=1,n)
+        call CON_STOP('IM: CIMI dies in DiagDiff lintp called from'//&
+                      NameCaller)
+      endif
+     if (xx(n).lt.xx(1).and.xx(i).gt.xx(i-1)) then
+        write(*,*) ' lintp: xx is not decreasing monotonically '
+        write(*,*) n,(xx(j),j=1,n)
+        call CON_STOP('IM: CIMI dies in DiagDiff lintp called from'//&
+                      NameCaller)
+      endif
+  enddo
 
-!    initialize lower and upper values
+! initialize lower and upper values
 !
-      jl=1
-      ju=n
+  jl=1
+  ju=n
 !
-!    if not dne compute a midpoint
+! if not dne compute a midpoint
 !
-10    if(ju-jl.gt.1)then
-        jm=(ju+jl)/2
+10 if(ju-jl.gt.1)then
+     jm=(ju+jl)/2
 !
 !    now replace lower or upper limit
 !
-        if((xx(n).gt.xx(1)).eqv.(x.gt.xx(jm)))then
-          jl=jm
-        else
-          ju=jm
-        endif
+     if((xx(n).gt.xx(1)).eqv.(x.gt.xx(jm)))then
+       jl=jm
+     else
+       ju=jm
+     endif
 !
 !    try again
 !
       go to 10
-      endif
+   endif
 !
 !    this is j
 !
-      j=jl      ! if x.le.xx(1) then j=1
-!                 if x.gt.xx(j).and.x.le.xx(j+1) then j=j
-!                 if x.gt.xx(n) then j=n-1
-      d=xx(j+1)-xx(j)
-      y=(yy(j)*(xx(j+1)-x)+yy(j+1)*(x-xx(j)))/d
+   j=jl      ! if x.le.xx(1) then j=1
+!              if x.gt.xx(j).and.x.le.xx(j+1) then j=j
+!              if x.gt.xx(n) then j=n-1
+   d=xx(j+1)-xx(j)
+   y=(yy(j)*(xx(j+1)-x)+yy(j+1)*(x-xx(j)))/d
 
-      end subroutine lintp
+   end subroutine lintp
 
 
 !-------------------------------------------------------------------------------
-        subroutine lintp2(x,y,v,nx,ny,x1,y1,v1)
+   subroutine lintp2(x,y,v,nx,ny,x1,y1,v1,NameCaller)
 !-------------------------------------------------------------------------------
 !  Routine does 2-D interpolation.  x and y must be increasing or decreasing
 !  monotonically
-!
-        real x(nx),y(ny),v(nx,ny)
+   implicit none
+ 
+   integer,intent(in) :: nx,ny
+   real,intent(in) :: x(nx),y(ny),v(nx,ny),x1,y1
+   character(len=*),intent(in) :: NameCaller
+   real,intent(out) :: v1
+ 
+   real a,b,q00,q01,q10,q11
+   integer i,i1,j1,j
 
-        call locate1(x,nx,x1,i)
-        if (i.gt.(nx-1)) i=nx-1      ! extrapolation if out of range
-        if (i.lt.1) i=1              ! extrapolation if out of range
-        i1=i+1
-        a=(x1-x(i))/(x(i1)-x(i))
+   call locate1(x,nx,x1,i,NameCaller//'and lintp2')
+   if (i.gt.(nx-1)) i=nx-1      ! extrapolation if out of range
+   if (i.lt.1) i=1              ! extrapolation if out of range
+   i1=i+1
+   a=(x1-x(i))/(x(i1)-x(i))
 
-        call locate1(y,ny,y1,j)
-        if (j.gt.(ny-1)) j=ny-1      ! extrapolation if out of range
-        if (j.lt.1) j=1              ! extrapolation if out of range
-        j1=j+1
-        b=(y1-y(j))/(y(j1)-y(j))
+   call locate1(y,ny,y1,j,NameCaller//'and lintp2')
+   if (j.gt.(ny-1)) j=ny-1      ! extrapolation if out of range
+   if (j.lt.1) j=1              ! extrapolation if out of range
+   j1=j+1
+   b=(y1-y(j))/(y(j1)-y(j))
 
-        q00=(1.-a)*(1.-b)
-        q01=(1.-a)*b
-        q10=a*(1.-b)
-        q11=a*b
-        v1=q00*v(i,j)+q01*v(i,j1)+q10*v(i1,j)+q11*v(i1,j1)
+   q00=(1.-a)*(1.-b)
+   q01=(1.-a)*b
+   q10=a*(1.-b)
+   q11=a*b
+   v1=q00*v(i,j)+q01*v(i,j1)+q10*v(i1,j)+q11*v(i1,j1)
 
-        end subroutine lintp2
+   end subroutine lintp2
 
 !--------------------------------------------------------------------------
-      subroutine locate1(xx,n,x,j)
+   subroutine locate1(xx,n,x,j,NameCaller)
 !--------------------------------------------------------------------------
 !  Routine return a value of j such that x is between xx(j) and xx(j+1).
 !  xx must be increasing or decreasing monotonically. If not, the locate will
@@ -1145,45 +1201,52 @@
 !  If xx is decreasing:
 !     If x=xx(m), j=m so if x=xx(1), j=1  and if x=xx(n), j=n
 !     If x > xx(1), j=0  and if x < xx(n), j=n
+   implicit none
 
-      real xx(n)
+   integer,intent(in) :: n
+   real,intent(in) :: xx(n),x
+   character(len=*),intent(in) :: NameCaller
+   integer,intent(out) :: j
+
+   integer nn,i,jl,ju,jm
 
 !  Make sure xx is increasing or decreasing monotonically
-      nn=n
-      monoCheck: do i=2,n
-         if (xx(n).gt.xx(1).and.xx(i).lt.xx(i-1)) then
-            nn=i-1
-            exit monoCheck
-         endif
-         if (xx(n).lt.xx(1).and.xx(i).gt.xx(i-1)) then
-            nn=i-1
-            exit monoCheck
-         endif
-      enddo monoCheck
-      if (nn.ne.n) then
-         write(*,*)'locate1: xx is not increasing or decreasing monotonically'
-         stop
+   nn=n
+   monoCheck: do i=2,n
+      if (xx(n).gt.xx(1).and.xx(i).lt.xx(i-1)) then
+         nn=i-1
+         exit monoCheck
       endif
-
-      jl=0
-      ju=nn+1
-10    if(ju-jl.gt.1)then
-        jm=(ju+jl)/2
-        if((xx(nn).gt.xx(1)).eqv.(x.gt.xx(jm)))then
-          jl=jm
-        else
-          ju=jm
-        endif
-      go to 10
+      if (xx(n).lt.xx(1).and.xx(i).gt.xx(i-1)) then
+         nn=i-1
+         exit monoCheck
       endif
-      j=jl
+   enddo monoCheck
+   if (nn.ne.n) then
+      write(*,*)'locate1: xx is not increasing or decreasing monotonically'
+      call CON_STOP('IM: CIMI dies in DiagDiff locate1 called from'//&
+                    NameCaller)
+   endif
 
-      end subroutine locate1
+   jl=0
+   ju=nn+1
+10 if(ju-jl.gt.1)then
+     jm=(ju+jl)/2
+     if((xx(nn).gt.xx(1)).eqv.(x.gt.xx(jm)))then
+       jl=jm
+     else
+       ju=jm
+     endif
+   go to 10
+   endif
+   j=jl
+
+   end subroutine locate1
 
 !\
 ! Spline interpolation subroutine from open source
 !/
-   subroutine spline (x, y, b, c, d, n)
+   subroutine spline (x, y, b, c, d, n, NameCaller)
 !======================================================================
 !  Calculate the coefficients b(i), c(i), and d(i), i=1,2,...,n
 !  for cubic spline interpolation
@@ -1204,6 +1267,7 @@
 implicit none
 integer,intent(in) :: n
 real,intent(in) :: x(n), y(n)
+character(len=*),intent(in) :: NameCaller
 real,intent(out) :: b(n), c(n), d(n)
 integer i, j, gap
 real h
@@ -1212,7 +1276,8 @@ gap = n-1
 ! check input
 if (n.le.2) then
    write(*,*) ' In subroutine spline n < 2'
-   stop
+   call CON_STOP('IM: CIMI dies in DiagDiff spline called from'//&
+                 NameCaller)
 endif
 if (n.le.3) then
   b(1) = (y(2)-y(1))/(x(2)-x(1))   ! linear interpolation
