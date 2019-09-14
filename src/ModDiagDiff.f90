@@ -19,6 +19,48 @@
 
   module ModDiagDiff 
         use ModCimiGrid, only: ir=>np,ip=>nt,ik=>nk
+
+        private !! except
+
+        public :: iq            ,&
+                  VarQ          ,& ! variable Q2 [keV]
+                  E_Q2c         ,& ! E [keV] for const. Q2 curve, chorus
+                  E_Q2h         ,& ! E [keV] for const. Q2 curve, hiss
+                  cDqq1,cDqq2   ,& ! diffusion coef. in (Q1,Q2) for chorus
+                  hDqq1,hDqq2   ,& ! diffusion coef. in (Q1,Q2) for chorus
+                  PSD_Q         ,& ! phase space density [#s3/kg3m6] in fixed Q2
+                  UseDiagDiffusion      ,&  
+                  DoUnitTestDiagDiff    ,&
+                  ! subroutines
+                  diffuse_Q2    ,& ! calcualte diffusion in Q2 and fixed Q1
+                  diffuse_Q1    ,& !     "         "     in Q1 and fixed Q2
+                  calc_DQQ      ,& ! calculate Dq1q1, Dq2q2 from Daa,DaE,DEE
+                  mapPSDtoQ     ,& ! map PSD from M [J/T] to Q2 [keV]
+                  mapPSDtoE     ,& ! map PSD from Q2 [keV] to M [J/T]
+                  interpol_D_coefK
+                                
+        !private :: cSign,hSign  ! sign of DaE for chorus and hiss
+        !           rpp          ! plasma pause location in RE
+        !           iLpp         ! MLT index at plasma pause location
+        !           ipc0,iph     ! closest fpe/fce to table values 
+        !                             at given latitude and MLT   
+                  ! subroutines
+        !           find_loc_plasmapause        ,&
+        !           tridiagonal                 ,&
+        !           find_ompe_index             ,&
+        !           calc_Q_curve                ,&
+        !           DaEtoDQQ                    ,&
+        !           interpol_D_coef             ,&
+        !           rk4                         ,&
+        !           write_Q2info                ,&
+        !           calc_num_ptl                ,&
+        !           lintp                       ,&
+        !           lintp2                      ,&
+        !           locate1                     ,&
+        !           spline 
+                     
+       
+! Variables  
         integer,parameter :: iq=80
         real VarQ(0:iq+1)
         real,allocatable,dimension(:,:,:) :: E_Q2c,E_Q2h,&
@@ -28,7 +70,10 @@
         real rpp(ip)
         integer ipc0(ir,ip),iph0(ir,ip),iLpp(ip)
 
-        logical :: UseDiagDiffusion=.false.
+        logical :: UseDiagDiffusion=.false.,&
+                   DoUnitTestDiagDiff=.false.  ! do unit test for ModDiagDiff
+                                        ! Use test_main_DiagDiff.f90 
+                                        !  instead of cimi.f90
   contains
 ! ************************************************************************
 !                        find_loc_plasmapause
@@ -108,6 +153,8 @@
            Po=(BLh0/bo(i,j))*HIpower(i,j)/Hpower0
            DoDiff=.True.
         endif
+        ! no mapping if Po =< 0.
+        if (Po.le.0.) DoDiff=.False.
         if (DoDiff) then
            Dqq2(1:iq,1:ik)=Dqq2K(i,j,1:iq,1:ik)*Po
            dQ2dE(1:iq,1:ik)=dQ2dEK(i,j,1:iq,1:ik)
@@ -219,6 +266,8 @@
            Po=(BLh0/bo(i,j))*HIpower(i,j)/Hpower0
            DoDiff=.True.
         endif
+        ! no mapping if Po =< 0.
+        if (Po.le.0.) DoDiff=.False.
         if (DoDiff) then
            Daa1(1:iq,0:ik+1)=Dqq1K(i,j,1:iq,0:ik+1)*Po
            PSD(1:iq,1:ik)=PSD_Q(i,j,1:iq,1:ik)
@@ -436,7 +485,7 @@
      call calc_Q_curve(hDaa0,hDaE0,Eq,cPA*pi/180,iph,0,iq+1,ipa,E_Q2h,'hiss')
 
 !(8) calculate Daa and Dqq2 at the fixed grids of (a0,Q2) for hiss
-     call DaEtoDQQ(hDaa0,hDEE0,hDaE0,Eq,E_Q2h,VarQ,ipc,iq,iq,&
+     call DaEtoDQQ(hDaa0,hDEE0,hDaE0,Eq,E_Q2h,VarQ,iph,iq,iq,&
                    hDqq1,hDqq2,'hiss')
   endif
 
@@ -830,7 +879,8 @@
                            NameSpeciesExtension_I
   use ModCimiGrid, only: ir=>np,ip=>nt,iw=>nm,ik=>nk
   use ModCimiInitialize, only: xjac
-  use ModWaveDiff, only: ichor,ihiss
+  use ModWaveDiff, only: ichor,ihiss,&
+                     CHpower,HIpower  
   use ModCimiTrace, only: iba,y=>sinA,ekev
   use ModCimi, only: f2
   !!use diagDiffCoef, only: iq,E_Q2K,PSD_Q,iLpp
@@ -852,8 +902,12 @@
         DoMapping=.False.
         if (ichor.eq.1.and.i.gt.iLpp(j)) then
            DoMapping=.True.
+           ! no mapping if CHpower =< 0.
+           if (CHpower(i,j).le.0.) DoMapping=.False.
         else if (ihiss.ge.1.and.i.le.iLpp(j)) then
            DoMapping=.True.
+           ! no mapping if HIpower =< 0.
+           if (HIpower(i,j).le.0.) DoMapping=.False.
         endif
         if (DoMapping) then
            do m=1,ik
@@ -902,7 +956,8 @@
                            NameSpeciesExtension_I
   use ModCimiGrid, only: ir=>np,ip=>nt,iw=>nm,ik=>nk
   use ModCimiInitialize, only: xjac
-  use ModWaveDiff, only: ichor,ihiss
+  use ModWaveDiff, only: ichor,ihiss,&
+                     CHpower,HIpower  
   use ModCimiTrace, only: iba,y=>sinA,ekev
   use ModCimi, only: f2
   !!use diagDiffCoef, only: iq,E_Q2K,PSD_Q,iLpp
@@ -924,8 +979,12 @@
         DoMapping=.False.
         if (ichor.eq.1.and.i.gt.iLpp(j)) then
            DoMapping=.True.
+           ! no mapping if CHpower =< 0.
+           if (CHpower(i,j).le.0.) DoMapping=.False.
         else if (ihiss.ge.1.and.i.le.iLpp(j)) then
            DoMapping=.True.
+           ! no mapping if HIpower =< 0.
+           if (HIpower(i,j).le.0.) DoMapping=.False.
         endif
         if (DoMapping) then
            do m=1,ik

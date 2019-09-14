@@ -51,6 +51,8 @@ subroutine cimi_run(delta_t)
   use ModDiagDiff, only: UseDiagDiffusion,&
                          calc_DQQ,&
                          interpol_D_coefK,&
+                         mapPSDtoQ,&
+                         mapPSDtoE,&
                          diffuse_Q1,&
                          diffuse_Q2
                          
@@ -333,18 +335,31 @@ subroutine cimi_run(delta_t)
            call timing_start('cimi_Diffuse_EE')
            call diffuse_EE(f2,dt,xmm,xjac,iw2,iba)
            call timing_stop('cimi_Diffuse_EE')
-        else 
+        else
+           ! interpolate a0 of const. Q2 curve correspoding K
            call timing_start('cimi_interpol_D_coefK')
            call interpol_D_coefK
            call timing_stop('cimi_interpol_D_coefK')
+     
+           ! map PSD from M to Q2      
+           call timing_start('cimi_mapPSDtoQ')
+           call mapPSDtoQ
+           call timing_stop('cimi_mapPSDtoQ')
            
+           ! calculate diffusion in Q2 at fixed Q1
            call timing_start('cimi_Diffuse_Q2')
            call diffuse_Q2
            call timing_stop('cimi_Diffuse_Q2')
            
+           ! calculate diffusion in Q1 at fixed Q2
            call timing_start('cimi_Diffuse_Q1')
            call diffuse_Q1
            call timing_stop('cimi_Diffuse_Q1')
+           
+           ! map back PSD from Q2 to M      
+           call timing_start('cimi_mapPSDtoE')
+           call mapPSDtoE
+           call timing_stop('cimi_mapPSDtoE')
         endif 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
