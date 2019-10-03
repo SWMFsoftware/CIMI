@@ -166,6 +166,30 @@ test_Prerun:
 	make   test_check_Prerun
 	ls -l test_*.diff
 
+test_Highorder:
+	@echo "test_compile..." > test_cimi.diff
+	make   test_compile_UniformL
+	@echo "test_rundir_Highorder..." >> test_cimi.diff
+	make   test_rundir_Highorder
+	@echo "test_run..."    >> test_cimi.diff
+	make   test_run
+	@echo "test_check_flux..."  >> test_cimi.diff
+	make   test_check_flux
+	@echo "test_check_eq..."  >> test_cimi.diff
+	make   test_check_eq
+
+test_Highorder_Default:
+	@echo "test_compile..." > test_cimi.diff
+	make   test_compile
+	@echo "test_rundir_Highorder..." >> test_cimi.diff
+	make   test_rundir_Highorder
+	@echo "test_run..."    >> test_cimi.diff
+	make   test_run
+	@echo "test_check_flux..."  >> test_cimi.diff
+	make   test_check_flux
+	@echo "test_check_eq..."  >> test_cimi.diff
+	make   test_check_eq
+
 test_compile:
 	./Config.pl -EarthHO -GridDefault -show
 	make CIMI
@@ -223,6 +247,22 @@ test_rundir_Prerun:
 	cp input/testfiles/Indices.dat.Prerun ${TESTDIR}/Indices.dat
 	cp input/testfiles/Prerun/* ${TESTDIR}/IM/.
 	cp input/testfiles/PARAM.in.test.Prerun ${TESTDIR}/PARAM.in
+
+test_rundir_Highorder:
+	rm -rf ${TESTDIR}
+	make rundir RUNDIR=${TESTDIR} STANDALONE=YES IMDIR=`pwd`
+	cp input/testfiles/*.dat ${TESTDIR}/
+	cp input/testfiles/PARAM.in.test.HighOrder ${TESTDIR}/PARAM.in
+	cp input/gaussian_test.fin ${TESTDIR}/IM/quiet_e.fin
+	cp input/gaussian_test.fin ${TESTDIR}/IM/quiet_h.fin
+	cp input/gaussian_test.fin ${TESTDIR}/IM/quiet_o.fin
+
+test_rundir_DiagDiff:
+	rm -rf ${TESTDIR}
+	make rundir RUNDIR=${TESTDIR} STANDALONE=YES IMDIR=`pwd`
+	cp input/testfiles/*.dat ${TESTDIR}/
+	cp input/testfiles/PARAM.in.test.DiagDiff ${TESTDIR}/PARAM.in
+	cp tools/constq.pro ${TESTDIR}/
 
 test_run:
 	cd ${TESTDIR}; ${MPIRUN} ./cimi.exe > runlog 

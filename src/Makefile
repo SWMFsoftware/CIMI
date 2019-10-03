@@ -10,6 +10,7 @@ include Makefile.RULES
 OBJECTS = \
         ModPlanet.o\
 	ModCimi.o\
+	ModInterFlux.o\
 	ModPlasmasphere.o\
 	ModCimiPlot.o\
 	ModFieldTrace.o\
@@ -30,6 +31,7 @@ OBJECTS = \
 	trace_dipole.o\
 	geopack.o\
         ModWaveDiff.o\
+        ModDiagDiff.o\
         ModLstar.o
 
 DEPEND:

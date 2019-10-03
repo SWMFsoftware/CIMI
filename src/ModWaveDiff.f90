@@ -4,7 +4,7 @@ Module DensityTemp
 
   implicit none
   
-  real 			:: 	density( ir, ip ) = 0.0
+  real 			:: 	density( ir, ip ) = 0.1
 
   ! plasmaspheric density (m^-3) to define plasmapause; needed to
   ! avoid applying chorus and hiss at the same time
@@ -170,9 +170,11 @@ contains
 
  ichor=0
  if (UseChorus) then 
-   if ( trim(ChorusWavesD) .eq.'D_LBchorus_merge.dat') ichor=2
- else 
-  ichor=1
+    if ( trim(ChorusWavesD) .eq.'D_LBchorus_merge.dat') then 
+       ichor=2
+    else 
+       ichor=1
+    endif
  endif
 
  iUBC=0

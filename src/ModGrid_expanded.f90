@@ -50,6 +50,15 @@ Module ModCimiGrid
 
   real :: xlatr(np), xmlt(nt), dlat(np1), sinAo(npit)
 
+  real :: varL(0:np+1)=0.,&
+          dvarL=1.,&
+          Lfactor(0:np+1) = 0.,&
+          Lfactor1(0:np+1) = 0.,&
+          xlatmin=9.8403398252184129,&
+          xlatmax=72.4356255492731975,&
+          varNpower=1.5
+  logical :: DoDefineVarNpower = .false.
+
   real :: d4Element_C(nspec,np,nm,nk) !4D element (dlat*dphi*dmm*dk)
   
   ! Defines the outer boundary maximum distance.
@@ -77,6 +86,28 @@ Module ModCimiGrid
                        7150.0, 8800.0, 11650.0, 22550.0, 59450.0 /)
   logical :: UseRBSPGrid = .false.
 
+contains
+
+!-----------------------------------------------------------------------------
+ subroutine init_lat
+ ! This subroutine initializes and defines latitude grid
+!-----------------------------------------------------------------------------
+ use ModNumConst,    ONLY: cDegToRad
+ implicit none
+
+ integer i
+
+ ! CIMI xlat grid for non-uniform grid
+ do i=1,np
+    xlat(i)=xlat_data(i)
+    ! dlat in radian
+    dlat(i)=0.5*(xlat_data(i+1)-xlat_data(i-1))*cDegToRad    
+ enddo
+ xlatr(:)=xlat(:)*cDegToRad
+
+ end subroutine init_lat
+!-----------------------------------------------------------------------------
+     
 end Module ModCimiGrid
 
 

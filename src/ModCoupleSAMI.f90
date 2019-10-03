@@ -240,21 +240,21 @@ Module ModCoupleSami
 
             if (LatLon_D(1) > maxval(LatSami_C) .or. &
                  LatLon_D(1) < minval(LatSami_C) ) then
-!!$               PlasSamiOnCimiGrid_C(iLat,iLon)    = DensityMin
+               PlasSamiOnCimiGrid_C(iLat,iLon)    = DensityMin
 !!$               PlasHpSamiOnCimiGrid_C(iLat,iLon)  = 1E-6
 !!$               PlasHepSamiOnCimiGrid_C(iLat,iLon) = 1E-7
 !!$               PlasOpSamiOnCimiGrid_C(iLat,iLon)  = 1E-6
-               PlasSamiOnCimiGrid_C(iLat,iLon)    = 0.0
+!!               PlasSamiOnCimiGrid_C(iLat,iLon)    = 0.0
                PlasHpSamiOnCimiGrid_C(iLat,iLon)  = 0.0
                PlasHepSamiOnCimiGrid_C(iLat,iLon) = 0.0
                PlasOpSamiOnCimiGrid_C(iLat,iLon)  = 0.0
             else
-!!$               PlasSamiOnCimiGrid_C(iLat,iLon) = &
-!!$                    max(bilinear(PlasSAMI_C,1,nLatSAMI,1,nLonSAMI,LatLon_D, &
-!!$                    LatSami_C,LonSami_C,DoExtrapolate=.true.),DensityMin)
                PlasSamiOnCimiGrid_C(iLat,iLon) = &
-                    bilinear(PlasSAMI_C,1,nLatSAMI,1,nLonSAMI,LatLon_D, &
-                    LatSami_C,LonSami_C,DoExtrapolate=.true.)
+                    max(bilinear(PlasSAMI_C,1,nLatSAMI,1,nLonSAMI,LatLon_D, &
+                    LatSami_C,LonSami_C,DoExtrapolate=.true.),DensityMin)
+!               PlasSamiOnCimiGrid_C(iLat,iLon) = &
+!                    bilinear(PlasSAMI_C,1,nLatSAMI,1,nLonSAMI,LatLon_D, &
+!                    LatSami_C,LonSami_C,DoExtrapolate=.true.)
                PlasHpSamiOnCimiGrid_C(iLat,iLon) = &
                     bilinear(PlasHpSAMI_C,1,nLatSAMI,1,nLonSAMI,LatLon_D, &
                     LatSami_C,LonSami_C,DoExtrapolate=.true.)
