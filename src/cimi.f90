@@ -206,13 +206,23 @@ subroutine cimi_run(delta_t)
         call calc_Lstar1(Lstar_C,Lstar_max,rc)
         call timing_stop('calc_Lstar1')
            
-        if ( DoSaveEq .or. DoSaveIono ) then
-           
-           call timing_start('cimi_plot')
-           call Cimi_plot( np, nt, xo, yo, &
+        if ( DoSaveEq ) then
+
+           call timing_start('cimi_plot_eq')
+           call Cimi_plot_eq( np, nt, xo, yo, &
                 Pressure_IC, PressurePar_IC, phot, Ppar_IC, Den_IC,&
                 bo, ftv, pot, FAC_C, Time, dt, Lstar_C )
-           call timing_stop('cimi_plot')
+           call timing_stop('cimi_plot_eq')
+
+        endif
+
+        if ( DoSaveIono ) then
+           
+           call timing_start('cimi_plot_iono')
+           call Cimi_plot_iono( np, nt, xo, yo, &
+                Pressure_IC, PressurePar_IC, phot, Ppar_IC, Den_IC,&
+                bo, ftv, pot, FAC_C, Time, dt, Lstar_C )
+           call timing_stop('cimi_plot_iono')
 
         endif
 
@@ -412,16 +422,29 @@ subroutine cimi_run(delta_t)
      call calc_Lstar1(Lstar_C,Lstar_max,rc)
      call timing_stop('calc_Lstar1')
         
-     ! Plot CIMI parameters at the ionosphere and equator.
-     if ( ( DoSaveEq .or. DoSaveIono ) .and. &
-          ( floor( ( Time + 1.0e-5 ) / DtOutput ) /= &
-          floor( ( Time + 1.0e-5 - delta_t ) / DtOutput ) ) ) then
+     ! Plot CIMI parameters at the equator
+     if ( ( DoSaveEq ) .and. &
+          ( floor( ( Time + 1.0e-5 ) / DtEqOutput ) /= &
+          floor( ( Time + 1.0e-5 - delta_t ) / DtEqOutput ) ) ) then
         
-        call timing_start('cimi_plot')
-        call Cimi_plot( np, nt, xo, yo, &
+        call timing_start('cimi_plot_eq')
+        call Cimi_plot_eq( np, nt, xo, yo, &
              Pressure_IC, PressurePar_IC, phot, Ppar_IC, &
              Den_IC, bo, ftv, pot, FAC_C, Time, dt, Lstar_C )
-        call timing_stop('cimi_plot')
+        call timing_stop('cimi_plot_eq')
+        
+     endif
+
+     ! Plot CIMI parameters at the ionosphere
+     if ( ( DoSaveIono ) .and. &
+          ( floor( ( Time + 1.0e-5 ) / DtIonoOutput ) /= &
+          floor( ( Time + 1.0e-5 - delta_t ) / DtIonoOutput ) ) ) then
+        
+        call timing_start('cimi_plot_iono')
+        call Cimi_plot_iono( np, nt, xo, yo, &
+             Pressure_IC, PressurePar_IC, phot, Ppar_IC, &
+             Den_IC, bo, ftv, pot, FAC_C, Time, dt, Lstar_C )
+        call timing_stop('cimi_plot_iono')
         
      endif
      
