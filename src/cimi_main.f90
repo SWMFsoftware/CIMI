@@ -111,8 +111,8 @@ program cimi
      
      ! Read next prerun sat file if using prerun sat files and it is
      ! time to read.     
-     if (floor((Time+1.0e-5)/DtReadSat) /= &
-          floor((Time+1.0e-5+DtAdvance)/DtReadSat)) then
+     if ( floor( ( Time + 1.0e-5 ) / DtReadSat ) /= &
+          floor( ( Time + 1.0e-5 + DtAdvance ) / DtReadSat ) ) then
         if (UsePrerunSat) call read_prerun_sat(Time+DtAdvance)
      endif
 

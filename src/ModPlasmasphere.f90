@@ -483,7 +483,7 @@ contains
     !--------------------------------------------------------------------------
 
     call open_file(file=trim(NameRestartInDir)//'plasdata.restart',&
-         form='unformatted', NameCaller=NameSub)
+         status='old',form='unformatted', NameCaller=NameSub)
        
     write(UnitTmp_) Nion  
 
@@ -589,7 +589,7 @@ contains
 
           PlasDensity_C(iLat,iLon) = &
                bilinear(densityp,1,nl,1,np,LatLon_D, &
-               xlatp,pphi,DoExtrapolate=.true.)
+               		xlatp,pphi,DoExtrapolate=.true.)
        enddo
     enddo
               
