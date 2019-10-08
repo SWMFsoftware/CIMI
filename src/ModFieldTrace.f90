@@ -81,16 +81,20 @@ contains
          h3(np),bs(np),bba(np),&
          x1(ir),xmlt(ip),xli(0:ir),&
          ra(np),dssa(np),tya3(np)
-    ! coeff and integrals in Taylor expansion
-    integer,parameter ::nTaylor=10
-    real a_I(0:nTaylor),b_I(0:nTaylor),sumBn(0:nTaylor),sumhBn(0:nTaylor), &
-         BnI(0:nTaylor,np),hBnI(0:nTaylor,np)
     integer :: n,i,j,k,m,mir,npf,npf1,im,im1,im2,igood,ii,iTaylor
-    integer :: iopt, n5, iout,n8,n7,m0,n70,ib
+    integer :: iopt, n5, iout,n8,n7,n6,m0,n70,ib
     real    :: rlim,xmltlim,dre,xlati1,phi1,xmlt1,ro1,volume1,bo1,dss2
-    real    :: dssm,rm1,rme,rl,cost,bsn,bsndss,dssp,bsp,ss,ss1,ss2,bm_n
-    real    :: bnibm_n,sim,bmmx,rmm, bs_n,tya33,h33,xmass,c2mo,c4mo2,ro2,pp1
+    real    :: dssm,rm1,rme,rl,cost,dssp
+    real    :: sim,bmmx,rmm, tya33,h33,xmass,c2mo,c4mo2,ro2,pp1
     real    :: pijkm,pc,c2m,e,q,tcone1,tcone2,x,DeltaRMax
+    real    cosa, &       ! cos of local pitch angle, a
+            SqrtBmCosa,&  ! sqrt(Bm) * cos (a) 
+            si3OverSqrtBm,&         ! si3 / sqrt(Bm)
+            Dsi3OverSqrtBm(np),&    ! d si3 / sqrt(Bm)
+            tya3Ro,&                ! tya, gyro-bounce path in RE
+            Dtya3Ro(np),&           ! d tya, gyro-bounce path in RE
+            Dh3(np),&     ! d h3, hydrogen density * tya
+            bsi           ! =bs, averaged magnetic field strength btwn 2 points
 
     integer :: imax
     real :: R_12,R_24,xmltr,xBoundary(ip),BufferSend_I(ip),MajorAxis,MinorAxis,&
@@ -105,13 +109,6 @@ contains
     ekev=0.0
     volume = 0.0
     bo = 0.0
-
-    a_I(0)=1.
-    b_I(0)=1.
-    do iTaylor=1,nTaylor
-       a_I(iTaylor)=a_I(iTaylor-1)*(2.*iTaylor-3.)/(2.*iTaylor)
-       b_I(iTaylor)=b_I(iTaylor-1)*(2.*iTaylor-1.)/(2.*iTaylor)
-    enddo
 
     iopt=1               ! dummy parameter in t96_01 and t04_s 
     rlim=2.*rb
@@ -309,12 +306,11 @@ contains
           !  bm(1)                       bm(m)                               bm(n+1)
 
 
-          ! Field line integration using Taylor expansion method
-          call timing_start('cimi_taylor')
-          sumBn(0:nTaylor)=0.
-          sumhBn(0:nTaylor)=0.
+          ! Field line integration
           do m=im2-1,1,-1 !im2 = middle of field line
              ! search for the southern conjugate point
+             !  such that bm1(n7) < bm1(m) < bm1(n8)
+             !  and       bs(n6)  < bm1(n7) < bs(n7)
              n8=npf
              SEARCH: do ii=m,n
                 if (bm1(ii+1).ge.bm1(m)) then
@@ -322,71 +318,37 @@ contains
                    EXIT SEARCH
                 endif
              enddo SEARCH
-             n7=n8-1
+             n7=n8-1    
+             n6=n7-1
 
-
-             ! field line integration at the northern hemisphere
-             bs_n=1.
-             do iTaylor=0,nTaylor
-                bsndss=bs_n*dss(m)
-                ! Sum_m=1^im2-1 (ds*B^n)
-                sumBn(iTaylor)=sumBn(iTaylor)+bsndss
-                sumhBn(iTaylor)=sumhBn(iTaylor)+hden(rs(m))*bsndss
-                bs_n=bs_n*bs(m)
+             ! get Dsi,Dty3,Dh3 for field line integration
+             do ii=m,n7
+                bsi=bs(ii)
+                if (bm1(ii+1).ge.bm1(m)) bsi=0.5*(bm1(m)+bm1(ii))
+                cosa=sqrt(1.-bsi/bm1(m))  ! sina^2 = bsi/bm1(m)
+                Dsi3OverSqrtBm(ii)=cosa
+                Dtya3Ro(ii)=1./cosa
+                Dh3(ii)=Hden(rs(ii))/cosa
              enddo
-
-             ! field line integration at the southern hemisphere
-             m0=m+1
-             if (m.lt.(im2-1)) m0=n70
-             do mir=m0,n7-1
-                bs_n=1.
-                do iTaylor=0,nTaylor
-                   bsndss=bs_n*dss(mir)
-                   ! Sum_m=im2^n7-1 (ds*B^n)
-                   sumBn(iTaylor)=sumBn(iTaylor)+bsndss
-                   sumhBn(iTaylor)=sumhBn(iTaylor)+hden(rs(mir))*bsndss
-                   bs_n=bs_n*bs(mir)
-                enddo
-             enddo
-
-             ! add the partial segment near the southern conjugate point
+  
+             ! calculate integration along the field line
              dssp=dss(n7)*(bm1(m)-bm1(n7))/(bm1(n8)-bm1(n7)) ! partial ds
-             bsp =0.5*(bm1(m)+bm1(n7))
-             bs_n=1.
-             do iTaylor=0,nTaylor
-                bsndss=bs_n*dssp
-                ! Sum_m=1^n7-1 (ds*B^n) + correction
-                BnI(iTaylor,m)=sumBn(iTaylor)+bsndss
-                hBnI(iTaylor,m)=sumhBn(iTaylor)+hden(rs(n7))*bsndss
-                bs_n=bs_n*bsp
-             enddo
-
-             n70=n7
-          enddo
-
-          ! Set up arrarys: si3, tya3, h3
-          do m=1,im2-1
-             ss=0.
-             ss1=0.
-             ss2=0.
-             bm_n=1.
-             do iTaylor=0,nTaylor
-                BnIbm_n=BnI(iTaylor,m)/bm_n
-
-                ! ss = int_s(1)^s(m) sqrt(B(m)-B(s)) ds
-                ss=ss+a_I(iTaylor)*BnIbm_n
-                ! ss1 = int_s(1)^s(m) 1/sqrt(B(m)-B(s)) ds              
-                ss1=ss1+b_I(iTaylor)*BnIbm_n
-                ! ss2 = int_s(1)^s(m) n_H(s)/sqrt(B(m)-B(s)) ds              
-                ss2=ss2+b_I(iTaylor)*hBnI(iTaylor,m)/bm_n
-                bm_n=bm_n*bm1(m)
-             enddo
-             si3(m)=re*sqrt(bm1(m))*ss
-             tya3(m)=ss1/ro1/2.
-             h3(m)=ss2/ss1
-          enddo
-
-          call timing_stop('cimi_taylor')
+             !   (1) si3 (si)
+             si3OverSqrtBm=0.
+             call closed2(np,m,n6,Dsi3OverSqrtBm,dss,si3OverSqrtBm)
+             si3OverSqrtBm = si3OverSqrtBm + Dsi3OverSqrtBm(n7)*dssp
+             si3(m)=re*sqrt(bm1(m))*si3OverSqrtBm  ! K in T^0.5*m
+             !   (2) tya3 (tya)
+             tya3Ro=0.
+             call closed2(np,m,n6,Dtya3Ro,dss,tya3Ro)
+             tya3Ro = tya3Ro + Dtya3Ro(n7)*dssp
+             tya3(m) = 0.5*tya3Ro/ro(i,j)
+             !   (3) h3 (h)
+             h3(m)=0.
+             call closed2(np,m,n6,Dh3,dss,h3(m))
+             h3(m) = h3(m) + Dh3(n7)*dssp
+       
+          enddo ! end of m (1:im2)
 
           si3(im2)=0.               ! equatorially mirroring
           tya3(im2)=tya3(im2-1)
@@ -409,6 +371,15 @@ contains
              call lintpIM(si3,h3,im2,sim,h33)
              if (m.ge.1.and.m.le.ik)  Have(i,j,m)=h33  ! bounce-ave [H]
           enddo
+          ! test tya values
+          !if (i.eq.30.and.j.eq.1) then
+          !   write(*,*) 'tya',i,j
+          !   do m=0,ik+1
+          !      write(*,*) m,sinA(i,j,m),tya(i,j,m),&
+          !        1.38-0.32*(sinA(i,j,m)+sqrt(sinA(i,j,m)))
+          !   enddo
+          !   stop
+          !endif
        enddo LATITUDE                              ! end of i loop
     enddo LONGITUDE                              ! end of j loop
 
@@ -1159,6 +1130,29 @@ contains
     enddo
     
   end subroutine closed
+
+
+  !***********************************************************************
+  !                          closed2
+  ! Routine does similar to closed but from n1 to n2
+  !
+  !  S = y1dx1 + y2dx2 + .. + yidxi + .. + yn-1dxn-1 + yndxn
+  !                 
+  !  where yi is the value at the middle of dxi
+  !***********************************************************************
+  subroutine closed2(n,n1,n2,y,dx,s)
+    integer, intent(in) :: n,n1,n2
+    real,    intent(in) :: y(n),dx(n)
+    real,    intent(out):: s
+    integer :: i
+    !--------------------------------------------------------------------------
+    
+    s=0.           
+    do i=n1,n2     
+       s=s+y(i)*dx(i) 
+    enddo
+    
+  end subroutine closed2
   
 
   !=============================================================================
