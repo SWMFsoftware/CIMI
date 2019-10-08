@@ -138,8 +138,6 @@ test_flux:
 	make   test_run
 	@echo "test_check_flux..."  >> test_cimi.diff
 	make   test_check_flux
-	@echo "test_check_eq..."  >> test_cimi.diff
-	make   test_check_eq
 	ls -l test_*.diff
 
 test_drift:
@@ -149,8 +147,6 @@ test_drift:
 	make   test_rundir_drift
 	@echo "test_run..."    >> test_cimi.diff
 	make   test_run
-	@echo "test_check_eq..."  >> test_cimi.diff
-	make   test_check_eq
 	@echo "test_check_drift..."  >> test_cimi.diff
 	make   test_check_drift
 	ls -l test_*.diff
@@ -279,7 +275,6 @@ test_check_all:
 	-make test_check_eq
 	-make test_check_drift
 	-make test_check_log
-	ls -l test_cimi*.diff
 
 test_check_WAVES:
 	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
