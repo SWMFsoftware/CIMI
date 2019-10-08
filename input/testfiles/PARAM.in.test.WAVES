@@ -35,10 +35,10 @@ T		UseWeimer
 3		nCIMIPlotType
 2d eq		StringPlot
 60.		DtOutput
-psd e-		StringPlot
+psd e		StringPlot
 60.		DtOutput
 F		DoSaveSeparateFiles
-flux e-		StringPlot
+flux electrons	StringPlot
 60.		DtOutput
 F		DoSaveSeparateFiles
 
