@@ -45,16 +45,14 @@ subroutine cimi_run(delta_t)
   use DensityTemp,    	 ONLY: density, simple_plasmasphere
   use ModIndicesInterfaces
   use ModLstar,       	 ONLY: calc_Lstar1, calc_Lstar2 
-  use ModPlasmasphere,   ONLY: UseCorePsModel,PlasSpinUpTime,init_plasmasphere, &
-       advance_plasmasphere,DoSavePlas, DtPlasOutput,&
-       PlasDensity_C,save_plot_plasmasphere,cimi_put_to_plasmasphere!,nLatPlas=>nl,nLonPlas=>np,
-  use ModDiagDiff, only: UseDiagDiffusion,&
-                         calc_DQQ,&
-                         interpol_D_coefK,&
-                         mapPSDtoQ,&
-                         mapPSDtoE,&
-                         diffuse_Q1,&
-                         diffuse_Q2
+  use ModPlasmasphere,	 ONLY: &
+       UseCorePsModel, PlasSpinUpTime, init_plasmasphere, &
+       advance_plasmasphere, DoSavePlas, DtPlasOutput,&
+       PlasDensity_C, save_plot_plasmasphere, &
+       cimi_put_to_plasmasphere!,nLatPlas=>nl,nLonPlas=>np,
+  use ModDiagDiff,	 ONLY: &
+       UseDiagDiffusion, calc_DQQ, interpol_D_coefK, &
+       mapPSDtoQ, mapPSDtoE, diffuse_Q1, diffuse_Q2
                          
   implicit none
 
@@ -460,7 +458,8 @@ subroutine cimi_run(delta_t)
      ! Plot CIMI parameters at the equator
      if ( ( DoSaveEq ) .and. &
           ( floor( ( Time + 1.0e-5 ) / DtEqOutput ) /= &
-          floor( ( Time + 1.0e-5 - delta_t ) / DtEqOutput ) ) ) then
+            floor( ( Time + 1.0e-5 - delta_t ) / DtEqOutput ) ) ) &
+     then
         
         call timing_start('cimi_plot_eq')
         call Cimi_plot_eq( np, nt, xo, yo, &
@@ -473,7 +472,8 @@ subroutine cimi_run(delta_t)
      ! Plot CIMI parameters at the ionosphere
      if ( ( DoSaveIono ) .and. &
           ( floor( ( Time + 1.0e-5 ) / DtIonoOutput ) /= &
-          floor( ( Time + 1.0e-5 - delta_t ) / DtIonoOutput ) ) ) then
+            floor( ( Time + 1.0e-5 - delta_t ) / DtIonoOutput ) ) ) &
+     then
         
         call timing_start('cimi_plot_iono')
         call Cimi_plot_iono( np, nt, xo, yo, &
@@ -485,8 +485,8 @@ subroutine cimi_run(delta_t)
      
      if ( DoSaveLstar .and. &
            ( floor( ( Time + 1.0e-5 ) / DtLstarOutput ) /= &
-           floor( ( Time + 1.0e-5 - delta_t ) / DtLstarOutput ) ) ) &
-           then
+             floor( ( Time + 1.0e-5 - delta_t ) / DtLstarOutput ) ) ) &
+     then
         
         call timing_start('calc_Lstar2')
         call calc_Lstar2(Lstarm,Lstar_maxm,rc)
@@ -495,6 +495,7 @@ subroutine cimi_run(delta_t)
         call Cimi_plot_Lstar( rc, xk, time, Lstarm, Lstar_maxm )
 
      endif
+     
      if ( DoSavePlas .and. UseCorePsModel .and. iProc==0) then
         call save_plot_plasmasphere(time,floor(real(time)/dtmax),IsRestart)
      endif
@@ -505,45 +506,45 @@ subroutine cimi_run(delta_t)
         ! Output Species' Flux
         if ( DoSaveFlux( iSpecies ) .and. &
              ( floor( ( Time + 1.0e-5 ) / &
-             DtFluxOutput( iSpecies ) ) /= &
+             	DtFluxOutput( iSpecies ) ) /= &
              floor( ( Time + 1.0e-5 - delta_t ) / &
-             DtFluxOutput( iSpecies ) ) ) ) &
+             	DtFluxOutput( iSpecies ) ) ) ) &
              call Cimi_plot_fls( rc, flux( iSpecies, :, :, :, : ), &
-             iSpecies, time, Lstar_C, Lstar_max)
+             	iSpecies, time, Lstar_C, Lstar_max)
         
         ! Output Species' PSD
         if ( DoSavePSD( iSpecies ) .and. &
              ( floor( ( Time + 1.0e-5 ) / &
-             DtPSDOutput( iSpecies ) ) /= &
+             	DtPSDOutput( iSpecies ) ) /= &
              floor( ( Time + 1.0e-5 - delta_t ) / &
-             DtPSDOutput( iSpecies ) ) ) ) &
+             	DtPSDOutput( iSpecies ) ) ) ) &
              call Cimi_plot_psd( rc, psd( iSpecies, :, :, :, : ), &
-             iSpecies, time, xmm, xk )
+             	iSpecies, time, xmm, xk )
         
         ! Output Species' radial drift
         if ( DoSaveVLDrift( iSpecies ) .and. &
              ( floor( ( Time + 1.0e-5 ) / &
-             DtVLDriftOutput( iSpecies ) ) /= &
+             	DtVLDriftOutput( iSpecies ) ) /= &
              floor( ( Time + 1.0e-5 - delta_t ) / &
-             DtVLDriftOutput( iSpecies ) ) ) ) &
+             	DtVLDriftOutput( iSpecies ) ) ) ) &
              call Cimi_plot_vl( rc, vlEa( iSpecies, :, :, :, : ), &
-             iSpecies, time )
+             	iSpecies, time )
         
         ! Output Species' poloidal drift
         if ( DoSaveVPDrift( iSpecies ) .and. &
              ( floor( ( Time + 1.0e-5 ) / &
-             DtVPDriftOutput( iSpecies ) ) /= &
+             	DtVPDriftOutput( iSpecies ) ) /= &
              floor( ( Time + 1.0e-5 - delta_t ) / &
-             DtVPDriftOutput( iSpecies ) ) ) ) &
+             	DtVPDriftOutput( iSpecies ) ) ) ) &
              call Cimi_plot_vp( rc, vpEa( iSpecies, :, :, :, : ), &
-             iSpecies, time )
+             	iSpecies, time )
         
         ! Write precipitation file
         if ( DoSavePreci( iSpecies ) .and. &
              ( floor( ( Time + 1.0e-5) / &
-             DtPreciOutput( iSpecies ) ) ) /= &
+             	DtPreciOutput( iSpecies ) ) ) /= &
              floor( ( Time + 1.0e-5 - delta_t ) / &
-             DtPreciOutput( iSpecies ) ) ) then
+             	DtPreciOutput( iSpecies ) ) ) then
            
            call timing_start('cimi_plot_precip')
            call cimi_plot_precip( rc, iSpecies, Time )
@@ -691,41 +692,11 @@ subroutine cimi_init
   ! Define latitude grid
   call init_lat
  
-!!!!  if ( DoUseUniformLGrid ) then
-!!!!     
-!!!!     ! CIMI xlat grid for Uniform spacing in L-parameter
-!!!!     varLmin=1./cos(xlat_data(1 )*cDegToRad)**varNpower
-!!!!     varLmax=1./cos(xlat_data(np)*cDegToRad)**varNpower
-!!!!     dvarL=(varLmax-varLmin)/(float(np)-1.)
-!!!!     do i=0,np+1
-!!!!        varL(i)=varLmin+(i-1)*dvarL
-!!!!        if (varL(i).lt.1.) varL(i)=1.
-!!!!     enddo
-!!!!     xlatr(1:np)=acos(1./(varL(1:np))**(1./varNpower))
-!!!!     xlat(1:np)=xlatr(1:np)/cDegToRad
-!!!!     do i=2,np-1
-!!!!        dlat(i)=0.5*(xlat(i+1)-xlat(i-1))
-!!!!     enddo
-!!!!     dlat(1)=0.5*(xlat(2)-acos(1./sqrt(varL(0))))
-!!!!     dlat(np)=0.5*(acos(1./sqrt(varL(np+1)))-xlat(np-1))
-!!!!
-!!!!  else
-!!!!
-!!!!     ! CIMI xlat grid for non-uniform grid
-!!!!     do i=1,np
-!!!!        xlat(i)=xlat_data(i)
-!!!!        ! dlat in radian
-!!!!        dlat(i)=0.5*(xlat_data(i+1)-xlat_data(i-1))*cDegToRad    
-!!!!     enddo
-!!!!     xlatr=xlat*cDegToRad
-!!!!     
-!!!!  endif
-     
-  if ( DoVerboseLatGrid ) then
-     
-     write(*,*) 'IM: xlat grid  (deg)'
+  if ( DoVerboseLatGrid .and. iProc == 0) then
+
+     write(*,*) 'IM0: xlat grid  (deg)'
      write(*,'(10f8.2)') xlat(1:np)
-     write(*,*) 'IM: L-shell / ri  (RE)'
+     write(*,*) 'IM0: L-shell / ri  (RE)'
      write(*,'(10f8.3)') varL(1:np)**(2./varNpower)
      
   endif

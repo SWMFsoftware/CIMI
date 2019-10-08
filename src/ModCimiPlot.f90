@@ -4,7 +4,7 @@ module ModCimiPlot
   implicit none
 
   private ! except
-  public :: Cimi_plot, Cimi_plot_fls, Cimi_plot_psd, &
+  public :: Cimi_plot_eq, Cimi_plot_iono, Cimi_plot_fls, Cimi_plot_psd, &
        cimi_plot_log, cimi_plot_precip, Cimi_plot_boundary_check,&
        Cimi_plot_vl, Cimi_plot_vp, Cimi_plot_Lstar
   
@@ -12,12 +12,24 @@ module ModCimiPlot
 
   logical,			public	:: DoSaveLog = .false.
   real,				public	:: DtLogout   = 60.0
-
+  real, 			public :: DtOutput = 60.0
+  
   logical,			public	:: DoSavePlot = .false.
 
-  logical,			public	:: DoSaveEq   	= .false.
-  logical,			public	:: DoSaveIono	= .false.
-  real,				public	:: DtOutput = 60.0
+  logical,			public	:: &
+       DoSaveEq   	= .false.
+  logical, 			public	:: &
+       DoSaveSeparateEqFiles = .false.
+  real,    			public	:: &
+       DtEqOutput = 60.0
+  
+  logical,			public	:: &
+       DoSaveIono   	= .false.
+  logical, 			public	:: &
+       DoSaveSeparateIonoFiles = .false.
+  real,    			public	:: &
+       DtIonoOutput = 60.0
+
 
   logical, 			public	:: &
        DoSaveLstar = .false.
@@ -64,7 +76,7 @@ module ModCimiPlot
   character(len=*), parameter :: NameHeader = 'CIMI output'
 
 contains
-  subroutine Cimi_plot(nLat, nLon, X_C, Y_C, &
+  subroutine Cimi_plot_eq(nLat, nLon, X_C, Y_C, &
        Pressure_IC, PressurePar_IC, PressureHot_IC, PparHot_IC, &
        Den_IC, Beq_C, Volume_C, Potential_C, FAC_C, Time, Dt, Lstar_C)
     
@@ -89,45 +101,34 @@ contains
                            PparHot_IC(nspec,nLat,nLon), &
                            FAC_C(nLat,nLon),Lstar_C(nLat,nLon)
     real, allocatable   :: Coord_DII(:,:,:), PlotState_IIV(:,:,:)
-    real, allocatable   :: CoordIono_DII(:,:,:)
-    integer             :: iLat,iLon,iSpecies
+    integer             :: iLat,iLon,iSpecies, nprint
     integer, parameter  :: x_=1, y_=2, nDim=2
     real                :: Theta, Phi
-    character(len=20)   :: NamePlotEq  = 'IM/plots/CIMIeq.outs'
-    character(len=22)   :: NamePlotIono= 'IM/plots/CIMIiono.outs'
+    character(len=35), save   :: NamePlotEq
     character(len=6)    :: TypePosition  ! 'rewind' or 'append'
     real, parameter     :: Gamma = 5./3., rBody = 1.0
-    logical,save             :: IsFirstCall = .true.
+    logical, save       :: IsFirstCall = .true.
 
     !--------------------------------------------------------------------------
-    
-    allocate(Coord_DII(nDim,nLat,nLon+1), CoordIono_DII(nDim,nLat,nLon+1), &
-         PlotState_IIV(nLat,nLon+1,nVar))
+
+    nprint = nint( Time / dt )
+
+    if ( IsFirstCall ) &
+         write(NamePlotEq,"(A17,I8.8,A5)") "IM/plots/CIMIeq_n",nprint,".outs"
+        
+    allocate(Coord_DII(nDim,nLat,nLon+1), PlotState_IIV(nLat,nLon+1,nVar))
 
     PlotState_IIV = 0.0
     Coord_DII     = 0.0
-    CoordIono_DII = 0.0
 
     !Set Coords
     Coord_DII(x_,:, 1:nLon) = X_C(:,1:nLon)
     Coord_DII(y_,:, 1:nLon) = Y_C(:,1:nLon)
     
-    do iLon = 1,nLon
-       do iLat = 1,nLat
-          CoordIono_DII(x_,iLat, iLon) = &
-               cos(LatIono_C(iLat))*cos(PhiIono_C(iLon))
-          CoordIono_DII(y_,iLat, iLon) = &
-               cos(LatIono_C(iLat))*sin(PhiIono_C(iLon))
-       enddo
-    enddo
-
     !fill ghost cells of Coords
     Coord_DII(x_,:, nLon+1) = X_C(:,1)
     Coord_DII(y_,:, nLon+1) = Y_C(:,1)
     
-    CoordIono_DII(x_,:, nLon+1) = CoordIono_DII(x_,:, 1)
-    CoordIono_DII(y_,:, nLon+1) = CoordIono_DII(y_,:, 1)
-
     !Set plot data
     do iSpecies = 1, nspec
        do iLon = 1, nLon
@@ -170,7 +171,6 @@ contains
        PlotState_IIV( 1 : iba( iLon ), iLon, Lstar_) = &
             Lstar_C	( 1 : iba( iLon ), iLon )    
        if (UseCorePsModel) then
-          
           PlotState_IIV( 1 : iba( iLon ), iLon, Plas_) = &
                PlasDensity_C	( 1 : iba( iLon ), iLon )
        else
@@ -216,27 +216,174 @@ contains
     if(IsFirstCall .and. .not. IsRestart) TypePosition = 'rewind'
     IsFirstCall = .false.
 
-    ! equatorial plot
-    if ( DoSaveEq ) &
-         call save_plot_file( NamePlotEq, TypePositionIn = TypePosition, &
+    call save_plot_file( NamePlotEq, TypePositionIn = TypePosition, &
          TypeFileIn = TypePlot, StringHeaderIn = NameHeader, &
          NameVarIn = NamePlotVar, &
          nStepIn = nint( Time / Dt ), TimeIn = Time, &
          nDimIn = 2, CoordIn_DII = Coord_DII, &
          VarIn_IIV = PlotState_IIV, ParamIn_I = (/ Gamma, rBody /) )
     
-    ! ionospheric plot
-    if ( DoSaveIono ) &
-         call save_plot_file( NamePlotIono, TypePositionIn = TypePosition, &
+    deallocate( Coord_DII, PlotState_IIV )
+
+  end subroutine Cimi_plot_eq
+
+  subroutine Cimi_plot_iono(nLat, nLon, X_C, Y_C, &
+       Pressure_IC, PressurePar_IC, PressureHot_IC, PparHot_IC, &
+       Den_IC, Beq_C, Volume_C, Potential_C, FAC_C, Time, Dt, Lstar_C)
+    
+    use ModIoUnit,     	ONLY: 	UnitTmp_
+    use ModPlotFile,	ONLY: 	save_plot_file
+    use ModCimiRestart,	ONLY: 	IsRestart
+    use ModCimiPlanet,	ONLY: 	nspec,NamePlotVar,iPplot_I,iPparplot_I, &
+         			iPhotplot_I,iPparhotplot_I, iNplot_I,   &
+                                Beq_,Vol_,Pot_,FAC_,Lstar_, Plas_,nVar
+    use ModCimiGrid,	ONLY: 	PhiIono_C => phi, LatIono_C => xlatr
+    use ModCimiTrace,	ONLY: 	iba
+    use DensityTemp,	ONLY: 	density
+    use ModPlasmasphere,ONLY:   UseCorePsModel,PlasDensity_C
+    integer, intent(in) :: nLat, nLon
+    real,    intent(in) :: X_C(nLat,nLon), Y_C(nLat,nLon), Time, Dt
+    real,    intent(in) :: Pressure_IC(nspec,nLat,nLon), &
+                           PressurePar_IC(nspec,nLat,nLon), &
+                           Den_IC(nspec,nLat,nLon), & 
+                           Beq_C(nLat,nLon),Volume_C(nLat,nLon),   &
+                           Potential_C(nLat,nLon), &
+                           PressureHot_IC(nspec,nLat,nLon), &
+                           PparHot_IC(nspec,nLat,nLon), &
+                           FAC_C(nLat,nLon),Lstar_C(nLat,nLon)
+    real, allocatable   :: CoordIono_DII(:,:,:), PlotState_IIV(:,:,:)
+    integer             :: iLat,iLon,iSpecies, nprint
+    integer, parameter  :: x_=1, y_=2, nDim=2
+    real                :: Theta, Phi
+    character(len=32), save   :: NamePlotIono
+    character(len=6)    :: TypePosition  ! 'rewind' or 'append'
+    real, parameter     :: Gamma = 5./3., rBody = 1.0
+    logical, save       :: IsFirstCall = .true.
+
+    !--------------------------------------------------------------------------
+
+    nprint = nint( Time / dt )
+
+    if ( IsFirstCall ) &
+         write(NamePlotIono,"(A19,I8.8,A5)") "IM/plots/CIMIiono_n",nprint,".outs"
+        
+    allocate(CoordIono_DII(nDim,nLat,nLon+1), PlotState_IIV(nLat,nLon+1,nVar))
+
+    PlotState_IIV = 0.0
+    CoordIono_DII = 0.0
+
+    !Set Coords
+    do iLon = 1,nLon
+       do iLat = 1,nLat
+          CoordIono_DII(x_,iLat, iLon) = &
+               cos(LatIono_C(iLat))*cos(PhiIono_C(iLon))
+          CoordIono_DII(y_,iLat, iLon) = &
+               cos(LatIono_C(iLat))*sin(PhiIono_C(iLon))
+       enddo
+    enddo
+
+    !fill ghost cells of Coords
+    CoordIono_DII(x_,:, nLon+1) = CoordIono_DII(x_,:, 1)
+    CoordIono_DII(y_,:, nLon+1) = CoordIono_DII(y_,:, 1)
+
+    !Set plot data
+    do iSpecies = 1, nspec
+       do iLon = 1, nLon
+       PlotState_IIV( 1 : iba( iLon ), iLon, iPplot_I( iSpecies + 1 ) ) = &
+            Pressure_IC( iSpecies, 1 : iba( iLon ), iLon ) 
+       PlotState_IIV( 1 : iba( iLon ), iLon, iPparplot_I( iSpecies + 1 ) ) = &
+            PressurePar_IC( iSpecies, 1 : iba( iLon ), iLon ) 
+       PlotState_IIV( 1 : iba( iLon ), iLon, iPhotplot_I( iSpecies + 1 ) ) = &
+            PressureHot_IC( iSpecies, 1 : iba( iLon ), iLon )
+       PlotState_IIV( 1 : iba( iLon ), iLon, iPparhotplot_I( iSpecies + 1 ) ) = &
+            PparHot_IC( iSpecies, 1 : iba( iLon ), iLon )
+       PlotState_IIV( 1 : iba( iLon ),iLon, iNplot_I( iSpecies + 1 ) ) = &
+            Den_IC( iSpecies, 1 : iba( iLon ), iLon )  
+       PlotState_IIV( 1 : iba( iLon ), iLon, iPplot_I( 1 ) ) = &
+            PlotState_IIV( 1 : iba( iLon ),iLon, iPplot_I( 1 ) ) + &
+            Pressure_IC( iSpecies, 1 : iba( iLon ), iLon ) 
+       PlotState_IIV( 1 : iba( iLon ), iLon, iPparplot_I( 1 ) ) = &
+            PlotState_IIV(1:iba( iLon ), iLon, iPparplot_I( 1 ) ) + &
+            PressurePar_IC( iSpecies, 1 : iba( iLon ), iLon ) 
+       PlotState_IIV( 1 : iba( iLon ), iLon, iPhotplot_I( 1 ) ) = &
+            PlotState_IIV(1:iba( iLon ), iLon, iPhotplot_I( 1 ) ) + &
+            PressureHot_IC( iSpecies, 1 : iba( iLon ), iLon )
+       PlotState_IIV( 1 : iba( iLon ),iLon, iPparhotplot_I( 1 ) ) = &
+            PlotState_IIV( 1 : iba( iLon ), iLon, iPparhotplot_I( 1 ) ) + &
+            PparHot_IC( iSpecies, 1 : iba( iLon ), iLon )
+       PlotState_IIV( 1 : iba( iLon ), iLon, iNplot_I( 1 ) ) = &
+            PlotState_IIV( 1 : iba( iLon ), iLon, iNplot_I( 1 ) ) + &
+            Den_IC( iSpecies, 1 : iba( iLon ), iLon ) 
+    end do
+ end do
+    do iLon=1,nLon
+       PlotState_IIV( 1 : iba( iLon ), iLon, Beq_) = &
+            Beq_C	( 1 : iba( iLon ), iLon )    
+       PlotState_IIV( 1 : iba( iLon ), iLon, Vol_) = &
+            Volume_C	( 1 : iba( iLon ), iLon )    
+       PlotState_IIV( 1 : iba( iLon ), iLon, Pot_) = &
+            Potential_C	( 1 : iba( iLon ), iLon )    
+       PlotState_IIV( 1 : iba( iLon ), iLon, FAC_) = &
+            FAC_C	( 1 : iba( iLon ), iLon )    
+       PlotState_IIV( 1 : iba( iLon ), iLon, Lstar_) = &
+            Lstar_C	( 1 : iba( iLon ), iLon )    
+       if (UseCorePsModel) then
+          PlotState_IIV( 1 : iba( iLon ), iLon, Plas_) = &
+               PlasDensity_C	( 1 : iba( iLon ), iLon )
+       else
+          PlotState_IIV( 1 : iba( iLon ), iLon, Plas_) = &
+               density	( 1 : iba( iLon ), iLon )
+       endif
+    enddo
+    !fill ghost cells of plot data
+    PlotState_IIV(:,nLon+1,iPplot_I(1))= &
+         PlotState_IIV(:,1,iPplot_I(1))
+    PlotState_IIV(:,nLon+1,iPparplot_I(1))= &
+         PlotState_IIV(:,1,iPparplot_I(1))
+    PlotState_IIV(:,nLon+1,iPhotplot_I(1))= &
+         PlotState_IIV(:,1,iPhotplot_I(1))
+    PlotState_IIV(:,nLon+1,iPparhotplot_I(1))= &
+         PlotState_IIV(:,1,iPparhotplot_I(1))
+    PlotState_IIV(:,nLon+1,iNplot_I(1))= &
+         PlotState_IIV(:,1,iNplot_I(1))
+    do iSpecies = 1,nspec
+       PlotState_IIV(:,nLon+1,iPplot_I(iSpecies+1))= &
+            PlotState_IIV(:,1,iPplot_I(iSpecies+1))
+       PlotState_IIV(:,nLon+1,iPparplot_I(iSpecies+1))= &
+            PlotState_IIV(:,1,iPparplot_I(iSpecies+1))
+       PlotState_IIV(:,nLon+1,iPhotplot_I(iSpecies+1))= &
+            PlotState_IIV(:,1,iPhotplot_I(iSpecies+1))
+       PlotState_IIV(:,nLon+1,iPparhotplot_I(iSpecies+1))= &
+            PlotState_IIV(:,1,iPparhotplot_I(iSpecies+1))
+       PlotState_IIV(:,nLon+1,iNplot_I(iSpecies+1))= &
+            PlotState_IIV(:,1,iNplot_I(iSpecies+1))  
+    end do
+    PlotState_IIV(:,nLon+1,Beq_) = Beq_C   (:,1)    
+    PlotState_IIV(:,nLon+1,Vol_) = Volume_C(:,1)    
+    PlotState_IIV(:,nLon+1,Pot_) = Potential_C(:,1)    
+    PlotState_IIV(:,nLon+1,FAC_) = FAC_C(:,1)    
+    PlotState_IIV(:,nLon+1,Lstar_) = Lstar_C(:,1)    
+    if (UseCorePsModel) then
+       PlotState_IIV(:,nLon+1,Plas_) = PlasDensity_C(:,1)
+    else
+       PlotState_IIV(:,nLon+1,Plas_) = density(:,1)    
+    endif
+    
+    TypePosition = 'append'
+    if(IsFirstCall .and. .not. IsRestart) TypePosition = 'rewind'
+    IsFirstCall = .false.
+
+    call save_plot_file( NamePlotIono, TypePositionIn = TypePosition, &
          TypeFileIn = TypePlot, StringHeaderIn = NameHeader, &
          NameVarIn = NamePlotVar, &
          nStepIn = nint( Time / Dt ), TimeIn = Time, &
          nDimIn = 2, CoordIn_DII = CoordIono_DII, &
          VarIn_IIV = PlotState_IIV, ParamIn_I = (/ Gamma, rBody /) )
     
-    deallocate( Coord_DII, CoordIono_DII, PlotState_IIV )
+    deallocate( CoordIono_DII, PlotState_IIV )
 
-  end subroutine Cimi_plot
+  end subroutine Cimi_plot_iono
+  
   !============================================================================
 
   subroutine Cimi_plot_fls(rc,flux,n,time,Lstar_C,Lstar_max)
@@ -257,6 +404,7 @@ contains
     integer       :: iLat,iLon,k,m,n,i,nprint
     logical, dimension(nspec), save :: IsFirstCall = .true.
     character(len=15):: outnameSep
+    character(len=40), dimension(nspec), save :: NamePlotFlux
     !--------------------------------------------------------------------------
     nprint=ifix(time/DtFluxOutput(n))
     write(outnameSep,"(i4.4,i2.2,i2.2,a,i2.2,i2.2,i2.2)") & 
@@ -276,10 +424,11 @@ contains
        write(UnitTmp_,'(6f9.5)') (sinAo(m),m=1,nPitchAng)
        write(UnitTmp_,'(10f8.3)') (xlat(i),i=2,nLat)
     else
-       if (IsFirstCall(n) .and. .not. IsRestart) then
-          open(unit=UnitTmp_,&
-               file='IM/plots/CimiFlux'//NameSpeciesExtension_I(n)//'.fls',&
-               status='unknown')
+       if ( IsFirstCall( n ) ) then
+          write(NamePlotFlux(n), '(A,I8.8,A)' ) &
+               'IM/plots/CimiFlux_n', nprint, NameSpeciesExtension_I(n)//'.fls'
+          open(unit = UnitTmp_,&
+               file = TRIM( NameplotFlux( n ) ), status = 'UNKNOWN')
           write(UnitTmp_,"(f10.6,5i6,6x,'! rc in Re,nr,ip,je,ig,ntime')") &
                rc,nLat-1,nLon,nEnergy,nPitchAng,nprint
           write(UnitTmp_,'(6f14.3)') (energy_temp(k),k=1,nEnergy)
@@ -287,12 +436,11 @@ contains
           write(UnitTmp_,'(6f9.5)') (sinAo(m),m=1,nPitchAng)
           write(UnitTmp_,'(10f8.3)') (xlat(i),i=2,nLat)
        else
-          open(unit=UnitTmp_,&
-               file='IM/plots/CimiFlux'//NameSpeciesExtension_I(n)//'.fls',&
-               status='old', position='append')
+          open(unit = UnitTmp_, file = TRIM( NamePlotFlux( n ) ), &
+               status = 'OLD', position = 'APPEND')
        endif
     endif
-    write(UnitTmp_,'(2f8.3,10f9.2,"    ! hour, L*max, parmod")') &
+    write(UnitTmp_,'(f12.8,f8.3,10f9.2,"    ! hour, L*max, parmod")') &
          time/3600.,Lstar_max,parmod(1:10)
     do iLat=2,nLat             ! Write fluxes @ fixed E & y grids
        do iLon=1,nLon
@@ -337,6 +485,7 @@ contains
     integer       :: iLat,iLon,k,m,n,i,nprint
     logical, dimension(nspec), save :: IsFirstCall = .true.
     character(len=15):: outnameSep
+    character(len=40), dimension(nspec), save :: NamePlotPSD
     !--------------------------------------------------------------------------
     nprint=ifix(time/DtPSDOutput(n))
     write(outnameSep,"(i4.4,i2.2,i2.2,a,i2.2,i2.2,i2.2)") & 
@@ -357,10 +506,11 @@ contains
             ( xmm( n, m ) / 1e3 / cElectronCharge / 1e9, m = 1, nm, 2 )
        write(UnitTmp_,'(10f8.3)') (xlat(i),i=2,nLat)
     else
-       if (IsFirstCall(n) .and. .not. IsRestart) then
-          open(unit=UnitTmp_,&
-               file='IM/plots/CimiPSD'//NameSpeciesExtension_I(n)//'.psd',&
-               status='unknown')
+       if (IsFirstCall(n)) then
+          write(NamePlotPSD(n),"(A,I8.8,A)") &
+               "IM/plots/CimiPSD_n", nprint, NameSpeciesExtension_I(n)//'.psd'
+          open( unit = UnitTmp_, &
+               file = TRIM( NamePlotPSD( n ) ), status = 'UNKNOWN' )
           write(UnitTmp_,"(f10.6,5i6,6x,'! rc in Re,nr,ip,nm,nk,ntime')") &
                rc,nLat-1,nLon,nint(nm/2.),nint(nk/2.),nprint
           ! Convert K grid from [ T^0.5 / m ] to [ nT^0.5 / R_E ]
@@ -371,12 +521,11 @@ contains
                ( xmm( n, m ) / 1e3 / cElectronCharge / 1e9, m = 1, nm, 2 )
           write(UnitTmp_,'(10f8.3)') (xlat(i),i=2,nLat)
        else
-          open(unit=UnitTmp_,&
-               file='IM/plots/CimiPSD'//NameSpeciesExtension_I(n)//'.psd',&
-               status='old', position='append')
+          open(unit=UnitTmp_, file = TRIM( NamePlotPSD( n ) ), &
+               status = 'OLD', position = 'APPEND')
        endif
     endif
-    write(UnitTmp_,'(f8.3,10f9.2,"    ! hour,  parmod")') &
+    write(UnitTmp_,'(f12.8,10f9.2,"    ! hour,  parmod")') &
          time/3600.,parmod(1:10)
     do iLat=2,nLat             ! Write PSD @ fixed mu & K grids
        do iLon=1,nLon
@@ -422,6 +571,7 @@ contains
     integer       :: iLat,iLon,k,m,n,i,nprint
     logical, dimension(nspec), save :: IsFirstCall = .true.
     character(len=15):: outnameSep
+    character(len=40), dimension( nspec ), save :: NamePlotVL
     !--------------------------------------------------------------------------
     nprint=ifix(time/DtVLDriftOutput(n))
     write(outnameSep,"(i4.4,i2.2,i2.2,a,i2.2,i2.2,i2.2)") & 
@@ -441,9 +591,9 @@ contains
        write(UnitTmp_,'(10f8.3)') (xlat(i),i=2,nLat)
     else
        if (IsFirstCall(n) .and. .not. IsRestart) then
-          open(unit=UnitTmp_,&
-               file='IM/plots/CimiDrift'//NameSpeciesExtension_I(n)//'.vl',&
-               status='unknown')
+          write( NamePlotVL( n ), '(A, I8.8, A)' )&
+               'IM/plots/CimiDrift_n', nprint, NameSpeciesExtension_I(n)//'.vl'
+          open(unit = UnitTmp_, file = TRIM( NamePlotVL( n ) ), status = 'UNKNOWN')
           write(UnitTmp_,"(f10.6,5i6,6x,'! rc in Re,nr,ip,je,ig,ntime')") &
                rc,nLat-1,nLon,nEnergy,nPitchAng,nprint
           write(UnitTmp_,'(6f9.3)') (energy_temp(k),k=1,nEnergy)
@@ -451,13 +601,12 @@ contains
           write(UnitTmp_,'(6f9.5)') (sinAo(m),m=1,nPitchAng)
           write(UnitTmp_,'(10f8.3)') (xlat(i),i=2,nLat)
        else
-          open(unit=UnitTmp_,&
-               file='IM/plots/CimiDrift'//NameSpeciesExtension_I(n)//'.vl',&
-               status='old', position='append')
+          open(unit = UnitTmp_, file = TRIM( NamePlotVL( n ) ), &
+               status = 'OLD', position = 'APPEND')
           
        endif
     endif
-    write(UnitTmp_,'(f8.3,10f9.2,"    ! hour,  parmod")') &
+    write(UnitTmp_,'(f12.8,10f9.2,"    ! hour,  parmod")') &
          time/3600.,parmod(1:10)
     do iLat=2,nLat             ! Write fluxes @ fixed E & y grids
        do iLon=1,nLon
@@ -499,6 +648,7 @@ contains
     integer		:: iLat, iLon, k, m, n, i, nprint
     logical, dimension(nspec), save :: IsFirstCall = .true.
     character(len=15):: outnameSep
+    character(len=40), dimension(nspec), save :: NamePlotVP
     !--------------------------------------------------------------------------
     nprint=ifix(time/DtVPDriftOutput(n))
     write(outnameSep,"(i4.4,i2.2,i2.2,a,i2.2,i2.2,i2.2)") & 
@@ -519,11 +669,11 @@ contains
        write(UnitTmp_,'(6f9.5)') (sinAo(m),m=1,nPitchAng)
        write(UnitTmp_,'(10f8.3)') (xlat(i),i=2,nLat)
     else
-       if (IsFirstCall(n) .and. .not. IsRestart) then
-          open(unit=UnitTmp_,&
-               file='IM/plots/CimiDrift'//NameSpeciesExtension_I(n)//'.vp',&
-               status='unknown')
-          
+       if ( IsFirstCall( n ) ) then
+          write(NamePlotVP(n), '(A,I8.8,A)') &
+               'IM/plots/CimiDrift_n', nprint, NameSpeciesExtension_I(n)//'.vp'
+          write(*,*) "NamePlotVP(n): ",NamePlotVP(n)
+          open(unit=UnitTmp_, file = TRIM( NamePlotVP( n ) ), status = 'UNKNOWN')
           write(UnitTmp_,"(f10.6,5i6,6x,'! rc in Re,nr,ip,je,ig,ntime')") &
                rc,nLat-1,nLon,nEnergy,nPitchAng,nprint
           write(UnitTmp_,'(6f9.3)') (energy_temp(k),k=1,nEnergy)
@@ -531,12 +681,11 @@ contains
           write(UnitTmp_,'(6f9.5)') (sinAo(m),m=1,nPitchAng)
           write(UnitTmp_,'(10f8.3)') (xlat(i),i=2,nLat)
        else
-          open(unit=UnitTmp_,&
-               file='IM/plots/CimiDrift'//NameSpeciesExtension_I(n)//'.vp',&
-               status='old', position='append')
+          open(unit=UnitTmp_, file = TRIM( NamePlotVP( n ) ),&
+               status = 'OLD', position = 'APPEND')
        endif
     endif
-    write(UnitTmp_,'(f8.3,10f9.2,"    ! hour,  parmod")') &
+    write(UnitTmp_,'(f12.8,10f9.2,"    ! hour,  parmod")') &
          time/3600.,parmod(1:10)
     do iLat=2,nLat             ! Write fluxes @ fixed E & y grids
        do iLon=1,nLon
@@ -734,6 +883,7 @@ contains
     integer       :: iLat,iLon,k,m,n,i,nprint
     logical, save :: IsFirstCall = .true.
     character(len=15):: outnameSep
+    character(len=30), save :: NamePlotLstar
     !--------------------------------------------------------------------------
     nprint=ifix(time/DtLstarOutput)
     write(outnameSep,"(i4.4,i2.2,i2.2,a,i2.2,i2.2,i2.2)") & 
@@ -749,18 +899,17 @@ contains
        write(UnitTmp_,'(1p,7e11.3)') (xk(k)*sqrt(1.e9)/re_m,k=1,nk,2)
        write(UnitTmp_,'(8f8.3)') (xlat(i),i=2,nLat)
     else
-       if (IsFirstCall .and. .not. IsRestart) then
-          open(unit=UnitTmp_,&
-               file='IM/plots/Cimi.lstar',&
-               status='unknown')
+       if (IsFirstCall) then
+          write(NamePlotLstar, '(A,I8.8,A5)' )&
+               'IM/plots/Cimi_n', nprint, '.lstar'
+          open(unit = UnitTmp_, file = TRIM( NamePlotLstar ), status = 'UNKNOWN')
           write(UnitTmp_,"(f10.6,4i6,6x,'! rc in Re,nr,ip,nm,nk,ntime')") &
                rc, nLat-1, nLon, nint(nk/2.), nprint            
           write(UnitTmp_,'(1p,7e11.3)') (xk(k)*sqrt(1.e9)/re_m,k=1,nk,2)
           write(UnitTmp_,'(8f8.3)') (xlat(i),i=2,nLat)
        else
-          open(unit=UnitTmp_,&
-               file='IM/plots/Cimi.lstar',&
-               status='old',position='append')
+          open(unit = UnitTmp_, file = TRIM( NamePlotLstar ),&
+               status = 'OLD', position = 'APPEND')
        endif
     endif
     
