@@ -565,3 +565,13 @@ PLASMASPHERE:
 	@cd ${TESTDIR};   ./unit_test_plasmasphere.exe
 
 
+DIFFUSIONTEST:
+	@cd ${SHAREDIR};  	make LIB
+	@cd ${NOMPIDIR};	make LIB
+	@cd ${TIMINGDIR}; 	make LIB 
+	@cd ${EMPIRICALIEDIR};	make LIB
+	@cd ${EMPIRICALGMDIR};	make LIB
+	@cd ${DATAREADINDICESDIR};make LIB
+	@cd src;	make test_diffusion
+	@cd ${TESTDIR}; ln -s ${BINDIR}/test_diff.exe
+

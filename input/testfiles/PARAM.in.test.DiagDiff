@@ -84,6 +84,10 @@ F		UseKpIndex
 #DIAGONALIZEDDIFFUSION
 T		UseDiagDiffusion
 
+#DIFFUSIONTEST
+F		UsePitchAngleDiffusionTest
+F		UseEnergyDiffusionTest
+
 #IMTIMESTEP
 30.		IMDeltaT [s]
 30.		IMDeltaTMax [s]
