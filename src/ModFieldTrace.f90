@@ -371,6 +371,18 @@ contains
              call lintpIM(si3,h3,im2,sim,h33)
              if (m.ge.1.and.m.le.ik)  Have(i,j,m)=h33  ! bounce-ave [H]
           enddo
+          ! test si (K) values
+          !if (i.eq.30.and.j.eq.1) then
+          !   write(*,*) 'K normalized by bm and ro',i,j
+          !   write(*,*) 'm, a0(deg), K (cimi), K (analytic, dip)'
+          !   do m=1,ik
+          !      write(*,*) m,asin(sinA(i,j,m))*180./3.141592,&
+          !        si(m)/sqrt(bm(i,j,m))/ro(i,j)/re,&
+          !        2.*(1.38+0.32*sinA(i,j,m)*log(sinA(i,j,m))&
+          !       -0.64*sqrt(sinA(i,j,m))-0.74*sinA(i,j,m))
+          !   enddo
+          !   stop
+          !endif
           ! test tya values
           !if (i.eq.30.and.j.eq.1) then
           !   write(*,*) 'tya',i,j

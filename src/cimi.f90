@@ -52,7 +52,9 @@ subroutine cimi_run(delta_t)
        cimi_put_to_plasmasphere!,nLatPlas=>nl,nLonPlas=>np,
   use ModDiagDiff,	 ONLY: &
        UseDiagDiffusion, calc_DQQ, interpol_D_coefK, &
-       mapPSDtoQ, mapPSDtoE, diffuse_Q1, diffuse_Q2
+       mapPSDtoQ, mapPSDtoE, diffuse_Q1, diffuse_Q2, &
+       UsePitchAngleDiffusionTest,&
+       UseEnergyDiffusionTest
                          
   implicit none
 
@@ -100,6 +102,13 @@ subroutine cimi_run(delta_t)
                  dipmom,IsRestart)
   call timing_stop('cimi_fieldpara')
 
+  ! interpolate a0 of const. Q2 curve correspoding K
+  if (.not.IsFirstCall) then
+  call timing_start('cimi_interpol_D_coefK')
+  call interpol_D_coefK
+  call timing_stop('cimi_interpol_D_coefK')
+  endif
+     
   !when using 2D plasmasphere
   if (UseCorePsModel .and. IsFirstCall) then
      !gather info needed for core plasmasphere model
@@ -334,6 +343,13 @@ subroutine cimi_run(delta_t)
      if (Time.ge.DiffStartT .and. UseWaveDiffusion) then
 
         call timing_start('cimi_WaveDiffusion')
+        
+        if (UsePitchAngleDiffusionTest.or.&
+            UseEnergyDiffusionTest) then
+           write(*,*) 'UsePitchAngleDiffusionTest',UsePitchAngleDiffusionTest
+           write(*,*) 'UseEnergyDiffusionTest',UseEnergyDiffusionTest
+           call CON_STOP('For diag diffusion test, "make DIFFUSIONTEST"')
+        endif
        
         if (.not.UseDiagDiffusion) then
            call timing_start('cimi_Diffuse_aa')
@@ -344,11 +360,6 @@ subroutine cimi_run(delta_t)
            call diffuse_EE(f2,dt,xmm,xjac,iw2,iba)
            call timing_stop('cimi_Diffuse_EE')
         else
-           ! interpolate a0 of const. Q2 curve correspoding K
-           call timing_start('cimi_interpol_D_coefK')
-           call interpol_D_coefK
-           call timing_stop('cimi_interpol_D_coefK')
-     
            ! map PSD from M to Q2      
            call timing_start('cimi_mapPSDtoQ')
            call mapPSDtoQ

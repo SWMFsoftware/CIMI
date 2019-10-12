@@ -23,21 +23,27 @@
         private !! except
 
         public :: iq            ,&
-                  VarQ          ,& ! variable Q2 [keV]
-                  E_Q2c         ,& ! E [keV] for const. Q2 curve, chorus
-                  E_Q2h         ,& ! E [keV] for const. Q2 curve, hiss
-                  cDqq1,cDqq2   ,& ! diffusion coef. in (Q1,Q2) for chorus
-                  hDqq1,hDqq2   ,& ! diffusion coef. in (Q1,Q2) for chorus
-                  PSD_Q         ,& ! phase space density [#s3/kg3m6] in fixed Q2
-                  UseDiagDiffusion      ,&  
-                  DoUnitTestDiagDiff    ,&
+                  !!VarQ          ,& ! variable Q2 [keV]
+                  !!E_Q2c         ,& ! E [keV] for const. Q2 curve, chorus
+                  !!E_Q2h         ,& ! E [keV] for const. Q2 curve, hiss
+                  !!cDqq1,cDqq2   ,& ! diffusion coef. in (Q1,Q2) for chorus
+                  !!hDqq1,hDqq2   ,& ! diffusion coef. in (Q1,Q2) for chorus
+                  !!PSD_Q         ,& ! phase space density [#s3/kg3m6] in fixed Q2
+                  !!PSD_CHTest  ,& !    "   "      " for chorus diffusion test
+                  !!PSD_HITest  ,& !    "   "      " for chorus diffusion test
+                  UseDiagDiffusion              ,&  
+                  UsePitchAngleDiffusionTest    ,&
+                  UseEnergyDiffusionTest        ,&
                   ! subroutines
                   diffuse_Q2    ,& ! calcualte diffusion in Q2 and fixed Q1
                   diffuse_Q1    ,& !     "         "     in Q1 and fixed Q2
                   calc_DQQ      ,& ! calculate Dq1q1, Dq2q2 from Daa,DaE,DEE
                   mapPSDtoQ     ,& ! map PSD from M [J/T] to Q2 [keV]
                   mapPSDtoE     ,& ! map PSD from Q2 [keV] to M [J/T]
-                  interpol_D_coefK
+                  interpol_D_coefK      ,&
+                  init_PSD_for_diff_test,&
+                  calc_Dcoef_for_diff_test,&
+                  write_PSD_for_diff_test
                                 
         !private :: cSign,hSign  ! sign of DaE for chorus and hiss
         !           rpp          ! plasma pause location in RE
@@ -66,13 +72,16 @@
         real,allocatable,dimension(:,:,:) :: E_Q2c,E_Q2h,&
              cDqq1,cDqq2,hDqq1,hDqq2,cSign,hSign
         real,dimension(ir,ip,iq,0:ik+1) :: Dqq1K,Dqq2K,dQ2dEK,E_Q2K
-        real PSD_Q(ir,ip,iq,ik)
+        real PSD_Q(ir,ip,iq,ik),&
+             cLambda2D           ! 1 / analytic solution decay time scale
+        real,allocatable :: PSD_CHTest(:),PSD_HITest(:)
         real rpp(ip)
         integer ipc0(ir,ip),iph0(ir,ip),iLpp(ip)
 
         logical :: UseDiagDiffusion=.false.,&
-                   DoUnitTestDiagDiff=.false.  ! do unit test for ModDiagDiff
-                                        ! Use test_main_DiagDiff.f90 
+                   UsePitchAngleDiffusionTest=.false.,&
+                   UseEnergyDiffusionTest=.false.  
+                                        ! Use test_diff.f90 
                                         !  instead of cimi.f90
   contains
 ! ************************************************************************
@@ -129,6 +138,9 @@
   integer n,i,j,k,m,nel
   logical DoDiff
 
+! (0) Do not calculate diffusion in Q2 when Q1 diffusion is tested
+  if (.not.UsePitchAngleDiffusionTest) then 
+
 !(1) Find the "n" corresponds to electrons, nel 
   nel=0
   do n=1,ijs
@@ -176,11 +188,17 @@
                  b4(k)=PSD(k,m)
               enddo       ! end of k
 !(8) Apply boundary condition
-              b4(2)=b4(2)-b1(2)*PSD(1,m)            ! const. at lowest V
+              if (.not.UseEnergyDiffusionTest) then
+                 b4(2)=b4(2)-b1(2)*PSD(1,m)         ! const. at lowest V
+              else
+                 b2(2)=b1(2)+b2(2)                  ! zero gradient
+              endif
+                 
               b4(iq-1)=b4(iq-1)-b3(iq-1)*PSD(iq,m)  ! const. at highest V
 !(9) Compute diffusion using Thomas Algorithm
               call tridiagonal(b1(2:iq-1),b2(2:iq-1),b3(2:iq-1),b4(2:iq-1),iq-2,&
                                fnew(2:iq-1))
+              if (UseEnergyDiffusionTest) fnew(1)=fnew(2)
 !(10) Make sure f2 > 0
               do k=2,iq-1   ! start of k
                  if (fnew(k).gt.1.e90) then
@@ -199,7 +217,13 @@
                     write(*,*) ' f2(t-1)'
                     write(*,'(1p10E11.3)') PSD(:,m)
                     write(*,*) ' D_Q2Q2(t)'
-                    write(*,'(1p10E11.3)') Dqq2m(1:iq-1)/G_Q2(1:iq-1)
+                    write(*,'(1p10E11.3)') Dqq2m(1:iq-1)
+                    write(*,*) ' G_Q2(t)'
+                    write(*,'(1p10E11.3)') G_Q2(:)
+                    write(*,*) ' dQ2/dE(t)'
+                    write(*,'(1p10E11.3)') dQ2dE(:,m)
+                    write(*,*) ' E(t) for const. Q2'
+                    write(*,'(1p10E11.3)') E1(:,m)
                     call CON_STOP('IM: CIMI dies in diffuse_Q2')
                  endif
               enddo       ! end of k
@@ -209,6 +233,8 @@
         endif
      enddo             ! end of i
   enddo                ! end of j
+  
+  endif ! end of (.not.UsePitchAngleDiffusion)
   
   end subroutine diffuse_Q2
 
@@ -244,6 +270,9 @@
   integer n,i,j,k,m,nel
   logical DoDiff
 
+! (0) Do not calculate diffusion in Q2 when Q1 diffusion is tested
+  if (.not.UseEnergyDiffusionTest) then 
+
 !(1) Find the "n" corresponds to electrons, nel 
   nel=0
   do n=1,ijs
@@ -252,8 +281,9 @@
 
   do j=1,ip             ! start of j
      do i=1,iba(j)      ! start of i
-!(2) Determine dU_Q2
-        VarK(0:ik+1)=xk(0:ik+1)/re_m*ro(i,j)  ! K in T^0.5 RE
+!(2) Determine dU_Q1
+        !!VarK(0:ik+1)=xk(0:ik+1)/re_m*ro(i,j)  ! K in T^0.5 RE
+        VarK(0:ik+1)=xk(0:ik+1)/re_m  ! K in T^0.5 RE
         dU_Q1=log(VarK(2)/VarK(1))
         jac0=dt/dU_Q1/dU_Q1
         DoDiff=.False.
@@ -279,7 +309,10 @@
               sina=y(i,j,m)
               cosa=sqrt(1.-sina*sina)
               G_a(m)=tya(i,j,m)*sina*cosa                            ! T(a0)sin2a0/2
-              dKda_K(m)=sqrt(bm1(m))*cosa/sina*tya(i,j,m)/VarK(m) ! -dK/da/K
+              ! note: Tya is normalized in 1/4 bounce versus
+              !       VarK or si is in 1/2 bounce.
+              dKda_K(m)=2.*ro(i,j)*sqrt(bm1(m)) &
+                       *cosa/sina*tya(i,j,m)/VarK(m) ! -dK/da/K
               G_Q1(m)=G_a(m)/dKda_K(m)
            enddo
            do k=1,iq        ! start of k
@@ -297,13 +330,13 @@
               enddo         ! end of m
 !(8) Apply boundary condition
               b2(1)=b1(1)+b2(1)                     ! zero gradient at lowest K
-              !!b4(ik)=b4(ik)-b3(ik)*PSD(k,ik)        ! const. at highest K
-              b4(ik-1)=b4(ik-1)-b3(ik-1)*PSD(k,ik)  ! const. at highest K
+              if (.not.UsePitchAngleDiffusionTest) &
+                 b2(ik)=b2(ik)+b3(ik)               ! zero gradient at highest K
 !(9) Compute diffusion using Thomas Algorithm
-              !!call tridiagonal(b1,b2,b3,b4,ik,fnew)
-              call tridiagonal(b1(1:ik-1),b2(1:ik-1),b3(1:ik-1),&
-                               b4(1:ik-1),ik-1,fnew(1:ik-1))
-              fnew(ik)=PSD(k,ik)
+              call tridiagonal(b1,b2,b3,b4,ik,fnew)
+              !!call tridiagonal(b1(1:ik-1),b2(1:ik-1),b3(1:ik-1),&
+              !!                 b4(1:ik-1),ik-1,fnew(1:ik-1))
+              !!fnew(ik)=PSD(k,ik)
 !(10) Make sure f2 > 0
               do m=1,ik     ! start of m
                  if (fnew(m).ne.fnew(m).or.fnew(m).lt.-1.e-50) then
@@ -330,6 +363,8 @@
         endif
      enddo             ! end of i
   enddo                ! end of j
+  
+  endif ! end of (.not.UseEnergyDiffusionTest)
   
   end subroutine diffuse_Q1
 
@@ -768,9 +803,13 @@
   implicit none
 
   real a0(0:ik+1),dQ(iq)
+  real RadToDeg
   integer i,j,k,m,l,m1,m2,ipc1,iph1
  
   call find_ompe_index
+
+  RadToDeg=180./pi
+
   do k=1,iq
      dQ(k)=VarQ(k+1)-VarQ(k-1)
   enddo
@@ -781,21 +820,38 @@
      do i=iLpp(j)+1,iba(j)
         if (ichor.eq.1) then
            ipc1=ipc0(i,j)
-           a0(0:ik+1)=asin(y(i,j,0:ik+1))*180./pi
+           a0(0:ik+1)=asin(y(i,j,0:ik+1))*RadToDeg
            m1=ik+1
            m2=0
            do m=0,ik+1
+              !!if (a0(m).ge.PAwBound(1).and.a0(m).le.PAwBound(ipa+2)) then
               if (a0(m).ge.cPA(1).and.a0(m).le.cPA(ipa)) then
                  if (m.le.m1) m1=m
                  if (m.ge.m2) m2=m
+!!!!!!!!!!if (i.eq.iLpp(1)+4.and.j.eq.1) write(*,*) m,a0(m),m1,m2
 !(2) interpolate Dqq1, Dqq2 to y grids
                  do k=1,iq
                     call lintp(cPA,cDqq1(ipc1,k,:),ipa,a0(m),Dqq1K(i,j,k,m),&
                                'interpol_D_coefK')
+                    if (Dqq1K(i,j,k,m).ne.Dqq1K(i,j,k,m)) then
+                       write(*,*) 'i,j,k,m =',i,j,k,m
+                       write(*,*) 'Dqq1K =',Dqq1K(i,j,k,m)
+                       call CON_STOP('IM: CIMI dies in '//'interpol_D_coefK')
+                    endif
                     call lintp(cPA,cDqq2(ipc1,k,:),ipa,a0(m),Dqq2K(i,j,k,m),&
                                'interpol_D_coefK')
+                    if (Dqq2K(i,j,k,m).ne.Dqq2K(i,j,k,m)) then
+                       write(*,*) 'i,j,k,m =',i,j,k,m
+                       write(*,*) 'Dqq2K =',Dqq2K(i,j,k,m)
+                       call CON_STOP('IM: CIMI dies in '//'interpol_D_coefK')
+                    endif
                     call lintp(cPA,E_Q2c(ipc1,k,:),ipa,a0(m),E_Q2K(i,j,k,m),&
                                'interpol_D_coefK')
+                    if (E_Q2K(i,j,k,m).ne.E_Q2K(i,j,k,m)) then
+                       write(*,*) 'i,j,k,m =',i,j,k,m
+                       write(*,*) 'E_Q2K =',E_Q2K(i,j,k,m)
+                       call CON_STOP('IM: CIMI dies in '//'interpol_D_coefK')
+                    endif
                  enddo   ! end of k
               endif
            enddo         ! end of m
@@ -823,10 +879,10 @@
   enddo                  ! end of j
   do j=1,ip
 !(5) interpolate begins when L>Lpp for hiss
-     do i=i,iLpp(j)
+     do i=1,iLpp(j)
         if (ihiss.ge.1) then
            iph1=iph0(i,j)
-           a0(:)=asin(y(i,j,:))*180./pi
+           a0(:)=asin(y(i,j,:))*RadToDeg
            m1=ik+1
            m2=0
            do m=0,ik+1
@@ -837,10 +893,25 @@
                  do k=1,iq
                     call lintp(cPA,hDqq1(iph1,k,:),ipa,a0(m),Dqq1K(i,j,k,m),&
                                'interpol_D_coefK')
+                    if (Dqq1K(i,j,k,m).ne.Dqq1K(i,j,k,m)) then
+                       write(*,*) 'i,j,k,m =',i,j,k,m
+                       write(*,*) 'Dqq1K =',Dqq1K(i,j,k,m)
+                       call CON_STOP('IM: CIMI dies in '//'interpol_D_coefK')
+                    endif
                     call lintp(cPA,hDqq2(iph1,k,:),ipa,a0(m),Dqq2K(i,j,k,m),&
                                'interpol_D_coefK')
-                    call lintp(cPA,E_Q2h(ipc1,k,:),ipa,a0(m),E_Q2K(i,j,k,m),&
+                    if (Dqq2K(i,j,k,m).ne.Dqq2K(i,j,k,m)) then
+                       write(*,*) 'i,j,k,m =',i,j,k,m
+                       write(*,*) 'Dqq2K =',Dqq2K(i,j,k,m)
+                       call CON_STOP('IM: CIMI dies in '//'interpol_D_coefK')
+                    endif
+                    call lintp(cPA,E_Q2h(iph1,k,:),ipa,a0(m),E_Q2K(i,j,k,m),&
                                'interpol_D_coefK')
+                    if (E_Q2K(i,j,k,m).ne.E_Q2K(i,j,k,m)) then
+                       write(*,*) 'i,j,k,m =',i,j,k,m
+                       write(*,*) 'E_Q2K =',E_Q2K(i,j,k,m)
+                       call CON_STOP('IM: CIMI dies in '//'interpol_D_coefK')
+                    endif
                  enddo   ! end of k
               endif
            enddo         ! end of m
@@ -1401,5 +1472,272 @@ d(n) = d(n-1)
 
 end subroutine spline
 
+
+!*****************************************************************************
+!                        init_PSD_for_diff_test
+! 
+!  Routine initializes PSD for diffusion routine test based on
+!   analytical solution.
+!*****************************************************************************
+  subroutine init_PSD_for_diff_test(iChorMltLoc,iHissMltLoc,D0,xjac)
+  use ModNumConst, ONLY: cPi
+  use ModCimiPlanet, ONLY: nspec
+  use ModCimiGrid, ONLY: nm
+  use ModCimi, ONLY: f2
+  use ModCimiTrace, ONLY: sinA
+  use DensityTemp, ONLY: simple_plasmasphere
+  implicit none 
+
+  integer,intent(in) :: iChorMltLoc,&  ! MLT index for chorus wave test
+                        iHissMltLoc    !   "       "   hiss wave test
+  real,intent(in) :: D0,xjac(nspec,ir,nm)
+  integer m,&  ! varK index
+          n,i,j,k,&
+          iChorLatLoc,&
+          iHissLatLoc
+  real :: c1 = 1.38, &
+          c2 = 0.32, &
+          c3,c4,&
+          sinAc,sinAh,&
+          Emin,Emax,E1,Xmin,Xmax,X1,DEE0,&
+          E0=510.99895000        ! electron rest mass in keV
+
+  call simple_plasmasphere(2.)  ! Kp=2, quiet time
+  call find_loc_plasmapause
+
+  iChorLatLoc=iLpp(iChorMltLoc)+4
+  iHissLatLoc=iLpp(iHissMltLoc)-4
+  write(*,*) 'Chorus Lat, MLT =',iChorLatLoc,iChorMltLoc
+  write(*,*) 'Hiss Lat, MLT ='  ,iHissLatLoc,iHissMltLoc
+
+  if (UsePitchAngleDiffusionTest) then
+     if (.not.allocated(PSD_CHTest)) &
+        allocate(PSD_CHTest(ik))
+     if (.not.allocated(PSD_HITest)) &
+        allocate(PSD_HITest(ik))
+     ! initial analytic solution
+     !!c3 = 0.5*cPi/(c1-22./15.*c2)
+     c3 = 0.549048316*cPi
+     c4 = c3*c3
+     do m=1,ik 
+        sinAc=sinA(iChorLatLoc,iChorMltLoc,m)
+        sinAh=sinA(iHissLatLoc,iHissMltLoc,m)
+
+        PSD_CHTest(m)=sin(c3*(c1*sinAc**2 &
+                      - 0.666666667*c2*sinAc**3 &
+                      - 0.8        *c2*sinAc**2.5))
+        PSD_HITest(m)=sin(c3*(c1*sinAh**2 &
+                      - 0.666666667*c2*sinAh**3 &
+                      - 0.8        *c2*sinAh**2.5))
+     enddo
+     cLambda2D=c4*D0
+     ! set PSD_Q
+     do j=1,ip
+        do m=1,ik
+           do i=1,iLpp(j)
+              PSD_Q(i,j,:,m)=PSD_HITest(m)
+           enddo
+           do i=iLpp(j)+1,ir
+              PSD_Q(i,j,:,m)=PSD_CHTest(m)
+           enddo
+        enddo
+     enddo
+     ! set f2
+     do m=1,ik
+        do k=1,nm
+           do j=1,ip
+              do n=1,nspec
+                 do i=1,iLpp(j)
+                    f2(n,i,j,k,m)=xjac(n,i,k)*PSD_HITest(m)
+                 enddo
+                 do i=iLpp(j)+1,ir
+                    f2(n,i,j,k,m)=xjac(n,i,k)*PSD_CHTest(m)
+                 enddo
+              enddo
+           enddo
+        enddo
+     enddo
+  endif
+
+  if (UseEnergyDiffusionTest) then
+     if (.not.allocated(PSD_CHTest)) &
+        allocate(PSD_CHTest(iq))
+     if (.not.allocated(PSD_HITest)) &
+        allocate(PSD_HITest(iq))
+     DEE0=D0*1.e7
+     Emin=VarQ(1)/E0
+     Emax=VarQ(iq)/E0
+     Xmin=(Emin*(Emin+2.))**1.5/3.
+     Xmax=(Emax*(Emax+2.))**1.5/3.
+     c3 = 0.5*cPi/(Xmax-Xmin)
+     c4 = c3*c3
+     cLambda2D=c4*DEE0
+     do k=1,iq
+        E1=VarQ(k)/E0
+        X1=(E1*(E1+2.))**1.5/3.
+        PSD_CHTest(k)=cos(c3*(X1-Xmin))
+        PSD_HITest(k)=PSD_CHTest(k)
+        PSD_Q(:,:,k,:)=PSD_CHTest(k)
+     enddo 
+  endif
+
+  end subroutine init_PSD_for_diff_test
+
+
+!*****************************************************************************
+!                        calc_Dcoef_for_diff_test
+! 
+!  This subroutine calculates Daa and overwrites chorus and hiss wave power
+!   analytical solution.
+!*****************************************************************************
+  subroutine calc_Dcoef_for_diff_test(iChorMltLoc,iHissMltLoc,D0)
+  use ModNumConst,    ONLY: cDegToRad
+  use ModWaveDiff, ONLY: cDaa,cDaE,cDEE,&
+                         hDaa,hDaE,hDEE,&
+                         CHpower,HIpower,&
+                         Cpower0,Hpower0,BLc0,BLh0,&
+                         cPA,ipa
+  use DensityTemp, ONLY: simple_plasmasphere
+  use ModCimiTrace, ONLY: bo,sinA,tya
+  implicit none
+
+  integer,intent(in) :: iChorMltLoc,iHissMltLoc
+  real,intent(in) :: D0
+
+  integer m,&  ! varK index
+          k    ! varQ index
+  integer iChorLatLoc  ,&
+          iHissLatLoc
+  real :: c1 = 1.38, &
+          c2 = 0.32, &
+          E0=510.99895000       ! electron rest mass in keV
+  real y,sin2A,Daa0,Daa,cPo,hPo,&
+       E1,DEE0,DEE,dXdE
+
+  ! set all diff coef. and wave power zero
+  Dqq1K(:,:,:,:)=0.
+  Dqq2K(:,:,:,:)=0.
+ 
+  ! set plasmasphere density and location 
+  call simple_plasmasphere(2.)  ! Kp=2, quiet time
+  call find_loc_plasmapause
+
+  ! set the area of interest for chorus and hiss    
+  iChorLatLoc=iLpp(iChorMltLoc)+4
+  iHissLatLoc=iLpp(iHissMltLoc)-4
+
+  ! set Po=(BLc0/bo(i,j))*CHpower(i,j)/Cpower0=1 
+  CHpower(:,:)=0.   ! except
+  CHpower(iChorLatLoc,iChorMltLoc)=Cpower0 
+  
+  ! set Po=(BLh0/bo(i,j))*HIpower(i,j)/Hpower0=1 
+  HIpower(:,:)=0.   ! except 
+  HIpower(iHissLatLoc,iHissMltLoc)=Hpower0 
+   
+
+  cPo=(BLc0/bo(iChorLatLoc,iChorMltLoc))&
+      *CHpower(iChorLatLoc,iChorMltLoc)/Cpower0
+  hPo=(BLh0/bo(iHissLatLoc,iHissMltLoc))&
+      *HIpower(iHissLatLoc,iHissMltLoc)/Hpower0
+  if (UsePitchAngleDiffusionTest) then
+     do m=0,ik+1
+        ! chorus Daa
+        y=sinA(iChorLatLoc,iChorMltLoc,m)
+        sin2A=2.*y*sqrt(1.-y**2)
+        Daa0=D0/((c1 - c2*(y+sqrt(y)))*sin2A)**2
+        Daa=Daa0/cPo
+        Dqq1K(iChorLatLoc,iChorMltLoc,:,m)=Daa
+        ! hiss Daa
+        y=sinA(iHissLatLoc,iHissMltLoc,m)
+        sin2A=2.*y*sqrt(1.-y**2)
+        Daa0=D0/((c1 - c2*(y+sqrt(y)))*sin2A)**2
+        Daa=Daa0/hPo
+        Dqq1K(iHissLatLoc,iHissMltLoc,:,m)=Daa
+     enddo
+  endif
+
+  if (UseEnergyDiffusionTest) then
+     DEE0=D0*1.e7
+     do k=1,iq
+        E1=VarQ(k)/E0
+        dXdE=(E1+1.)*sqrt(E1*(E1+2.))
+        DEE=DEE0/dXdE/dXdE/E1/E1       ! DEE/E^2
+        Dqq2K(iChorLatLoc,iChorMltLoc,k,:)=DEE/cPo
+        Dqq2K(iHissLatLoc,iHissMltLoc,k,:)=DEE/hPo
+     enddo
+  endif 
+
+! recalculate tya to approximated solution in a dipole
+  tya(:,:,:)=1.38 - 0.32 *(sinA(:,:,:) + sqrt(sinA(:,:,:)))
+
+! const. Q2 curve
+  do k=0,iq+1
+     E_Q2c(:,k,:)=VarQ(k)
+     E_Q2h(:,k,:)=VarQ(k)
+  enddo
+
+! dQ2/dE 
+  dQ2dEK(:,:,:,:)=1. 
+
+  end subroutine calc_Dcoef_for_diff_test
+
+
+!*****************************************************************************
+!                        write_PSD_for_diff_test
+! 
+!  Routine initializes PSD for diffusion routine test based on
+!   analytical solution.
+!*****************************************************************************
+  subroutine write_PSD_for_diff_test(Time,DtPSDTest,&
+                                     iChorMltLoc,iHissMltLoc)
+  use ModImTime, ONLY: TimeMax
+  implicit none
+  
+  integer,intent(in) :: iChorMltLoc,iHissMltLoc
+  real,intent(in) :: Time,&
+                     DtPSDTest
+  integer nstep         ,&
+          iChorLatLoc   ,&
+          iHissLatLoc
+
+  nstep=int(TimeMax/DtPSDTest)+1
+
+  ! set the area of interest for chorus and hiss    
+  iChorLatLoc=iLpp(iChorMltLoc)+4
+  iHissLatLoc=iLpp(iHissMltLoc)-4
+
+  if (Time.eq.0.) then
+     open(unit=60,file='IM/plots/PSD_chorus_test.dat')
+     open(unit=62,file='IM/plots/PSD_hiss_test.dat')
+     if (UsePitchAngleDiffusionTest) then
+        write(60,*) nstep,ik
+        write(62,*) nstep,ik
+     endif
+     if (UseEnergyDiffusionTest) then
+        write(60,*) nstep,iq
+        write(62,*) nstep,iq
+     endif
+  else   
+     open(unit=60,file='IM/plots/PSD_chorus_test.dat',&
+          status='old',position='append')
+     open(unit=62,file='IM/plots/PSD_hiss_test.dat',&
+          status='old',position='append')
+  endif 
+  if (UsePitchAngleDiffusionTest) then
+     write(60,'(1p8E13.5)') PSD_CHTest(1:ik)/exp(cLambda2D*Time)
+     write(60,'(1p8E13.5)') PSD_Q(iChorLatLoc,iChorMltLoc,1,1:ik) 
+     write(62,'(1p8E13.5)') PSD_HITest(1:ik)/exp(cLambda2D*Time) 
+     write(62,'(1p8E13.5)') PSD_Q(iHissLatLoc,iHissMltLoc,1,1:ik) 
+  endif
+  if (UseEnergyDiffusionTest) then
+     write(60,'(1p9E13.5)') PSD_CHTest(1:iq)/exp(cLambda2D*Time)
+     write(60,'(1p9E13.5)') PSD_Q(iChorLatLoc,iChorMltLoc,1:iq,1) 
+     write(62,'(1p9E13.5)') PSD_HITest(1:iq)/exp(cLambda2D*Time) 
+     write(62,'(1p9E13.5)') PSD_Q(iHissLatLoc,iHissMltLoc,1:iq,1) 
+  endif
+  close(60)
+  close(62)
+
+  end subroutine write_PSD_for_diff_test
 
   end module
