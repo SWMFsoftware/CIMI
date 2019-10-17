@@ -163,9 +163,11 @@ contains
 
  ihiss=0
  if (UseHiss) then
-   if ( trim(HissWavesD) .eq.'D_hiss_UCLA.dat') ihiss=2
- else 
-   ihiss=1
+    if ( trim(HissWavesD) .eq.'D_hiss_UCLA.dat') then 
+       ihiss=2
+    else 
+       ihiss=1
+    endif
  endif
 
  ichor=0
