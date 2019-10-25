@@ -329,6 +329,10 @@ contains
                 Dsi3OverSqrtBm(ii)=cosa
                 Dtya3Ro(ii)=1./cosa
                 Dh3(ii)=Hden(rs(ii))/cosa
+                if (cosa.eq.0.) then
+                   Dty3Ro(ii)=0.
+                   Dh3(ii)=0.
+                endif
              enddo
   
              ! calculate integration along the field line

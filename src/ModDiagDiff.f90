@@ -433,7 +433,8 @@
            call locate1(cOmpe,ipc,ompe1,ipc1,'find_ompe_index')
            if (ipc1.eq.0) ipc1=1
            if (ipc1.gt.ipc) ipc1=ipc
-           if ((cOmpe(ipc1+1)-ompe1).lt.(ompe1-cOmpe(ipc1))) ipc1=ipc1+1
+           if (ipc1.lt.ipc.and.&
+               (cOmpe(ipc1+1)-ompe1).lt.(ompe1-cOmpe(ipc1))) ipc1=ipc1+1
            ipc0(i,j)=ipc1
         endif
         if (ihiss.ge.1) then
@@ -463,7 +464,8 @@
 !*****************************************************************************
   subroutine calc_DQQ
   use ModNumConst, only: pi=>cPi
-  use ModCimiGrid, only: ir=>np,ip=>nt,ik=>nk
+  use ModCimiGrid, only: ir=>np,ip=>nt,ik=>nk,&
+                         iProc
   use ModWaveDiff, only: ipc,iwc,iph,iwh,ipa,&
                          ichor,ihiss,&
                          ckeV,hkeV,&
@@ -526,18 +528,20 @@
                    hDqq1,hDqq2,'hiss')
   endif
 
-  call write_Q2info(cDEE,cDaE,cDaa0,cDaE0,cDEE0,&
-                    cDqq1,cDqq2,&
-                    ckeV,cOmpe,Eq,E_Q2c,ipc,iwc,iq,&
-                    'IM/plots/chorus_constQ.dat',&
-                    'IM/plots/chorus_constQ2.dat',&
-                    'IM/plots/D_LBchorus_QQ.dat')
-  call write_Q2info(hDEE,hDaE,hDaa0,hDaE0,hDEE0,&
-                    hDqq1,hDqq2,&
-                    hkeV,hOmpe,Eq,E_Q2h,iph,iwh,iq,&
-                    'IM/plots/hiss_constQ.dat',&
-                    'IM/plots/hiss_constQ2.dat',&
-                    'IM/plots/D_hiss_QQ.dat')
+  if (iProc.eq.0) then
+     call write_Q2info(cDEE,cDaE,cDaa0,cDaE0,cDEE0,&
+                       cDqq1,cDqq2,&
+                       ckeV,cOmpe,Eq,E_Q2c,ipc,iwc,iq,&
+                       'IM/plots/chorus_constQ.dat',&
+                       'IM/plots/chorus_constQ2.dat',&
+                       'IM/plots/D_LBchorus_QQ.dat')
+     call write_Q2info(hDEE,hDaE,hDaa0,hDaE0,hDEE0,&
+                       hDqq1,hDqq2,&
+                       hkeV,hOmpe,Eq,E_Q2h,iph,iwh,iq,&
+                       'IM/plots/hiss_constQ.dat',&
+                       'IM/plots/hiss_constQ2.dat',&
+                       'IM/plots/D_hiss_QQ.dat')
+  endif
   call interpol_D_coefK
   
   end subroutine calc_DQQ
@@ -1022,7 +1026,7 @@
               logEkeV(:)=log(ekev0)
               !!psd0(:)=f2(nel,i,j,1:iw,m)/xjac(nel,i,1:iw,m)
               psd0(:)=f2(nel,i,j,1:iw,m)/xjac(nel,i,1:iw)
-              logPSD(:)=log(psd0)
+              where(psd0(:).ge.1.e-50) logPSD(:)=log(psd0)
               where(psd0(:).lt.1.e-50) logPSD(:)=-50.
 !(1) find cubic spline interpolation coefficients.
               call spline (logEkeV, logPSD, b, c, d, iw, 'mapPSDtoQ')
@@ -1098,9 +1102,10 @@
            do m=1,ik
 !(1) map PSD to fixed E grids for chorus L>Lpp
               EQ(:)=E_Q2K(i,j,1:iq,m)
-              logEQ(:)=log(EQ)
+              where(EQ(:).ge.1.e-50) logEQ(:)=log(EQ)
+              where(EQ(:).lt.1.e-50) logEQ(:)=-50.   
               logPSD(:)=log(PSD_Q(i,j,1:iq,m))
-              where(logPSD(:).lt.-50.) logPSD(:)=-50.
+              logPSD(:)=-50.
               call spline (logEQ, logPSD, b, c, d, iq, 'mapPSDtoE')
               do k=2,iw    ! keep PSD(k=1) unchanged during mapping
                  ekev0=ekev(nel,i,j,k,m)
@@ -1206,7 +1211,7 @@
   write(60,*) ip,iw,ipa
   write(60,'(1p10E11.3)') keV(:)
   do j=1,ip
-     DaEEE(:,:)=DaE(j,:,:)/DEE(j,:,:)
+     where (DEE(j,:,:).ne.0.) DaEEE(:,:)=DaE(j,:,:)/DEE(j,:,:)
      where (DEE(j,:,:).eq.0.) DaEEE(:,:)=0.
      do m=1,ipa
         a(1)=cPA(m)
