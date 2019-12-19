@@ -408,6 +408,7 @@ The default is UseDecay false.
   	<parameter name="DoDefineVarNpower" type="logical" default="F"/>
   	<parameter name="varNpower" type="real" default="2." />
   	<parameter name="xlatmax" type="real" default="72.4356255492731975" />
+
 #LATITUDINALGRID
 T		DoDefineVarNpower
 2. 		varNpower
@@ -431,12 +432,13 @@ T		UseHigherOrder
 7		iOrderLat
 7		iOrderLon
 
-if UseHigherOrder is ture, construct inter flux during cimi advection
- in higher order using ULTIMATE advection scheme 
- (Lagrangian interpoation + Universal Limiter).
- e.g.) If iOrderLat = 7, then construct latitude inter flux in 7th order scheme. 
-       If iOrderLon = 7, then construct longitude inter flux in 7th order scheme. 
-If iOrderLat and iOrderLon are equal to 2 then use 2nd order scheme and Superbee limter.
+If UseHigherOrder is true, construct inter flux during CIMI advection
+in higher order using ULTIMATE advection scheme (Lagrangian
+interpoation + Universal Limiter).  E.g. if iOrderLat = 7, then
+construct latitude inter flux in 7th order scheme.  If iOrderLon = 7,
+then construct longitude inter flux in 7th order scheme.  If iOrderLat
+and iOrderLon are equal to 2 then use 2nd order scheme and Superbee
+limter.
 </command>
 
 <command name="DIAGONALIZEDDIFFUSION">
@@ -444,24 +446,26 @@ If iOrderLat and iOrderLon are equal to 2 then use 2nd order scheme and Superbee
 #DIAGONALIZEDDIFFUSION
 T		UseDiagDiffusion
 
-If UseDiagDiffusion is true, use (Q1,Q2) coordinates instead of (a0,E) or (M,K)
- during diffusion calculation, where Q1 = K and Q2 is defined to be Q2_min = E
- and Q2 is obtaind from constant Q2 curve (dQ2 = 0) in (a0,E),
- integrating dE/da0 = DaE/Daa
-Note. UseWaveDiffusion must be true to use this option.
+If UseDiagDiffusion is true, use (Q1,Q2) coordinates instead of (a0,E)
+or (M,K) during diffusion calculation, where Q1 = K and Q2 is defined
+to be Q2_min = E and Q2 is obtaind from constant Q2 curve (dQ2 = 0) in
+(a0,E), integrating dE/da0 = DaE/Daa Note. UseWaveDiffusion must be
+true to use this option.
 </command>
 
 <command name="#DIFFUSIONTEST">
   	<parameter name="UsePitchAngleDiffusionTest" type="logical" default="F"/>
   	<parameter name="UseEnergyDiffusionTest" type="logical" default="F"/>
+
 #DIFFUSIONTEST
 F		UsePitchAngleDiffusionTest
 F		UseEnergyDiffusionTest
 
-If either of the parameters is true, calculate diffusion 
-  and compare with analytical solution.
-Note. UseWaveDiffusion and UseDiagDiffusion must be true to use this option.
-      If one of UsePitch~ and UseEnergy~ is true, the other has to be fault.
+If either of the parameters is true, calculate diffusion and compare
+with analytical solution.  NOTE: UseWaveDiffusion and UseDiagDiffusion
+must be true to use this option.  Only UsePitchAngleDiffusionTest OR
+UseEnergyDiffusionTest can be TRUE at a time; the other must be false.
+
 </command>
 </commandgroup>
 
