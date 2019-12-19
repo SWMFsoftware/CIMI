@@ -163,9 +163,11 @@ contains
 
  ihiss=0
  if (UseHiss) then
-   if ( trim(HissWavesD) .eq.'D_hiss_UCLA.dat') ihiss=2
- else 
-   ihiss=1
+    if ( trim(HissWavesD) .eq.'D_hiss_UCLA.dat') then 
+       ihiss=2
+    else 
+       ihiss=1
+    endif
  endif
 
  ichor=0
@@ -382,6 +384,10 @@ contains
      do i=1,iba(j)
         if (density(i,j).eq.0.) then
            write(*,*) 'Error: density(i,j).eq.0, t,iba(j),i,j ',t,iba(j),i,j
+           write(*,*) 'Plasmasphere density at j =',j
+           do i=iba(j)
+              write(*,*) j,density(i,j)
+           enddo
            call CON_STOP('CIMI dies in WavePower')
         endif
         ompe(i,j)=sqrt(density(i,j)*e_mass/epsilon0)/bo(i,j)    ! fpe/fce
