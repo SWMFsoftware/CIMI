@@ -160,11 +160,11 @@ values for the aforementioned PARTICLE output types:
 \begin{verbatim}
 `all'			- Output all particle species.
 `ions'			- Output only the ion species' information.
-`e-' or `electrons'	- Output only the electron's information.
-`h+'			- Output only the hydrogen's information.
-`o+'			- Output only the oxygen's information.
+`e' or `electrons'	- Output only the electron's information.
+`h'			- Output only the hydrogen's information.
+`o'			- Output only the oxygen's information.
 			  (Only available if CIMI is compiled with `-EarthHO' option.)
-`he+'			- Output only the helium's information.
+`he'			- Output only the helium's information.
 			  (Only available if CIMI is compiled with `-EarthHOHe' option.)
 \end{verbatim}
 
