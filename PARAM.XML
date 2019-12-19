@@ -277,17 +277,23 @@ Determine whether or not to continue a previous run.
 	<parameter name="IsEmptyF2" type="logical" />
 	<parameter name="IsGMInitial" type="logical" />
 	<parameter name="IsDataInitial" type="logical" />
+	<parameter name="IsRBSPData" type="logical" />
 
 #INITIALF2
 F			IsEmptyF2
 T			IsGmInitial
 F			IsDataInitial
+F			IsRBSPData
 
 Determines whether to fill the fluxes in the simulation domain based
 on a Maxwellian determined from MHD quantities (IsGmInitial=T) or to
 set the initial fluxes in the simulation domain to zero (IsEmptyF2=T,
 not recommended) or to set the initial fluxes in the simulation to
-values from AMPTE/CCE data (IsDataInitial=T). The default is shown.
+values from AMPTE/CCE data (IsDataInitial=T).  One can also put RBSP
+observed fluxes into the same format as the AMPTE/CCE data to
+initilaize CIMI with RBSP observations which is controlled with the
+IsRBSPData logical, which is only read if IsDataInitial=T. The default
+is shown.
 </command>
 
 <command name="END">
