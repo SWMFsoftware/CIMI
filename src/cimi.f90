@@ -960,25 +960,29 @@ subroutine initial_f2(nspec,np,nt,iba,amu_I,vel,xjac,ib0)
   !----------------------------------------------------------------------------
   ! Routine setup initial distribution.
   ! 
-  ! Input: nspec,np,nt,iba,Den_IC,Temp_IC,amu,vel,xjac
-  ! Output: ib0,f2,rbsum,xleb,xled,xlel,xlee,xles,driftin,driftout
-  !         (through common block cinitial_f2)
-  use ModIoUnit, ONLY: UnitTmp_
-  use ModGmCimi, ONLY: Den_IC, Temp_IC, Temppar_IC, DoAnisoPressureGMCoupling
-  use ModCimi,   ONLY: f2
-  use ModCimiInitialize,   ONLY: IsEmptyInitial, IsDataInitial, IsRBSPData, &
-       IsGmInitial
-  use ModCimiGrid,ONLY: nm,nk,MinLonPar,MaxLonPar,iProc,nProc,iComm,d4Element_C,neng
-  use ModCimiTrace, ONLY: sinA,ro, ekev,pp,iw2,irm
+  ! Input: nspec, np, nt, iba, Den_IC, Temp_IC, amu, vel, xjac
+  ! Output: ib0, f2, rbsum, xleb, xled, xlel, xlee, xles, driftin,
+  !		driftout (through common block cinitial_f2)
+  use ModIoUnit,		ONLY: UnitTmp_
+  use ModGmCimi, 		ONLY: &
+       Den_IC, Temp_IC, Temppar_IC, DoAnisoPressureGMCoupling
+  use ModCimi,			ONLY: f2
+  use ModCimiInitialize,	ONLY: &
+       IsEmptyInitial, IsDataInitial, IsRBSPData, &
+       IsGmInitial, IsInitialElectrons, NameFinFile, FinFilePrefix
+  use ModCimiGrid,		ONLY: &
+       nm, nk, MinLonPar, MaxLonPar, iProc, nProc, iComm, &
+       d4Element_C, neng
+  use ModCimiPlanet,		ONLY: NameSpeciesExtension_I
+  use ModCimiTrace, 		ONLY: &
+       sinA, ro, ekev, pp, iw2, irm
   use ModMpi
-  use ModWaveDiff, ONLY:  testDiff_aa,testDiff_EE,testDiff_aE
+  use ModWaveDiff, 		ONLY:  &
+       testDiff_aa, testDiff_EE, testDiff_aE
 
   implicit none
 
-  integer,parameter :: np1=51,nt1=48,nspec1=1  
-  !integer,parameter :: nm=35,nk=28 ! dimension of CIMI magnetic moment and K
- 
-  integer nspec,np,nt,iba(nt),ib0(nt),n,j,i,k,m, iError
+  integer nspec, np, nt, iba(nt), ib0(nt), n, j, i, k, m, iError
   real amu_I(nspec),vel(nspec,np,nt,nm,nk)
   real velperp2, velpar2
   real xjac(nspec,np,nm),pi,xmass,chmass,f21,vtchm
@@ -990,8 +994,6 @@ subroutine initial_f2(nspec,np,nt,iba,amu_I,vel,xjac,ib0)
   real, allocatable :: roi(:), ei(:), fi(:,:)
   real :: roii, e1,x, fluxi,psd2,etemp
   
-  character(11) :: NameFile='quiet_x.fin'
-  character(5) :: FilePrefix='xxxxx'
   !---------------------------------------------------------------------------
   pi=acos(-1.)
 
@@ -1035,31 +1037,19 @@ subroutine initial_f2(nspec,np,nt,iba,amu_I,vel,xjac,ib0)
   elseif(IsDataInitial) then
      do n=1,nspec
         if (IsRBSPData) then
-           FilePrefix='RBSP'
+           FinFilePrefix = 'RBSP'
         else
-           FilePrefix='quiet'
+           FinFilePrefix = 'quiet'
         endif
         !set the file name, open it and read it
-        SELECT CASE (n)
-        CASE (1)
-           if (n==nspec) then
-              NameFile=TRIM(FilePrefix) // '_e.fin'
-           else
-              NameFile=TRIM(FilePrefix) // '_h.fin'
-           endif
-        CASE (2)
-           if (n==nspec) then
-              NameFile=TRIM(FilePrefix) // '_e.fin'
-           else
-              NameFile=TRIM(FilePrefix) // '_o.fin'
-           endif
-        CASE DEFAULT
-           NameFile=TRIM(FilePrefix) // '_e.fin'
-        END SELECT
-        open(unit=UnitTmp_,file='IM/'//NameFile,status='old')
+        NameFinFile  = &
+             TRIM( FinFilePrefix ) // &
+             NameSpeciesExtension_I( n ) // '.fin'
+        open(unit=UnitTmp_,file='IM/'//NameFinFile,status='old')
         read(UnitTmp_,*) il,ie
         allocate (roi(il),ei(ie),fi(il,ie))
-        read(UnitTmp_,*) iunit   ! 1=flux in (cm2 s sr keV)^-1, 2=in (cm2 s MeV)^-1
+        ! iunit values: 1=flux in (cm2 s sr keV)^-1, 2=in (cm2 s MeV)^-1
+        read(UnitTmp_,*) iunit   
         read(UnitTmp_,*) roi
         read(UnitTmp_,*) ei      ! ei in keV
         read(UnitTmp_,*) fi
