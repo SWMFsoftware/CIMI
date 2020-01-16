@@ -49,11 +49,18 @@
 !**************************************************************************
   Module ModLstar
 
-    logical :: DoVerboseLstar = .false.
+    use ModCimiGrid,	ONLY: np, nt, nk
+
+    logical	:: &
+         DoVerboseLstar = .false.
+
+    real	:: &
+         Lstar_C(np,nt), Lstar_max, Lstarm(np,nt,nk), Lstarm_max(nk)
     
 contains
 
-  subroutine calc_Lstar1(Lstar,Lstar_max,rc)
+  subroutine calc_Lstar1(rc)
+!!$  subroutine calc_Lstar1(Lstar,Lstar_max,rc)
 
   use ModNumConst, 	ONLY: pi => cPi
   use ModCimiPlanet,	ONLY: re_m, xme => dipmom
@@ -61,7 +68,7 @@ contains
   use ModCimiGrid,	ONLY: xlati => xlatr, ir => np, ip => nt, xmlt
   implicit none
 
-  real BE,Bflux(ir,ip),logBo,dBdlat(ir),Lstar(ir,ip),Lstar_max,rc,&
+  real BE,Bflux(ir,ip),logBo,dBdlat(ir),rc,&!Lstar(ir,ip),Lstar_max,rc,&
        dmlt(ip),mlt1,mlt2,dp,dmlt1,xlat_i,dBdlat_i,b1,b2,mlat2,logBo_i(ir)
   integer i,j,j0,ib0,ii,ii1,jdawn,jdusk,jnoon,j1,j2,B_island(ir,ip)
   !real,external :: dBdMLAT
@@ -100,19 +107,22 @@ contains
    
 ! Caculates L* at each grid
   Bflux=0.  ! Initialize magnetic fluxes
-  Lstar(1:ib0-1,1:ip)=ro(1:ib0-1,1:ip)  ! set L*=ro at i<ib0
+  Lstar_C(1:ib0-1,1:ip)=ro(1:ib0-1,1:ip)  ! set L*=ro at i<ib0
   do j0=1,ip                     ! MLT grid
      do i=ib0,iba(j0)
         Bflux(i,j0)=0.             ! initialization of magnetic flux  
         if (B_island(i,j0).eq.1) then 
-           lstar(i,j0)=-1.*rb      
+           lstar_C(i,j0)=-1.*rb      
            go to 40                ! skipping magnetic island
         endif
         logBo=log10(bo(i,j0))
         do j=1,ip
            logBo_i(1:iba(j))=log10(bo(1:iba(j),j))
-           if (j.ne.j0.and.logBo.lt.logBo_i(1).and.logBo.ge.logBo_i(iba(j))) &
-              call locateB(logBo_i(1:iba(j)),iba(j),logBo,ii) ! Find the MLAT index for the same bo
+           ! Find the MLAT index for the same bo
+           IF ( ( j .NE. j0 ) .AND. &
+                ( logBo .LT. logBo_i( 1 ) ) .AND. &
+                ( logBo .GE. logBo_i( iba( j ) ) ) ) &
+                CALL locateB( logBo_i( 1 : iba( j ) ), iba( j ), logBo, ii )
            if (logBo.ge.logBo_i(1)) ii=1
            if (logBo.lt.logBo_i(iba(j))) ii=iba(j)
            if (j.eq.j0) ii=i
@@ -130,40 +140,41 @@ contains
            dBdlat_i=dBdMLAT(BE,rc,xlat_i)
            Bflux(i,j0)=Bflux(i,j0)+dBdlat_i*dmlt(j)*pi/12. ! analytic intergration of magnetic flux
         enddo          ! end of j
-        lstar(i,j0)=2.*pi*BE/Bflux(i,j0)
+        lstar_C(i,j0)=2.*pi*BE/Bflux(i,j0)
 40      continue
      enddo             ! end of i
-     if (iba(j0).lt.ir) lstar(iba(j0)+1:ir,j0)=rb     ! arbitrary big L* 
+     if (iba(j0).lt.ir) lstar_C(iba(j0)+1:ir,j0)=rb     ! arbitrary big L* 
   enddo                ! end of j0
 
   ! Determines L* max
-  Lstar_max=Lstar(iba(jnoon),jnoon) ! L* at noon magnetopause
+  Lstar_max=Lstar_C(iba(jnoon),jnoon) ! L* at noon magnetopause
   do j=jdawn,jdusk                  ! find L* max from dawn to dusk
-     if (Lstar_max.gt.Lstar(iba(j),j)) Lstar_max=Lstar(iba(j),j)
+     if (Lstar_max.gt.Lstar_C(iba(j),j)) Lstar_max = Lstar_C(iba(j),j)
   enddo
 
   if ( DoVerboseLstar ) then
      
      write(*,'("IM0: L*max =",f8.2)') Lstar_max
-     write(*,'("IM0: L* =",10f8.2)') (Lstar(i,1),i=1,ir)
+     write(*,'("IM0: L* =",10f8.2)') (Lstar_C(i,1),i=1,ir)
 
   endif
 
   end subroutine calc_Lstar1
 
 !**************************************************************************
-  subroutine calc_Lstar2(Lstar,Lstar_max,rc)
+  subroutine calc_Lstar2(rc)
+!!$  subroutine calc_Lstar2(Lstar,Lstar_max,rc)
 !
 ! Routine calcuates L* with K (second adiabatic invariant) dependence.
 !**************************************************************************
 
-  use ModNumConst, only:pi=>cPi
-  use ModCimiPlanet, only:re_m,xme=>dipmom
-  use ModCimiTrace,only: bm,ro,iba,rb
-  use ModCimiGrid, only:xlati=>xlatr,ir=>np,ip=>nt,xmlt,ik=>nk
+  use ModNumConst,	ONLY: pi=>cPi
+  use ModCimiPlanet,	ONLY: re_m, xme => dipmom
+  use ModCimiTrace,	ONLY: bm, ro, iba, rb
+  use ModCimiGrid, 	ONLY: xlati=>xlatr, ir=>np, ip=>nt, xmlt, ik=>nk
   implicit none
 
-  real BE,Bflux(ir,ip),dBdlat(ir),Lstar(ir,ip,ik),Lstar_max(ik),rc,&
+  real BE,Bflux(ir,ip),dBdlat(ir),rc,&!Lstar(ir,ip,ik),Lstar_max(ik),rc,&
        dmlt(ip),mlt1,mlt2,dp,dmlt1,xlat_i,dBdlat_i,b1,b2,mlat2,logBm,&
        logbm_i(ir)
   integer i,j,m,j0,ib0,ii,ii1,jdawn,jdusk,jnoon,j1,j2,B_island(ir,ip)
@@ -203,12 +214,12 @@ contains
    
 ! Caculates L* at each grid
      Bflux=0.  ! Initialize magnetic fluxes
-     Lstar(1:ib0-1,1:ip,m)=ro(1:ib0-1,1:ip)  ! set L*=ro at i<ib0
+     Lstarm(1:ib0-1,1:ip,m)=ro(1:ib0-1,1:ip)  ! set L*=ro at i<ib0
      do j0=1,ip                     ! MLT grid
         do i=ib0,iba(j0)
            Bflux(i,j0)=0.             ! initialization of magnetic flux  
            if (B_island(i,j0).eq.1) then 
-              lstar(i,j0,m)=-1.*rb      
+              lstarm(i,j0,m)=-1.*rb      
               go to 40                ! skipping magnetic island
            endif
            logBm=log10(bm(i,j0,m))
@@ -232,23 +243,23 @@ contains
               dBdlat_i=dBdMLAT(BE,rc,xlat_i)
               Bflux(i,j0)=Bflux(i,j0)+dBdlat_i*dmlt(j)*pi/12. ! analytic intergration of magnetic flux
            enddo ! end of j
-           lstar(i,j0,m)=2.*pi*BE/Bflux(i,j0)
+           lstarm(i,j0,m)=2.*pi*BE/Bflux(i,j0)
 40         continue
         enddo    ! end of i
-        if (iba(j0).lt.ir) lstar(iba(j0)+1:ir,j0,m)=rb     ! arbitrary big L* 
+        if (iba(j0).lt.ir) lstarm(iba(j0)+1:ir,j0,m)=rb     ! arbitrary big L* 
      enddo       ! end of j0
 
   ! Determines L* max
-     Lstar_max(m)=Lstar(iba(jnoon),jnoon,m) ! L* at noon magnetopause
+     Lstarm_max(m)=Lstarm(iba(jnoon),jnoon,m) ! L* at noon magnetopause
      do j=jdusk,jdawn                  ! find L* max from dawn to dusk
-        if (Lstar_max(m).gt.Lstar(iba(j),j,m)) Lstar_max(m)=Lstar(iba(j),j,m)
+        if (Lstarm_max(m).gt.Lstarm(iba(j),j,m)) Lstarm_max(m)=Lstarm(iba(j),j,m)
      enddo
   enddo          ! end of k
 
   if ( DoVerboseLstar ) then
      
-     write(*,'("IM0: L*max =",8f8.2)') (Lstar_max(m),m=1,ik)
-     write(*,'("IM0: L* =",10f8.2)') (Lstar(i,1,1),i=1,ir)
+     write(*,'("IM0: L*max =",8f8.2)') (Lstarm_max(m),m=1,ik)
+     write(*,'("IM0: L* =",10f8.2)') (Lstarm(i,1,1),i=1,ir)
 
   endif
 

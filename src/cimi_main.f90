@@ -9,22 +9,22 @@
 !******************************************************************************
 
 program cimi
-  use ModCimiGrid,    ONLY: iProc,nProc,iComm
-  use ModCIMI,        ONLY: IsStandalone
+  use ModCimiGrid,	ONLY: iProc,nProc,iComm
+  use ModCIMI,		ONLY: IsStandalone
   use ModMpi
-  use ModCimi,        ONLY: init_mod_cimi, Time
-  use ModCimiTrace,  ONLY: init_mod_field_trace
-  use ModImTime,      ONLY: TimeMax
-  use ModCimiRestart, ONLY: DtSaveRestart,cimi_write_restart
+  use ModCimi,		ONLY: init_mod_cimi, Time
+  use ModCimiTrace,	ONLY: init_mod_field_trace
+  use ModImTime,	ONLY: TimeMax
+  use ModCimiRestart,	ONLY: DtSaveRestart,cimi_write_restart
   use ModReadParam
-  use ModPrerunField, ONLY: UsePrerun, read_prerun, read_prerun_IE, DtRead
-  use ModImSat,       ONLY: UsePrerunSat, read_prerun_sat, DtReadSat, &
+  use ModPrerunField,	ONLY: UsePrerun, read_prerun, read_prerun_IE, DtRead
+  use ModImSat,		ONLY: UsePrerunSat, read_prerun_sat, DtReadSat, &
        IsFirstWrite
-  use ModIeCimi,      ONLY: UseWeimer
-  use ModGmCimi,      ONLY: init_gm_cimi
-  use ModPlasmasphere,   ONLY: UseCorePsModel,save_restart_plasmasphere
-  use CON_planet, ONLY: init_planet_const, set_planet_defaults
-!  use ModPrerunField, ONLY: UsePrerun, read_prerun, read_prerun_IE
+  use ModIeCimi,	ONLY: UseWeimer
+  use ModGmCimi,	ONLY: init_gm_cimi
+  use ModPlasmasphere,	ONLY: UseCorePsModel,save_restart_plasmasphere
+  use ModCimiPlanet,	ONLY: init_cimi_planet_const
+  use CON_planet, 	ONLY: init_planet_const, set_planet_defaults
  
   implicit none
  
@@ -70,6 +70,7 @@ program cimi
   call init_mod_cimi
   call init_mod_field_trace
   call init_gm_cimi
+  call init_cimi_planet_const
   
   ! Start Timing
   call timing_active(.true.)

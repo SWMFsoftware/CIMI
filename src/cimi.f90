@@ -17,7 +17,7 @@ subroutine cimi_run(delta_t)
        DoCalcPrecip, DtCalcPrecip, &
        vdr_q3, eng_q3, vexb, dif_q3, Part_phot
   use ModCimiPlanet,  	 ONLY: &
-       re_m, dipmom, Hiono, nspec, amu_I, dFactor_I, tFactor_I
+       re_m, dipmom, Hiono, rc, nspec, amu_I, dFactor_I, tFactor_I
   use ModCimiTrace,  	 ONLY: &
        fieldpara, brad => ro, ftv => volume, xo, yo, rb, irm,&
        ekev, iba, bo, pp, Have, sinA, vel, alscone, iw2, xmlto, bm,phi2o
@@ -44,7 +44,7 @@ subroutine cimi_run(delta_t)
   use ModCoupleSami,  	 ONLY: DoCoupleSami
   use DensityTemp,    	 ONLY: density, simple_plasmasphere
   use ModIndicesInterfaces
-  use ModLstar,       	 ONLY: calc_Lstar1, calc_Lstar2 
+  use ModLstar!,       	 ONLY: calc_Lstar1, calc_Lstar2 
   use ModPlasmasphere,	 ONLY: &
        UseCorePsModel, PlasSpinUpTime, init_plasmasphere, &
        advance_plasmasphere, DoSavePlas, DtPlasOutput,&
@@ -66,12 +66,12 @@ subroutine cimi_run(delta_t)
        vlEa(nspec,np,nt,neng,npit), vpEa(nspec,np,nt,neng,npit)
   real achar(nspec,np,nt,nm,nk)
   real :: vl(nspec,0:np,nt,nm,nk)=0.0, vp(nspec,0:np,nt,nm,nk)=0.0, &
-       fb(nspec,nt,nm,nk), rc
+       fb(nspec,nt,nm,nk)
   integer iLat, iLon, iSpecies, iSat, iOperator
   logical, save :: IsFirstCall =.true.
   real  :: AE_temp = 0. ,&   
            Kp_temp = 0.   
-  real Lstar_C(np,nt),Lstar_max,Lstarm(np,nt,nk),Lstar_maxm(nk)
+
 
   integer iError
 
@@ -95,13 +95,27 @@ subroutine cimi_run(delta_t)
   call time_real_to_int(CurrentTime,iCurrentTime_I)
   
   ! do field line integration and determine vel, ekev, momentum (pp), etc.
-  rc=(re_m+Hiono*1000.)/re_m        ! ionosphere distance in RE`
+!!$  write(*,*) "re_m, Hiono, rc: ", re_m, Hiono, rc
+!!$  rc=(re_m+Hiono*1000.)/re_m        ! ionosphere distance in RE`
+!!$  write(*,*) "re_m, Hiono, rc: ", re_m, Hiono, rc
 
   call timing_start('cimi_fieldpara')
   call fieldpara(Time,dt,cLightSpeed,cElectronCharge,rc,re_m,xlat,xmlt,phi,xk,&
                  dipmom,IsRestart)
   call timing_stop('cimi_fieldpara')
 
+  ! Trace lstar variables for initial_f2.  NOTE: Typically lstar is
+  ! only calculated on root, but with this formulation all PEs will
+  ! have a copy of lstar for the initialization.
+  call timing_start('calc_Lstar1')
+!!$  call calc_Lstar1!(Lstar_C,Lstar_max,rc)
+  call calc_Lstar1(rc)
+  call timing_stop('calc_Lstar1')
+
+  call timing_start('calc_Lstar2')
+  call calc_Lstar2(rc)
+  call timing_stop('calc_Lstar2')
+        
   ! interpolate a0 of const. Q2 curve correspoding K
   if (.not.IsFirstCall) then
   call timing_start('cimi_interpol_D_coefK')
@@ -136,8 +150,6 @@ subroutine cimi_run(delta_t)
      !wave calculation
      density=PlasDensity_C
   endif
-  
-  
   
   ! get Bmin, needs to be passed to GM for anisotropic pressure coupling
   Bmin_C = bo
@@ -217,10 +229,6 @@ subroutine cimi_run(delta_t)
 
      if ( iProc == 0 ) then
 
-        call timing_start('calc_Lstar1')
-        call calc_Lstar1(Lstar_C,Lstar_max,rc)
-        call timing_stop('calc_Lstar1')
-           
         if ( DoSaveEq ) then
 
            call timing_start('cimi_plot_eq')
@@ -251,11 +259,7 @@ subroutine cimi_run(delta_t)
         
         if ( DoSaveLstar ) then
 
-           call timing_start('calc_Lstar2')
-           call calc_Lstar2(Lstarm,Lstar_maxm,rc)
-           call timing_stop('calc_Lstar2')
-        
-           call Cimi_plot_Lstar(rc,xk,time,Lstarm,Lstar_maxm)
+           call Cimi_plot_Lstar(rc,xk,time,Lstarm,Lstarm_max)
 
         endif
 
@@ -463,7 +467,7 @@ subroutine cimi_run(delta_t)
   if ( iProc == 0 ) then
 
      call timing_start('calc_Lstar1')
-     call calc_Lstar1(Lstar_C,Lstar_max,rc)
+     call calc_Lstar1(rc)
      call timing_stop('calc_Lstar1')
         
      ! Plot CIMI parameters at the equator
@@ -500,10 +504,10 @@ subroutine cimi_run(delta_t)
      then
         
         call timing_start('calc_Lstar2')
-        call calc_Lstar2(Lstarm,Lstar_maxm,rc)
+        call calc_Lstar2(rc)
         call timing_stop('calc_Lstar2')
         
-        call Cimi_plot_Lstar( rc, xk, time, Lstarm, Lstar_maxm )
+        call Cimi_plot_Lstar( rc, xk, time, Lstarm, Lstarm_max )
 
      endif
      
@@ -607,17 +611,17 @@ subroutine cimi_init
   !         xmm1,xk1,phi1,dlat1,dphi1,dmm1,dk1,delE1,dmu1,xjac,d4,amu (through 
   !         common block cinitialization
 
-  use ModInterFlux,   ONLY: set_nghostcell_scheme
-  use ModPlanetConst, ONLY: Earth_,DipoleStrengthPlanet_I,rPlanet_I
-  use ModConst,       ONLY: cElectronCharge, cLightSpeed, cProtonMass
-  use ModNumConst,    ONLY: cDegToRad,cRadToDeg,cPi
-  use ModCimiPlanet,  ONLY: re_m, dipmom, Hiono, amu_I, nspec
+  use ModInterFlux,	ONLY: set_nghostcell_scheme
+  use ModPlanetConst,	ONLY: Earth_,DipoleStrengthPlanet_I,rPlanet_I
+  use ModConst,		ONLY: cElectronCharge, cLightSpeed, cProtonMass
+  use ModNumConst,	ONLY: cDegToRad,cRadToDeg,cPi
+  use ModCimiPlanet,	ONLY: re_m, dipmom, Hiono, amu_I, nspec
   use ModCimiInitialize
-  use ModCimiRestart, ONLY: IsRestart, cimi_read_restart
+  use ModCimiRestart,	ONLY: IsRestart, cimi_read_restart
   use ModImTime
   use ModCimiGrid
   use ModCimi, 		ONLY: energy, Ebound, dele
-  use ModTimeConvert, ONLY: time_int_to_real,time_real_to_int
+  use ModTimeConvert,	ONLY: time_int_to_real, time_real_to_int
   use ModMpi
 
   implicit none
@@ -697,9 +701,10 @@ subroutine cimi_init
   StartTime=CurrentTime
 
   ! Define constants
-  re_m = rPlanet_I(Earth_)                            ! earth's radius (m)
-  dipmom=abs(DipoleStrengthPlanet_I(Earth_)*re_m**3)  ! earth's dipole moment
-
+!!$  re_m = rPlanet_I(Earth_)                            ! earth's radius (m)
+!!$  dipmom=abs(DipoleStrengthPlanet_I(Earth_)*re_m**3)  ! earth's dipole moment
+!!$  write(*,*) "dipmom: ", dipmom
+  
   ! Define latitude grid
   call init_lat
  
