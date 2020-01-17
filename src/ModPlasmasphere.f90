@@ -15,7 +15,8 @@ Module ModPlasmasphere
   private
 
   !constants for the plasmaphere module
-  real,parameter 	:: 	pi = 3.14159265358979
+  real,parameter 	:: 	&
+       pi = 3.1415926535897932384626433832795
   ! earth's radius (m)
   real,parameter	::	re_m = 6.378e6
   ! Dipole moment in T m^3
