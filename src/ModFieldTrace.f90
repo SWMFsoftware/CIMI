@@ -57,8 +57,9 @@ contains
   ! given magnetic field configuration.
   ! Output: iba,irm,iw2,vel,ekev,pp,sinA,Have,alscone             
   !***********************************************************************
-  subroutine fieldpara(t,dt,c,q,rc,re,xlati,xmlt,phi,si,xme,IsRestart)
-    use ModCimiPlanet,		ONLY: nspec
+  subroutine fieldpara(t,dt,c,q,xlati,xmlt,phi,si,IsRestart)
+    use ModCimiPlanet,		ONLY: &
+         nspec, re => re_m, rc, xme => dipmom
     use ModNumConst,		ONLY: pi => cPi, cDegToRad
     use ModCimiInitialize,	ONLY: xmm
     use ModMpi
@@ -75,7 +76,7 @@ contains
     integer :: iday1
 
     integer, parameter :: np=10000,nd=3
-    real :: rc, re,xme,dt,t,c
+    real :: t, dt, c
     real xlati(ir),phi(ip),si(0:ik+1),&
          si3(np),bm1(np),rm(np),rs(np),dss(np),&
          h3(np),bs(np),bba(np),&

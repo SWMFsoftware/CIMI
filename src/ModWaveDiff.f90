@@ -133,7 +133,7 @@ integer :: NumAeElements
 
 contains
 
-  subroutine ReadDiffCoef(rc)
+  subroutine ReadDiffCoef
 
 !  use constants  check later
 !  use cimigrid_dim
@@ -141,7 +141,7 @@ contains
 !  use waveDiffCoef
 !  use cWpower
 
-  use ModCimiPlanet,	ONLY: xme=>dipmom
+  use ModCimiPlanet,	ONLY: xme=>dipmom, rc
   use ModIoUnit,	ONLY: UnitTmp_
   use ModCimiGrid,	ONLY: iProc
   
@@ -152,7 +152,6 @@ contains
  real E_cgs,cE2,EEo,E2Eo,daan,dapn,dppn,daa0,dap0,dpp0
  real,parameter :: Lu0=6.
  character header*80
- real rc
 
 ! list of available wave diffusion coefficients models:
 !  main lower band chorus model:  D_LBchorus_merge.dat

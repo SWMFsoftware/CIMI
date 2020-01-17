@@ -47,29 +47,31 @@
 !  * March 21, 2016    - Add calc_lstar2.f90
 !  * May 22, 2018      - Added verbose 
 !**************************************************************************
-  Module ModLstar
+Module ModLstar
 
-    use ModCimiGrid,	ONLY: np, nt, nk
-
-    logical	:: &
-         DoVerboseLstar = .false.
-
-    real	:: &
-         Lstar_C(np,nt), Lstar_max, Lstarm(np,nt,nk), Lstarm_max(nk)
-    
+  use ModCimiGrid,	ONLY: np, nt, nk
+  
+  logical	:: &
+       DoVerboseLstar = .false.
+  
+  real	:: &
+       Lstar_C(np,nt), Lstar_max, Lstarm(np,nt,nk), Lstarm_max(nk)
+  
+  public :: calc_Lstar1
+  public :: calc_Lstar2
+  
 contains
-
-  subroutine calc_Lstar1(rc)
-!!$  subroutine calc_Lstar1(Lstar,Lstar_max,rc)
-
+  
+  subroutine calc_Lstar1
+    
   use ModNumConst, 	ONLY: pi => cPi
-  use ModCimiPlanet,	ONLY: re_m, xme => dipmom
+  use ModCimiPlanet,	ONLY: re_m, xme => dipmom, rc
   use ModCimiTrace,	ONLY: bo, ro, iba, rb
   use ModCimiGrid,	ONLY: xlati => xlatr, ir => np, ip => nt, xmlt
   implicit none
 
-  real BE,Bflux(ir,ip),logBo,dBdlat(ir),rc,&!Lstar(ir,ip),Lstar_max,rc,&
-       dmlt(ip),mlt1,mlt2,dp,dmlt1,xlat_i,dBdlat_i,b1,b2,mlat2,logBo_i(ir)
+  real BE, Bflux(ir,ip), dBdlat(ir), dmlt(ip), mlt1, mlt2, dp, dmlt1, &
+       xlat_i, dBdlat_i, b1, b2, mlat2, logBo, logBo_i(ir)
   integer i,j,j0,ib0,ii,ii1,jdawn,jdusk,jnoon,j1,j2,B_island(ir,ip)
   !real,external :: dBdMLAT
 
@@ -162,21 +164,19 @@ contains
   end subroutine calc_Lstar1
 
 !**************************************************************************
-  subroutine calc_Lstar2(rc)
-!!$  subroutine calc_Lstar2(Lstar,Lstar_max,rc)
+  subroutine calc_Lstar2
 !
 ! Routine calcuates L* with K (second adiabatic invariant) dependence.
 !**************************************************************************
 
   use ModNumConst,	ONLY: pi=>cPi
-  use ModCimiPlanet,	ONLY: re_m, xme => dipmom
+  use ModCimiPlanet,	ONLY: re_m, xme => dipmom, rc
   use ModCimiTrace,	ONLY: bm, ro, iba, rb
   use ModCimiGrid, 	ONLY: xlati=>xlatr, ir=>np, ip=>nt, xmlt, ik=>nk
   implicit none
 
-  real BE,Bflux(ir,ip),dBdlat(ir),rc,&!Lstar(ir,ip,ik),Lstar_max(ik),rc,&
-       dmlt(ip),mlt1,mlt2,dp,dmlt1,xlat_i,dBdlat_i,b1,b2,mlat2,logBm,&
-       logbm_i(ir)
+  real BE, Bflux(ir,ip), dBdlat(ir), dmlt(ip), mlt1, mlt2, dp, dmlt1, &
+       xlat_i, dBdlat_i, b1, b2, mlat2, logBm, logbm_i(ir)
   integer i,j,m,j0,ib0,ii,ii1,jdawn,jdusk,jnoon,j1,j2,B_island(ir,ip)
  
   jdawn=nint(float(ip)*0.75)+1     ! MLT index at dawn

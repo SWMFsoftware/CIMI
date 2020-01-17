@@ -44,7 +44,7 @@ subroutine cimi_run(delta_t)
   use ModCoupleSami,  	 ONLY: DoCoupleSami
   use DensityTemp,    	 ONLY: density, simple_plasmasphere
   use ModIndicesInterfaces
-  use ModLstar!,       	 ONLY: calc_Lstar1, calc_Lstar2 
+  use ModLstar,       	 ONLY: calc_Lstar1, calc_Lstar2 
   use ModPlasmasphere,	 ONLY: &
        UseCorePsModel, PlasSpinUpTime, init_plasmasphere, &
        advance_plasmasphere, DoSavePlas, DtPlasOutput,&
@@ -95,26 +95,21 @@ subroutine cimi_run(delta_t)
   call time_real_to_int(CurrentTime,iCurrentTime_I)
   
   ! do field line integration and determine vel, ekev, momentum (pp), etc.
-!!$  write(*,*) "re_m, Hiono, rc: ", re_m, Hiono, rc
-!!$  rc=(re_m+Hiono*1000.)/re_m        ! ionosphere distance in RE`
-!!$  write(*,*) "re_m, Hiono, rc: ", re_m, Hiono, rc
-
   call timing_start('cimi_fieldpara')
-  call fieldpara(Time,dt,cLightSpeed,cElectronCharge,rc,re_m,xlat,xmlt,phi,xk,&
-                 dipmom,IsRestart)
+  call fieldpara(Time,dt,cLightSpeed,cElectronCharge,xlat,xmlt,phi,xk,&
+                 IsRestart)
   call timing_stop('cimi_fieldpara')
 
   ! Trace lstar variables for initial_f2.  NOTE: Typically lstar is
   ! only calculated on root, but with this formulation all PEs will
   ! have a copy of lstar for the initialization.
   call timing_start('calc_Lstar1')
-!!$  call calc_Lstar1!(Lstar_C,Lstar_max,rc)
-  call calc_Lstar1(rc)
+  call calc_Lstar1
   call timing_stop('calc_Lstar1')
 
-  call timing_start('calc_Lstar2')
-  call calc_Lstar2(rc)
-  call timing_stop('calc_Lstar2')
+!!$  call timing_start('calc_Lstar2')
+!!$  call calc_Lstar2
+!!$  call timing_stop('calc_Lstar2')
         
   ! interpolate a0 of const. Q2 curve correspoding K
   if (.not.IsFirstCall) then
@@ -169,7 +164,7 @@ subroutine cimi_run(delta_t)
 
   !  read wave models 
   if (IsFirstCall) then
-     if (UseWaveDiffusion) call ReadDiffCoef(rc)
+     if (UseWaveDiffusion) call ReadDiffCoef
      if (UseDiagDiffusion) call calc_DQQ
   endif
   
@@ -211,7 +206,7 @@ subroutine cimi_run(delta_t)
   ! calculate the ionospheric potential (if not using MHD potential)
   if (UseWeimer) then
      call timing_start('set_cimi_potential')
-     call set_cimi_potential(CurrentTime,rc) 
+     call set_cimi_potential(CurrentTime) 
      call timing_stop('set_cimi_potential')
   endif
   
@@ -234,7 +229,7 @@ subroutine cimi_run(delta_t)
            call timing_start('cimi_plot_eq')
            call Cimi_plot_eq( np, nt, xo, yo, &
                 Pressure_IC, PressurePar_IC, phot, Ppar_IC, Den_IC,&
-                bo, ftv, pot, FAC_C, Time, dt, Lstar_C )
+                bo, ftv, pot, FAC_C, Time, dt )
            call timing_stop('cimi_plot_eq')
 
         endif
@@ -244,7 +239,7 @@ subroutine cimi_run(delta_t)
            call timing_start('cimi_plot_iono')
            call Cimi_plot_iono( np, nt, xo, yo, &
                 Pressure_IC, PressurePar_IC, phot, Ppar_IC, Den_IC,&
-                bo, ftv, pot, FAC_C, Time, dt, Lstar_C )
+                bo, ftv, pot, FAC_C, Time, dt )
            call timing_stop('cimi_plot_iono')
 
         endif
@@ -259,7 +254,7 @@ subroutine cimi_run(delta_t)
         
         if ( DoSaveLstar ) then
 
-           call Cimi_plot_Lstar(rc,xk,time,Lstarm,Lstarm_max)
+           call Cimi_plot_Lstar(xk,time)
 
         endif
 
@@ -270,16 +265,16 @@ subroutine cimi_run(delta_t)
         do iSpecies = 1, nspec
 
            if ( DoSaveFlux( iSpecies ) ) &
-                call Cimi_plot_fls( rc, flux( iSpecies, :, :, :, : ), &
-                iSpecies, time, Lstar_C, Lstar_max )
+                call Cimi_plot_fls( flux( iSpecies, :, :, :, : ), &
+                iSpecies, time )
            if ( DoSavePSD( iSpecies ) ) &
-                call Cimi_plot_psd( rc, psd( iSpecies, :, :, :, : ), &
+                call Cimi_plot_psd( psd( iSpecies, :, :, :, : ), &
                 iSpecies, time, xmm, xk )
            if ( DoSaveVLDrift( iSpecies ) ) &
-                call Cimi_plot_vl( rc, vlEa( iSpecies, :, :, :, : ), &
+                call Cimi_plot_vl( vlEa( iSpecies, :, :, :, : ), &
                 iSpecies, time)
            if ( DoSaveVPDrift( iSpecies ) ) &
-                call Cimi_plot_vp( rc, vpEa( iSpecies, :, :, :, : ), &
+                call Cimi_plot_vp( vpEa( iSpecies, :, :, :, : ), &
                 iSpecies, time)
            
         enddo
@@ -302,7 +297,7 @@ subroutine cimi_run(delta_t)
   if (UseStrongDiff) then
      ! Calculate the strong diffusion lifetime for electrons
      call timing_start('cimi_StDiTime')
-     call StDiTime(dt,vel,ftv,rc,re_m,dipmom,iba)
+     call StDiTime(dt,vel,ftv,iba)
      call timing_stop('cimi_StDiTime')
   endif
   
@@ -448,7 +443,7 @@ subroutine cimi_run(delta_t)
        ( floor( ( Time + 1.0e-5 ) / DtCalcPrecip ) ) /= &
          floor( ( Time + 1.0e-5 - delta_t ) / DtCalcPrecip ) ) then
      call timing_start('cimi_precip_calc')
-     call cimi_precip_calc( rc, DtCalcPrecip )
+     call cimi_precip_calc( DtCalcPrecip )
      call timing_stop('cimi_precip_calc')
   endif
 
@@ -467,7 +462,7 @@ subroutine cimi_run(delta_t)
   if ( iProc == 0 ) then
 
      call timing_start('calc_Lstar1')
-     call calc_Lstar1(rc)
+     call calc_Lstar1
      call timing_stop('calc_Lstar1')
         
      ! Plot CIMI parameters at the equator
@@ -479,7 +474,7 @@ subroutine cimi_run(delta_t)
         call timing_start('cimi_plot_eq')
         call Cimi_plot_eq( np, nt, xo, yo, &
              Pressure_IC, PressurePar_IC, phot, Ppar_IC, &
-             Den_IC, bo, ftv, pot, FAC_C, Time, dt, Lstar_C )
+             Den_IC, bo, ftv, pot, FAC_C, Time, dt )
         call timing_stop('cimi_plot_eq')
         
      endif
@@ -493,7 +488,7 @@ subroutine cimi_run(delta_t)
         call timing_start('cimi_plot_iono')
         call Cimi_plot_iono( np, nt, xo, yo, &
              Pressure_IC, PressurePar_IC, phot, Ppar_IC, &
-             Den_IC, bo, ftv, pot, FAC_C, Time, dt, Lstar_C )
+             Den_IC, bo, ftv, pot, FAC_C, Time, dt )
         call timing_stop('cimi_plot_iono')
         
      endif
@@ -504,10 +499,10 @@ subroutine cimi_run(delta_t)
      then
         
         call timing_start('calc_Lstar2')
-        call calc_Lstar2(rc)
+        call calc_Lstar2
         call timing_stop('calc_Lstar2')
         
-        call Cimi_plot_Lstar( rc, xk, time, Lstarm, Lstarm_max )
+        call Cimi_plot_Lstar( xk, time )
 
      endif
      
@@ -524,8 +519,8 @@ subroutine cimi_run(delta_t)
              	DtFluxOutput( iSpecies ) ) /= &
              floor( ( Time + 1.0e-5 - delta_t ) / &
              	DtFluxOutput( iSpecies ) ) ) ) &
-             call Cimi_plot_fls( rc, flux( iSpecies, :, :, :, : ), &
-             	iSpecies, time, Lstar_C, Lstar_max)
+             call Cimi_plot_fls( flux( iSpecies, :, :, :, : ), &
+             	iSpecies, time )
         
         ! Output Species' PSD
         if ( DoSavePSD( iSpecies ) .and. &
@@ -533,7 +528,7 @@ subroutine cimi_run(delta_t)
              	DtPSDOutput( iSpecies ) ) /= &
              floor( ( Time + 1.0e-5 - delta_t ) / &
              	DtPSDOutput( iSpecies ) ) ) ) &
-             call Cimi_plot_psd( rc, psd( iSpecies, :, :, :, : ), &
+             call Cimi_plot_psd( psd( iSpecies, :, :, :, : ), &
              	iSpecies, time, xmm, xk )
         
         ! Output Species' radial drift
@@ -542,7 +537,7 @@ subroutine cimi_run(delta_t)
              	DtVLDriftOutput( iSpecies ) ) /= &
              floor( ( Time + 1.0e-5 - delta_t ) / &
              	DtVLDriftOutput( iSpecies ) ) ) ) &
-             call Cimi_plot_vl( rc, vlEa( iSpecies, :, :, :, : ), &
+             call Cimi_plot_vl( vlEa( iSpecies, :, :, :, : ), &
              	iSpecies, time )
         
         ! Output Species' poloidal drift
@@ -551,7 +546,7 @@ subroutine cimi_run(delta_t)
              	DtVPDriftOutput( iSpecies ) ) /= &
              floor( ( Time + 1.0e-5 - delta_t ) / &
              	DtVPDriftOutput( iSpecies ) ) ) ) &
-             call Cimi_plot_vp( rc, vpEa( iSpecies, :, :, :, : ), &
+             call Cimi_plot_vp( vpEa( iSpecies, :, :, :, : ), &
              	iSpecies, time )
         
         ! Write precipitation file
@@ -562,7 +557,7 @@ subroutine cimi_run(delta_t)
              	DtPreciOutput( iSpecies ) ) ) then
            
            call timing_start('cimi_plot_precip')
-           call cimi_plot_precip( rc, iSpecies, Time )
+           call cimi_plot_precip( iSpecies, Time )
            call timing_stop('cimi_plot_precip')
            
         endif
@@ -1312,21 +1307,23 @@ subroutine ceparaIM(nspec,np,nt,nm,nk,irm,dt,vel,ekev,Have,achar)
 end subroutine ceparaIM
 
 !-------------------------------------------------------------------------------
-subroutine set_cimi_potential(CurrentTime,rc)
+subroutine set_cimi_potential(CurrentTime)
   !-----------------------------------------------------------------------------
   ! Routine sets the ionospheric potentials from weimer when not using MHD input
   !
-  use ModCimiGrid, ONLY: xlatr, xmlt, np, nt
-  use ModIeCimi,   ONLY: pot
-!  use ModTsyInput, ONLY: xnswa,vswa,bxw,byw,bzw
+  use ModCimiGrid,	ONLY: xlatr, xmlt, np, nt
+  use ModIeCimi,	ONLY: pot
   use ModMpi 
-  use EIE_ModWeimer, ONLY: setmodel00, boundarylat00, epotval00
-  use ModNumConst, ONLY: cPi, cRadToDeg
+  use EIE_ModWeimer,	ONLY: setmodel00, &
+       boundarylat00, epotval00
+  use ModNumConst,	ONLY: cPi, cRadToDeg
   use ModIndicesInterfaces
-  use ModCimiTrace, ONLY: UsePotential
+  use ModCimiTrace,	ONLY: UsePotential
+  use ModCimiPlanet,	ONLY: rc
+  
   implicit none
 
-  real, intent(in) :: CurrentTime,rc
+  real, intent(in) :: CurrentTime
 
   logical :: UseAL
   real :: ALindex
@@ -1978,10 +1975,11 @@ end subroutine charexchangeIM
 !                                StDiTime                                      
 !  Routine calculate the strong diffusion lifetime for electrons.     
 !*****************************************************************************
-subroutine StDiTime(dt,vel,volume,rc,re_m,xme,iba)
+subroutine StDiTime(dt,vel,volume,iba)
   use ModCimi,       ONLY: SDtime
   use ModCimiGrid,   ONLY: np,nt,nm,nk, xlatr,MinLonPar,MaxLonPar
-  use ModCimiPlanet, ONLY: nspec
+  use ModCimiPlanet, ONLY: nspec, rc, re_m, xme => dipmom
+
   real vel(nspec,np,nt,nm,nk),volume(np,nt)
   integer iba(nt)
   
@@ -2287,7 +2285,6 @@ subroutine sume_cimi(OperatorName)
        write(*,*) 'tot particles, el: ',psum(nspec,30,5,je+2)
 
 end subroutine sume_cimi
-
 
 !==============================================================================
 
@@ -2985,23 +2982,23 @@ subroutine core_ps_gather
 end subroutine core_ps_gather
 
 
-subroutine cimi_precip_calc(rc,dsec)
+subroutine cimi_precip_calc(dsec)
 
-  use ModCimi,       ONLY: &
+  use ModCimi,			ONLY:	&
        preF, preP, Eje1, &
-       xlel=>eChangeOperator_VICI, plel=>pChangeOperator_VICI, &
+       xlel => eChangeOperator_VICI, plel => pChangeOperator_VICI, &
        OpLossCone_, OpLossCone0_
-  use ModCimiTrace, ONLY: iba
-  use ModCimiGrid,   ONLY: &
+  use ModCimiTrace, 		ONLY:	iba
+  use ModCimiGrid,		ONLY:	&
        nProc,iProc,iComm,MinLonPar,MaxLonPar,nt,np,neng,xlatr,xmlt,dlat
-  use ModCimiPlanet, ONLY: nspec,re_m
+  use ModCimiPlanet,		ONLY: 	nspec, re_m, rc
   use ModMPI
-  use ModCimiInitialize, ONLY: dphi
+  use ModCimiInitialize, 	ONLY: 	dphi
   
   implicit none
   
-  real :: rc,dsec,dlel,dplel,area,area1,Asec
-  integer :: n,i,j,k
+  real :: dsec, dlel, dplel, area, area1, Asec
+  integer :: n, i, j, k
   
   preF(1:nspec,1:np,1:nt,1:neng+2)=0.
   preP(1:nspec,1:np,1:nt,1:neng+2)=0.

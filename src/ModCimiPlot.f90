@@ -8,69 +8,69 @@ module ModCimiPlot
        cimi_plot_log, cimi_plot_precip, Cimi_plot_boundary_check,&
        Cimi_plot_vl, Cimi_plot_vp, Cimi_plot_Lstar
   
-  character(len=5),		public	:: TypePlot   = 'ascii'
+  character(len=5), 		public	::	TypePlot = 'ascii'
 
-  logical,			public	:: DoSaveLog = .false.
-  real,				public	:: DtLogout   = 60.0
-  real, 			public :: DtOutput = 60.0
+  logical,			public	::	DoSaveLog = .false.
+  real,				public	::	DtLogOut = 60.0
+  real, 			public	::	DtOutput = 60.0
   
-  logical,			public	:: DoSavePlot = .false.
+  logical,			public	::	DoSavePlot = .false.
 
-  logical,			public	:: &
-       DoSaveEq   	= .false.
-  logical, 			public	:: &
+  logical,			public	:: 	&
+       DoSaveEq = .false.
+  logical, 			public	::	&
        DoSaveSeparateEqFiles = .false.
-  real,    			public	:: &
+  real,    			public	::	&
        DtEqOutput = 60.0
   
-  logical,			public	:: &
-       DoSaveIono   	= .false.
-  logical, 			public	:: &
+  logical,			public	::	&
+       DoSaveIono = .false.
+  logical, 			public	::	&
        DoSaveSeparateIonoFiles = .false.
-  real,    			public	:: &
+  real,    			public	::	&
        DtIonoOutput = 60.0
 
 
-  logical, 			public	:: &
+  logical, 			public	::	&
        DoSaveLstar = .false.
-  logical, 			public	:: &
+  logical, 			public	::	&
        DoSaveSeparateLstarFiles = .false.
-  real,    			public	:: &
+  real,    			public	::	&
        DtLstarOutput = 60.0
 
-  logical, dimension( nspec ),	public	:: &
+  logical, dimension( nspec ),	public	::	&
        DoSaveFlux = .false.
-  logical, dimension( nspec ),	public	:: &
+  logical, dimension( nspec ),	public	::	&
        DoSaveSeparateFluxFiles = .false.
-  real,    dimension( nspec ),	public	:: &
+  real,    dimension( nspec ),	public	::	&
        DtFluxOutput = 60.0
   
-  logical, dimension( nspec ),	public	:: &
+  logical, dimension( nspec ),	public	::	&
        DoSavePSD = .false.
-  logical, dimension( nspec ),	public	:: &
+  logical, dimension( nspec ),	public	::	&
        DoSaveSeparatePSDFiles = .false.
-  real,    dimension( nspec ),	public	:: &
+  real,    dimension( nspec ),	public	::	&
        DtPSDOutput = 60.0
   
-  logical, dimension( nspec ),	public	:: &
+  logical, dimension( nspec ),	public	::	&
        DoSaveVLDrift = .false.
-  logical, dimension( nspec ),	public	:: &
+  logical, dimension( nspec ),	public	::	&
        DoSaveSeparateVLDriftFiles = .false.
-  real,    dimension( nspec ),	public	:: &
+  real,    dimension( nspec ),	public	::	&
        DtVLDriftOutput = 60.0
   
-  logical, dimension( nspec ),	public	:: &
+  logical, dimension( nspec ),	public	::	&
        DoSaveVPDrift = .false.
-  logical, dimension( nspec ),	public	:: &
+  logical, dimension( nspec ),	public	::	&
        DoSaveSeparateVPDriftFiles = .false.
-  real,    dimension( nspec ),	public	:: &
+  real,    dimension( nspec ),	public	::	&
        DtVPDriftOutput = 60.0
 
-  logical, dimension( nspec ),	public	:: &
+  logical, dimension( nspec ),	public	::	&
        DoSavePreci = .false.
-  logical, dimension( nspec ),	public	:: &
+  logical, dimension( nspec ),	public	::	&
        DoSaveSeparatePreciFiles = .false.
-  real,    dimension( nspec ),	public	:: &
+  real,    dimension( nspec ),	public	::	&
        DtPreciOutput = 3600.0
   
   character(len=*), parameter :: NameHeader = 'CIMI output'
@@ -78,18 +78,21 @@ module ModCimiPlot
 contains
   subroutine Cimi_plot_eq(nLat, nLon, X_C, Y_C, &
        Pressure_IC, PressurePar_IC, PressureHot_IC, PparHot_IC, &
-       Den_IC, Beq_C, Volume_C, Potential_C, FAC_C, Time, Dt, Lstar_C)
+       Den_IC, Beq_C, Volume_C, Potential_C, FAC_C, Time, Dt)
     
-    use ModIoUnit,     	ONLY: 	UnitTmp_
-    use ModPlotFile,	ONLY: 	save_plot_file
-    use ModCimiRestart,	ONLY: 	IsRestart
-    use ModCimiPlanet,	ONLY: 	nspec,NamePlotVar,iPplot_I,iPparplot_I, &
-         			iPhotplot_I,iPparhotplot_I, iNplot_I,   &
-                                Beq_,Vol_,Pot_,FAC_,Lstar_, Plas_,nVar
-    use ModCimiGrid,	ONLY: 	PhiIono_C => phi, LatIono_C => xlatr
-    use ModCimiTrace,	ONLY: 	iba
-    use DensityTemp,	ONLY: 	density
-    use ModPlasmasphere,ONLY:   UseCorePsModel,PlasDensity_C
+    use ModIoUnit,     		ONLY:	UnitTmp_
+    use ModPlotFile,		ONLY:	save_plot_file
+    use ModCimiRestart,		ONLY:	IsRestart
+    use ModCimiPlanet,		ONLY:	nspec, NamePlotVar, &
+         iPplot_I, iPparplot_I, iPhotplot_I, iPparhotplot_I, iNplot_I, &
+         Beq_, Vol_, Pot_, FAC_, Lstar_, Plas_, nVar
+    use ModLstar, 		ONLY:	Lstar_C
+    use ModCimiGrid,		ONLY:	&
+         PhiIono_C => phi, LatIono_C => xlatr
+    use ModCimiTrace,		ONLY:	iba
+    use DensityTemp,		ONLY:	density
+    use ModPlasmasphere,	ONLY:   UseCorePsModel, PlasDensity_C
+    
     integer, intent(in) :: nLat, nLon
     real,    intent(in) :: X_C(nLat,nLon), Y_C(nLat,nLon), Time, Dt
     real,    intent(in) :: Pressure_IC(nspec,nLat,nLon), &
@@ -99,7 +102,7 @@ contains
                            Potential_C(nLat,nLon), &
                            PressureHot_IC(nspec,nLat,nLon), &
                            PparHot_IC(nspec,nLat,nLon), &
-                           FAC_C(nLat,nLon),Lstar_C(nLat,nLon)
+                           FAC_C(nLat,nLon)
     real, allocatable   :: Coord_DII(:,:,:), PlotState_IIV(:,:,:)
     integer             :: iLat,iLon,iSpecies, nprint
     integer, parameter  :: x_=1, y_=2, nDim=2
@@ -229,18 +232,20 @@ contains
 
   subroutine Cimi_plot_iono(nLat, nLon, X_C, Y_C, &
        Pressure_IC, PressurePar_IC, PressureHot_IC, PparHot_IC, &
-       Den_IC, Beq_C, Volume_C, Potential_C, FAC_C, Time, Dt, Lstar_C)
+       Den_IC, Beq_C, Volume_C, Potential_C, FAC_C, Time, Dt)
     
-    use ModIoUnit,     	ONLY: 	UnitTmp_
-    use ModPlotFile,	ONLY: 	save_plot_file
-    use ModCimiRestart,	ONLY: 	IsRestart
-    use ModCimiPlanet,	ONLY: 	nspec,NamePlotVar,iPplot_I,iPparplot_I, &
-         			iPhotplot_I,iPparhotplot_I, iNplot_I,   &
-                                Beq_,Vol_,Pot_,FAC_,Lstar_, Plas_,nVar
-    use ModCimiGrid,	ONLY: 	PhiIono_C => phi, LatIono_C => xlatr
-    use ModCimiTrace,	ONLY: 	iba
-    use DensityTemp,	ONLY: 	density
-    use ModPlasmasphere,ONLY:   UseCorePsModel,PlasDensity_C
+    use ModIoUnit,     		ONLY:	UnitTmp_
+    use ModPlotFile,		ONLY:	save_plot_file
+    use ModCimiRestart,		ONLY:	IsRestart
+    use ModCimiPlanet,		ONLY:	nspec, NamePlotVar, &
+         iPplot_I, iPparplot_I, iPhotplot_I, iPparhotplot_I, iNplot_I, &
+         Beq_, Vol_, Pot_, FAC_, Lstar_, Plas_, nVar
+    use ModCimiGrid,		ONLY: 	PhiIono_C => phi, LatIono_C => xlatr
+    use ModCimiTrace,		ONLY:	iba
+    use DensityTemp,		ONLY:	density
+    use ModPlasmasphere,	ONLY:	UseCorePsModel, PlasDensity_C
+    use ModLstar,		ONLY:	Lstar_C
+    
     integer, intent(in) :: nLat, nLon
     real,    intent(in) :: X_C(nLat,nLon), Y_C(nLat,nLon), Time, Dt
     real,    intent(in) :: Pressure_IC(nspec,nLat,nLon), &
@@ -250,7 +255,7 @@ contains
                            Potential_C(nLat,nLon), &
                            PressureHot_IC(nspec,nLat,nLon), &
                            PparHot_IC(nspec,nLat,nLon), &
-                           FAC_C(nLat,nLon),Lstar_C(nLat,nLon)
+                           FAC_C(nLat,nLon)
     real, allocatable   :: CoordIono_DII(:,:,:), PlotState_IIV(:,:,:)
     integer             :: iLat,iLon,iSpecies, nprint
     integer, parameter  :: x_=1, y_=2, nDim=2
@@ -386,21 +391,23 @@ contains
   
   !============================================================================
 
-  subroutine Cimi_plot_fls(rc,flux,n,time,Lstar_C,Lstar_max)
-    use ModIoUnit,	ONLY: 	UnitTmp_
-    use ModCimi,	ONLY: 	energy, ebound
-    use ModCimiGrid,	ONLY:	&
+  subroutine Cimi_plot_fls(flux,n,time)
+    use ModIoUnit,		ONLY: 	UnitTmp_
+    use ModCimi,		ONLY: 	energy, ebound
+    use ModCimiGrid,		ONLY:	&
          nLat=>np, nLon=>nt, nEnergy=>neng, nPitchAng=>npit, &
          sinAo, xlat, xmlt
-    use ModCimiPlanet,	ONLY:	nSpecies=>nspec,NameSpeciesExtension_I
-    use ModCimiTrace,	ONLY:	ro,bo,xmlto,irm
-    use ModCimiRestart,	ONLY: 	IsRestart
-    use ModImTime,	ONLY: 	iCurrentTime_I
-    real, intent(in) :: rc, flux(nLat,nLon,nEnergy,nPitchAng), time,&
-         Lstar_C( nLat, nLon ), Lstar_max
+    use ModCimiPlanet,		ONLY:	&
+         nSpecies => nspec, NameSpeciesExtension_I, rc, Lstar_
+    use ModCimiTrace,		ONLY:	ro, bo, xmlto, irm
+    use ModCimiRestart,		ONLY: 	IsRestart
+    use ModImTime,		ONLY: 	iCurrentTime_I
+    use ModLstar,		ONLY:	Lstar_C, Lstar_max
+    
+    real, intent(in) :: flux(nLat,nLon,nEnergy,nPitchAng), time
     
     real          :: parmod(1:10)=0.0, lat, ro1, xmlt1, bo1, &
-         energy_temp(1:nEnergy), Lstar1
+         energy_temp(1:nEnergy)
     integer       :: iLat,iLon,k,m,n,i,nprint
     logical, dimension(nspec), save :: IsFirstCall = .true.
     character(len=15):: outnameSep
@@ -420,7 +427,6 @@ contains
        write(UnitTmp_,"(f10.6,5i6,6x,'! rc in Re,nr,ip,je,ig,ntime')") &
             rc,nLat-1,nLon,nEnergy,nPitchAng,nprint
        write(UnitTmp_,'(6f14.3)') (energy_temp(k),k=1,nEnergy)
-       !write(UnitTmp_,'(6f9.3)') (Ebound(k),k=1,nEnergy+1)
        write(UnitTmp_,'(6f9.5)') (sinAo(m),m=1,nPitchAng)
        write(UnitTmp_,'(10f8.3)') (xlat(i),i=2,nLat)
     else
@@ -432,7 +438,6 @@ contains
           write(UnitTmp_,"(f10.6,5i6,6x,'! rc in Re,nr,ip,je,ig,ntime')") &
                rc,nLat-1,nLon,nEnergy,nPitchAng,nprint
           write(UnitTmp_,'(6f14.3)') (energy_temp(k),k=1,nEnergy)
-          !write(UnitTmp_,'(6f9.3)') (Ebound(k),k=1,nEnergy+1)
           write(UnitTmp_,'(6f9.5)') (sinAo(m),m=1,nPitchAng)
           write(UnitTmp_,'(10f8.3)') (xlat(i),i=2,nLat)
        else
@@ -452,9 +457,8 @@ contains
           if (iLat.gt.irm(iLon)) bo1=bo(irm(iLon),iLon)
           xmlt1=xmlto(iLat,iLon)
           if (iLat.gt.irm(iLon)) xmlt1=xmlto(irm(iLon),iLon)
-          Lstar1=Lstar_C(iLat,iLon)
           write(UnitTmp_,'(f7.2,f6.1,2f8.3,1pe11.3,0p,f8.3,i6)') &
-               lat,xmlt(iLon),ro1,xmlt1,bo1,Lstar1
+               lat,xmlt(iLon),ro1,xmlt1,bo1,Lstar_C(iLat,iLon)
           do k=1,nEnergy
              write( UnitTmp_, '(1p,12e11.3)' ) &
                   ( flux( iLat, iLon, k, m ), m = 1, nPitchAng )
@@ -468,17 +472,20 @@ contains
 
   !============================================================================
 
-  subroutine Cimi_plot_psd( rc, psd, n, time, xmm, xk )
-    use ModIoUnit,	ONLY: UnitTmp_
-    use ModCimi, 	ONLY: energy, ebound
-    use ModCimiGrid,	ONLY: nLat=>np, nLon=>nt, nm, nk, xlat, xmlt
-    use ModCimiPlanet,	ONLY: nSpecies=>nspec,re_m,NameSpeciesExtension_I
-    use ModCimiTrace,	ONLY: ro,bo,xmlto,irm
-    use ModCimiRestart,	ONLY: IsRestart
-    use ModImTime,	ONLY: iCurrentTime_I
-    use ModConst,	ONLY: cElectronCharge, cLightSpeed
+  subroutine Cimi_plot_psd( psd, n, time, xmm, xk )
+    use ModIoUnit,		ONLY: 	UnitTmp_
+    use ModCimi, 		ONLY: 	energy, ebound
+    use ModCimiGrid,		ONLY: 	&
+         nLat => np, nLon => nt, nm, nk, xlat, xmlt
+    use ModCimiPlanet,		ONLY: 	&
+         nSpecies => nspec, re_m, NameSpeciesExtension_I, rc
+    use ModCimiTrace,		ONLY:	ro, bo, xmlto, irm
+    use ModCimiRestart,		ONLY:	IsRestart
+    use ModImTime,		ONLY: 	iCurrentTime_I
+    use ModConst,		ONLY:	cElectronCharge, cLightSpeed
+    use ModLstar,		ONLY:	Lstarm
     
-    real, intent(in) :: rc,psd( nLat, nLon, nm, nk), &
+    real, intent(in) :: psd( nLat, nLon, nm, nk), &
          xmm(nSpecies,0:nm+1),xk(nk),time
     
     real          :: parmod(1:10)=0.0,lat,ro1,xmlt1,bo1
@@ -551,19 +558,20 @@ contains
     
   end subroutine Cimi_plot_psd
   
-  subroutine Cimi_plot_vl( rc, vlEa, n, time )
+  subroutine Cimi_plot_vl( vlEa, n, time )
     use ModIoUnit,	ONLY: 	UnitTmp_
     use ModCimi,	ONLY: 	energy, ebound
     use ModCimiGrid,	ONLY:	&
-         nLat => np, nLon => nt, nEnergy => neng, nPitchAng => npit, &
-         sinAo, xlat, xmlt
-    use ModCimiPlanet,	ONLY:	nSpecies => nspec,NameSpeciesExtension_I
+         nLat => np, nLon => nt, nEnergy => neng, &
+         nPitchAng => npit, sinAo, xlat, xmlt
+    use ModCimiPlanet, 	ONLY:	&
+         nSpecies => nspec,NameSpeciesExtension_I, rc
     use ModCimiTrace,	ONLY:	ro, bo, xmlto, irm
     use ModCimiRestart,	ONLY: 	IsRestart
     use ModImTime,	ONLY:	iCurrentTime_I
     
     real, intent(in) :: &
-         rc, vlEa( nLat, nLon, nEnergy, nPitchAng ), time
+         vlEa( nLat, nLon, nEnergy, nPitchAng ), time
     
     real          :: &
          parmod( 1 : 10 ) = 0.0, lat, ro1, xmlt1, bo1, &
@@ -586,7 +594,6 @@ contains
        write(UnitTmp_,"(f10.6,5i6,6x,'! rc in Re,nr,ip,je,ig,ntime')") &
             rc,nLat-1,nLon,nEnergy,nPitchAng,nprint
        write(UnitTmp_,'(6f9.3)') (energy_temp(k),k=1,nEnergy)
-       !write(UnitTmp_,'(6f9.3)') (Ebound(k),k=1,nEnergy+1)
        write(UnitTmp_,'(6f9.5)') (sinAo(m),m=1,nPitchAng)
        write(UnitTmp_,'(10f8.3)') (xlat(i),i=2,nLat)
     else
@@ -597,7 +604,6 @@ contains
           write(UnitTmp_,"(f10.6,5i6,6x,'! rc in Re,nr,ip,je,ig,ntime')") &
                rc,nLat-1,nLon,nEnergy,nPitchAng,nprint
           write(UnitTmp_,'(6f9.3)') (energy_temp(k),k=1,nEnergy)
-          !write(UnitTmp_,'(6f9.3)') (Ebound(k),k=1,nEnergy+1)
           write(UnitTmp_,'(6f9.5)') (sinAo(m),m=1,nPitchAng)
           write(UnitTmp_,'(10f8.3)') (xlat(i),i=2,nLat)
        else
@@ -631,18 +637,19 @@ contains
     
   end subroutine Cimi_plot_vl
 
-  subroutine Cimi_plot_vp( rc, vpEa, n, time )
-    use ModIoUnit,	ONLY: 	UnitTmp_
-    use ModCimi,	ONLY: 	energy, ebound
-    use ModCimiGrid,	ONLY:	&
+  subroutine Cimi_plot_vp( vpEa, n, time )
+    use ModIoUnit,		ONLY:	UnitTmp_
+    use ModCimi,		ONLY:	energy, ebound
+    use ModCimiGrid,		ONLY:	&
          nLat => np, nLon => nt, nEnergy => neng, nPitchAng => npit,&
          sinAo, xlat, xmlt
-    use ModCimiPlanet,	ONLY:	nSpecies => nspec,NameSpeciesExtension_I
-    use ModCimiTrace,	ONLY:	ro, bo, xmlto, irm
-    use ModCimiRestart,	ONLY: 	IsRestart
-    use ModImTime,	ONLY:	iCurrentTime_I
-    
-    real, intent(in) 	:: rc, vpEa( nLat, nLon, nEnergy, nPitchAng ), time
+    use ModCimiPlanet,		ONLY:	&
+         nSpecies => nspec, NameSpeciesExtension_I, rc
+    use ModCimiTrace,		ONLY:	ro, bo, xmlto, irm
+    use ModCimiRestart,		ONLY:	IsRestart
+    use ModImTime,		ONLY:	iCurrentTime_I
+
+    real, intent(in) 	:: vpEa( nLat, nLon, nEnergy, nPitchAng ), time
     real		:: &
          parmod(1:10) = 0.0, lat, ro1, xmlt1, bo1, energy_temp( 1 : nEnergy )
     integer		:: iLat, iLon, k, m, n, i, nprint
@@ -654,30 +661,27 @@ contains
     write(outnameSep,"(i4.4,i2.2,i2.2,a,i2.2,i2.2,i2.2)") & 
          iCurrentTime_I(1),iCurrentTime_I(2),iCurrentTime_I(3),'_',&
          iCurrentTime_I(4),iCurrentTime_I(5),iCurrentTime_I(6)
-    
+
     energy_temp( 1 : nEnergy ) = energy( n, 1 :nEnergy )
     if (DoSaveSeparateVPDriftFiles(n)) then
        open(unit=UnitTmp_,&
             file='IM/plots/'//outnameSep//NameSpeciesExtension_I(n)//'.vp',&
             status='unknown')
-       
+
        write(UnitTmp_,"(f10.6,5i6,6x,'! rc in Re,nr,ip,je,ig,ntime')") &
-            !               rc,nlat-1,nLon,nEnergy,nPitchAng,nprint
+                                !               rc,nlat-1,nLon,nEnergy,nPitchAng,nprint
             rc,1,nLon,nEnergy,nPitchAng,nprint          
        write(UnitTmp_,'(6f9.3)') (energy_temp(k),k=1,nEnergy)
-       !write(UnitTmp_,'(6f9.3)') (Ebound(k),k=1,nEnergy+1)
        write(UnitTmp_,'(6f9.5)') (sinAo(m),m=1,nPitchAng)
        write(UnitTmp_,'(10f8.3)') (xlat(i),i=2,nLat)
     else
        if ( IsFirstCall( n ) ) then
           write(NamePlotVP(n), '(A,I8.8,A)') &
                'IM/plots/CimiDrift_n', nprint, NameSpeciesExtension_I(n)//'.vp'
-          write(*,*) "NamePlotVP(n): ",NamePlotVP(n)
           open(unit=UnitTmp_, file = TRIM( NamePlotVP( n ) ), status = 'UNKNOWN')
           write(UnitTmp_,"(f10.6,5i6,6x,'! rc in Re,nr,ip,je,ig,ntime')") &
                rc,nLat-1,nLon,nEnergy,nPitchAng,nprint
           write(UnitTmp_,'(6f9.3)') (energy_temp(k),k=1,nEnergy)
-          !write(UnitTmp_,'(6f9.3)') (Ebound(k),k=1,nEnergy+1)
           write(UnitTmp_,'(6f9.5)') (sinAo(m),m=1,nPitchAng)
           write(UnitTmp_,'(10f8.3)') (xlat(i),i=2,nLat)
        else
@@ -707,19 +711,19 @@ contains
     enddo
     close(UnitTmp_)
     IsFirstCall(n)=.false.
-    
+
   end subroutine Cimi_plot_vp
   
   !============================================================================
   subroutine cimi_plot_log(Time)
-    use ModNumConst, 	ONLY: cPi
-    use ModConst, 	ONLY: cElectronCharge, cMu, cPi
-    use ModPlanetConst,	ONLY: Earth_, DipoleStrengthPlanet_I, rPlanet_I
-    use ModCimiPlanet,  ONLY: nSpecies=>nspec,NamePlotVarLog
-    use ModCimiRestart, ONLY: IsRestart
-    use ModIoUnit,      ONLY: UnitTmp_
-    use ModCIMI,        ONLY: nOperator,driftin,driftout,&
-         rbsumGlobal,rcsumGlobal,dt,eChangeGlobal
+    use ModNumConst, 		ONLY: 	cPi
+    use ModConst, 		ONLY: 	cElectronCharge, cMu, cPi
+    use ModCimiPlanet,		ONLY: 	&
+         nSpecies => nspec, NamePlotVarLog, dipmom
+    use ModCimiRestart,		ONLY:	IsRestart
+    use ModIoUnit,		ONLY:	UnitTmp_
+    use ModCIMI,        	ONLY:	nOperator, driftin, driftout, &
+         rbsumGlobal, rcsumGlobal, dt, eChangeGlobal
     implicit none
     
     real, intent(in) :: Time
@@ -766,8 +770,7 @@ contains
     ! Reference: Eq. 3.36 of Baumjohann and Treumann (2012), "Basic
     ! Space Plasma Physics, Revised Edition," Imperial College Press.
     write(UnitTmp_,'(1es18.08E3)',ADVANCE='NO') &
-         -0.5 * cMu / cPi / ABS( DipoleStrengthPlanet_I( Earth_ ) ) / &
-         rPlanet_I( Earth_ ) ** 3 * &
+         -0.5 * cMu / cPi / dipmom * &
          SUM( rbsumglobal ) * 1000. * cElectronCharge * 10 ** ( 9. )
     
     ! write out the operator changes
@@ -789,26 +792,24 @@ contains
     
   end subroutine cimi_plot_log
   
-  subroutine cimi_plot_precip( rc, n, time )
-    use ModDstOutput,   ONLY: DstOutput 
-    use ModIoUnit,      ONLY: UnitTmp_
+  subroutine cimi_plot_precip( n, time )
+    use ModDstOutput,		ONLY: DstOutput 
+    use ModIoUnit,		ONLY: UnitTmp_
     use ModCimi,		ONLY: energy
-    use ModCimiGrid,    ONLY:nLat=>np, nLon=>nt, nEnergy=>neng,&
-         xlat,xmlt
-    use ModCimiPlanet,  ONLY: nSpecies=>nspec,re_m,NameSpeciesExtension_I
-    use ModCimiTrace,	ONLY:ro,bo,xmlto,irm
-    use ModCimiRestart, ONLY: IsRestart
-    use ModImTime,      ONLY:iCurrentTime_I   ! for separate files
-                                              ! only do need right now
-    use ModCimiInitialize, ONLY: dphi
-    use ModCimi, ONLY:  Eje1,preP,preF
+    use ModCimiGrid,		ONLY: &
+         nLat => np, nLon => nt, nEnergy => neng, xlat, xmlt
+    use ModCimiPlanet,		ONLY: &
+         nSpecies=>nspec, re_m, NameSpeciesExtension_I, rc
+    use ModCimiTrace,		ONLY: ro, bo, xmlto, irm
+    use ModCimiRestart,		ONLY: IsRestart
+    ! for separate files only do need right now
+    use ModImTime,		ONLY: iCurrentTime_I   
+    use ModCimiInitialize, 	ONLY: dphi
+    use ModCimi,		ONLY: Eje1, preP, preF
     
     implicit none
     
-!   real,intent(in) :: rc,preP(nSpecies,nLat,nLon,nEnergy+2),&
-!                  preF(nSpecies,nLat,nLon,nEnergy+2),Eje1(nSpecies,nLat,nLon),time  
-    
-    real energy_temp(1:nEnergy),time,rc
+    real energy_temp(1:nEnergy), time
     
     logical, save :: IsFirstCall = .true.
     integer       :: n,i,j,k,nprint,iLat,iLon
@@ -867,17 +868,18 @@ contains
 
   !============================================================================
 
-  subroutine Cimi_plot_Lstar(rc,xk,time,Lstarm,Lstar_maxm)
+  subroutine Cimi_plot_Lstar(xk,time)
     use ModIoUnit,	ONLY: UnitTmp_
     use ModCimiGrid,	ONLY: nLat=>np, nLon=>nt, &
          nm, nk, xlat,xmlt
-    use ModCimiPlanet,	ONLY: nSpecies=>nspec,re_m
+    use ModCimiPlanet,	ONLY: nSpecies=>nspec, re_m, rc
     use ModCimiTrace,	ONLY: ro,bm,xmlto,irm
     use ModCimiRestart,	ONLY: IsRestart
     use ModImTime,      ONLY:iCurrentTime_I   ! for separate files
                                               ! only do need right now
-
-    real, intent(in) :: rc,xk(nk),time,Lstarm(nLat,nLon,nk),Lstar_maxm(nk)
+    use ModLstar
+    
+    real, intent(in) :: xk(nk), time
     
     real          :: lat,ro1,xmlt1,bm1(nk)
     integer       :: iLat,iLon,k,m,n,i,nprint
@@ -914,7 +916,7 @@ contains
     endif
     
     write(UnitTmp_,'(8f8.3)') &
-         time/3600.,(Lstar_maxm(m),m=1,nk)
+         time/3600.,(lstarm_max(m),m=1,nk)
     do iLat=2,nLat            
        do iLon=1,nLon
           lat=xlat(iLat)
@@ -938,9 +940,6 @@ contains
   
   subroutine Cimi_plot_boundary_check(time)
     use ModIoUnit,      ONLY: UnitTmp_
-!!$    use ModCimi,    ONLY: energy
-!         nm, nk, xlat,xmlt
-!    use ModCimiPlanet,  ONLY: nSpecies=>nspec,re_m
     use ModCimiTrace,   ONLY: ro,bm,xmlto,irm
     use ModCimiRestart, ONLY: IsRestart
     use ModCimiGrid, ONLY: nlat=>np,nLon=>nt,neng
