@@ -17,73 +17,84 @@
 !
 !*******************************************************************************
 
-  module ModDiagDiff 
-        use ModCimiGrid, only: ir=>np,ip=>nt,ik=>nk
+module ModDiagDiff 
+  use ModCimiGrid, only: ir=>np,ip=>nt,ik=>nk
 
-        private !! except
+  private !! except
 
-        public :: iq            ,&
-                  !!VarQ          ,& ! variable Q2 [keV]
-                  !!E_Q2c         ,& ! E [keV] for const. Q2 curve, chorus
-                  !!E_Q2h         ,& ! E [keV] for const. Q2 curve, hiss
-                  !!cDqq1,cDqq2   ,& ! diffusion coef. in (Q1,Q2) for chorus
-                  !!hDqq1,hDqq2   ,& ! diffusion coef. in (Q1,Q2) for chorus
-                  !!PSD_Q         ,& ! phase space density [#s3/kg3m6] in fixed Q2
-                  !!PSD_CHTest  ,& !    "   "      " for chorus diffusion test
-                  !!PSD_HITest  ,& !    "   "      " for chorus diffusion test
-                  UseDiagDiffusion              ,&  
-                  UsePitchAngleDiffusionTest    ,&
-                  UseEnergyDiffusionTest        ,&
-                  ! subroutines
-                  diffuse_Q2    ,& ! calcualte diffusion in Q2 and fixed Q1
-                  diffuse_Q1    ,& !     "         "     in Q1 and fixed Q2
-                  calc_DQQ      ,& ! calculate Dq1q1, Dq2q2 from Daa,DaE,DEE
-                  mapPSDtoQ     ,& ! map PSD from M [J/T] to Q2 [keV]
-                  mapPSDtoE     ,& ! map PSD from Q2 [keV] to M [J/T]
-                  interpol_D_coefK      ,&
-                  init_PSD_for_diff_test,&
-                  calc_Dcoef_for_diff_test,&
-                  write_PSD_for_diff_test
-                                
-        !private :: cSign,hSign  ! sign of DaE for chorus and hiss
-        !           rpp          ! plasma pause location in RE
-        !           iLpp         ! MLT index at plasma pause location
-        !           ipc0,iph     ! closest fpe/fce to table values 
-        !                             at given latitude and MLT   
-                  ! subroutines
-        !           find_loc_plasmapause        ,&
-        !           tridiagonal                 ,&
-        !           find_ompe_index             ,&
-        !           calc_Q_curve                ,&
-        !           DaEtoDQQ                    ,&
-        !           interpol_D_coef             ,&
-        !           rk4                         ,&
-        !           write_Q2info                ,&
-        !           calc_num_ptl                ,&
-        !           lintp                       ,&
-        !           lintp2                      ,&
-        !           locate1                     ,&
-        !           spline 
-                     
-       
-! Variables  
-        integer,parameter :: iq=80
-        real VarQ(0:iq+1)
-        real,allocatable,dimension(:,:,:) :: E_Q2c,E_Q2h,&
-             cDqq1,cDqq2,hDqq1,hDqq2,cSign,hSign
-        real,dimension(ir,ip,iq,0:ik+1) :: Dqq1K,Dqq2K,dQ2dEK,E_Q2K
-        real PSD_Q(ir,ip,iq,ik),&
-             cLambda2D           ! 1 / analytic solution decay time scale
-        real,allocatable :: PSD_CHTest(:),PSD_HITest(:)
-        real rpp(ip)
-        integer ipc0(ir,ip),iph0(ir,ip),iLpp(ip)
+  public :: iq            ,&
+       !!VarQ          ,& ! variable Q2 [keV]
+       !!E_Q2c         ,& ! E [keV] for const. Q2 curve, chorus
+       !!E_Q2h         ,& ! E [keV] for const. Q2 curve, hiss
+       !!cDqq1,cDqq2   ,& ! diffusion coef. in (Q1,Q2) for chorus
+       !!hDqq1,hDqq2   ,& ! diffusion coef. in (Q1,Q2) for chorus
+       !!PSD_Q         ,& ! phase space density [#s3/kg3m6] in fixed Q2
+       !!PSD_CHTest  ,& !    "   "      " for chorus diffusion test
+       !!PSD_HITest  ,& !    "   "      " for chorus diffusion test
+       UseDiagDiffusion              ,&  
+       UsePitchAngleDiffusionTest    ,&
+       UseEnergyDiffusionTest        ,&
+       ! subroutines
+       diffuse_Q2    ,& ! calcualte diffusion in Q2 and fixed Q1
+       diffuse_Q1    ,& !     "         "     in Q1 and fixed Q2
+       calc_DQQ      ,& ! calculate Dq1q1, Dq2q2 from Daa,DaE,DEE
+       mapPSDtoQ     ,& ! map PSD from M [J/T] to Q2 [keV]
+       mapPSDtoE     ,& ! map PSD from Q2 [keV] to M [J/T]
+       interpol_D_coefK      ,&
+       init_PSD_for_diff_test,&
+       calc_Dcoef_for_diff_test,&
+       write_PSD_for_diff_test,&
+       init_diag_diff
+  
+  !private :: cSign,hSign  ! sign of DaE for chorus and hiss
+  !           rpp          ! plasma pause location in RE
+  !           iLpp         ! MLT index at plasma pause location
+  !           ipc0,iph     ! closest fpe/fce to table values 
+  !                             at given latitude and MLT   
+  ! subroutines
+  !           find_loc_plasmapause        ,&
+  !           tridiagonal                 ,&
+  !           find_ompe_index             ,&
+  !           calc_Q_curve                ,&
+  !           DaEtoDQQ                    ,&
+  !           interpol_D_coef             ,&
+  !           rk4                         ,&
+  !           write_Q2info                ,&
+  !           calc_num_ptl                ,&
+  !           lintp                       ,&
+  !           lintp2                      ,&
+  !           locate1                     ,&
+  !           spline 
+  
+  
+  ! Variables  
+  integer,parameter :: iq=80
+  real VarQ(0:iq+1)
+  real,allocatable,dimension(:,:,:) :: E_Q2c,E_Q2h,&
+       cDqq1,cDqq2,hDqq1,hDqq2,cSign,hSign
+  real, allocatable, dimension(:,:,:,:) :: Dqq1K, Dqq2K, dQ2dEK, E_Q2K, PSD_Q
+  real cLambda2D           ! 1 / analytic solution decay time scale
+  real,allocatable :: PSD_CHTest(:),PSD_HITest(:)
+  real rpp(ip)
+  integer, allocatable :: ipc0(:,:),iph0(:,:),iLpp(:)
+  
+  logical :: UseDiagDiffusion=.false.,&
+       UsePitchAngleDiffusionTest=.false.,&
+       UseEnergyDiffusionTest=.false.  
+  ! Use test_diff.f90 
+  !  instead of cimi.f90
 
-        logical :: UseDiagDiffusion=.false.,&
-                   UsePitchAngleDiffusionTest=.false.,&
-                   UseEnergyDiffusionTest=.false.  
-                                        ! Use test_diff.f90 
-                                        !  instead of cimi.f90
-  contains
+contains
+
+  subroutine init_diag_diff
+    
+    if( allocated( PSD_Q ) ) RETURN
+    allocate( PSD_Q(ir,ip,iq,ik), Dqq1K(ir,ip,iq,0:ik+1), &
+         Dqq2K(ir,ip,iq,0:ik+1), dQ2dEK(ir,ip,iq,0:ik+1), &
+         E_Q2K(ir,ip,iq,0:ik+1), ipc0(ir,ip), iph0(ir,ip), iLpp(ip) )
+    
+  end subroutine init_diag_diff
+
 ! ************************************************************************
 !                        find_loc_plasmapause
 !  Routine calculates the plasmapause locations

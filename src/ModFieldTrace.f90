@@ -19,7 +19,7 @@ Module ModCimiTrace
 
   real	  :: parmod(10)
 
-  integer :: irm(ip),irm0(ip),iba(ip)
+  integer :: irm(ip), irm0(ip), iba(ip)
 
   integer :: iw2(nspec,ik)
 
@@ -39,7 +39,7 @@ Module ModCimiTrace
   real :: DtUpdateB ! update frequency of Bfield 
   
   public :: gather_field_trace
-!!$  public :: bcast_field_trace
+  public :: bcast_field_trace
   
 contains
   
@@ -1217,19 +1217,17 @@ contains
     use ModMPI
     
     !Vars for mpi passing
-    real, allocatable :: BufferSend_C( :, : ), BufferRecv_C( :, : )
-
-    integer, allocatable	::	&
-         iBufferSend_I(:), iBufferRecv_I(:)
+    real, allocatable 		:: 	&
+         BufferSend_C( :, : ), BufferRecv_C( :, : )
     integer, allocatable	::	&
          iReceiveCount_P(:), iDisplacement_P(:)
     integer, allocatable	::	&
          BufferSend_I(:), BufferRecv_I(:)
     integer :: iSendCount, iK, iError, iStatus_I( MPI_STATUS_SIZE )
 
-    allocate( iReceiveCount_P( nProc ), iDisplacement_P( nProc ), &
-         BufferSend_C( np, nt ), BufferRecv_C( np, nt ),&
-         BufferSend_I( nt ), BufferRecv_I( nt ))
+    allocate( BufferSend_C( np, nt ), BufferRecv_C( np, nt ), &
+         iReceiveCount_P( nProc ), iDisplacement_P( nProc ), &
+         BufferSend_I( nt ), BufferRecv_I( nt ) )
 
     ! Gather to root
     iSendCount = np * nLonPar
@@ -1299,11 +1297,28 @@ contains
     
   end subroutine gather_field_trace
   
-!!$
-!!$  subroutine bcast_field_trace
-!!$
-!!$    
-!!$    
-!!$  end subroutine bcast_field_trace
+
+  subroutine bcast_field_trace
+
+    use ModCimiGrid,	ONLY:	&
+         iProc, nProc, iComm, nLonPar, nLonPar_P, nLonBefore_P, &
+         MinLonPar, MaxLonPar, nt, np, neng, npit, nm, nk, dlat, &
+         phi, sinao, xlat, xmlt
+    use ModMPI
+
+    integer 			:: iError
+
+    
+    call MPI_bcast( irm, nt, MPI_LOGICAL, 0, iComm, iError)
+    call MPI_bcast( iba, nt, MPI_LOGICAL, 0, iComm, iError)
+    call MPI_bcast( volume, np * nt * nk, MPI_LOGICAL, 0, iComm, iError)
+    call MPI_bcast( xo, np * nt, MPI_LOGICAL, 0, iComm, iError)
+    call MPI_bcast( yo, np * nt, MPI_LOGICAL, 0, iComm, iError)
+    call MPI_bcast( bo, np * nt, MPI_LOGICAL, 0, iComm, iError)
+    call MPI_bcast( bm, np * nt * nk, MPI_LOGICAL, 0, iComm, iError)
+    call MPI_bcast( xmlto, np * nt, MPI_LOGICAL, 0, iComm, iError)
+    call MPI_bcast( ro, np * nt, MPI_LOGICAL, 0, iComm, iError)
+    
+  end subroutine bcast_field_trace
   
 end Module ModCimiTrace

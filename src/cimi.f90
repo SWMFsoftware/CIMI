@@ -21,7 +21,7 @@ subroutine cimi_run(delta_t)
   use ModCimiTrace,  	 ONLY: &
        fieldpara, brad => ro, ftv => volume, xo, yo, rb, irm,&
        ekev, iba, bo, pp, Have, sinA, vel, alscone, iw2, xmlto, bm,phi2o,&
-       gather_field_trace
+       gather_field_trace, bcast_field_trace
   use ModGmCimi,      	 ONLY: Den_IC, UseGm
   use ModIeCimi,      	 ONLY: UseWeimer, pot
   use ModCimiPlot
@@ -55,7 +55,7 @@ subroutine cimi_run(delta_t)
        UseDiagDiffusion, calc_DQQ, interpol_D_coefK, &
        mapPSDtoQ, mapPSDtoE, diffuse_Q1, diffuse_Q2, &
        UsePitchAngleDiffusionTest,&
-       UseEnergyDiffusionTest
+       UseEnergyDiffusionTest, init_diag_diff
                          
   implicit none
 
@@ -101,23 +101,37 @@ subroutine cimi_run(delta_t)
                  IsRestart)
   call timing_stop('cimi_fieldpara')
 
-  if (nProc > 0 ) call gather_field_trace
-  ! Trace lstar variables for initial_f2.  NOTE: Typically lstar is
-  ! only calculated on root, but with this formulation all PEs will
-  ! have a copy of lstar for the initialization.
-  call timing_start('calc_Lstar1')
-  call calc_Lstar1
-  call timing_stop('calc_Lstar1')
+  ! Checks to see if this is the first call of CIMI, so as to gather
+  ! all the relevant information to initialize CIMI f2 as a function
+  ! of L*.  Necessary variables are bo and bm in ModFieldTrace.
+  if ( IsFirstCall ) then
 
-!!$  call timing_start('calc_Lstar2')
-!!$  call calc_Lstar2
-!!$  call timing_stop('calc_Lstar2')
-        
+     !
+     if (nProc > 1 ) then
+        call gather_field_trace
+        call bcast_field_trace
+     endif
+
+     ! Trace lstar variables for initial_f2.  NOTE: Typically lstar is
+     ! only calculated on root, but with this formulation all PEs will
+     ! have a copy of lstar for the initialization.
+     call timing_start('calc_Lstar1')
+     call calc_Lstar1
+     call timing_stop('calc_Lstar1')
+     
+!!$     call timing_start('calc_Lstar2')
+!!$     call calc_Lstar2
+!!$     call timing_stop('calc_Lstar2')
+     
+  endif
+
   ! interpolate a0 of const. Q2 curve correspoding K
-  if (.not.IsFirstCall) then
-  call timing_start('cimi_interpol_D_coefK')
-  call interpol_D_coefK
-  call timing_stop('cimi_interpol_D_coefK')
+  if ( .NOT.( IsFirstCall ) .AND. &
+       ( UseDiagDiffusion ) ) then
+     call init_diag_diff
+     call timing_start('cimi_interpol_D_coefK')
+     call interpol_D_coefK
+     call timing_stop('cimi_interpol_D_coefK')
   endif
      
   !when using 2D plasmasphere
@@ -167,7 +181,10 @@ subroutine cimi_run(delta_t)
   !  read wave models 
   if (IsFirstCall) then
      if (UseWaveDiffusion) call ReadDiffCoef
-     if (UseDiagDiffusion) call calc_DQQ
+     if (UseDiagDiffusion) then
+        call init_diag_diff
+        call calc_DQQ
+     endif
   endif
   
   ! setup initial distribution
@@ -341,7 +358,8 @@ subroutine cimi_run(delta_t)
      call sume_cimi(OpChargeEx_)
      call timing_stop('cimi_charexchange') 
      
-     if (Time.ge.DiffStartT .and. UseWaveDiffusion) then
+     if ( ( Time .GE. DiffStartT ) .AND. &
+          ( UseWaveDiffusion ) ) then
 
         call timing_start('cimi_WaveDiffusion')
         
@@ -352,15 +370,10 @@ subroutine cimi_run(delta_t)
            call CON_STOP('For diag diffusion test, "make DIFFUSIONTEST"')
         endif
        
-        if (.not.UseDiagDiffusion) then
-           call timing_start('cimi_Diffuse_aa')
-           call diffuse_aa(f2,dt,xjac,iba,iw2)
-           call timing_stop('cimi_Diffuse_aa')
+        if ( UseDiagDiffusion ) then
+
+           call init_diag_diff
            
-           call timing_start('cimi_Diffuse_EE')
-           call diffuse_EE(f2,dt,xmm,xjac,iw2,iba)
-           call timing_stop('cimi_Diffuse_EE')
-        else
            ! map PSD from M to Q2      
            call timing_start('cimi_mapPSDtoQ')
            call mapPSDtoQ
@@ -380,6 +393,14 @@ subroutine cimi_run(delta_t)
            call timing_start('cimi_mapPSDtoE')
            call mapPSDtoE
            call timing_stop('cimi_mapPSDtoE')
+        else
+           call timing_start('cimi_Diffuse_aa')
+           call diffuse_aa(f2,dt,xjac,iba,iw2)
+           call timing_stop('cimi_Diffuse_aa')
+           
+           call timing_start('cimi_Diffuse_EE')
+           call diffuse_EE(f2,dt,xmm,xjac,iw2,iba)
+           call timing_stop('cimi_Diffuse_EE')
         endif 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
