@@ -20,7 +20,8 @@ subroutine cimi_run(delta_t)
        re_m, dipmom, Hiono, rc, nspec, amu_I, dFactor_I, tFactor_I
   use ModCimiTrace,  	 ONLY: &
        fieldpara, brad => ro, ftv => volume, xo, yo, rb, irm,&
-       ekev, iba, bo, pp, Have, sinA, vel, alscone, iw2, xmlto, bm,phi2o
+       ekev, iba, bo, pp, Have, sinA, vel, alscone, iw2, xmlto, bm,phi2o,&
+       gather_field_trace
   use ModGmCimi,      	 ONLY: Den_IC, UseGm
   use ModIeCimi,      	 ONLY: UseWeimer, pot
   use ModCimiPlot
@@ -100,6 +101,7 @@ subroutine cimi_run(delta_t)
                  IsRestart)
   call timing_stop('cimi_fieldpara')
 
+  if (nProc > 0 ) call gather_field_trace
   ! Trace lstar variables for initial_f2.  NOTE: Typically lstar is
   ! only calculated on root, but with this formulation all PEs will
   ! have a copy of lstar for the initialization.
@@ -1151,9 +1153,9 @@ subroutine boundaryIM(nspec,neng,np,nt,nm,nk,iba,irm,amu_I,xjac,energy,vel,fb)
   use ModCimiGrid, ONLY: MinLonPar,MaxLonPar
   use ModCimiTrace,  ONLY: sinA,ekev,iw2,pp
   use ModCimiBoundary,ONLY: BoundaryDens_IC,BoundaryTemp_IC,BoundaryTempPar_IC
-
+  
   implicit none
-
+  
   integer nspec,neng,np,nt,nm,nk,iba(nt),irm(nt),j,n,k,m,ib1
   real amu_I(nspec),energy(nspec,neng),xjac(nspec,np,nm)
   real vel(nspec,np,nt,nm,nk),fb(nspec,nt,nm,nk),pi,xmass,chmass,fb1,fb_temp,vtchm
@@ -1163,28 +1165,28 @@ subroutine boundaryIM(nspec,neng,np,nt,nm,nk,iba,irm,amu_I,xjac,energy,vel,fb)
   real kappa,kappa_plus_one,kappa_minus_half,ln_gamma_diff,gamma_ratio
   real ln_gamma
   real e_min
-
+  
   kappa=3.
- ! zk1=zkappa+1.
+  ! zk1=zkappa+1.
   kappa_plus_one=kappa+1.
   kappa_minus_half=kappa-0.5
   ln_gamma_diff=ln_gamma(kappa_plus_one)-ln_gamma(kappa_minus_half)
   gamma_ratio=exp(ln_gamma_diff)
-
+  
   pi=acos(-1.)
-
-   !   defining Pperp and Ppar for both cases, anisotropic and isotropic.
-   !   Advantages: use the same form of Maxwellian/kappa dist
-   !   since in the case of isotropic PSD 
+  
+  !   defining Pperp and Ppar for both cases, anisotropic and isotropic.
+  !   Advantages: use the same form of Maxwellian/kappa dist
+  !   since in the case of isotropic PSD 
   
   if(DoAnisoPressureGMCoupling) then    !  
-          BoundaryTempperp_IC(:,:) = &
-             (3*BoundaryTemp_IC(:,:) - BoundaryTempPar_IC(:,:))/2
+     BoundaryTempperp_IC(:,:) = &
+          (3*BoundaryTemp_IC(:,:) - BoundaryTempPar_IC(:,:))/2
   else
-         BoundaryTempperp_IC(:,:) =  BoundaryTemp_IC(:,:)
-         BoundaryTempPar_IC(:,:) = BoundaryTemp_IC(:,:)
+     BoundaryTempperp_IC(:,:) =  BoundaryTemp_IC(:,:)
+     BoundaryTempPar_IC(:,:) = BoundaryTemp_IC(:,:)
   endif
-
+  
   fb(1:nspec,MinLonPar:MaxLonPar,1:nm,1:nk)=0.
   do n=1,nspec
      e_min=0.
@@ -1192,55 +1194,56 @@ subroutine boundaryIM(nspec,neng,np,nt,nm,nk,iba,irm,amu_I,xjac,energy,vel,fb)
      xmass=amu_I(n)*1.673e-27
      chmass=1.6e-19/xmass 
      do j=MinLonPar,MaxLonPar
-         parE1=BoundaryTempPar_IC(n,j)/1000.      ! characteristic in keV
-         perE1=BoundaryTempPerp_IC(n,j)/1000.     ! characteristic in keV
-         den1 =BoundaryDens_IC(n,j)                     ! density in m-3
+        parE1=BoundaryTempPar_IC(n,j)/1000.      ! characteristic in keV
+        perE1=BoundaryTempPerp_IC(n,j)/1000.     ! characteristic in keV
+        den1 =BoundaryDens_IC(n,j)                     ! density in m-3
         temp32=sqrt(parE1)*perE1*1.6e-16**1.5
         ib1=iba(j)+1   ! difference bewteen cimi standalone where ib1=iba(j)
         if (ib1.gt.irm(j)) ib1=irm(j)
         if (n .eq. nspec) then    !    kappa, for electrons only
-            fbb1=den1*gamma_ratio/temp32/(2.*pi*kappa*xmass)**1.5
+           fbb1=den1*gamma_ratio/temp32/(2.*pi*kappa*xmass)**1.5
         else
-            fbb1=den1/temp32/(2.*pi*xmass)**1.5 ! Maxwellian
-        endif       
-
-  !      do k=1,nm   ! magnetic moment
-          do m=1,nk   ! K invariant 
+           fbb1=den1/temp32/(2.*pi*xmass)**1.5 ! Maxwellian
+        endif
+        
+        !      do k=1,nm   ! magnetic moment
+        do m=1,nk   ! K invariant 
               y2=sinA(ib1,j,m)*sinA(ib1,j,m)
               x2=1.-y2
-            do k=1,iw2(n,m)   ! magnetic moment            
-              fbb=0.
-              if ((ekev(n,ib1,j,k,m) .gt. e_min) .and. &
-                   (BoundaryDens_IC(n,j).gt.0.)) then
-
+              do k=1,iw2(n,m)   ! magnetic moment            
+                 fbb=0.
+                 if ((ekev(n,ib1,j,k,m) .gt. e_min) .and. &
+                      (BoundaryDens_IC(n,j).gt.0.)) then
+                    
                if (n .eq. nspec) then   ! KAPPA FOR ELECTRONS
                   Psq=pp(n,ib1,j,k,m)*pp(n,ib1,j,k,m)
                   Ppar2=Psq*x2
                   Pper2=Psq*y2
                   erpp=(Ppar2/parE1+Pper2/perE1)/2./xmass/1.6e-16
                   fbb=fbb1/(1.+erpp/kappa)**kappa_plus_one                    
-
-                                 else ! MAXWELLIAN OTHERWISE:
+                  
+               else ! MAXWELLIAN OTHERWISE:
                   Vsq=vel(n,ib1,j,k,m)*vel(n,ib1,j,k,m)
                   Vpar2=Vsq*x2
                   Vper2=Vsq*y2
                   erpp=(Vpar2/parE1+Vper2/perE1)/2./1000./chmass
                   fbb=0.
                   if (erpp.lt.500.) fbb=fbb1/exp(erpp)                      
-               endif 
-             endif      ! end of ekev(n,ib,j,k,m).gt.e_min.and.den1.gt.0
+               endif
+            endif      ! end of ekev(n,ib,j,k,m).gt.e_min.and.den1.gt.0
 
+            
+            fb(n,j,k,m)=fbb*xjac(n,ib1,k)
+            !        if ((n.eq.nspec).and.(j.eq.1).and.(m.eq.10)) write(*,*) fbb,xjac(n,ib1,k), &
+            !        ekev(n,ib1,j,k,m), vel(n,ib1,j,k,m),xmass,chmass, &
+            !        Psq,Ppar2,Vsq,Vpar2, 'f,jac,e,vel,m,chm,Psq,Ppar,Vsq,Vpar'   !   NB Jan 20 2017
+         enddo                ! end of m loop
 
-              fb(n,j,k,m)=fbb*xjac(n,ib1,k)
- !        if ((n.eq.nspec).and.(j.eq.1).and.(m.eq.10)) write(*,*) fbb,xjac(n,ib1,k), &
- !        ekev(n,ib1,j,k,m), vel(n,ib1,j,k,m),xmass,chmass, &
- !        Psq,Ppar2,Vsq,Vpar2, 'f,jac,e,vel,m,chm,Psq,Ppar,Vsq,Vpar'   !   NB Jan 20 2017
-           enddo                ! end of m loop
-        enddo                   ! end of k loop
-     enddo                      ! end of j loop
-  enddo                         ! end of n loop
+      enddo                   ! end of k loop
 
+   enddo                      ! end of j loop
 
+enddo                         ! end of n loop
 
 end subroutine boundaryIM
    
@@ -2611,29 +2614,28 @@ end subroutine cimi_output
 
 subroutine cimi_gather( delta_t, psd, flux, vlea, vpea )
 
-  use DensityTemp,	ONLY: density
-  use ModCimi,		ONLY: &
+  use DensityTemp,	ONLY: 	density
+  use ModCimi,		ONLY:	&
        Time, FAC_C, Pressure_IC, PressurePar_IC, Bmin_C, &
        phot, Ppar_IC, preP, preF, Eje1, &
        vdr_q3, eng_q3, vexb, dif_q3, Part_phot
-  use ModCimiBoundary,	 ONLY: Outputboundary
-  use ModCimiGrid,	ONLY: &
+  use ModCimiBoundary,	ONLY: 	Outputboundary
+  use ModCimiGrid,	ONLY: 	&
        iProc, nProc, iComm, nLonPar, nLonPar_P, nLonBefore_P, &
        MinLonPar, MaxLonPar, nt, np, neng, npit, nm, nk, dlat, &
        phi, sinao, xlat, xmlt
-  use ModCimiPlanet,	ONLY: nspec
+  use ModCimiPlanet,	ONLY:	nspec
   use ModCimiPlot
-  use ModCimiTrace,	ONLY: &
-       ftv => volume, xo, yo, bo, xmlto, brad => ro, bm, irm, iba
-  use ModCoupleSami,	ONLY: DoCoupleSami
-  use ModGmCimi,	ONLY: Den_IC
-  use ModImSat,		ONLY: DoWriteSats, DtSatOut
+  use ModCimiTrace,	ONLY:	gather_field_trace
+  use ModCoupleSami,	ONLY:	DoCoupleSami
+  use ModGmCimi,	ONLY:	Den_IC
+  use ModImSat,		ONLY:	DoWriteSats, DtSatOut
   use ModMPI
-
+  
   real, intent(in) :: delta_t
   real flux( nspec, np, nt, neng, npit ), psd( nspec, np, nt, nm, nk ), &
        vlEa( nspec, np, nt, neng, npit ), vpEa (nspec, np, nt, neng, npit )
-
+  
   
   !Vars for mpi passing
   integer, allocatable :: iBufferSend_I(:), iBufferRecv_I(:)
@@ -2643,9 +2645,9 @@ subroutine cimi_gather( delta_t, psd, flux, vlea, vpea )
   real :: BufferSend_C( np, nt ), BufferRecv_C( np, nt )
   integer :: BufferSend_I( nt ), BufferRecv_I( nt )
   integer :: iStatus_I( MPI_STATUS_SIZE )
-
+  
   allocate( iReceiveCount_P( nProc ), iDisplacement_P( nProc ) )
-
+  
   !Gather to root
   iSendCount = np * nLonPar
   iReceiveCount_P = np * nLonPar_P
@@ -2689,12 +2691,6 @@ subroutine cimi_gather( delta_t, psd, flux, vlea, vpea )
      if (iProc==0) Den_IC(iSpecies,:,:)=BufferRecv_C(:,:)
      
   enddo
-
-  BufferSend_I(:) = iba(:)
-  call MPI_GATHERV(BufferSend_I(MinLonPar:MaxLonPar), nLonPar, &
-       MPI_INTEGER, BufferRecv_I, nLonPar_P, nLonBefore_P, &
-       MPI_INTEGER, 0, iComm, iError)
-  if (iProc==0) iba(:)=BufferRecv_I(:)
   
   BufferSend_C(:,:) = Bmin_C(:,:)
   call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
@@ -2702,231 +2698,131 @@ subroutine cimi_gather( delta_t, psd, flux, vlea, vpea )
        MPI_REAL, 0, iComm, iError)
   if (iProc==0) Bmin_C(:,:)=BufferRecv_C(:,:)
 
-  ! On processor O, gather info and save plots
-  ! When time to write output, consolodate xo,yo,flux,pot,ftv, bo, and irm 
-  ! on iProc 0
-!!$  if ( DoSavePlot .and. &
-!!$       ( floor( ( Time + 1.0e-5 ) / DtOutput ) /= &
-!!$         floor( ( Time + 1.0e-5-delta_t ) / DtOutput ) ) ) then
-!!$     
-!!$!     call MPI_GATHERV(pot(:,MinLonPar:MaxLonPar), iSendCount, MPI_REAL, &
-!!$!          pot, iReceiveCount_P, iDisplacement_P, MPI_REAL, &
-!!$!          0, iComm, iError)
+  call gather_field_trace
 
-     BufferSend_C(:,:)=ftv(:,:)
+  if ( .not. DoCoupleSami ) then
+     
+     BufferSend_C(:,:) = density(:,:)
      call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
           MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
           MPI_REAL, 0, iComm, iError)
-     if (iProc==0) ftv(:,:)=BufferRecv_C(:,:)
+     if (iProc==0) density(:,:) = BufferRecv_C(:,:)
      
-     BufferSend_C(:,:)=xo(:,:)
-     call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
-          MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
-          MPI_REAL, 0, iComm, iError)
-     if (iProc==0) xo(:,:)=BufferRecv_C(:,:)
+  end if
+  
+  do  iSpecies = 1, nspec
      
-     BufferSend_C(:,:)=yo(:,:)
-     call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
-          MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
-          MPI_REAL, 0, iComm, iError)
-     if (iProc==0) yo(:,:)=BufferRecv_C(:,:)
-     
-     BufferSend_C(:,:)=bo(:,:)
-     call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
-          MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
-          MPI_REAL, 0, iComm, iError)
-     if (iProc==0) bo(:,:)=BufferRecv_C(:,:)
-     
-     BufferSend_C(:,:)=xmlto(:,:)
-     call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
-          MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
-          MPI_REAL, 0, iComm, iError)
-     if (iProc==0) xmlto(:,:)=BufferRecv_C(:,:)
-     
-     BufferSend_C(:,:)=brad(:,:)
-     call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
-          MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
-          MPI_REAL, 0, iComm, iError)
-     if (iProc==0) brad(:,:)=BufferRecv_C(:,:)
-     
-     if ( .not. DoCoupleSami ) then
+     do iM = 1, nm
         
-        BufferSend_C(:,:) = density(:,:)
-        call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
-             MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
-             MPI_REAL, 0, iComm, iError)
-        if (iProc==0) density(:,:) = BufferRecv_C(:,:)
-        
-     end if
-     
-     BufferSend_I(:)=irm(:)
-     call MPI_GATHERV(BufferSend_I(MinLonPar:MaxLonPar), nLonPar, &
-          MPI_INTEGER, BufferRecv_I, nLonPar_P, nLonBefore_P, &
-          MPI_INTEGER, 0, iComm, iError)
-     if (iProc==0) irm(:)=BufferRecv_I(:)
-     
-!!$  elseif ( &
-!!$       ( DoWriteSats .and. &
-!!$         floor( ( Time + 1.0e-5 ) / DtSatOut ) /= &
-!!$         floor( ( Time + 1.0e-5 - delta_t) / DtSatOut ) ) .or. &
-!!$       ( DoSaveLstar .and. &
-!!$         floor( ( Time + 1.0e-5 ) / DtLstarOutput ) /= &
-!!$         floor( ( Time + 1.0e-5 - delta_t ) / DtLstarOutput ) ) ) &
-!!$  then
-
-     BufferSend_C(:,:)=bo(:,:)
-     call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
-          MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
-          MPI_REAL, 0, iComm, iError)     
-     if (iProc==0) bo(:,:)=BufferRecv_C(:,:)
-     
-!!$  endif
-!!$
-!!$  if ( DoSavePlot .and. &
-!!$       ( floor( ( Time + 1.0e-5 ) / DtOutput ) /= &
-!!$         floor( ( Time + 1.0e-5 - delta_t ) / DtOutput ) .or. &
-!!$       ( floor( ( Time + 1.0e-5 ) / DtSatOut ) /= &
-!!$         floor( ( Time + 1.0e-5 - delta_t ) / DtSatOut ) .and. &
-!!$         DoWriteSats ) ) ) then
-
-     do  iSpecies = 1, nspec
-        
-        do iM = 1, nm
+        do iK = 1, nk
            
-           do iK = 1, nk
-
-              BufferSend_C(:,:)=psd(iSpecies,:,:,im,iK)
-              call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
-                   MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
-                   MPI_REAL, 0, iComm, iError)
-              if (iProc==0) psd(iSpecies,:,:,im,ik)=BufferRecv_C(:,:)
-
-           end do
+           BufferSend_C(:,:)=psd(iSpecies,:,:,im,iK)
+           call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
+                MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
+                MPI_REAL, 0, iComm, iError)
+           if (iProc==0) psd(iSpecies,:,:,im,ik)=BufferRecv_C(:,:)
            
         end do
         
-        do iEnergy = 1, neng
-           do iPit = 1, nPit
-
-              BufferSend_C(:,:)=flux(iSpecies,:,:,iEnergy,iPit)
-              call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
-                   MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
-                   MPI_REAL, 0, iComm, iError)
-              if (iProc==0) flux(iSpecies,:,:,iEnergy,iPit)=BufferRecv_C(:,:)
-
-              BufferSend_C(:,:)=vlEa(iSpecies,:,:,iEnergy,iPit)
-              call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
-                   MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
-                   MPI_REAL, 0, iComm, iError)
-              if (iProc==0) vlEa(iSpecies,:,:,iEnergy,iPit)=BufferRecv_C(:,:)
-
-              BufferSend_C(:,:)=vpEa(iSpecies,:,:,iEnergy,iPit)
-              call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
-                   MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
-                   MPI_REAL, 0, iComm, iError)
-              if (iProc==0) vpEa(iSpecies,:,:,iEnergy,iPit)=BufferRecv_C(:,:)
-
-           enddo
+     end do
+     
+     do iEnergy = 1, neng
+        do iPit = 1, nPit
+           
+           BufferSend_C(:,:)=flux(iSpecies,:,:,iEnergy,iPit)
+           call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
+                MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
+                MPI_REAL, 0, iComm, iError)
+           if (iProc==0) flux(iSpecies,:,:,iEnergy,iPit)=BufferRecv_C(:,:)
+           
+           BufferSend_C(:,:)=vlEa(iSpecies,:,:,iEnergy,iPit)
+           call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
+                MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
+                MPI_REAL, 0, iComm, iError)
+           if (iProc==0) vlEa(iSpecies,:,:,iEnergy,iPit)=BufferRecv_C(:,:)
+           
+           BufferSend_C(:,:)=vpEa(iSpecies,:,:,iEnergy,iPit)
+           call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
+                MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
+                MPI_REAL, 0, iComm, iError)
+           if (iProc==0) vpEa(iSpecies,:,:,iEnergy,iPit)=BufferRecv_C(:,:)
+           
         enddo
      enddo
-!!$  endif
+  enddo
 
   do  iSpecies=1,nspec
-!!$     if ( DoSavePreci( iSpecies ) .and. &   
-!!$          floor( ( Time + 1.0e-5 ) / &
-!!$          	DtPreciOutput( iSpecies ) ) /= &
-!!$          floor( ( Time + 1.0e-5 - delta_t ) / &
-!!$          	DtPreciOutput( iSpecies ) ) ) then
+     
+     do iEnergy = 1, neng + 2
         
-        do iEnergy = 1, neng + 2
+        BufferSend_C(:,:)=preP(iSpecies,:,:,iEnergy)
+        call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
+             MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
+             MPI_REAL, 0, iComm, iError)
+        if (iProc==0) preP(iSpecies,:,:,iEnergy)=BufferRecv_C(:,:)
+        
+        BufferSend_C(:,:)=preF(iSpecies,:,:,iEnergy)  
+        call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
+             MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
+             MPI_REAL, 0, iComm, iError)
+        if (iProc==0) preF(iSpecies,:,:,iEnergy)=BufferRecv_C(:,:)
+        
+     enddo ! Do loop over iEnergy
+     
+     BufferSend_C(:,:)=Eje1(iSpecies,:,:)
+     call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
+          MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
+          MPI_REAL, 0, iComm, iError)
+     if (iProc==0) Eje1(iSpecies,:,:)=BufferRecv_C(:,:)
+     
+  enddo !Do loop over Species
+  
+  ! gather information for boundary output
+  if ( OutputBoundary ) then
+     
+     do  iSpecies=1, nspec
+        
+        do iEnergy=1,neng
            
-           BufferSend_C(:,:)=preP(iSpecies,:,:,iEnergy)
+           BufferSend_C(:,:) = Part_phot(iSpecies,:,:,iEnergy)
            call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
                 MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
                 MPI_REAL, 0, iComm, iError)
-           if (iProc==0) preP(iSpecies,:,:,iEnergy)=BufferRecv_C(:,:)
-           
-           BufferSend_C(:,:)=preF(iSpecies,:,:,iEnergy)  
-           call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
-                MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
-                MPI_REAL, 0, iComm, iError)
-           if (iProc==0) preF(iSpecies,:,:,iEnergy)=BufferRecv_C(:,:)
+           if (iProc==0) &
+                Part_phot(iSpecies,:,:,iEnergy)=BufferRecv_C(:,:)
            
         enddo ! Do loop over iEnergy
         
-        BufferSend_C(:,:)=Eje1(iSpecies,:,:)
+        BufferSend_C(:,:)=eng_q3(iSpecies,:,:)
         call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
              MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
              MPI_REAL, 0, iComm, iError)
-        if (iProc==0) Eje1(iSpecies,:,:)=BufferRecv_C(:,:)
+        if (iProc==0) eng_q3(iSpecies,:,:)=BufferRecv_C(:,:)
         
-!!$     endif
-     
-  enddo !Do loop over Species
-
-   ! Gather bm to root for multiple processes for Lstar2 calculation.
-!!$  if ( DoSaveLstar .and. &
-!!$       floor( ( Time + 1.0e-5 ) / DtOutput ) /= &
-!!$       floor( ( Time + 1.0e-5 - delta_t ) / DtOutput ) ) then
-     
-     do iK = 1, nk
-        
-        BufferSend_C(:,:)=bm(:,:,iK)
+        BufferSend_C(:,:)=vexb(iSpecies,:,:)
         call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
              MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
              MPI_REAL, 0, iComm, iError)
-        if (iProc==0) bm(:,:,iK)=BufferRecv_C(:,:)
-
-     end do
+        if (iProc==0) vexb(iSpecies,:,:)=BufferRecv_C(:,:)
+        
+        BufferSend_C(:,:)=vdr_q3(iSpecies,:,:)
+        call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
+             MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
+             MPI_REAL, 0, iComm, iError)
+        if (iProc==0) vdr_q3(iSpecies,:,:)=BufferRecv_C(:,:)
+        
+        BufferSend_C(:,:)=dif_q3(iSpecies,:,:)
+        call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
+             MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
+             MPI_REAL, 0, iComm, iError)
+        if (iProc==0) dif_q3(iSpecies,:,:)=BufferRecv_C(:,:)
+        
+     enddo
      
-!!$  endif
+  endif
   
-  ! gather information for boundary output
-   if ( OutputBoundary ) then
-      
-      do  iSpecies=1, nspec
-         
-         do iEnergy=1,neng
-            
-            BufferSend_C(:,:) = Part_phot(iSpecies,:,:,iEnergy)
-            call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
-                 MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
-                 MPI_REAL, 0, iComm, iError)
-            if (iProc==0) &
-                 Part_phot(iSpecies,:,:,iEnergy)=BufferRecv_C(:,:)
-            
-         enddo ! Do loop over iEnergy
-
-         BufferSend_C(:,:)=eng_q3(iSpecies,:,:)
-         call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
-                  MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
-                  MPI_REAL, 0, iComm, iError)
-         if (iProc==0) eng_q3(iSpecies,:,:)=BufferRecv_C(:,:)
-
-         BufferSend_C(:,:)=vexb(iSpecies,:,:)
-         call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
-                  MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
-                  MPI_REAL, 0, iComm, iError)
-         if (iProc==0) vexb(iSpecies,:,:)=BufferRecv_C(:,:)
-
-         BufferSend_C(:,:)=vdr_q3(iSpecies,:,:)
-         call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
-                  MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
-                  MPI_REAL, 0, iComm, iError)
-         if (iProc==0) vdr_q3(iSpecies,:,:)=BufferRecv_C(:,:)
-
-         BufferSend_C(:,:)=dif_q3(iSpecies,:,:)
-         call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
-                  MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
-                  MPI_REAL, 0, iComm, iError)
-         if (iProc==0) dif_q3(iSpecies,:,:)=BufferRecv_C(:,:)
-         
-      enddo
-      
-   endif
-
-   deallocate( iReceiveCount_P, iDisplacement_P )
-
+  deallocate( iReceiveCount_P, iDisplacement_P )
+  
 end subroutine cimi_gather
 
 !==============================================================================

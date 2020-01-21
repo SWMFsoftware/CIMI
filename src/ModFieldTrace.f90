@@ -31,13 +31,18 @@ Module ModCimiTrace
   real    :: SmoothWindow
 
   integer :: imod=3
-
+  
   real :: NonMonoLength, NonMonoLengthThresh
-
+  
   integer :: iLatTest = -1, iLonTest = -1
 
   real :: DtUpdateB ! update frequency of Bfield 
+  
+  public :: gather_field_trace
+!!$  public :: bcast_field_trace
+  
 contains
+  
   subroutine init_mod_field_trace
     
     if(allocated(bo)) RETURN
@@ -47,7 +52,7 @@ contains
          tanA2(ir,ip,0:ik+1),phi2o(ir,ip),&
          volume(ir,ip),bm(ir,ip,ik),gamma(ir,ip,iw,ik),&
          xo(ir,ip),yo(ir,ip),tya(ir,ip,0:ik+1),gridoc(ir,ip) )
-
+    
   end subroutine init_mod_field_trace
 
   !***********************************************************************
@@ -65,11 +70,11 @@ contains
     use ModMpi
     use ModImTime,		ONLY: iCurrentTime_I
     use ModDstOutput,		ONLY: DstOutput
-
+    
     ! uncomment when T04 Tracing fixed
     common/geopack/aa(10),sps,cps,bb(3),ps,cc(11),kk(2),dd(8)
     external tsyndipoleSM,MHD_B
-
+    
     logical, intent(in) :: IsRestart
     real :: aa,sps,cps,bb,ps,cc,dd
     integer :: kk
@@ -1202,6 +1207,103 @@ contains
     Julian_Day = Julian_Day + day
     
   end function julianday
+
+  subroutine gather_field_trace
+
+    use ModCimiGrid,	ONLY:	&
+         iProc, nProc, iComm, nLonPar, nLonPar_P, nLonBefore_P, &
+         MinLonPar, MaxLonPar, nt, np, neng, npit, nm, nk, dlat, &
+         phi, sinao, xlat, xmlt
+    use ModMPI
+    
+    !Vars for mpi passing
+    real, allocatable :: BufferSend_C( :, : ), BufferRecv_C( :, : )
+
+    integer, allocatable	::	&
+         iBufferSend_I(:), iBufferRecv_I(:)
+    integer, allocatable	::	&
+         iReceiveCount_P(:), iDisplacement_P(:)
+    integer, allocatable	::	&
+         BufferSend_I(:), BufferRecv_I(:)
+    integer :: iSendCount, iK, iError, iStatus_I( MPI_STATUS_SIZE )
+
+    allocate( iReceiveCount_P( nProc ), iDisplacement_P( nProc ), &
+         BufferSend_C( np, nt ), BufferRecv_C( np, nt ),&
+         BufferSend_I( nt ), BufferRecv_I( nt ))
+
+    ! Gather to root
+    iSendCount = np * nLonPar
+    iReceiveCount_P = np * nLonPar_P
+    iDisplacement_P = np * nLonBefore_P
+
+    BufferSend_I(:)=irm(:)
+    call MPI_GATHERV(BufferSend_I(MinLonPar:MaxLonPar), nLonPar, &
+         MPI_INTEGER, BufferRecv_I, nLonPar_P, nLonBefore_P, &
+         MPI_INTEGER, 0, iComm, iError)
+    if (iProc==0) irm(:)=BufferRecv_I(:)
+    
+    BufferSend_I(:) = iba(:)
+    call MPI_GATHERV(BufferSend_I(MinLonPar:MaxLonPar), nLonPar, &
+         MPI_INTEGER, BufferRecv_I, nLonPar_P, nLonBefore_P, &
+         MPI_INTEGER, 0, iComm, iError)
+    if (iProc==0) iba(:)=BufferRecv_I(:)
+    
+    BufferSend_C(:,:)=volume(:,:)
+    call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
+         MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
+         MPI_REAL, 0, iComm, iError)
+    if (iProc==0) volume(:,:)=BufferRecv_C(:,:)
+    
+    BufferSend_C(:,:)=xo(:,:)
+    call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
+         MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
+         MPI_REAL, 0, iComm, iError)
+    if (iProc==0) xo(:,:)=BufferRecv_C(:,:)
+    
+    BufferSend_C(:,:)=yo(:,:)
+    call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
+         MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
+         MPI_REAL, 0, iComm, iError)
+    if (iProc==0) yo(:,:)=BufferRecv_C(:,:)
+    
+    BufferSend_C(:,:)=bo(:,:)
+    call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
+         MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
+         MPI_REAL, 0, iComm, iError)
+    if (iProc==0) bo(:,:) = BufferRecv_C(:,:)
+    
+    do iK = 1, nk
+       
+       BufferSend_C(:,:)=bm(:,:,iK)
+       call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
+            MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
+            MPI_REAL, 0, iComm, iError)
+       if (iProc==0) bm(:,:,iK)=BufferRecv_C(:,:)
+       
+    end do
+    
+    BufferSend_C(:,:)=xmlto(:,:)
+    call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
+         MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
+         MPI_REAL, 0, iComm, iError)
+    if (iProc==0) xmlto(:,:)=BufferRecv_C(:,:)
+    
+    BufferSend_C(:,:)=ro(:,:)
+    call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
+         MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
+         MPI_REAL, 0, iComm, iError)
+    if (iProc==0) ro(:,:)=BufferRecv_C(:,:)
+
+    deallocate( iReceiveCount_P, iDisplacement_P, &
+         BufferSend_C, BufferRecv_C, BufferSend_I, BufferRecv_I )
+    
+  end subroutine gather_field_trace
   
+!!$
+!!$  subroutine bcast_field_trace
+!!$
+!!$    
+!!$    
+!!$  end subroutine bcast_field_trace
   
 end Module ModCimiTrace
