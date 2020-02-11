@@ -4,7 +4,8 @@ subroutine CIMI_set_parameters(NameAction)
   use ModReadParam
   use ModUtilities,	 ONLY: lower_case
   use ModCimiInitialize, ONLY: &
-       IsEmptyInitial, IsDataInitial, IsRBSPData, IsGmInitial
+       IsEmptyInitial, IsDataInitial, IsRBSPData, IsGmInitial, &
+       DoLstarInitialization
   use ModCimiPlot
   use ModCimiTrace,	 ONLY: UseEllipse, UseSmooth, UseCorotation, &
        UsePotential, SmoothWindow, imod, iLatTest, iLonTest
@@ -133,7 +134,8 @@ subroutine CIMI_set_parameters(NameAction)
         call read_var('NameModel',NameModel)!t96,t04,MHD,Dip
         !call read_var('UseFixedB',UseFixedB)!T=fixed B config or 
                                             !F=changing B config
-        if (NameModel == 'Dip') then
+        call lower_case( NameModel )
+        if (NameModel == 'dip') then
            iMod=0
            ! Checks the next two lines to see if cor and/or pot
            ! variables should be set to 0.
@@ -143,7 +145,7 @@ subroutine CIMI_set_parameters(NameAction)
            iMod=1
         elseif(NameModel == 't04') then
            iMod=2
-        elseif(NameModel == 'MHD')then
+        elseif(NameModel == 'mhd')then
            iMod=3
            UseGm=.true.
         else
@@ -631,6 +633,9 @@ subroutine CIMI_set_parameters(NameAction)
         if (nspec > 3 .and. IsDataInitial) &
              call CON_STOP('IsDataInitial only works with EarthHO or EarthH')  
 
+     case('#INITIALLSTAR')
+        call read_var('DoLstarInitialization',DoLstarInitialization)
+        
      case('#TYPEBOUNDARY')
         call read_var('TypeBoundary',TypeBoundary)
         if(TypeBoundary == 'Ellipse') then

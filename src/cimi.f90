@@ -1,7 +1,9 @@
 subroutine cimi_run(delta_t)
-  use ModConst,       	 ONLY: 	cLightSpeed, cElectronCharge
-  use ModCimiInitialize, ONLY: 	xmm, xk, dphi, dmm, dk, dmu, xjac
-  use ModCimi,        	 ONLY: &
+  use ModConst,			ONLY:	cLightSpeed, cElectronCharge
+  use ModCimiInitialize,	ONLY:	&
+       xmm, xk, dphi, dmm, dk, dmu, xjac,&
+       DoLstarInitialization
+  use ModCimi,			ONLY:	&
        f2, dt, dtmax,Time, phot, Ppar_IC, Pressure_IC, &
        PressurePar_IC, FAC_C, Bmin_C, &
        OpDrift_, OpBfield_, OpChargeEx_, &
@@ -16,42 +18,46 @@ subroutine cimi_run(delta_t)
        eChangeLocal, eChangeGlobal, &
        DoCalcPrecip, DtCalcPrecip, &
        vdr_q3, eng_q3, vexb, dif_q3, Part_phot
-  use ModCimiPlanet,  	 ONLY: &
+  use ModCimiPlanet,		ONLY:	&
        re_m, dipmom, Hiono, rc, nspec, amu_I, dFactor_I, tFactor_I
-  use ModCimiTrace,  	 ONLY: &
-       fieldpara, brad => ro, ftv => volume, xo, yo, rb, irm,&
-       ekev, iba, bo, pp, Have, sinA, vel, alscone, iw2, xmlto, bm,phi2o,&
+  use ModCimiTrace,		ONLY:	&
+       fieldpara, &
+       brad => ro, ftv => volume, xo, yo, rb, irm, &
+       ekev, iba, bo, pp, Have, sinA, vel, alscone, iw2, xmlto, bm, phi2o, &
        gather_field_trace, bcast_field_trace
-  use ModGmCimi,      	 ONLY: Den_IC, UseGm
-  use ModIeCimi,      	 ONLY: UseWeimer, pot
+  use ModGmCimi,		ONLY:	Den_IC, UseGm
+  use ModIeCimi,		ONLY:	UseWeimer, pot
   use ModCimiPlot
-  use ModCimiRestart, 	 ONLY: IsRestart
+  use ModCimiRestart,		ONLY:	IsRestart
   use ModImTime
-  use ModTimeConvert, 	 ONLY: time_real_to_int
-  use ModImSat,       	 ONLY: nImSats, write_im_sat, DoWriteSats, DtSatOut
-  use ModCimiGrid,    	 ONLY: &
+  use ModTimeConvert,		ONLY: 	time_real_to_int
+  use ModImSat,			ONLY:	&
+       nImSats, write_im_sat, DoWriteSats, DtSatOut
+  use ModCimiGrid,		ONLY:	&
        iProc, nProc, iComm, nLonPar, nLonPar_P, nLonBefore_P, &
        MinLonPar, MaxLonPar, nt, np, neng, npit, nm, nk, dlat, &
        phi, sinao, xlat, xlatr, xmlt
-  use ModCimiBoundary,	 ONLY: &
+  use ModCimiBoundary,		ONLY:	&
        cimi_set_boundary_mhd, cimi_set_boundary_empirical, &
        CIMIboundary, Outputboundary
   use ModMpi
-  use ModWaveDiff,    	 ONLY: &
+  use ModWaveDiff,		ONLY:	&
        UseWaveDiffusion, UseKpIndex, ReadDiffCoef, WavePower, & 
        diffuse_aa, diffuse_EE, diffuse_aE, DiffStartT, &
        testDiff_aa, testDiff_EE, testDiff_aE, &
        TimeAeIndex_I, AeIndex_I, interpolate_ae
-  use ModCoupleSami,  	 ONLY: DoCoupleSami
-  use DensityTemp,    	 ONLY: density, simple_plasmasphere
+  use ModCoupleSami,		ONLY:	DoCoupleSami
+  use DensityTemp,		ONLY:	density, simple_plasmasphere
   use ModIndicesInterfaces
-  use ModLstar,       	 ONLY: calc_Lstar1, calc_Lstar2 
-  use ModPlasmasphere,	 ONLY: &
+  use ModLstar,			ONLY:	&
+       Lstar_C, Lstarm, &
+       calc_Lstar1, calc_Lstar2
+  use ModPlasmasphere,		ONLY:	&
        UseCorePsModel, PlasSpinUpTime, init_plasmasphere, &
        advance_plasmasphere, DoSavePlas, DtPlasOutput,&
        PlasDensity_C, save_plot_plasmasphere, &
-       cimi_put_to_plasmasphere!,nLatPlas=>nl,nLonPlas=>np,
-  use ModDiagDiff,	 ONLY: &
+       cimi_put_to_plasmasphere
+  use ModDiagDiff,		ONLY:	&
        UseDiagDiffusion, calc_DQQ, interpol_D_coefK, &
        mapPSDtoQ, mapPSDtoE, diffuse_Q1, diffuse_Q2, &
        UsePitchAngleDiffusionTest,&
@@ -72,8 +78,6 @@ subroutine cimi_run(delta_t)
   logical, save :: IsFirstCall =.true.
   real  :: AE_temp = 0. ,&   
            Kp_temp = 0.   
-
-
   integer iError
 
   real,   allocatable :: ekevSEND_IIII(:,:,:,:),ekevRECV_IIII(:,:,:,:)
@@ -98,7 +102,7 @@ subroutine cimi_run(delta_t)
   ! do field line integration and determine vel, ekev, momentum (pp), etc.
   call timing_start('cimi_fieldpara')
   call fieldpara(Time,dt,cLightSpeed,cElectronCharge,xlat,xmlt,phi,xk,&
-                 IsRestart)
+       IsRestart)
   call timing_stop('cimi_fieldpara')
 
   ! Checks to see if this is the first call of CIMI, so as to gather
@@ -106,23 +110,30 @@ subroutine cimi_run(delta_t)
   ! of L*.  Necessary variables are bo and bm in ModFieldTrace.
   if ( IsFirstCall ) then
 
-     !
+     ! Gather Field Trace variables to root for calculating Lstar
      if (nProc > 1 ) then
         call gather_field_trace
-        call bcast_field_trace
      endif
 
-     ! Trace lstar variables for initial_f2.  NOTE: Typically lstar is
-     ! only calculated on root, but with this formulation all PEs will
-     ! have a copy of lstar for the initialization.
-     call timing_start('calc_Lstar1')
-     call calc_Lstar1
-     call timing_stop('calc_Lstar1')
+     ! Trace lstar variables for initial_f2.  
+     if ( iProc == 0 ) then
+
+        call timing_start('calc_Lstar1')
+        call calc_Lstar1
+        call timing_stop('calc_Lstar1')
      
-!!$     call timing_start('calc_Lstar2')
-!!$     call calc_Lstar2
-!!$     call timing_stop('calc_Lstar2')
+        call timing_start('calc_Lstar2')
+        call calc_Lstar2
+        call timing_stop('calc_Lstar2')
      
+     endif
+
+     ! Broadcast Lstar variable to all PEs
+     if (nProc > 1 ) then
+        call MPI_bcast(Lstar_C,np*nt,MPI_REAL,0,iComm,iError)
+        call MPI_bcast(Lstarm,np*nt*nm,MPI_REAL,0,iComm,iError)
+     endif
+
   endif
 
   ! interpolate a0 of const. Q2 curve correspoding K
@@ -133,7 +144,7 @@ subroutine cimi_run(delta_t)
      call interpol_D_coefK
      call timing_stop('cimi_interpol_D_coefK')
   endif
-     
+
   !when using 2D plasmasphere
   if (UseCorePsModel .and. IsFirstCall) then
      !gather info needed for core plasmasphere model
@@ -337,6 +348,7 @@ subroutine cimi_run(delta_t)
            call advance_plasmasphere(dt)
         endif
      endif
+
      if (nProc>1 .and. UseCorePsModel) &
           call MPI_bcast(PlasDensity_C,np*nt,MPI_REAL,0,iComm,iError)
 
@@ -346,7 +358,6 @@ subroutine cimi_run(delta_t)
         density=PlasDensity_C
      endif
 
-     
      call timing_start('cimi_driftIM')
      call driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
           fb,f2,driftin,driftout,ib0)
@@ -477,7 +488,6 @@ subroutine cimi_run(delta_t)
        dk, xlat, dphi, re_m, Hiono, vl, vp, flux, FAC_C, phot, &
        Ppar_IC, Pressure_IC, PressurePar_IC, vlEa, vpEa, psd )
   call timing_stop('cimi_output')
-
 
   ! When nProc >1 gather all relevant output variables.
   if ( nProc > 1 ) call cimi_gather( delta_t, psd, flux, vlea, vpea )
@@ -986,23 +996,26 @@ subroutine initial_f2(nspec,np,nt,iba,amu_I,vel,xjac,ib0)
   ! Input: nspec, np, nt, iba, Den_IC, Temp_IC, amu, vel, xjac
   ! Output: ib0, f2, rbsum, xleb, xled, xlel, xlee, xles, driftin,
   !		driftout (through common block cinitial_f2)
-  use ModIoUnit,		ONLY: UnitTmp_
-  use ModGmCimi, 		ONLY: &
+  use ModIoUnit,		ONLY:	UnitTmp_
+  use ModGmCimi, 		ONLY:	&
        Den_IC, Temp_IC, Temppar_IC, DoAnisoPressureGMCoupling
-  use ModCimi,			ONLY: f2
-  use ModCimiInitialize,	ONLY: &
+  use ModCimi,			ONLY:	f2
+  use ModCimiInitialize,	ONLY:	&
        IsEmptyInitial, IsDataInitial, IsRBSPData, &
-       IsGmInitial, IsInitialElectrons, NameFinFile, FinFilePrefix
-  use ModCimiGrid,		ONLY: &
+       IsGmInitial, IsInitialElectrons, DoLstarInitialization, &
+       NameFinFile, FinFilePrefix
+  use ModCimiGrid,		ONLY:	&
        nm, nk, MinLonPar, MaxLonPar, iProc, nProc, iComm, &
        d4Element_C, neng
-  use ModCimiPlanet,		ONLY: NameSpeciesExtension_I
-  use ModCimiTrace, 		ONLY: &
+  use ModCimiPlanet,		ONLY: 	NameSpeciesExtension_I
+  use ModCimiTrace, 		ONLY:	&
        sinA, ro, ekev, pp, iw2, irm
   use ModMpi
-  use ModWaveDiff, 		ONLY:  &
+  use ModWaveDiff, 		ONLY:	&
        testDiff_aa, testDiff_EE, testDiff_aE
-
+  use ModLstar, 		ONLY:	&
+       Lstar_C, Lstarm
+       
   implicit none
 
   integer nspec, np, nt, iba(nt), ib0(nt), n, j, i, k, m, iError
@@ -1085,8 +1098,12 @@ subroutine initial_f2(nspec,np,nt,iba,amu_I,vel,xjac,ib0)
         !interpolate data from quiet.fin files to CIMI grid
         do j=MinLonPar,MaxLonPar
            do i=1,irm(j)
-              roii=ro(i,j)
               do m=1,nk
+                 if ( DoLstarInitialization ) then
+                    roii=Lstarm(i,j,m)
+                 else
+                    roii=ro(i,j)
+                 endif
                  do k=1,iw2(n,m)
                     e1=log10(ekev(n,i,j,k,m)) 
                     if (e1.le.ei(ie)) then

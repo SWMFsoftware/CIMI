@@ -296,6 +296,16 @@ IsRBSPData logical, which is only read if IsDataInitial=T. The default
 is shown.
 </command>
 
+<command name="INITIALLSTAR">
+	<parameter name="DoLstarInitialization" type="logical" />
+
+#INITIALLSTAR
+F			DoLstarInitialization
+
+Determines whether to initialize the PSD array from dipolar L values
+or CIMI calculated Lstar. Default is shown.
+</command>
+
 <command name="END">
 
 #END

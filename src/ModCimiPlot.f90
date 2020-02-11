@@ -885,7 +885,7 @@ contains
     integer       :: iLat,iLon,k,m,n,i,nprint
     logical, save :: IsFirstCall = .true.
     character(len=15):: outnameSep
-    character(len=30), save :: NamePlotLstar
+    character(len=40), save :: NamePlotLstar
     !--------------------------------------------------------------------------
     nprint=ifix(time/DtLstarOutput)
     write(outnameSep,"(i4.4,i2.2,i2.2,a,i2.2,i2.2,i2.2)") & 
@@ -902,7 +902,7 @@ contains
        write(UnitTmp_,'(8f8.3)') (xlat(i),i=2,nLat)
     else
        if (IsFirstCall) then
-          write(NamePlotLstar, '(A,I8.8,A5)' )&
+          write(NamePlotLstar, '(A,I8.8,A)' )&
                'IM/plots/Cimi_n', nprint, '.lstar'
           open(unit = UnitTmp_, file = TRIM( NamePlotLstar ), status = 'UNKNOWN')
           write(UnitTmp_,"(f10.6,4i6,6x,'! rc in Re,nr,ip,nm,nk,ntime')") &

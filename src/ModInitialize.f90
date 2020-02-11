@@ -10,7 +10,7 @@ Module ModCimiInitialize
   logical	:: &
        IsEmptyInitial = .false., IsDataInitial = .false., &
        IsRBSPData = .false., IsGmInitial = .true., &
-       IsInitialElectrons = .false.
+       IsInitialElectrons = .false., DoLstarInitialization = .false.
 
   character(11) :: NameFinFile = 'quiet_x.fin'
   character(5)	:: FinFilePrefix = 'xxxxx'
