@@ -4,35 +4,259 @@
 
 List of IM commands used in the PARAM.in file
 
-<set name="NameRestartOutDir" type="string" value="$_NameComp/restartOUT"/>
-<set name="NamePlotDir"       type="string" value="$_NameComp/plots"/>
+<set name="NameRestartOutDir"
+     type="string" value="$_NameComp/restartOUT"/>
+<set name="NamePlotDir"
+     type="string" value="$_NameComp/plots"/>
 
-<commandgroup name="NUMERICAL SCHEME">
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!					!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!	    GENERAL COMMANDS		!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!					!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-<command name="LIMITER">
-	<parameter name="UseMcLimiter" type="logical" default="F"/>
-	<parameter name="BetaLimiter"  type="real" min="1" max="2" default="2"/>
-	
-#LIMITER
-F			UseMcLimiter
-2			BetaLimiter
+<commandgroup name="GENERAL COMMANDS">
 
-Set whether or not the MC limiter is used. If it is not, the super bee
-limiter is used. Also set the Beta parameter for the MC limiter.  The
-default value is shown.
+<command name="ECHO">
+  <parameter name="DoEcho" type="logical"/>
+	   
+#ECHO
+T	DoEcho
+
+If the DoEcho variable is true, the input parameters are echoed
+back. The echoing either goes to the standard output.  The default
+value for DoEcho is .false., but it is a good idea to set it to true
+at the beginning of the PARAM.in file.
+
 </command>
 
+<command name="INCLUDE">
+  <parameter name="NameIncludeFile" type="strings"/>
+	   
+#INCLUDE
+RESTART.in	NameIncludeFile
+
+The NameIncludeFile parameter contains the name of the file to be
+included. The file name may be followed with a trailing comment if it
+is separated with at least 3 spaces or one TAB character. The #INCLUDE
+command can be used anywhere in the parameter file, even in the
+sections which contain the component specific parameters. For example
+the information in the run/IM/restartIN/restart.H file or parameters
+specific to a component can be included.
+
+</command>
+
+<command name="END">
+
+#END
+
+The #END command signals the end of the included file or the end of
+the PARAM.in file. Lines following the #END command are ignored. It is
+not required to use the #END command. The end of the included file or
+PARAM.in file is equivalent with an #END command in the last line.
+
+</command>
+
+</commandgroup>
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!					!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!	     TIMING CONTROL		!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!					!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+<commandgroup name="TIMING CONTROL">
+
 <command name="TIMESIMULATION">
-	<parameter name="TimeSimulation" type="real" min="0"/>
+  <parameter name="TimeSimulation" type="real" min="0"/>
 
 #TIMESIMULATION
 0.0		TimeSimulation
 
-This command specifies the simulation time. 
+This command specifies the current simulation time. 
+
+</command>
+
+<command name="STOP">
+  <parameter name="MaxTime" type="real" min="0"/>
+
+#STOP
+3600.0		TimeSimulation
+
+This command specifies the simulation stop time. 
+
+</command>
+
+<command name="STARTTIME">
+  <parameter name="iYear" type="integer"/>
+  <parameter name="iMonth" type="integer"/>
+  <parameter name="iDay" type="integer"/>
+  <parameter name="iHour" type="integer"/>
+  <parameter name="iMinute" type="integer"/>
+  <parameter name="iSecond" type="integer"/>
+
+#STARTTIME
+2012            iYear
+11              iMonth
+12              iDay
+18              iHour
+00              iMinute
+00              iSecond
+
+The #STARTTIME command sets the initial date and time for the
+simulation in Greenwich Mean Time (GMT) or Universal Time (UT) in
+stand alone mode. This time is stored in the CIMI restart header
+file. CIMI has no default values.
+
+</command>
+
+<command name="IMTIMESTEP">
+
+DO THIS!!!
+
+</command>
+
+</commandgroup>
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!					!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!	     RESTART CONTROL		!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!					!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+<commandgroup name="RESTART CONTROL">
+
+<command name="RESTART">
+  <parameter name="IsRestart" type="logical" />
+
+#RESTART
+F		IsRestart
+F		ReadRestartSat
+
+Determine whether or not to continue a previous run. If Satellites are
+being traced in CIMI, ReadRestartSat control to read in the satellite
+buffer file found in IM/restartIN/restart.sat.
+
+</command>
+
+<command name="SAVERESTART">
+  <parameter name="DtSaveRestart" type="real" min="0."/>
+
+#SAVERESTART
+100.0           DtSaveRestart
+
+Command controls how often restart files are saved.  This only works
+when CIMI is in standalone mode.
+
+</command>
+
+<command name="PRERUNFIELD">
+  <parameter name="DoWritePrerun" type="logical" default="F"/>
+  <parameter name="UsePrerun" type="logical" default="F"/>
+  <parameter name="DtRead" type="real" default="0." min="0"/>
+  
+#PRERUNFIELD
+F		DoWritePrerun
+F		UsePrerun
+0.		DtRead
+
+Command controls the saving or reading of the Prerun magnetic field
+(IM/PrerunField_********.dat) and ionospheric potential
+(IM/PrerunIE_********.dat) files, where ******** is the simulation
+time in seconds from the simulation start time.  While coupled with
+GM, the user can save the calculated field line traces to
+IM/.  As the field line traces can be the most computationally
+expensive part routine in CIMI, this allows for quick reconfiguration
+of a GM-coupled run using CIMI in standalone while still using the
+BATSRUS fields. Default values shown.\newline
+
+****NOTE****\newline
+
+Files are only saved when DoWritePrerun=.true. in the GM-coupled run;
+UsePrerun and DtReadSat are NOT read while DoWritePrerun=.true.  When
+performing a restart, set UsePrerun=.true. with the time cadence given
+by DtRead. Consult input/testfiles/PARAM.in.test.Prerun usage of the
+PrerunSat files in conducting the Prerun test.
+
+</command>
+
+<command name="PRERUNSAT">
+  <parameter name="DoWritePrerunSat" type="logical" default="F"/>
+  <parameter name="UsePrerunSat" type="logical" default="F"/>
+  <parameter name="DtReadSat" type="real" default="0." min="0"/>
+  
+#PRERUNSAT
+F		DoWritePrerunSat
+F		UsePrerunSat
+0.		DtReadSat
+
+Command controls the saving or reading of the Prerun satellite trace
+files ((IM/PrerunSat_********.dat)), where ******** is the simulation
+time in seconds from the simulation start time.  While coupled with
+GM, the user can save the calculated satellite traces to IM/.  As the
+satellite traces can be quite computationally expensive as the number
+of satellites increases, this allows for quick reconfiguration of a
+GM-coupled run using CIMI in standalone while still using the BATSRUS
+fields. Default values shown.\newline
+
+****NOTE****\newline
+
+Files are only saved when DoWritePrerunSat=.true. in the GM-coupled
+run; UsePrerunSat and DtReadSat are NOT read while
+DoWritePrerunSat=.true.  When performing a restart, set
+UsePrerunSat=.true. with the time cadence given by DtReadSat. Consult
+input/testfiles/PARAM.in.test.Prerun for usage of the PrerunSat files
+in the Prerun test.
+
+</command>
+
+</commandgroup>
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!					!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!	NUMERICAL SCHEME PARAMETERS	!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!					!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+<commandgroup name="NUMERICAL SCHEME">
+
+<command name="LIMITER">
+  <parameter name="UseMcLimiter" type="logical"
+	     default="F"/>
+  <parameter name="BetaLimiter"  type="real"
+	     min="1" max="2" default="2"/>
+	
+#LIMITER
+F			UseMcLimiter
+2			BetaLimiter
+    
+Set whether or not the MC limiter is used. If it is not, the super bee
+limiter is used. Also set the Beta parameter for the MC limiter.  The
+default value is shown.
+
+</command>
+
+<command name="HIGHERORDERDRIFT">
+  <parameter name="UseHigherOrder" type="logical" default="F"/>
+  <parameter name="iOrderLat" type="integer" default="2"/>
+  <parameter name="iOrderLon" type="integer" default="2"/>
+
+#HIGHERORDERDRIFT
+T		UseHigherOrder 
+7		iOrderLat
+7		iOrderLon
+
+If UseHigherOrder is true, construct inter flux during CIMI advection
+in higher order using ULTIMATE advection scheme (Lagrangian
+interpoation + Universal Limiter).  E.g. if iOrderLat = 7, then
+construct latitude inter flux in 7th order scheme.  If iOrderLon = 7,
+then construct longitude inter flux in 7th order scheme.  If iOrderLat
+and iOrderLon are equal to 2 then use 2nd order scheme and Superbee
+limter.
 </command>
 
 <command name="STRICTDRIFT">
-	<parameter name="IsStrictDrift" type="logical" min="F"/>
+  <parameter name="IsStrictDrift" type="logical" min="F"/>
 
 #STRICTDRIFT
 F		IsStrictDrift
@@ -43,67 +267,152 @@ species, the code will immediately stop.  Default shown.
 
 </command>
 
+</commandgroup>
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!					!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!     INITIAL AND BOUNDARY CONDITIONS	!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!					!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+<commandgroup name="INITIAL AND BOUNDARY CONDITIONS">
+
+<command name="INITIALF2">
+  <parameter name="IsEmptyF2" type="logical" />
+  <parameter name="IsGMInitial" type="logical" />
+  <parameter name="IsDataInitial" type="logical" />
+  <parameter name="IsRBSPData" type="logical" />
+
+#INITIALF2
+F			IsEmptyF2
+T			IsGmInitial
+F			IsDataInitial
+F			IsRBSPData
+
+Determines whether to fill the fluxes in the simulation domain based
+on a Maxwellian determined from MHD quantities (IsGmInitial=T) or to
+set the initial fluxes in the simulation domain to zero (IsEmptyF2=T,
+not recommended) or to set the initial fluxes in the simulation to
+values from AMPTE/CCE data (IsDataInitial=T).  One can also put RBSP
+observed fluxes into the same format as the AMPTE/CCE data to
+initialize CIMI with RBSP observations which is controlled with the
+IsRBSPData logical, which is only read if IsDataInitial=T. The default
+is shown.
+
+</command>
+
+<command name="INITIALLSTAR">
+  <parameter name="DoLstarInitialization" type="logical" />
+
+#INITIALLSTAR
+F			DoLstarInitialization
+
+Determines whether to initialize the PSD array from dipolar L values
+or CIMI calculated Lstar. Default is shown.
+
+</command>
+
+<command name="PLASMASHEET">
+
+  DO THIS!!!
+  
+</command>
+
+<command name="BMODEL">
+
+  DO THIS!!!
+  
+</command>
+
+<command name="IEMODEL">
+
+  DO THIS!!!
+  
+</command>
+
+<command name="NGDC_INDICES">
+
+  DO THIS!!!
+  
+</command>
+
+<command name="MHD_INDICES">
+
+  DO THIS!!!
+  
+</command>
+
+<command name="SMOOTH">
+
+  DO THIS!!!
+  
+</command>
 
 
 </commandgroup>
 
-<commandgroup name="INPUT/OUTPUT">
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!					!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!	   OUTPUT PARAMETERS		!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!					!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+<commandgroup name="OUTPUT PARAMETERS">
 
 <command name="SAVEPLOT">
-	<parameter name="nCIMIPlotType" type="integer" default="0"/>
+  <parameter name="nCIMIPlotType" type="integer" default="0"/>
 
-	<for name="iPlot" from="1" to="$nCIMIPlotType">
-	  <parameter name="StringPlot" type="strings" min="2" max="2">
-	    <part name="plottype" type="string" input="select" required="T">
-	      <option value="fls" name="FLS"/>
-	      <option value="flux" name="FLS"/>
-	      <option value="psd" name="PSD"/>
-	      <option value="vl" name="VL"/>
-	      <option value="vldrift" name="VL"/>
-	      <option value="vp" name="VP"/>
-	      <option value="vpdrift" name="VP"/>
-	      <option value="precipitation" name="PRECI"/>
-	      <option value="precip" name="PRECI"/>
-	      <option value="preci" name="PRECI"/>
-	      <option value="2d" name="IDL"/>
-	    </part>
-
-	    <part name="plotoption" type="string" input="select">
-	      <option value="all" name="ALL"/>
-	      <option value="ions" name="IONS"/>
-	      <option value="electrons" name="ELECTRONS"/>
-	      <option value="e" name="ELECTRONS"/>
-	      <option value="h" name="HYDROGEN"/>
-	      <option value="he" name="HELIUM"/>
-	      <option value="o" name="OXYGEN"/>
-	      <option value="both" name="ALL"/>
-	      <option value="eq" name="EQUATOR"/>
-	      <option value="equator" name="EQUATOR"/>
-	      <option value="iono" name="IONOSPHERE"/>
-	      <option value="ionosphere" name="IONOSPHERE"/>
-	      <option value="lstar" name="LSTAR"/>
-	      <option value="[l\*]" name="LSTAR"/>
-	    </part>
-	  </parameter>
-
-	  <parameter name="DtOutputCIMIPlot" type="real" min="60."
-		     default="60."/>
-
-	  <if expr="$plottype =~ /\bfls|flux|psd|vl|vldrift|vp|vpdrift|
-		    precipitation|precip|preci\b/">
-
-	    <parameter name="DoSaveSeparateFiles" type="logical"
-		       default="F"/>
-	    
-	  </if>
-	  <if expr="$plottype =~ /\b2d\b/">
-	    <if expr="$plotoption =~ /\blstar|[l\*]\b/">
-	      <parameter name="DoSaveSeparateFiles" type="logical"
-			 default="F"/>
-	    </if>
-	  </if>
-	</for>
-
+  <for name="iPlot" from="1" to="$nCIMIPlotType">
+    <parameter name="StringPlot" type="strings" min="2" max="2">
+      <part name="plottype" type="string" input="select" required="T">
+	<option value="fls" name="FLS"/>
+	<option value="flux" name="FLS"/>
+	<option value="psd" name="PSD"/>
+	<option value="vl" name="VL"/>
+	<option value="vldrift" name="VL"/>
+	<option value="vp" name="VP"/>
+	<option value="vpdrift" name="VP"/>
+	<option value="precipitation" name="PRECI"/>
+	<option value="precip" name="PRECI"/>
+	<option value="preci" name="PRECI"/>
+	<option value="2d" name="IDL"/>
+      </part>
+      
+      <part name="plotoption" type="string" input="select">
+	<option value="all" name="ALL"/>
+	<option value="ions" name="IONS"/>
+	<option value="electrons" name="ELECTRONS"/>
+	<option value="e" name="ELECTRONS"/>
+	<option value="h" name="HYDROGEN"/>
+	<option value="he" name="HELIUM"/>
+	<option value="o" name="OXYGEN"/>
+	<option value="both" name="ALL"/>
+	<option value="eq" name="EQUATOR"/>
+	<option value="equator" name="EQUATOR"/>
+	<option value="iono" name="IONOSPHERE"/>
+	<option value="ionosphere" name="IONOSPHERE"/>
+	<option value="lstar" name="LSTAR"/>
+	<option value="[l\*]" name="LSTAR"/>
+      </part>
+    </parameter>
+    
+    <parameter name="DtOutputCIMIPlot" type="real" min="60."
+	       default="60."/>
+    
+    <if expr="$plottype =~ /\bfls|flux|psd|vl|vldrift|vp|vpdrift|
+	      precipitation|precip|preci\b/">
+      
+      <parameter name="DoSaveSeparateFiles" type="logical"
+		 default="F"/>
+      
+    </if>
+    <if expr="$plottype =~ /\b2d\b/">
+      <if expr="$plotoption =~ /\blstar|[l\*]\b/">
+	<parameter name="DoSaveSeparateFiles" type="logical"
+		   default="F"/>
+      </if>
+    </if>
+  </for>
 	
 #SAVEPLOT
 8		nCIMIFileType
@@ -116,7 +425,7 @@ T		DoSaveSeparateFiles
 psd all		StringPlot
 60.		DtOutput
 F		DoSaveSeparateFiles
-vl H+		StringPlot
+vl H		StringPlot
 60.		DtOutput
 T		DoSaveSeparateFiles
 vpdrift ions	StringPlot
@@ -216,12 +525,12 @@ screen, including information about magnetic island locations (those
 locations where B is not monotonically decreasing) and the maximum
 Lstar values for each value of the second adiabatic invariant, K.
 
-Default is DoVerboseLstar=F
+Default is DoVerboseLstar=F.
 
 </command>
 
 <command name="VERBOSELATGRID">
-  	<parameter name="DoVerboseLatGrid" type="logical" default="F"/>
+  <parameter name="DoVerboseLatGrid" type="logical" default="F"/>
 
 #VERBOSELATGRID
 F		DoVerboseLatGrid
@@ -234,7 +543,8 @@ Default is DoVerboseLatGrid=F.
 
 
 <command name="SAVELOG">
-	<parameter name="DtLogOut" type="real" />
+  <parameter name="DtLogOut" type="real" />
+  
 #SAVELOG
 10		DtSaveLog
 
@@ -242,115 +552,40 @@ When this command is set, a log file for CIMI is written out. The log
 file saves the change in ring current energy content for each species
 resulting from each operator. A new entry in the log is written out
 every DtSaveLog seconds of simulation time.
-</command>
 
-<command name="TYPEBOUNDARY">
-  <parameter name="TypeBoundary" type="string" case="lower" input="select">
-    <option name="ellipse" default="T" />
-    <option name="circle"              />
-  </parameter>
-
-#TYPEBOUNDARY
-ellipse		TypeBoundary
-
-Determines if the IM outer boundary is an 'ellipse' or 'circle.'
-Default value is shown.
-</command>
-
-<command name="SETBOUNDARYPARAMS">
-  <parameter name="DeltaRmax" type="real" min="1" max="3" default="2"/>
-  <parameter name="DeltaMLTmax" type="real" min="1" max="4" default="2"/>
-
-#SETBOUNDARYPARAMS
-2.0			DeltaRmax   [Re]
-2.0			DeltaMLTmax [hour]
-
-The CIMI grid is based in the ionosphere and we trace the field from
-those footpoints through the magnetosphere. CIMI then does a number of
-checks to set its domain. First, we check for open-closed boundary,
-and the CIMI domain must be inside that. We then check for multiple
-off equator magnetic field minima. This usually occurs on the dayside
-under northward IMF and strong pressure. This gives the "Shebansky
-orbits", which cannot currently be captured by CIMI so those field
-lines are treated as open as well.
-
-If the spacing between two successive minB points is more than DeltaRmax,
-the line is considered open to avoid excessive deformation. Range is 1 to 3 Re.
-
-If the MLT of the minB changes more than DeltaMLTmax from the footpoint,
-the line is considered open to avoid excessive warping. Range is 1 to 4 hours.
-
-Default values are shown.
 </command>
 
 <command name="MINIMUMPRESSURETOGM">
-	<parameter name="MinimumPressureToGM" type="real" />
+  <parameter name="MinimumPressureToGM" type="real" />
 
 #MINIMUMPRESSURETOGM
 1e-2		MinimumPressureToGM
 
 Sets minimum pressure passed to GM.
+
 </command>
 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!					!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!	   GRIDDING PARAMETERS		!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!					!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-<command name="RESTART">
-  <parameter name="DoRestart" type="logical" />
-  <parameter name="DoReadRestartSatellite" type="logical" />
+<commandgroup name="GRIDDING PARAMETERS">
+  
+<command name="TYPEBOUNDARY">
+  <parameter name="TypeBoundary" type="string" />
 
-#RESTART
-F			DoRestart
-F			DoReadRestartSatellite
+#TYPEBOUNDARY
+Ellipse		TypeBoundary
 
-Determine whether or not to continue a previous run.
-This command is usually read from the restart.H file. 
-</command>
-
-<command name="INITIALF2">
-	<parameter name="IsEmptyInitial" type="logical" />
-	<parameter name="IsGmInitial" type="logical" />
-	<parameter name="IsDataInitial" type="logical" />
-	<parameter name="IsRBSPData" type="logical" if="$IsDataInitial"/>
-
-#INITIALF2
-F			IsEmptyInitial
-T			IsGmInitial
-F			IsDataInitial 
-F			IsRBSPData (read if IsDataInitial is true)
-
-Determines whether to fill the fluxes in the simulation domain based
-on a Maxwellian determined from MHD quantities (IsGmInitial=T) or to
-set the initial fluxes in the simulation domain to zero
-(IsEmptyInitial=T, not recommended) or to set the initial fluxes in
-the simulation to values from AMPTE/CCE data (IsDataInitial=T).  One
-can also put RBSP observed fluxes into the same format as the
-AMPTE/CCE data to initilaize CIMI with RBSP observations which is
-controlled with the IsRBSPData logical, which is only read if
-IsDataInitial=T. The default is shown.
-</command>
-
-<command name="INITIALLSTAR">
-	<parameter name="DoLstarInitialization" type="logical" />
-
-#INITIALLSTAR
-F			DoLstarInitialization
-
-Determines whether to initialize the PSD array from dipolar L values
-or CIMI calculated Lstar. Default is shown.
-</command>
-
-<command name="END">
-
-#END
-
-The #END command signals the end of the included file or the end of
-the PARAM.in file. Lines following the #END command are ignored. It is
-not required to use the #END command. The end of the included file or
-PARAM.in file is equivalent with an #END command in the last line.
+Determines if the IM outer boundary is an 'Ellipse' or 'Circle.'
+Default shown.
 </command>
 
 <command name="ENERGYGRID">
-	<parameter name="MinIonEnergy" type="real" />
-	<parameter name="MaxIonEnergy" type="real" />
+  <parameter name="MinIonEnergy" type="real" />
+  <parameter name="MaxIonEnergy" type="real" />
 
 #ENERGYGRID
   0.10000	MinIonEnergy (in keV)
@@ -363,12 +598,13 @@ by 10.  Results in a 15 element grid per species that is evenly spaced
 logarithmically. Parameter included for backwards compatibility. For
 more direct control over the grid, use #SETENERGYGRID command.
 </command>
+</commandgroup>
 
 <command name="SETENERGYGRID">
-	<parameter name="neng" type="integer" />
-	<parameter name="UseLogEGrid" type="logical" />
-  	<parameter name="MinIonEnergy" type="real" />
-	<parameter name="MaxIonEnergy" type="real" />
+  <parameter name="neng" type="integer" />
+  <parameter name="UseLogEGrid" type="logical" />
+  <parameter name="MinIonEnergy" type="real" />
+  <parameter name="MaxIonEnergy" type="real" />
 
 #SETENERGYGRID
 15		neng
@@ -387,7 +623,7 @@ of #SETENERGYGRID being specified in PARAM.in.
 </command>
 
 <command name="RBSPENERGYGRID">
-  	<parameter name="UseRBSPGrid" type="logical" default="F"/>
+  <parameter name="UseRBSPGrid" type="logical" default="F"/>
 
 #RBSPENERGYGRID
 F		UseRBSPGrid
@@ -399,13 +635,35 @@ ignored. Default shown.
 
 </command>
 
+<command name="LATITUDINALGRID">
+  <parameter name="DoDefineVarNpower" type="logical" default="F"/>
+  <parameter name="varNpower" type="real" default="2." />
+  <parameter name="xlatmax" type="real" default="72.4356255492731975" />
+
+#LATITUDINALGRID
+T		DoDefineVarNpower
+2. 		varNpower
+72.4356255492731975	xlatmax
+
+If DoDefineVarNpower is true, calculate ionospheric latitude grid by 
+xlat = acos(1./varL)**(1./varNpower)
+varL is uniformly spacing from varLmin to varLmax.
+xlatmin = acos(1./varLmin)**(1./varNpower)
+xlatmax = acos(1./varLmax)**(1./varNpower)
+Note. If LATITUDINALGRID is not turned on, default varNpower is 2.
+parameter xlatmax is in a unit of deg 
+
+</command>
+
 </commandgroup>
 
-<commandgroup name="PHYSICS PARAMETERS">
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!					!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!	    PHYSICS PARAMETERS		!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!					!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!!! PHYSICS PARAMETERS  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+<commandgroup name="PHYSICS PARAMETERS">
 
 <command name="STRONGDIFFUSION">
   <parameter name="UseStrongDiff" type="logical" default="F"/>
@@ -422,12 +680,26 @@ Default is UseStrongDiff is false.
 	
 </command>	
 
+<command name="DIAGONALIZEDDIFFUSION">
+  <parameter name="UseDiagDiffusion" type="logical" default="F"/>
+  
+#DIAGONALIZEDDIFFUSION
+T		UseDiagDiffusion
+
+If UseDiagDiffusion is true, use (Q1,Q2) coordinates instead of (a0,E)
+or (M,K) during diffusion calculation, where Q1 = K and Q2 is defined
+to be Q2_min = E and Q2 is obtaind from constant Q2 curve (dQ2 = 0) in
+(a0,E), integrating dE/da0 = DaE/Daa Note. UseWaveDiffusion must be
+true to use this option.
+
+</command>
+
 <command name="DECAY">
-	<parameter name="UseDecay" type="logical" default="F"/>
-	<if expr="$UseDecay">
-		<parameter name="DecayTimescale"   type="real" min="0"
-						   default="36000."/>
-	</if>
+  <parameter name="UseDecay" type="logical" default="F"/>
+  <if expr="$UseDecay">
+    <parameter name="DecayTimescale"   type="real" min="0"
+	       default="36000."/>
+  </if>
 
 #DECAY
 T			UseDecay
@@ -444,65 +716,46 @@ ring current and radiation belt electrons are represented.  Rapid loss
 of electron PSD is controlled with the #STRONGDIFFUSION routine.
 
 The default is UseDecay false.
+
 </command>
 
-<command name="LATITUDINALGRID">
-  	<parameter name="DoDefineVarNpower" type="logical" default="F"/>
-  	<parameter name="varNpower" type="real" default="2." />
-  	<parameter name="xlatmax" type="real" default="72.4356255492731975" />
+</commandgroup>
 
-#LATITUDINALGRID
-T		DoDefineVarNpower
-2. 		varNpower
-72.4356255492731975	xlatmax
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!					!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!	   TESTING PARAMETERS		!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!					!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-If DoDefineVarNpower is true, calculate ionospheric latitude grid by 
-xlat = acos(1./varL)**(1./varNpower)
-varL is uniformly spacing from varLmin to varLmax.
-xlatmin = acos(1./varLmin)**(1./varNpower)
-xlatmax = acos(1./varLmax)**(1./varNpower)
-Note. If LATITUDINALGRID is not turned on, default varNpower is 2.
-parameter xlatmax is in a unit of deg 
-</command>
-
-<command name="HIGHERORDERDRIFT">
-  	<parameter name="UseHigherOrder" type="logical" default="F"/>
-  	<parameter name="iOrderLat" type="integer" default="2"/>
-  	<parameter name="iOrderLon" type="integer" default="2"/>
-#HIGHERORDERDRIFT
-T		UseHigherOrder 
-7		iOrderLat
-7		iOrderLon
-
-If UseHigherOrder is true, construct inter flux during CIMI advection
-in higher order using ULTIMATE advection scheme (Lagrangian
-interpoation + Universal Limiter).  E.g. if iOrderLat = 7, then
-construct latitude inter flux in 7th order scheme.  If iOrderLon = 7,
-then construct longitude inter flux in 7th order scheme.  If iOrderLat
-and iOrderLon are equal to 2 then use 2nd order scheme and Superbee
-limter.
-</command>
-
-<command name="DIAGONALIZEDDIFFUSION">
-  	<parameter name="UseDiagDiffusion" type="logical" default="F"/>
-#DIAGONALIZEDDIFFUSION
-T		UseDiagDiffusion
-
-If UseDiagDiffusion is true, use (Q1,Q2) coordinates instead of (a0,E)
-or (M,K) during diffusion calculation, where Q1 = K and Q2 is defined
-to be Q2_min = E and Q2 is obtaind from constant Q2 curve (dQ2 = 0) in
-(a0,E), integrating dE/da0 = DaE/Daa Note. UseWaveDiffusion must be
-true to use this option.
-</command>
+<commandgroup name="TESTING PARAMETERS">
 
 <command name="DIFFUSIONTEST">
-  	<parameter name="UsePitchAngleDiffusionTest" type="logical" default="F"/>
-  	<parameter name="UseEnergyDiffusionTest" type="logical" default="F"/>
+  <parameter name="UsePitchAngleDiffusionTest"
+	     type="logical" default="F"/>
+  <parameter name="UseEnergyDiffusionTest"
+	     type="logical" default="F"/>
 
 #DIFFUSIONTEST
+F		testDiff_aa
+F		testDiff_EE
+F		testDiff_aE
+
+Direct control of the testDiff_** logical variables in ModWaveDiff.f90
+to the PARAM.in file. Unknown effect of what this does to the
+code. Default shown.
+
+</command>
+
+<command name="DIAGDIFFUSIONTEST">
+  <parameter name="UsePitchAngleDiffusionTest"
+	     type="logical" default="F"/>
+  <parameter name="UseEnergyDiffusionTest"
+	     type="logical" default="F"/>
+
+#DIAGDIFFUSIONTEST
 F		UsePitchAngleDiffusionTest
 F		UseEnergyDiffusionTest
-
+  
 If either of the parameters is true, calculate diffusion and compare
 with analytical solution.  NOTE: UseWaveDiffusion and UseDiagDiffusion
 must be true to use this option.  Only UsePitchAngleDiffusionTest OR
