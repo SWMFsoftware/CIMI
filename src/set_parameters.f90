@@ -739,6 +739,11 @@ subroutine CIMI_set_parameters(NameAction)
         call read_var('UseDiagDiffusion',UseDiagDiffusion)
 
      case('#DIFFUSIONTEST')
+        call read_var('testDiff_aa', testDiff_aa )
+        call read_var('testDiff_EE', testDiff_EE )
+        call read_var('testDiff_aE', testDiff_aE )
+        
+     case('#DIAGDIFFUSIONTEST')
         call read_var('UsePitchAngleDiffusionTest',&
                        UsePitchAngleDiffusionTest)
         call read_var('UseEnergyDiffusionTest',&
