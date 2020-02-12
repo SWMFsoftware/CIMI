@@ -80,7 +80,7 @@ contains
 end module DensityTemp
 
 !!!!!!!!!!!!!!!!  Main wave module !!!!!!!!!!!!!1
-Module ModWaveDiff
+module ModWaveDiff
   
   use ModCimiGrid,	ONLY:	ir => np, ip => nt, iw => nm, ik => nk  
   use ModCimiPlanet,	ONLY:	nspec
@@ -1553,5 +1553,5 @@ contains
        if (eps_high.le.1.e-5) y=yy(n)
     Endif
   end subroutine lintpIM_diff
-  
-end Module ModWaveDiff
+
+end module ModWaveDiff
