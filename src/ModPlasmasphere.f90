@@ -482,7 +482,7 @@ contains
     
     !--------------------------------------------------------------------------
 
-    call open_file(file=trim(NameRestartInDir)//'plasdata.restart',&
+    call open_file(file=trim(NameRestartOutDir)//'plasdata.restart',&
          form='unformatted', NameCaller=NameSub)
        
     write(UnitTmp_) Nion  

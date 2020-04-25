@@ -240,7 +240,8 @@ contains
          iBufferRho_I, iBufferP_I, iBufferPpar_I,  &
          StateLine_VI, StateBmin_IIV, nPoint, nVarBmin,rBodyGm,iLatMin
     use ModCimiGrid,  ONLY: nLat => np, nLon => nt, iProc, nProc,xlatr
-    use ModCimiPlanet,ONLY: rEarth => re_m, NameVarCouple,nVarImToGm
+    use ModCimiPlanet,ONLY: rEarth => re_m, NameVarCouple,nVarImToGm,&
+         Sw_, H_, O_, He_, e_
     use ModTsyInput,  ONLY: xnswa,vswa,bxw,byw,bzw,nsw,iyear,iday,UseSmooth
     use ModPrerunField,ONLY: DoWritePrerun, save_prerun
     use ModIoUnit, ONLY: UnitTmp_
@@ -364,47 +365,47 @@ contains
           case('HpRho','hprho')
              !write(*,*) 'HpRho=',iVarBuffer
              UseMultiRhoGm = .true.
-             iBufferRho_I(iRho) = iVarBuffer+3
+             iBufferRho_I(H_) = iVarBuffer+3
              iRho=iRho+1
           case('HpP','hpp')
              !write(*,*) 'HpP=',iVarBuffer
              UseMultiPGm = .true.
-             iBufferP_I(iP) = iVarBuffer+3
+             iBufferP_I(H_) = iVarBuffer+3
              iP = iP+1
           case('HpPpar','hppar')
              !write(*,*) 'HpPpar=',iVarBuffer
              UseMultiPparGm = .true.
-             iBufferPpar_I(iPpar) = iVarBuffer+3
+             iBufferPpar_I(H_) = iVarBuffer+3
              iPpar=iPpar+1
           case('OpRho','oprho')
              !write(*,*) 'OpRho=',iVarBuffer
              UseMultiRhoGm = .true.
-             iBufferRho_I(iRho) = iVarBuffer+3
+             iBufferRho_I(O_) = iVarBuffer+3
              iRho=iRho+1
           case('OpP','opp')
              !write(*,*) 'OpP=',iVarBuffer
              UseMultiPGm = .true.
-             iBufferP_I(iP) = iVarBuffer+3
+             iBufferP_I(O_) = iVarBuffer+3
              iP = iP+1
           case('OpPpar','opppar')
              !write(*,*) 'OpPpar=',iVarBuffer
              UseMultiPparGm = .true.
-             iBufferPpar_I(iPpar) = iVarBuffer+3
+             iBufferPpar_I(O_) = iVarBuffer+3
              iPpar=iPpar+1
           case('HpSwRho','hpswrho')
              !write(*,*) 'HpSwRho=',iVarBuffer
              UseMultiRhoGm = .true.
-             iBufferRho_I(iRho) = iVarBuffer+3
+             iBufferRho_I(Sw_) = iVarBuffer+3
              iRho=iRho+1
           case('HpSwP','hpswp')
              !write(*,*) 'HpSwP=',iVarBuffer
              UseMultiPGm = .true.
-             iBufferP_I(iP) = iVarBuffer+3
+             iBufferP_I(Sw_) = iVarBuffer+3
              iP = iP+1
           case('HpSwPpar','hpswppar')
              !write(*,*) 'HpPpar=',iVarBuffer
              UseMultiPparGm = .true.
-             iBufferPpar_I(iPpar) = iVarBuffer+3
+             iBufferPpar_I(Sw_) = iVarBuffer+3
              iPpar=iPpar+1
           case('HpPsRho','hppsrho')
              !write(*,*) 'HpPs=',iVarBuffer
@@ -680,7 +681,8 @@ contains
     use ModConst,     ONLY: cProtonMass, cBoltzmann
     use ModIoUnit, ONLY: UnitTmp_
     use ModUtilities,       ONLY: split_string
-    use ModPlasmasphere, ONLY: PlasDensity_C
+    !use ModPlasmasphere, ONLY: PlasDensity_C
+    use DensityTemp,     ONLY: density
     character (len=*),parameter :: NameSub='IM_get_for_gm'
 
     integer, intent(in)                                :: iSizeIn,jSizeIn,nVar
@@ -867,7 +869,8 @@ contains
                 Buffer_IIV(i,j,iVarCimi) = -1.
              else
                 Buffer_IIV(i,j,iVarCimi) = &
-                     PlasDensity_C (i,j)*cProtonMass
+                     density (i,j)*cProtonMass
+                     !PlasDensity_C (i,j)*cProtonMass
              end if
           enddo; enddo
        case('HpPsP')
@@ -876,7 +879,8 @@ contains
                 Buffer_IIV(i,j,iVarCimi) = -1.
              else
                 Buffer_IIV(i,j,iVarCimi) = &
-                     PlasDensity_C (i,j) * Tplas * cBoltzmann * 1e-9
+                     density (i,j) * Tplas * cBoltzmann * 1e-9
+                     !PlasDensity_C (i,j) * Tplas * cBoltzmann * 1e-9
              end if
           enddo; enddo
        end select
