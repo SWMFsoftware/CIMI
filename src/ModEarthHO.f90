@@ -14,7 +14,7 @@ Module ModCimiPlanet
   integer :: H_=1, O_=2, e_=3
 
   !unset indexes needed for GM coupling
-  integer :: He_=-1, Sw_-1
+  integer :: He_=-1, Sw_=-1
   
   ! a0,a1,... are coef. of a polynomial which defines the 
   ! exponent of the charge exchange cross section
