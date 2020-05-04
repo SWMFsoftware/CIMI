@@ -1,5 +1,6 @@
 #!/usr/bin/perl -i
 use strict;
+
 our @Arguments       = @ARGV;
 our $MakefileDefOrig = "src/Makefile.def";
 our $Component = "IM";
@@ -24,7 +25,7 @@ $NewPlanet="EarthHO" if $Install;
 # Make sure that config.log exists
 `touch $ConfigLog`;
 
-my $config = "share/Scripts/Config.pl";
+my $config = "./share/Scripts/Config.pl";
 if(-f $config){
     require $config;
 }else{
