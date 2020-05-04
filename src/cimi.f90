@@ -1,3 +1,4 @@
+!The main cimi code to update one delta t
 subroutine cimi_run(delta_t)
   use ModConst,			ONLY:	cLightSpeed, cElectronCharge
   use ModCimiInitialize,	ONLY:	&
