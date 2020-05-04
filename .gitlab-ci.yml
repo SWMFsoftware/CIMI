@@ -1,0 +1,20 @@
+# use a docker image of ubuntu linux with gcc and mpich
+image: aglocer/ubuntu-mpich:v1
+
+build:
+  stage: build
+  script:
+    - ./Config.pl -install -compiler=gfortran
+#  artifacts:
+#    paths:
+#      - mybinary
+#      # depending on your build setup it's most likely a good idea to cache outputs to reduce the build time
+      # cache:
+      #   paths:
+      #     - "*.o"
+
+# run tests using the binary built before
+#test:
+#  stage: test
+#  script:
+#    - ./runmytests.sh
