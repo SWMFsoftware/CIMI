@@ -5,6 +5,7 @@ build:
   stage: build
   script:
     - ./Config.pl -install -compiler=gfortran
+    - make test_compile
 #  artifacts:
 #    paths:
 #      - mybinary
