@@ -15,7 +15,10 @@ build:
       #     - "*.o"
 
 # run tests using the binary built before
-#test:
-#  stage: test
-#  script:
-#    - ./runmytests.sh
+test:
+  stage: test
+  script:
+    - make test_rundir
+    - make test_run
+    - make test_check
+    - ./check_empty_file.sh test_cimi.diff
