@@ -63,7 +63,10 @@ subroutine cimi_run(delta_t)
        mapPSDtoQ, mapPSDtoE, diffuse_Q1, diffuse_Q2, &
        UsePitchAngleDiffusionTest,&
        UseEnergyDiffusionTest, init_diag_diff
-                         
+ 
+
+!   NB: empty comment. Will remove later
+                        
   implicit none
 
   !regular variables
