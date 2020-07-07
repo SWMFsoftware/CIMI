@@ -177,9 +177,17 @@ contains
           bo(i,j)=bo1
           phi1=xmlt1*pi/12.+pi         ! phi1=0 corresponing to noon
           phi2o(i,j)=phi1
-          
+
+
+
           xo(i,j)=ro1*cos(phi1)
           yo(i,j)=ro1*sin(phi1)
+          
+!          if (i==40 .and. j==1) &
+!               write(*,*) 'i,j,xlati1, phi(j), xo(i,j),yo(i,j), xmlto(i,j),phi1',&
+!               i,j,xlati1, phi(j),  xo(i,j),yo(i,j), xmlto(i,j),phi1 
+
+          
           gridoc(i,j)=1.
           if (npf1.eq.0) gridoc(i,j)=0.
 
@@ -988,13 +996,13 @@ contains
     
     ! Fill in points below rBody
     if (IsFoundLine) &
-         call trace_dipoleIM(Re,Lat,nAlt,MinAlt,FieldLength_I,&
+         call trace_dipoleIM(Re,abs(Lat),nAlt,MinAlt,FieldLength_I,&
          Bfield_I,RadialDist_I,Ro1)
 
     ! Field lines fully inside rBody
-    if (Lat <= Latmin) then
+    if (abs(Lat) <= Latmin) then
        nAlt=2*MinAlt
-       call trace_dipoleIM(Re,Lat,nAlt,MinAlt,FieldLength_I,&
+       call trace_dipoleIM(Re,abs(Lat),nAlt,MinAlt,FieldLength_I,&
             Bfield_I,RadialDist_I,Ro1)
        xmlt1= mod((Lon)*12./cPi+12.0,24.0)   ! mlt in hr           
        if (xmlt1.lt.0.) xmlt1=xmlt1+24.

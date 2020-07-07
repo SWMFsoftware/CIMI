@@ -465,7 +465,8 @@ contains
     LatBodyGm = acos(sqrt(1.0/(rBodyGM)))
     !set iLatMin for Minimum latitude in MHD boundary
     FIND_iLatMin: do iLat=1,nLat
-       if (xlatr(iLat)>=LatBodyGm) then
+       if (abs(xlatr(iLat))>=LatBodyGm) then
+
           iLatMin=iLat
           exit FIND_iLatMin
        end if

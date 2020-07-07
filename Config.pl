@@ -43,6 +43,7 @@ foreach (@Arguments){
     if(/^-earthh$/i)            {$NewPlanet="EarthH";              next};
     if(/^-griddefault$/i)       {$NewGrid="GridDefault";           next};
     if(/^-gridexpanded$/i)      {$NewGrid="GridExpanded";          next};
+    if(/^-gridsouthexpanded$/i)      {$NewGrid="SouthGridExpanded";          next};
     if(/^-griduniforml$/i)      {$NewGrid="GridUniformL";          next};
     if(/^-s$/)                  {$Show=1;                          next};
     if(/^-compiler=(.*)$/i)     {$Compiler=$1;                     next};        
@@ -135,6 +136,7 @@ sub set_grid{
 
     $Files .= " $Dir/ModGrid_default.f90"   if $Grid eq "GridDefault";
     $Files .= " $Dir/ModGrid_expanded.f90"  if $Grid eq "GridExpanded";
+    $Files .= " $Dir/ModGrid_southexpanded.f90"  if $Grid eq "SouthGridExpanded";
     $Files .= " $Dir/ModGrid_UniformL.f90"  if $Grid eq "GridUniformL";
 
     &shell_command("cp $Files src/ModGrid.f90");
@@ -166,7 +168,11 @@ sub print_help{
 
 -GridExpanded    Configure CIMI with a grid expanded to higher lat
 
+
 -GridUniformL    Configure CIMI to use uniform L parameter for drift in lat
+
+-SouthGridExpanded    Configure CIMI with S hemisiphere and a  grid expanded to higher lat
+
 
 These flags are case insensitive.
 

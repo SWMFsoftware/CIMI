@@ -880,7 +880,7 @@ subroutine cimi_init
         else
 
            !!xjacL = 1.
-           xjac2 = sin(2.*xlatr(i))
+           xjac2 = sin(2.*abs(xlatr(i)))
 
         endif
 
@@ -1045,7 +1045,10 @@ subroutine initial_f2(nspec,np,nt,iba,amu_I,vel,xjac,ib0)
                        psd2=fluxi/(1.6e19*pp(n,i,j,k,m))/pp(n,i,j,k,m)
                    !   if (testDiff_aa) psd2=psd2*sinA(i,j,m)*sinA(i,j,m)  !  
                        if (testDiff_EE.or.testDiff_aE)  psd2=1.
-                       f2(n,i,j,k,m)=psd2*xjac(n,i,k)*1.e20*1.e19 
+                       f2(n,i,j,k,m)=psd2*xjac(n,i,k)*1.e20*1.e19
+                       !kludge
+                       !if (j>0 .and. j<24) f2(n,i,j,k,m) = 0.0
+                       !if (j>36) f2(n,i,j,k,m) = 10.0*f2(n,i,j,k,m)
                     endif
                  enddo                            ! end of k loop
               enddo                               ! end of m loop
