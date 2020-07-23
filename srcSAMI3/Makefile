@@ -3,9 +3,9 @@ include ../Makefile.def
 SEARCHDIR = -I${SHAREDIR} -I${EMPIRICALGMDIR} -I${EMPIRICALIEDIR} -I${DATAREADINDICESDIR}
 
 include ../Makefile.conf
-include Makefile.DEPEND
-include Makefile.RULES
-
+-include Makefile.DEPEND
+-include Makefile.RULES
+-include Makefile.suff # SAMI3 requires special compilation rules (e.g. save flag)
 
 OBJECTS= \
 	ModSAMI.o\

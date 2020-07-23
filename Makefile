@@ -2,19 +2,10 @@ default : CIMI
 
 include Makefile.def
 
-INSTALLFILES =  src/Makefile.DEPEND \
-		src/Makefile.RULES \
-		srcSAMI3/Makefile.DEPEND \
-		srcSAMI3/Makefile.RULES \
-		srcSAMI3/Makefile.suff \
-		srcInterface/Makefile.DEPEND
-
-
 install: 
-	touch ${INSTALLFILES}
 	./Config.pl -EarthHO -GridDefault
-	@(if [ ! -d input ];  then ln -s data/input  input;  fi)
-	@(if [ ! -d output ]; then ln -s data/output output; fi)
+	@(if [ ! -d input ];  then ln -f -s data/input  input;  fi)
+	@(if [ ! -d output ]; then ln -f -s data/output output; fi)
 
 #
 #       General Housekeeping
@@ -258,7 +249,7 @@ test_rundir_Highorder:
 	cp input/gaussian_test.fin ${TESTDIR}/IM/quiet_o.fin
 
 test_run:
-	cd ${TESTDIR}; ${MPIRUN} ./cimi.exe > runlog 
+	cd ${TESTDIR}; ${MPIRUN} ./cimi.exe | tee runlog 
 
 # reduced set of checks for the SWMF nightly tests
 test_check:
@@ -472,24 +463,23 @@ PDF:
 	@cd doc/Tex; make PDF
 
 clean:
-	touch ${INSTALLFILES}
 	cd src; make clean
 	cd srcSAMI3; make clean
 	cd srcInterface; make clean
 	cd doc/Tex; make clean
-	(if [ -d util ];  then cd util;  make clean; fi);
-	(if [ -d share ]; then cd share; make clean; fi);
+	@(if [ -d util ];  then cd util;  make clean; fi);
+	@(if [ -d share ]; then cd share; make clean; fi);
 
 distclean:
 	./Config.pl -uninstall
 
 allclean:
-	@touch ${INSTALLFILES}
 	cd src; make distclean
+	cd srcSAMI3; make distclean
 	cd srcInterface; make distclean
 	rm -f config.log *~
-	if [ -h input ]; then rm -f input; fi
-	if [ -h output ]; then rm -f output; fi
+	@(if [ -h input ]; then rm -f input; fi)
+	@(if [ -h output ]; then rm -f output; fi)
 
 #
 #       Create run directories

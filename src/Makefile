@@ -4,8 +4,8 @@ include ../Makefile.def
 SEARCHDIR = -I${SHAREDIR} -I${EMPIRICALGMDIR} -I${EMPIRICALIEDIR} -I${DATAREADINDICESDIR} -I../srcSAMI3
 
 include ../Makefile.conf
-include Makefile.DEPEND
-include Makefile.RULES
+-include Makefile.DEPEND
+-include Makefile.RULES
 
 OBJECTS = \
         ModPlanet.o\
