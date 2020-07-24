@@ -4,7 +4,8 @@ subroutine CIMI_set_parameters(NameAction)
   use ModReadParam
   use ModUtilities,	 ONLY: lower_case
   use ModCimiInitialize, ONLY: &
-       IsEmptyInitial, IsDataInitial, IsRBSPData, IsGmInitial
+       IsEmptyInitial, IsDataInitial, IsRBSPData, IsGmInitial, &
+       DoLstarInitialization
   use ModCimiPlot
   use ModCimiTrace,	 ONLY: UseEllipse, UseSmooth, UseCorotation, &
        UsePotential, SmoothWindow, imod, iLatTest, iLonTest
@@ -25,6 +26,9 @@ subroutine CIMI_set_parameters(NameAction)
        testDiff_aa, testDiff_EE, testDiff_aE, &
        NameAeFile, read_ae_wdc_kyoto, &
        UseKpIndex
+  use ModDiagDiff,       ONLY: UseDiagDiffusion,&
+                               UsePitchAngleDiffusionTest,&
+                               UseEnergyDiffusionTest
   use DensityTemp,	 ONLY: densityP
   use ModImSat,		 ONLY: DtSatOut, DoWritePrerunSat, UsePrerunSat, &
        DtReadSat, DoWriteSats, ReadRestartSat
@@ -130,7 +134,8 @@ subroutine CIMI_set_parameters(NameAction)
         call read_var('NameModel',NameModel)!t96,t04,MHD,Dip
         !call read_var('UseFixedB',UseFixedB)!T=fixed B config or 
                                             !F=changing B config
-        if (NameModel == 'Dip') then
+        call lower_case( NameModel )
+        if (NameModel == 'dip') then
            iMod=0
            ! Checks the next two lines to see if cor and/or pot
            ! variables should be set to 0.
@@ -140,7 +145,7 @@ subroutine CIMI_set_parameters(NameAction)
            iMod=1
         elseif(NameModel == 't04') then
            iMod=2
-        elseif(NameModel == 'MHD')then
+        elseif(NameModel == 'mhd')then
            iMod=3
            UseGm=.true.
         else
@@ -187,7 +192,7 @@ subroutine CIMI_set_parameters(NameAction)
                  
               elseif &
                    ( index( StringCIMIPlot, 'electrons' ) > 0 .or. &
-                   index( StringCIMIPlot, 'e-' ) > 0 ) then
+                     index( StringCIMIPlot, 'e' ) > 0 ) then
                  
                  DoSaveFlux( nspec ) = .true.
                  DtFluxOutput( nspec ) = DtOutputCIMIPlot
@@ -195,7 +200,7 @@ subroutine CIMI_set_parameters(NameAction)
                       DoSaveSeparateFiles
                  
               elseif &
-                   ( index( StringCIMIPlot, 'h+' ) > 0 ) then
+                   ( index( StringCIMIPlot, 'h' ) > 0 ) then
                  
                  DoSaveFlux( 1 ) = .true.
                  DtFluxOutput( 1 ) = DtOutputCIMIPlot
@@ -203,7 +208,7 @@ subroutine CIMI_set_parameters(NameAction)
                       DoSaveSeparateFiles
                  
               elseif &
-                   ( index( StringCIMIPlot, 'o+' ) > 0 ) then
+                   ( index( StringCIMIPlot, 'o' ) > 0 ) then
                  
                  if ( nspec .ge. 3 ) then
                     
@@ -220,7 +225,7 @@ subroutine CIMI_set_parameters(NameAction)
                  endif
                  
               elseif &
-                   ( index( StringCIMIPlot, 'he+' ) > 0 ) then
+                   ( index( StringCIMIPlot, 'he' ) > 0 ) then
                  
                  if ( nspec .gt. 3 ) then
                     
@@ -266,14 +271,14 @@ subroutine CIMI_set_parameters(NameAction)
               elseif &
                    
                    ( index( StringCIMIPlot, 'electrons' ) > 0 .or. &
-                     index( StringCIMIPlot, 'e-' ) > 0 ) then
+                     index( StringCIMIPlot, 'e' ) > 0 ) then
                  DoSavePSD( nspec ) = .true.
                  DtPSDOutput( nspec ) = DtOutputCIMIPlot
                  DoSaveSeparatePSDFiles( nspec ) = &
                       DoSaveSeparateFiles
                  
               elseif &
-                   ( index( StringCIMIPlot, 'h+' ) > 0 ) then
+                   ( index( StringCIMIPlot, 'h' ) > 0 ) then
                  
                  DoSavePSD( 1 ) = .true.
                  DtPSDOutput( 1 ) = DtOutputCIMIPlot
@@ -281,7 +286,7 @@ subroutine CIMI_set_parameters(NameAction)
                       DoSaveSeparateFiles
                  
               elseif &
-                   ( index( StringCIMIPlot, 'o+' ) > 0 ) then
+                   ( index( StringCIMIPlot, 'o' ) > 0 ) then
 
                  if ( nspec .ge. 3 ) then
                     DoSavePSD( 2 ) = .true. 
@@ -296,7 +301,7 @@ subroutine CIMI_set_parameters(NameAction)
                  endif
                  
               elseif &
-                   ( index( StringCIMIPlot, 'he+' ) > 0 ) then
+                   ( index( StringCIMIPlot, 'he' ) > 0 ) then
                  
                  if ( nspec .gt. 3 ) then
                     
@@ -342,7 +347,7 @@ subroutine CIMI_set_parameters(NameAction)
                  
               elseif &
                    ( index( StringCIMIPlot, 'electrons' ) > 0 .or. &
-                     index( StringCIMIPlot, 'e-' ) > 0 ) then
+                     index( StringCIMIPlot, 'e' ) > 0 ) then
                  
                  DoSaveVLDrift( nspec ) = .true.
                  DtVLDriftOutput( nspec ) = DtOutputCIMIPlot
@@ -350,7 +355,7 @@ subroutine CIMI_set_parameters(NameAction)
                       DoSaveSeparateFiles
                  
               elseif &
-                   ( index( StringCIMIPlot, 'h+' ) > 0 ) then
+                   ( index( StringCIMIPlot, 'h' ) > 0 ) then
                  
                  DoSaveVLDrift( 1 ) = .true.
                  DtVLDriftOutput( 1 ) = DtOutputCIMIPlot
@@ -358,7 +363,7 @@ subroutine CIMI_set_parameters(NameAction)
                       DoSaveSeparateFiles
                  
               elseif &
-                   ( index( StringCIMIPlot, 'o+' ) > 0 ) then
+                   ( index( StringCIMIPlot, 'o' ) > 0 ) then
                  
                  if ( nspec .ge. 3 ) then
                     
@@ -374,7 +379,7 @@ subroutine CIMI_set_parameters(NameAction)
                     
                  endif
               elseif &
-                   ( index( StringCIMIPlot, 'he+' ) > 0 ) then
+                   ( index( StringCIMIPlot, 'he' ) > 0 ) then
                  
                  if ( nspec .gt. 3 ) then
                     
@@ -420,7 +425,7 @@ subroutine CIMI_set_parameters(NameAction)
                  
               elseif &
                    ( index( StringCIMIPlot, 'electrons' ) > 0 .or. &
-                     index( StringCIMIPlot, 'e-' ) > 0 ) then
+                     index( StringCIMIPlot, 'e' ) > 0 ) then
                  
                  DoSaveVPDrift( nspec ) = .true.
                  DtVPDriftOutput( nspec ) = DtOutputCIMIPlot
@@ -428,7 +433,7 @@ subroutine CIMI_set_parameters(NameAction)
                       DoSaveSeparateFiles
                  
               elseif &
-                   ( index( StringCIMIPlot, 'h+' ) > 0 ) then
+                   ( index( StringCIMIPlot, 'h' ) > 0 ) then
                  
                  DoSaveVPDrift( 1 ) = .true.
                  DtVPDriftOutput( 1 ) = DtOutputCIMIPlot
@@ -436,7 +441,7 @@ subroutine CIMI_set_parameters(NameAction)
                       DoSaveSeparateFiles
                  
               elseif &
-                   ( index( StringCIMIPlot, 'o+' ) > 0 ) then
+                   ( index( StringCIMIPlot, 'o' ) > 0 ) then
                  
                  if ( nspec .ge. 3 ) then
                     
@@ -453,7 +458,7 @@ subroutine CIMI_set_parameters(NameAction)
                  endif
                  
               elseif &
-                   ( index( StringCIMIPlot, 'he+' ) > 0 ) then
+                   ( index( StringCIMIPlot, 'he' ) > 0 ) then
                  
                  if ( nspec .gt. 3 ) then
                     
@@ -500,7 +505,7 @@ subroutine CIMI_set_parameters(NameAction)
                  
               elseif &
                    ( index( StringCIMIPlot, 'electrons' ) > 0 .or. &
-                     index( StringCIMIPlot, 'e-' ) > 0 ) then
+                     index( StringCIMIPlot, 'e' ) > 0 ) then
                  
                  DoSavePreci( nspec ) = .true.
                  DtPreciOutput( nspec ) = DtOutputCIMIPlot
@@ -508,7 +513,7 @@ subroutine CIMI_set_parameters(NameAction)
                       DoSaveSeparateFiles
                  
               elseif &
-                   ( index( StringCIMIPlot, 'h+' ) > 0 ) then
+                   ( index( StringCIMIPlot, 'h' ) > 0 ) then
                  
                  DoSavePreci( 1 ) = .true.
                  DtPreciOutput( 1 ) = DtOutputCIMIPlot
@@ -516,7 +521,7 @@ subroutine CIMI_set_parameters(NameAction)
                       DoSaveSeparateFiles
                  
               elseif &
-                   ( index( StringCIMIPlot, 'o+' ) > 0 ) then
+                   ( index( StringCIMIPlot, 'o' ) > 0 ) then
                  
                  if ( nspec .ge. 3 ) then
                     
@@ -533,7 +538,7 @@ subroutine CIMI_set_parameters(NameAction)
                  endif
                  
               elseif &
-                   ( index( StringCIMIPlot, 'he+' ) > 0 ) then
+                   ( index( StringCIMIPlot, 'he' ) > 0 ) then
                  
                  if ( nspec .gt. 3 ) then
                     
@@ -628,6 +633,9 @@ subroutine CIMI_set_parameters(NameAction)
         if (nspec > 3 .and. IsDataInitial) &
              call CON_STOP('IsDataInitial only works with EarthHO or EarthH')  
 
+     case('#INITIALLSTAR')
+        call read_var('DoLstarInitialization',DoLstarInitialization)
+        
      case('#TYPEBOUNDARY')
         call read_var('TypeBoundary',TypeBoundary)
         if(TypeBoundary == 'Ellipse') then
@@ -710,6 +718,15 @@ subroutine CIMI_set_parameters(NameAction)
 
         end if
 
+     case('#DIAGONALIZEDDIFFUSION')
+        call read_var('UseDiagDiffusion',UseDiagDiffusion)
+
+     case('#DIFFUSIONTEST')
+        call read_var('UsePitchAngleDiffusionTest',&
+                       UsePitchAngleDiffusionTest)
+        call read_var('UseEnergyDiffusionTest',&
+                       UseEnergyDiffusionTest)
+
      case('#ENERGYGRID')
         call read_var('MinIonEnergy (in keV), MinElectronEnergy x10',&
              MinIonEnergy)
@@ -728,7 +745,7 @@ subroutine CIMI_set_parameters(NameAction)
 
      case('#RBSPENERGYGRID')
         call read_var('UseRBSPGrid', UseRBSPGrid)
-        if (UseRBSPGrid) neng = 30
+        if (UseRBSPGrid) neng = nRBSPEnergy
         
      case('#IMTIMESTEP')
         call read_var('IMDeltaT [s]',dt)

@@ -9,14 +9,20 @@
 !-------------------------------------------------------------------------------
 
 Module ModPlasmasphere
+
   implicit none
+
   private
 
   !constants for the plasmaphere module
-  real,parameter :: pi=3.14159265358979
-  real,parameter :: re_m=6.375e6        ! earth's radius (m)
-  real,parameter :: DipM=8.e15          ! Dipole moment in T m^3
-  real,parameter :: rc=1.0157           ! radial distance of ionosphere in RE
+  real,parameter 	:: 	&
+       pi = 3.1415926535897932384626433832795
+  ! earth's radius (m)
+  real,parameter	::	re_m = 6.378e6
+  ! Dipole moment in T m^3
+  real,parameter	::	DipM = 8068892578927199.0
+  ! radial distance of ionosphere in RE
+  real,parameter	::	rc = 1.0188146754468486       
  
 
   !grid and saturation density values
@@ -51,12 +57,14 @@ Module ModPlasmasphere
   real,    public :: DtPlasOutput
   logical, public :: UseCorePsModel=.true.
   real   , public :: PlasSpinUpTime=86400. !one day
+
   public :: unit_test_plasmasphere
   public :: init_plasmasphere
   public :: advance_plasmasphere
   public :: cimi_put_to_plasmasphere
   public :: save_plot_plasmasphere
   public :: save_restart_plasmasphere
+
 contains
 
   !============================================================================
@@ -305,6 +313,7 @@ contains
   !==========================================================================
   subroutine init_plasmasphere(nLatIn,nLonIn,xlatIn,phiIn,ibIn,&
        roIn,phi2In,VolumeIn,potentIn,IsRestart)
+         
     integer, intent(in) :: nLatIn,nLonIn
     real,    intent(in) :: xlatIn(nLatIn),phiIn(nLonIn),roIn(nLatIn,nLonIn),&
          phi2In(nLatIn,nLonIn),volumeIn(nLatIn,nLonIn),potentIn(nLatIn,nLonIn)
@@ -360,7 +369,6 @@ contains
     potentCimi=potentIn
     phi2Cimi=phi2In
 
-        
     !set up plasmasphere grid
     xlat1=20.
     xlat2=71.
@@ -484,7 +492,7 @@ contains
 
     call open_file(file=trim(NameRestartOutDir)//'plasdata.restart',&
          form='unformatted', NameCaller=NameSub)
-       
+
     write(UnitTmp_) Nion  
 
     call close_file
@@ -589,7 +597,7 @@ contains
 
           PlasDensity_C(iLat,iLon) = &
                bilinear(densityp,1,nl,1,np,LatLon_D, &
-               xlatp,pphi,DoExtrapolate=.true.)
+               		xlatp,pphi,DoExtrapolate=.true.)
        enddo
     enddo
               
@@ -788,11 +796,11 @@ contains
      enddo
   enddo
 
-  end subroutine trough
+end subroutine trough
 
 
 !*******************************************************************************
-      subroutine inter_flux(nl,np,ibp,cl,cp,fb1,f2,fal,fap)
+subroutine inter_flux(nl,np,ibp,cl,cp,fb1,f2,fal,fap)
 !*******************************************************************************
 !  Routine calculates the inter-flux, fal(i+0.5,j) and fap(i,j+0.5), using
 !  2nd order flux limited scheme with super-bee flux limiter method.
@@ -800,65 +808,66 @@ contains
 !  Input: nl,np,ibp,cl,cp,fb1,f2
 !  Output: fal,fap
 
-   implicit none
+  implicit none
+  
+  integer nl,np,i,j,j_1,j1,j2
+  integer ibp(np),ibm
+  real cl(nl,np),cp(nl,np),f2(nl,np),fal(nl,np),fap(nl,np),fb1, &
+       fwbc(0:nl+2,np),xsign,fup,flw,x,r,xlimiter,corr
+  
+  fwbc(1:nl,1:np)=f2(1:nl,1:np)     ! fwbc is f2 with boundary condition
+  
+  ! Set up boundary condition
+  fwbc(0,1:np)=f2(1,1:np)
+  fwbc(nl+1:nl+2,1:np)=fb1
+  
+  ! find fa*
+  do j=1,np
+     j_1=j-1
+     j1=j+1
+     j2=j+2
+     if (j_1.lt.1) j_1=j_1+np
+     if (j1.gt.np) j1=j1-np
+     if (j2.gt.np) j2=j2-np
+     ibm=max(ibp(j),ibp(j1))
+     do i=1,ibm    
+        ! find fal
+        xsign=sign(1.,cl(i,j))
+        fup=0.5*(1.+xsign)*fwbc(i,j)+0.5*(1.-xsign)*fwbc(i+1,j)   ! upwind
+        flw=0.5*(1.+cl(i,j))*fwbc(i,j)+0.5*(1.-cl(i,j))*fwbc(i+1,j)   ! LW
+        x=fwbc(i+1,j)-fwbc(i,j)
+        if (abs(x).le.1.e-27) fal(i,j)=fup
+        if (abs(x).gt.1.e-27) then
+           if (xsign.eq.1.) r=(fwbc(i,j)-fwbc(i-1,j))/x
+           if (xsign.eq.-1.) r=(fwbc(i+2,j)-fwbc(i+1,j))/x
+           if (r.le.0.) fal(i,j)=fup
+           if (r.gt.0.) then
+              xlimiter=max(min(2.*r,1.),min(r,2.))
+              corr=flw-fup
+              fal(i,j)=fup+xlimiter*corr
+              if (fal(i,j).lt.0.) fal(i,j)=fup
+           endif
+        endif
+        ! find fap
+        xsign=sign(1.,cp(i,j))
+        fup=0.5*(1.+xsign)*fwbc(i,j)+0.5*(1.-xsign)*fwbc(i,j1)   ! upwind
+        flw=0.5*(1.+cp(i,j))*fwbc(i,j)+0.5*(1.-cp(i,j))*fwbc(i,j1)   ! LW
+        x=fwbc(i,j1)-fwbc(i,j)
+        if (abs(x).le.1.e-27) fap(i,j)=fup
+        if (abs(x).gt.1.e-27) then
+           if (xsign.eq.1.) r=(fwbc(i,j)-fwbc(i,j_1))/x
+           if (xsign.eq.-1.) r=(fwbc(i,j2)-fwbc(i,j1))/x
+           if (r.le.0.) fap(i,j)=fup
+           if (r.gt.0.) then
+              xlimiter=max(min(2.*r,1.),min(r,2.))
+              corr=flw-fup
+              fap(i,j)=fup+xlimiter*corr
+              if (fap(i,j).lt.0.) fap(i,j)=fup
+           endif
+        endif
+     enddo              ! end of do i=1,nl
+  enddo                 ! end of do j=1,np
+  
+end subroutine inter_flux
 
-   integer nl,np,i,j,j_1,j1,j2
-   integer ibp(np),ibm
-   real cl(nl,np),cp(nl,np),f2(nl,np),fal(nl,np),fap(nl,np),fb1, &
-        fwbc(0:nl+2,np),xsign,fup,flw,x,r,xlimiter,corr
-
-      fwbc(1:nl,1:np)=f2(1:nl,1:np)     ! fwbc is f2 with boundary condition
-
-! Set up boundary condition
-       fwbc(0,1:np)=f2(1,1:np)
-       fwbc(nl+1:nl+2,1:np)=fb1
-
-! find fa*
-      do j=1,np
-         j_1=j-1
-         j1=j+1
-         j2=j+2
-         if (j_1.lt.1) j_1=j_1+np
-         if (j1.gt.np) j1=j1-np
-         if (j2.gt.np) j2=j2-np
-         ibm=max(ibp(j),ibp(j1))
-         do i=1,ibm    
-            ! find fal
-            xsign=sign(1.,cl(i,j))
-            fup=0.5*(1.+xsign)*fwbc(i,j)+0.5*(1.-xsign)*fwbc(i+1,j)   ! upwind
-            flw=0.5*(1.+cl(i,j))*fwbc(i,j)+0.5*(1.-cl(i,j))*fwbc(i+1,j)   ! LW
-            x=fwbc(i+1,j)-fwbc(i,j)
-            if (abs(x).le.1.e-27) fal(i,j)=fup
-            if (abs(x).gt.1.e-27) then
-               if (xsign.eq.1.) r=(fwbc(i,j)-fwbc(i-1,j))/x
-               if (xsign.eq.-1.) r=(fwbc(i+2,j)-fwbc(i+1,j))/x
-               if (r.le.0.) fal(i,j)=fup
-               if (r.gt.0.) then
-                  xlimiter=max(min(2.*r,1.),min(r,2.))
-                  corr=flw-fup
-                  fal(i,j)=fup+xlimiter*corr
-                  if (fal(i,j).lt.0.) fal(i,j)=fup
-               endif
-            endif
-            ! find fap
-            xsign=sign(1.,cp(i,j))
-            fup=0.5*(1.+xsign)*fwbc(i,j)+0.5*(1.-xsign)*fwbc(i,j1)   ! upwind
-            flw=0.5*(1.+cp(i,j))*fwbc(i,j)+0.5*(1.-cp(i,j))*fwbc(i,j1)   ! LW
-            x=fwbc(i,j1)-fwbc(i,j)
-            if (abs(x).le.1.e-27) fap(i,j)=fup
-            if (abs(x).gt.1.e-27) then
-               if (xsign.eq.1.) r=(fwbc(i,j)-fwbc(i,j_1))/x
-               if (xsign.eq.-1.) r=(fwbc(i,j2)-fwbc(i,j1))/x
-               if (r.le.0.) fap(i,j)=fup
-               if (r.gt.0.) then
-                  xlimiter=max(min(2.*r,1.),min(r,2.))
-                  corr=flw-fup
-                  fap(i,j)=fup+xlimiter*corr
-                  if (fap(i,j).lt.0.) fap(i,j)=fup
-               endif
-            endif
-         enddo              ! end of do i=1,nl
-      enddo                 ! end of do j=1,np
-      
-    end subroutine inter_flux
-  end Module ModPlasmasphere
+end Module ModPlasmasphere

@@ -56,7 +56,8 @@ Module ModCimiGrid
 
   ! Define parameters for specifying Energy grid corresponding to RBSP
   ! flux (MagEIS and REPT) instruments
-  real, dimension(1:30) :: &
+  integer, parameter :: nRBSPEnergy = 30
+  real, dimension(1:nRBSPEnergy) :: &
        energy_RBSP = (/  19.5,   32.7,    50.0,    71.8,    98.1, &
                         129.0,  146.0,   166.0,   207.0,   232.0, &
                         334.0,  450.0,   580.0,   722.0,   877.0, &

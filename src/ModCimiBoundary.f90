@@ -289,6 +289,7 @@ contains
     do iSpecies = 1, nspec
        BoundaryDens_IC(iSpecies,1:nt) = dFactor_I(iSpecies)*xn1(1:nt)
        BoundaryTemp_IC(iSpecies,1:nt) = tFactor_I(iSpecies)*xkt1(1:nt)
+       BoundaryTempPar_IC(iSpecies,1:nt) = BoundaryTemp_IC(iSpecies,1:nt)
     end do
  
  end subroutine cimi_set_boundary_empirical

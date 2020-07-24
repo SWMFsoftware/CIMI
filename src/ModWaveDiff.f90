@@ -133,7 +133,7 @@ integer :: NumAeElements
 
 contains
 
-  subroutine ReadDiffCoef(rc)
+  subroutine ReadDiffCoef
 
 !  use constants  check later
 !  use cimigrid_dim
@@ -141,9 +141,10 @@ contains
 !  use waveDiffCoef
 !  use cWpower
 
-  use ModCimiPlanet,  ONLY: xme=>dipmom
-  use ModIoUnit, ONLY: UnitTmp_
-
+  use ModCimiPlanet,	ONLY: xme=>dipmom, rc
+  use ModIoUnit,	ONLY: UnitTmp_
+  use ModCimiGrid,	ONLY: iProc
+  
   implicit none
 
  integer j,k,m  
@@ -151,7 +152,6 @@ contains
  real E_cgs,cE2,EEo,E2Eo,daan,dapn,dppn,daa0,dap0,dpp0
  real,parameter :: Lu0=6.
  character header*80
- real rc
 
 ! list of available wave diffusion coefficients models:
 !  main lower band chorus model:  D_LBchorus_merge.dat
@@ -162,27 +162,33 @@ contains
 
  ihiss=0
  if (UseHiss) then
-   if ( trim(HissWavesD) .eq.'D_hiss_UCLA.dat') ihiss=2
- else 
-   ihiss=1
+    if ( trim(HissWavesD) .eq.'D_hiss_UCLA.dat') then 
+       ihiss=2
+    else 
+       ihiss=1
+    endif
  endif
 
  ichor=0
  if (UseChorus) then 
-   if ( trim(ChorusWavesD) .eq.'D_LBchorus_merge.dat') ichor=2
- else 
-  ichor=1
+    if ( trim(ChorusWavesD) .eq.'D_LBchorus_merge.dat') then 
+       ichor=2
+    else 
+       ichor=1
+    endif
  endif
 
  iUBC=0
  if (UseChorusUB) iUBC=1
 
- write(*,*) '*** WAVE MODEL FOR ELECTRONS IS ON ***'
- write(*,*) 'UseHiss:            ', UseHiss
- write(*,*) 'Lower (main) Chorus:', UseChorus
- write(*,*) 'Upper  Chorus:      ', UseChorusUB
- write(*,*) '***'
-
+ if ( iProc == 0 ) then
+    write(*,*) 'IM: *** WAVE MODEL FOR ELECTRONS IS ON ***'
+    write(*,*) 'IM: UseHiss:            ', UseHiss
+    write(*,*) 'IM: Lower (main) Chorus:', UseChorus
+    write(*,*) 'IM: Upper  Chorus:      ', UseChorusUB
+    write(*,*) 'IM: ***'
+ endif
+ 
   Eo=511.                 ! electron rest energy in keV
   c_cgs=2.998e10          ! speed of light in cgs
 
@@ -201,8 +207,10 @@ contains
 
   if (UseChorus) then
 ! Read LB chorus ckeV(0.1keV-10MeV), Daa, DEE, DaE at L = 6.5
-  write(*,*) 'Reading chorus data, ichor=',ichor
-  write(*,*) 'Chorus Dcoef are from: ', trim(ChorusWavesD)
+     if ( iProc == 0 ) then
+        write(*,*) 'IM: Reading chorus data, ichor=',ichor
+        write(*,*) 'IM: Chorus Dcoef are from: ', trim(ChorusWavesD)
+     endif
   open(unit=UnitTmp_,file='IM/'//trim(ChorusWavesD),status='old')
 !  if (ichor.eq.1) open(unit=UnitTmp_,file='IM/D_LBchorus_QZ.dat',status='old')
 !  if (ichor.eq.2) open(unit=UnitTmp_,file='IM/D_LBchorus_merge.dat',status='old')
@@ -241,8 +249,10 @@ contains
   uDEE(:,:,:)=0.
 
   if (UseChorusUB) then
-    write(*,*) 'Reading UBchorus, iUBC=',iUBC
-    write(*,*) 'Upper band Dcoeff are from: ', trim(ChorusUpperBandD)
+     if ( iProc == 0 ) then
+        write(*,*) 'IM: Reading UBchorus, iUBC=',iUBC
+        write(*,*) 'IM: Upper band Dcoeff are from: ', trim(ChorusUpperBandD)
+     endif
     open(unit=UnitTmp_,file='IM/'//trim(ChorusUpperBandD),status='old')
 !    open(unit=UnitTmp_,file='IM/D_UBchorus.dat',status='old')
   if (iUBC.eq.1) then
@@ -265,8 +275,10 @@ contains
 
 
   if (UseHiss) then
-  write(*,*) 'Reading hiss data, ihiss=',ihiss
-  write(*,*) 'Hiss Dcoeff are from: ',trim(HissWavesD)
+     if (iProc == 0 ) then
+        write(*,*) 'IM: Reading hiss data, ihiss=',ihiss
+        write(*,*) 'IM: Hiss Dcoeff are from: ',trim(HissWavesD)
+     endif
   open(unit=UnitTmp_,file='IM/'//trim(HissWavesD),status='old')
   !if (ihiss.eq.2) open(unit=UnitTmp_,file='IM/D_hiss_UCLA.dat',status='old')
   !if (ihiss.eq.1) open(unit=UnitTmp_,file='IM/D_hiss_Albert.dat',status='old')
@@ -371,6 +383,8 @@ contains
      do i=1,iba(j)
         if (density(i,j).eq.0.) then
            write(*,*) 'Error: density(i,j).eq.0, t,iba(j),i,j ',t,iba(j),i,j
+           write(*,*) 'Plasmasphere density at j =',j
+           write(*,*) density(:,j)
            call CON_STOP('CIMI dies in WavePower')
         endif
         ompe(i,j)=sqrt(density(i,j)*e_mass/epsilon0)/bo(i,j)    ! fpe/fce

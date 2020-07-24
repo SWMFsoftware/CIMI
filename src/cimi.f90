@@ -1,7 +1,10 @@
+!The main cimi code to update one delta t
 subroutine cimi_run(delta_t)
-  use ModConst,       	 ONLY: 	cLightSpeed, cElectronCharge
-  use ModCimiInitialize, ONLY: 	xmm, xk, dphi, dmm, dk, dmu, xjac
-  use ModCimi,        	 ONLY: &
+  use ModConst,			ONLY:	cLightSpeed, cElectronCharge
+  use ModCimiInitialize,	ONLY:	&
+       xmm, xk, dphi, dmm, dk, dmu, xjac,&
+       DoLstarInitialization
+  use ModCimi,			ONLY:	&
        f2, dt, dtmax,Time, phot, Ppar_IC, Pressure_IC, &
        PressurePar_IC, FAC_C, Bmin_C, &
        OpDrift_, OpBfield_, OpChargeEx_, &
@@ -16,38 +19,54 @@ subroutine cimi_run(delta_t)
        eChangeLocal, eChangeGlobal, &
        DoCalcPrecip, DtCalcPrecip, &
        vdr_q3, eng_q3, vexb, dif_q3, Part_phot
-  use ModCimiPlanet,  	 ONLY: &
-       re_m, dipmom, Hiono, nspec, amu_I, dFactor_I, tFactor_I
-  use ModCimiTrace,  	 ONLY: &
-       fieldpara, brad => ro, ftv => volume, xo, yo, rb, irm,&
-       ekev, iba, bo, pp, Have, sinA, vel, alscone, iw2, xmlto, bm,phi2o
-  use ModGmCimi,      	 ONLY: Den_IC, UseGm
-  use ModIeCimi,      	 ONLY: UseWeimer, pot
+  use ModCimiPlanet,		ONLY:	&
+       re_m, dipmom, Hiono, rc, nspec, amu_I, dFactor_I, tFactor_I
+  use ModCimiTrace,		ONLY:	&
+       fieldpara, &
+       brad => ro, ftv => volume, xo, yo, rb, irm, &
+       ekev, iba, bo, pp, Have, sinA, vel, alscone, iw2, xmlto, bm, phi2o, &
+       gather_field_trace, bcast_field_trace
+  use ModGmCimi,		ONLY:	Den_IC, UseGm
+  use ModIeCimi,		ONLY:	UseWeimer, pot
   use ModCimiPlot
-  use ModCimiRestart, 	 ONLY: IsRestart
+  use ModCimiRestart,		ONLY:	IsRestart
   use ModImTime
-  use ModTimeConvert, 	 ONLY: time_real_to_int
-  use ModImSat,       	 ONLY: nImSats, write_im_sat, DoWriteSats, DtSatOut
-  use ModCimiGrid,    	 ONLY: &
+  use ModTimeConvert,		ONLY: 	time_real_to_int
+  use ModImSat,			ONLY:	&
+       nImSats, write_im_sat, DoWriteSats, DtSatOut
+  use ModCimiGrid,		ONLY:	&
        iProc, nProc, iComm, nLonPar, nLonPar_P, nLonBefore_P, &
        MinLonPar, MaxLonPar, nt, np, neng, npit, nm, nk, dlat, &
        phi, sinao, xlat, xlatr, xmlt
-  use ModCimiBoundary,	 ONLY: &
+  use ModCimiBoundary,		ONLY:	&
        cimi_set_boundary_mhd, cimi_set_boundary_empirical, &
        CIMIboundary, Outputboundary
   use ModMpi
-  use ModWaveDiff,    	 ONLY: &
+  use ModWaveDiff,		ONLY:	&
        UseWaveDiffusion, UseKpIndex, ReadDiffCoef, WavePower, & 
        diffuse_aa, diffuse_EE, diffuse_aE, DiffStartT, &
        testDiff_aa, testDiff_EE, testDiff_aE, &
        TimeAeIndex_I, AeIndex_I, interpolate_ae
-  use ModCoupleSami,  	 ONLY: DoCoupleSami
-  use DensityTemp,    	 ONLY: density, simple_plasmasphere
+  use ModCoupleSami,		ONLY:	DoCoupleSami
+  use DensityTemp,		ONLY:	density, simple_plasmasphere
   use ModIndicesInterfaces
-  use ModLstar,       	 ONLY: calc_Lstar1, calc_Lstar2 
-  use ModPlasmasphere,   ONLY: UseCorePsModel,PlasSpinUpTime,init_plasmasphere, &
-       advance_plasmasphere,DoSavePlas, DtPlasOutput,&
-       PlasDensity_C,save_plot_plasmasphere,cimi_put_to_plasmasphere!,nLatPlas=>nl,nLonPlas=>np,
+  use ModLstar,			ONLY:	&
+       Lstar_C, Lstarm, &
+       calc_Lstar1, calc_Lstar2
+  use ModPlasmasphere,		ONLY:	&
+       UseCorePsModel, PlasSpinUpTime, init_plasmasphere, &
+       advance_plasmasphere, DoSavePlas, DtPlasOutput,&
+       PlasDensity_C, save_plot_plasmasphere, &
+       cimi_put_to_plasmasphere
+  use ModDiagDiff,		ONLY:	&
+       UseDiagDiffusion, calc_DQQ, interpol_D_coefK, &
+       mapPSDtoQ, mapPSDtoE, diffuse_Q1, diffuse_Q2, &
+       UsePitchAngleDiffusionTest,&
+       UseEnergyDiffusionTest, init_diag_diff
+ 
+
+!   NB: empty comment. Will remove later
+                        
   implicit none
 
   !regular variables
@@ -58,13 +77,11 @@ subroutine cimi_run(delta_t)
        vlEa(nspec,np,nt,neng,npit), vpEa(nspec,np,nt,neng,npit)
   real achar(nspec,np,nt,nm,nk)
   real :: vl(nspec,0:np,nt,nm,nk)=0.0, vp(nspec,0:np,nt,nm,nk)=0.0, &
-       fb(nspec,nt,nm,nk), rc
+       fb(nspec,nt,nm,nk)
   integer iLat, iLon, iSpecies, iSat, iOperator
   logical, save :: IsFirstCall =.true.
   real  :: AE_temp = 0. ,&   
            Kp_temp = 0.   
-  real Lstar_C(np,nt),Lstar_max,Lstarm(np,nt,nk),Lstar_maxm(nk)
-
   integer iError
 
   real,   allocatable :: ekevSEND_IIII(:,:,:,:),ekevRECV_IIII(:,:,:,:)
@@ -87,12 +104,50 @@ subroutine cimi_run(delta_t)
   call time_real_to_int(CurrentTime,iCurrentTime_I)
   
   ! do field line integration and determine vel, ekev, momentum (pp), etc.
-  rc=(re_m+Hiono*1000.)/re_m        ! ionosphere distance in RE`
-
   call timing_start('cimi_fieldpara')
-  call fieldpara(Time,dt,cLightSpeed,cElectronCharge,rc,re_m,xlat,xmlt,phi,xk,&
-                 dipmom,IsRestart)
+  call fieldpara(Time,dt,cLightSpeed,cElectronCharge,xlat,xmlt,phi,xk,&
+       IsRestart)
   call timing_stop('cimi_fieldpara')
+
+  ! Checks to see if this is the first call of CIMI, so as to gather
+  ! all the relevant information to initialize CIMI f2 as a function
+  ! of L*.  Necessary variables are bo and bm in ModFieldTrace.
+  if ( IsFirstCall ) then
+
+     ! Gather Field Trace variables to root for calculating Lstar
+     if (nProc > 1 ) then
+        call gather_field_trace
+     endif
+
+     ! Trace lstar variables for initial_f2.  
+     if ( iProc == 0 ) then
+
+        call timing_start('calc_Lstar1')
+        call calc_Lstar1
+        call timing_stop('calc_Lstar1')
+     
+        call timing_start('calc_Lstar2')
+        call calc_Lstar2
+        call timing_stop('calc_Lstar2')
+     
+     endif
+
+     ! Broadcast Lstar variable to all PEs
+     if (nProc > 1 ) then
+        call MPI_bcast(Lstar_C,np*nt,MPI_REAL,0,iComm,iError)
+        call MPI_bcast(Lstarm,np*nt*nm,MPI_REAL,0,iComm,iError)
+     endif
+
+  endif
+
+  ! interpolate a0 of const. Q2 curve correspoding K
+  if ( .NOT.( IsFirstCall ) .AND. &
+       ( UseDiagDiffusion ) ) then
+     call init_diag_diff
+     call timing_start('cimi_interpol_D_coefK')
+     call interpol_D_coefK
+     call timing_stop('cimi_interpol_D_coefK')
+  endif
 
   !when using 2D plasmasphere
   if (UseCorePsModel .and. IsFirstCall) then
@@ -122,8 +177,6 @@ subroutine cimi_run(delta_t)
      density=PlasDensity_C
   endif
   
-  
-  
   ! get Bmin, needs to be passed to GM for anisotropic pressure coupling
   Bmin_C = bo
 
@@ -142,7 +195,11 @@ subroutine cimi_run(delta_t)
 
   !  read wave models 
   if (IsFirstCall) then
-     if (UseWaveDiffusion) call ReadDiffCoef(rc)
+     if (UseWaveDiffusion) call ReadDiffCoef
+     if (UseDiagDiffusion) then
+        call init_diag_diff
+        call calc_DQQ
+     endif
   endif
   
   ! setup initial distribution
@@ -183,7 +240,7 @@ subroutine cimi_run(delta_t)
   ! calculate the ionospheric potential (if not using MHD potential)
   if (UseWeimer) then
      call timing_start('set_cimi_potential')
-     call set_cimi_potential(CurrentTime,rc) 
+     call set_cimi_potential(CurrentTime) 
      call timing_stop('set_cimi_potential')
   endif
   
@@ -201,17 +258,23 @@ subroutine cimi_run(delta_t)
 
      if ( iProc == 0 ) then
 
-        call timing_start('calc_Lstar1')
-        call calc_Lstar1(Lstar_C,Lstar_max,rc)
-        call timing_stop('calc_Lstar1')
-           
-        if ( DoSaveEq .or. DoSaveIono ) then
-           
-           call timing_start('cimi_plot')
-           call Cimi_plot( np, nt, xo, yo, &
+        if ( DoSaveEq ) then
+
+           call timing_start('cimi_plot_eq')
+           call Cimi_plot_eq( np, nt, xo, yo, &
                 Pressure_IC, PressurePar_IC, phot, Ppar_IC, Den_IC,&
-                bo, ftv, pot, FAC_C, Time, dt, Lstar_C )
-           call timing_stop('cimi_plot')
+                bo, ftv, pot, FAC_C, Time, dt )
+           call timing_stop('cimi_plot_eq')
+
+        endif
+
+        if ( DoSaveIono ) then
+           
+           call timing_start('cimi_plot_iono')
+           call Cimi_plot_iono( np, nt, xo, yo, &
+                Pressure_IC, PressurePar_IC, phot, Ppar_IC, Den_IC,&
+                bo, ftv, pot, FAC_C, Time, dt )
+           call timing_stop('cimi_plot_iono')
 
         endif
 
@@ -225,11 +288,7 @@ subroutine cimi_run(delta_t)
         
         if ( DoSaveLstar ) then
 
-           call timing_start('calc_Lstar2')
-           call calc_Lstar2(Lstarm,Lstar_maxm,rc)
-           call timing_stop('calc_Lstar2')
-        
-           call Cimi_plot_Lstar(rc,xk,time,Lstarm,Lstar_maxm)
+           call Cimi_plot_Lstar(xk,time)
 
         endif
 
@@ -240,16 +299,16 @@ subroutine cimi_run(delta_t)
         do iSpecies = 1, nspec
 
            if ( DoSaveFlux( iSpecies ) ) &
-                call Cimi_plot_fls( rc, flux( iSpecies, :, :, :, : ), &
-                iSpecies, time, Lstar_C, Lstar_max )
+                call Cimi_plot_fls( flux( iSpecies, :, :, :, : ), &
+                iSpecies, time )
            if ( DoSavePSD( iSpecies ) ) &
-                call Cimi_plot_psd( rc, psd( iSpecies, :, :, :, : ), &
+                call Cimi_plot_psd( psd( iSpecies, :, :, :, : ), &
                 iSpecies, time, xmm, xk )
            if ( DoSaveVLDrift( iSpecies ) ) &
-                call Cimi_plot_vl( rc, vlEa( iSpecies, :, :, :, : ), &
+                call Cimi_plot_vl( vlEa( iSpecies, :, :, :, : ), &
                 iSpecies, time)
            if ( DoSaveVPDrift( iSpecies ) ) &
-                call Cimi_plot_vp( rc, vpEa( iSpecies, :, :, :, : ), &
+                call Cimi_plot_vp( vpEa( iSpecies, :, :, :, : ), &
                 iSpecies, time)
            
         enddo
@@ -272,7 +331,7 @@ subroutine cimi_run(delta_t)
   if (UseStrongDiff) then
      ! Calculate the strong diffusion lifetime for electrons
      call timing_start('cimi_StDiTime')
-     call StDiTime(dt,vel,ftv,rc,re_m,dipmom,iba)
+     call StDiTime(dt,vel,ftv,iba)
      call timing_stop('cimi_StDiTime')
   endif
   
@@ -293,6 +352,7 @@ subroutine cimi_run(delta_t)
            call advance_plasmasphere(dt)
         endif
      endif
+
      if (nProc>1 .and. UseCorePsModel) &
           call MPI_bcast(PlasDensity_C,np*nt,MPI_REAL,0,iComm,iError)
 
@@ -302,7 +362,6 @@ subroutine cimi_run(delta_t)
         density=PlasDensity_C
      endif
 
-     
      call timing_start('cimi_driftIM')
      call driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
           fb,f2,driftin,driftout,ib0)
@@ -314,17 +373,50 @@ subroutine cimi_run(delta_t)
      call sume_cimi(OpChargeEx_)
      call timing_stop('cimi_charexchange') 
      
-     if (Time.ge.DiffStartT .and. UseWaveDiffusion) then
+     if ( ( Time .GE. DiffStartT ) .AND. &
+          ( UseWaveDiffusion ) ) then
 
         call timing_start('cimi_WaveDiffusion')
         
-        call timing_start('cimi_Diffuse_aa')
-        call diffuse_aa(f2,dt,xjac,iba,iw2)
-        call timing_stop('cimi_Diffuse_aa')
+        if (UsePitchAngleDiffusionTest.or.&
+            UseEnergyDiffusionTest) then
+           write(*,*) 'UsePitchAngleDiffusionTest',UsePitchAngleDiffusionTest
+           write(*,*) 'UseEnergyDiffusionTest',UseEnergyDiffusionTest
+           call CON_STOP('For diag diffusion test, "make DIFFUSIONTEST"')
+        endif
+       
+        if ( UseDiagDiffusion ) then
 
-        call timing_start('cimi_Diffuse_EE')
-        call diffuse_EE(f2,dt,xmm,xjac,iw2,iba)
-        call timing_stop('cimi_Diffuse_EE')
+           call init_diag_diff
+           
+           ! map PSD from M to Q2      
+           call timing_start('cimi_mapPSDtoQ')
+           call mapPSDtoQ
+           call timing_stop('cimi_mapPSDtoQ')
+           
+           ! calculate diffusion in Q2 at fixed Q1
+           call timing_start('cimi_Diffuse_Q2')
+           call diffuse_Q2
+           call timing_stop('cimi_Diffuse_Q2')
+           
+           ! calculate diffusion in Q1 at fixed Q2
+           call timing_start('cimi_Diffuse_Q1')
+           call diffuse_Q1
+           call timing_stop('cimi_Diffuse_Q1')
+           
+           ! map back PSD from Q2 to M      
+           call timing_start('cimi_mapPSDtoE')
+           call mapPSDtoE
+           call timing_stop('cimi_mapPSDtoE')
+        else
+           call timing_start('cimi_Diffuse_aa')
+           call diffuse_aa(f2,dt,xjac,iba,iw2)
+           call timing_stop('cimi_Diffuse_aa')
+           
+           call timing_start('cimi_Diffuse_EE')
+           call diffuse_EE(f2,dt,xmm,xjac,iw2,iba)
+           call timing_stop('cimi_Diffuse_EE')
+        endif 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!        
@@ -389,7 +481,7 @@ subroutine cimi_run(delta_t)
        ( floor( ( Time + 1.0e-5 ) / DtCalcPrecip ) ) /= &
          floor( ( Time + 1.0e-5 - delta_t ) / DtCalcPrecip ) ) then
      call timing_start('cimi_precip_calc')
-     call cimi_precip_calc( rc, DtCalcPrecip )
+     call cimi_precip_calc( DtCalcPrecip )
      call timing_stop('cimi_precip_calc')
   endif
 
@@ -401,41 +493,56 @@ subroutine cimi_run(delta_t)
        Ppar_IC, Pressure_IC, PressurePar_IC, vlEa, vpEa, psd )
   call timing_stop('cimi_output')
 
-
   ! When nProc >1 gather all relevant output variables.
   if ( nProc > 1 ) call cimi_gather( delta_t, psd, flux, vlea, vpea )
 
   if ( iProc == 0 ) then
 
      call timing_start('calc_Lstar1')
-     call calc_Lstar1(Lstar_C,Lstar_max,rc)
+     call calc_Lstar1
      call timing_stop('calc_Lstar1')
         
-     ! Plot CIMI parameters at the ionosphere and equator.
-     if ( ( DoSaveEq .or. DoSaveIono ) .and. &
-          ( floor( ( Time + 1.0e-5 ) / DtOutput ) /= &
-          floor( ( Time + 1.0e-5 - delta_t ) / DtOutput ) ) ) then
+     ! Plot CIMI parameters at the equator
+     if ( ( DoSaveEq ) .and. &
+          ( floor( ( Time + 1.0e-5 ) / DtEqOutput ) /= &
+            floor( ( Time + 1.0e-5 - delta_t ) / DtEqOutput ) ) ) &
+     then
         
-        call timing_start('cimi_plot')
-        call Cimi_plot( np, nt, xo, yo, &
+        call timing_start('cimi_plot_eq')
+        call Cimi_plot_eq( np, nt, xo, yo, &
              Pressure_IC, PressurePar_IC, phot, Ppar_IC, &
-             Den_IC, bo, ftv, pot, FAC_C, Time, dt, Lstar_C )
-        call timing_stop('cimi_plot')
+             Den_IC, bo, ftv, pot, FAC_C, Time, dt )
+        call timing_stop('cimi_plot_eq')
+        
+     endif
+
+     ! Plot CIMI parameters at the ionosphere
+     if ( ( DoSaveIono ) .and. &
+          ( floor( ( Time + 1.0e-5 ) / DtIonoOutput ) /= &
+            floor( ( Time + 1.0e-5 - delta_t ) / DtIonoOutput ) ) ) &
+     then
+        
+        call timing_start('cimi_plot_iono')
+        call Cimi_plot_iono( np, nt, xo, yo, &
+             Pressure_IC, PressurePar_IC, phot, Ppar_IC, &
+             Den_IC, bo, ftv, pot, FAC_C, Time, dt )
+        call timing_stop('cimi_plot_iono')
         
      endif
      
      if ( DoSaveLstar .and. &
            ( floor( ( Time + 1.0e-5 ) / DtLstarOutput ) /= &
-           floor( ( Time + 1.0e-5 - delta_t ) / DtLstarOutput ) ) ) &
-           then
+             floor( ( Time + 1.0e-5 - delta_t ) / DtLstarOutput ) ) ) &
+     then
         
         call timing_start('calc_Lstar2')
-        call calc_Lstar2(Lstarm,Lstar_maxm,rc)
+        call calc_Lstar2
         call timing_stop('calc_Lstar2')
         
-        call Cimi_plot_Lstar( rc, xk, time, Lstarm, Lstar_maxm )
+        call Cimi_plot_Lstar( xk, time )
 
      endif
+     
      if ( DoSavePlas .and. UseCorePsModel .and. iProc==0) then
         call save_plot_plasmasphere(time,floor(real(time)/dtmax),IsRestart)
      endif
@@ -446,48 +553,48 @@ subroutine cimi_run(delta_t)
         ! Output Species' Flux
         if ( DoSaveFlux( iSpecies ) .and. &
              ( floor( ( Time + 1.0e-5 ) / &
-             DtFluxOutput( iSpecies ) ) /= &
+             	DtFluxOutput( iSpecies ) ) /= &
              floor( ( Time + 1.0e-5 - delta_t ) / &
-             DtFluxOutput( iSpecies ) ) ) ) &
-             call Cimi_plot_fls( rc, flux( iSpecies, :, :, :, : ), &
-             iSpecies, time, Lstar_C, Lstar_max)
+             	DtFluxOutput( iSpecies ) ) ) ) &
+             call Cimi_plot_fls( flux( iSpecies, :, :, :, : ), &
+             	iSpecies, time )
         
         ! Output Species' PSD
         if ( DoSavePSD( iSpecies ) .and. &
              ( floor( ( Time + 1.0e-5 ) / &
-             DtPSDOutput( iSpecies ) ) /= &
+             	DtPSDOutput( iSpecies ) ) /= &
              floor( ( Time + 1.0e-5 - delta_t ) / &
-             DtPSDOutput( iSpecies ) ) ) ) &
-             call Cimi_plot_psd( rc, psd( iSpecies, :, :, :, : ), &
-             iSpecies, time, xmm, xk )
+             	DtPSDOutput( iSpecies ) ) ) ) &
+             call Cimi_plot_psd( psd( iSpecies, :, :, :, : ), &
+             	iSpecies, time, xmm, xk )
         
         ! Output Species' radial drift
         if ( DoSaveVLDrift( iSpecies ) .and. &
              ( floor( ( Time + 1.0e-5 ) / &
-             DtVLDriftOutput( iSpecies ) ) /= &
+             	DtVLDriftOutput( iSpecies ) ) /= &
              floor( ( Time + 1.0e-5 - delta_t ) / &
-             DtVLDriftOutput( iSpecies ) ) ) ) &
-             call Cimi_plot_vl( rc, vlEa( iSpecies, :, :, :, : ), &
-             iSpecies, time )
+             	DtVLDriftOutput( iSpecies ) ) ) ) &
+             call Cimi_plot_vl( vlEa( iSpecies, :, :, :, : ), &
+             	iSpecies, time )
         
         ! Output Species' poloidal drift
         if ( DoSaveVPDrift( iSpecies ) .and. &
              ( floor( ( Time + 1.0e-5 ) / &
-             DtVPDriftOutput( iSpecies ) ) /= &
+             	DtVPDriftOutput( iSpecies ) ) /= &
              floor( ( Time + 1.0e-5 - delta_t ) / &
-             DtVPDriftOutput( iSpecies ) ) ) ) &
-             call Cimi_plot_vp( rc, vpEa( iSpecies, :, :, :, : ), &
-             iSpecies, time )
+             	DtVPDriftOutput( iSpecies ) ) ) ) &
+             call Cimi_plot_vp( vpEa( iSpecies, :, :, :, : ), &
+             	iSpecies, time )
         
         ! Write precipitation file
         if ( DoSavePreci( iSpecies ) .and. &
              ( floor( ( Time + 1.0e-5) / &
-             DtPreciOutput( iSpecies ) ) ) /= &
+             	DtPreciOutput( iSpecies ) ) ) /= &
              floor( ( Time + 1.0e-5 - delta_t ) / &
-             DtPreciOutput( iSpecies ) ) ) then
+             	DtPreciOutput( iSpecies ) ) ) then
            
            call timing_start('cimi_plot_precip')
-           call cimi_plot_precip( rc, iSpecies, Time )
+           call cimi_plot_precip( iSpecies, Time )
            call timing_stop('cimi_plot_precip')
            
         endif
@@ -536,17 +643,17 @@ subroutine cimi_init
   !         xmm1,xk1,phi1,dlat1,dphi1,dmm1,dk1,delE1,dmu1,xjac,d4,amu (through 
   !         common block cinitialization
 
-  use ModInterFlux,   ONLY: set_nghostcell_scheme
-  use ModPlanetConst, ONLY: Earth_,DipoleStrengthPlanet_I,rPlanet_I
-  use ModConst,       ONLY: cElectronCharge, cLightSpeed, cProtonMass
-  use ModNumConst,    ONLY: cDegToRad,cRadToDeg,cPi
-  use ModCimiPlanet,  ONLY: re_m, dipmom, Hiono, amu_I, nspec
+  use ModInterFlux,	ONLY: set_nghostcell_scheme
+  use ModPlanetConst,	ONLY: Earth_,DipoleStrengthPlanet_I,rPlanet_I
+  use ModConst,		ONLY: cElectronCharge, cLightSpeed, cProtonMass
+  use ModNumConst,	ONLY: cDegToRad,cRadToDeg,cPi
+  use ModCimiPlanet,	ONLY: re_m, dipmom, Hiono, amu_I, nspec
   use ModCimiInitialize
-  use ModCimiRestart, ONLY: IsRestart, cimi_read_restart
+  use ModCimiRestart,	ONLY: IsRestart, cimi_read_restart
   use ModImTime
   use ModCimiGrid
   use ModCimi, 		ONLY: energy, Ebound, dele
-  use ModTimeConvert, ONLY: time_int_to_real,time_real_to_int
+  use ModTimeConvert,	ONLY: time_int_to_real, time_real_to_int
   use ModMpi
 
   implicit none
@@ -626,47 +733,18 @@ subroutine cimi_init
   StartTime=CurrentTime
 
   ! Define constants
-  re_m = rPlanet_I(Earth_)                            ! earth's radius (m)
-  dipmom=abs(DipoleStrengthPlanet_I(Earth_)*re_m**3)  ! earth's dipole moment
-
+!!$  re_m = rPlanet_I(Earth_)                            ! earth's radius (m)
+!!$  dipmom=abs(DipoleStrengthPlanet_I(Earth_)*re_m**3)  ! earth's dipole moment
+!!$  write(*,*) "dipmom: ", dipmom
+  
   ! Define latitude grid
   call init_lat
  
-!!!!  if ( DoUseUniformLGrid ) then
-!!!!     
-!!!!     ! CIMI xlat grid for Uniform spacing in L-parameter
-!!!!     varLmin=1./cos(xlat_data(1 )*cDegToRad)**varNpower
-!!!!     varLmax=1./cos(xlat_data(np)*cDegToRad)**varNpower
-!!!!     dvarL=(varLmax-varLmin)/(float(np)-1.)
-!!!!     do i=0,np+1
-!!!!        varL(i)=varLmin+(i-1)*dvarL
-!!!!        if (varL(i).lt.1.) varL(i)=1.
-!!!!     enddo
-!!!!     xlatr(1:np)=acos(1./(varL(1:np))**(1./varNpower))
-!!!!     xlat(1:np)=xlatr(1:np)/cDegToRad
-!!!!     do i=2,np-1
-!!!!        dlat(i)=0.5*(xlat(i+1)-xlat(i-1))
-!!!!     enddo
-!!!!     dlat(1)=0.5*(xlat(2)-acos(1./sqrt(varL(0))))
-!!!!     dlat(np)=0.5*(acos(1./sqrt(varL(np+1)))-xlat(np-1))
-!!!!
-!!!!  else
-!!!!
-!!!!     ! CIMI xlat grid for non-uniform grid
-!!!!     do i=1,np
-!!!!        xlat(i)=xlat_data(i)
-!!!!        ! dlat in radian
-!!!!        dlat(i)=0.5*(xlat_data(i+1)-xlat_data(i-1))*cDegToRad    
-!!!!     enddo
-!!!!     xlatr=xlat*cDegToRad
-!!!!     
-!!!!  endif
-     
-  if ( DoVerboseLatGrid ) then
-     
-     write(*,*) 'IM: xlat grid  (deg)'
+  if ( DoVerboseLatGrid .and. iProc == 0) then
+
+     write(*,*) 'IM0: xlat grid  (deg)'
      write(*,'(10f8.2)') xlat(1:np)
-     write(*,*) 'IM: L-shell / ri  (RE)'
+     write(*,*) 'IM0: L-shell / ri  (RE)'
      write(*,'(10f8.3)') varL(1:np)**(2./varNpower)
      
   endif
@@ -919,6 +997,7 @@ subroutine initial_f2(nspec,np,nt,iba,amu_I,vel,xjac,ib0)
   !----------------------------------------------------------------------------
   ! Routine setup initial distribution.
   ! 
+
   ! Input: nspec,np,nt,iba,Den_IC,Temp_IC,amu,vel,xjac
   ! Output: ib0,f2,rbsum,xleb,xled,xlel,xlee,xles,driftin,driftout
   !         (through common block cinitial_f2)
@@ -926,18 +1005,22 @@ subroutine initial_f2(nspec,np,nt,iba,amu_I,vel,xjac,ib0)
   use ModGmCimi, ONLY: Den_IC, Temp_IC, Temppar_IC
   use ModCimi,   ONLY: f2
   use ModCimiInitialize,   ONLY: IsEmptyInitial, IsDataInitial, IsRBSPData, &
-       IsGmInitial
-  use ModCimiGrid,ONLY: nm,nk,MinLonPar,MaxLonPar,iProc,nProc,iComm,d4Element_C,neng
+       IsGmInitial, IsInitialElectrons, DoLstarInitialization, &
+       NameFinFile, FinFilePrefix
+  use ModCimiGrid,ONLY: nm,nk,MinLonPar,MaxLonPar,iProc,nProc,iComm, &
+       d4Element_C,neng
+  use ModCimiPlanet,		ONLY: 	NameSpeciesExtension_I
   use ModCimiTrace, ONLY: sinA,ro, ekev,pp,iw2,irm
-  use ModMpi
-  use ModWaveDiff, ONLY:  testDiff_aa,testDiff_EE,testDiff_aE
 
+  use ModMpi
+  use ModWaveDiff, 		ONLY:	&
+       testDiff_aa, testDiff_EE, testDiff_aE
+  use ModLstar, 		ONLY:	&
+       Lstar_C, Lstarm
+       
   implicit none
 
-  integer,parameter :: np1=51,nt1=48,nspec1=1  
-  !integer,parameter :: nm=35,nk=28 ! dimension of CIMI magnetic moment and K
- 
-  integer nspec,np,nt,iba(nt),ib0(nt),n,j,i,k,m, iError
+  integer nspec, np, nt, iba(nt), ib0(nt), n, j, i, k, m, iError
   real amu_I(nspec),vel(nspec,np,nt,nm,nk)
   real velperp2, velpar2
   real xjac(nspec,np,nm),pi,xmass,chmass,f21,vtchm
@@ -949,8 +1032,6 @@ subroutine initial_f2(nspec,np,nt,iba,amu_I,vel,xjac,ib0)
   real, allocatable :: roi(:), ei(:), fi(:,:)
   real :: roii, e1,x, fluxi,psd2,etemp
   
-  character(11) :: NameFile='quiet_x.fin'
-  character(5) :: FilePrefix='xxxxx'
   !---------------------------------------------------------------------------
   pi=acos(-1.)
 
@@ -994,31 +1075,19 @@ subroutine initial_f2(nspec,np,nt,iba,amu_I,vel,xjac,ib0)
   elseif(IsDataInitial) then
      do n=1,nspec
         if (IsRBSPData) then
-           FilePrefix='RBSP'
+           FinFilePrefix = 'RBSP'
         else
-           FilePrefix='quiet'
+           FinFilePrefix = 'quiet'
         endif
         !set the file name, open it and read it
-        SELECT CASE (n)
-        CASE (1)
-           if (n==nspec) then
-              NameFile=TRIM(FilePrefix) // '_e.fin'
-           else
-              NameFile=TRIM(FilePrefix) // '_h.fin'
-           endif
-        CASE (2)
-           if (n==nspec) then
-              NameFile=TRIM(FilePrefix) // '_e.fin'
-           else
-              NameFile=TRIM(FilePrefix) // '_o.fin'
-           endif
-        CASE DEFAULT
-           NameFile=TRIM(FilePrefix) // '_e.fin'
-        END SELECT
-        open(unit=UnitTmp_,file='IM/'//NameFile,status='old')
+        NameFinFile  = &
+             TRIM( FinFilePrefix ) // &
+             NameSpeciesExtension_I( n ) // '.fin'
+        open(unit=UnitTmp_,file='IM/'//NameFinFile,status='old')
         read(UnitTmp_,*) il,ie
         allocate (roi(il),ei(ie),fi(il,ie))
-        read(UnitTmp_,*) iunit   ! 1=flux in (cm2 s sr keV)^-1, 2=in (cm2 s MeV)^-1
+        ! iunit values: 1=flux in (cm2 s sr keV)^-1, 2=in (cm2 s MeV)^-1
+        read(UnitTmp_,*) iunit   
         read(UnitTmp_,*) roi
         read(UnitTmp_,*) ei      ! ei in keV
         read(UnitTmp_,*) fi
@@ -1031,8 +1100,12 @@ subroutine initial_f2(nspec,np,nt,iba,amu_I,vel,xjac,ib0)
         !interpolate data from quiet.fin files to CIMI grid
         do j=MinLonPar,MaxLonPar
            do i=1,irm(j)
-              roii=ro(i,j)
               do m=1,nk
+                 if ( DoLstarInitialization ) then
+                    roii=Lstarm(i,j,m)
+                 else
+                    roii=ro(i,j)
+                 endif
                  do k=1,iw2(n,m)
                     e1=log10(ekev(n,i,j,k,m)) 
                     if (e1.le.ei(ie)) then
@@ -1123,9 +1196,9 @@ subroutine boundaryIM(nspec,neng,np,nt,nm,nk,iba,irm,amu_I,xjac,energy,vel,fb)
   use ModCimiGrid, ONLY: MinLonPar,MaxLonPar
   use ModCimiTrace,  ONLY: sinA,ekev,iw2,pp
   use ModCimiBoundary,ONLY: BoundaryDens_IC,BoundaryTemp_IC,BoundaryTempPar_IC
-
+  
   implicit none
-
+  
   integer nspec,neng,np,nt,nm,nk,iba(nt),irm(nt),j,n,k,m,ib1
   real amu_I(nspec),energy(nspec,neng),xjac(nspec,np,nm)
   real vel(nspec,np,nt,nm,nk),fb(nspec,nt,nm,nk),pi,xmass,chmass,fb1,fb_temp,vtchm
@@ -1135,26 +1208,27 @@ subroutine boundaryIM(nspec,neng,np,nt,nm,nk,iba,irm,amu_I,xjac,energy,vel,fb)
   real kappa,kappa_plus_one,kappa_minus_half,ln_gamma_diff,gamma_ratio
   real ln_gamma
   real e_min
-
+  
   kappa=3.
- ! zk1=zkappa+1.
+  ! zk1=zkappa+1.
   kappa_plus_one=kappa+1.
   kappa_minus_half=kappa-0.5
   ln_gamma_diff=ln_gamma(kappa_plus_one)-ln_gamma(kappa_minus_half)
   gamma_ratio=exp(ln_gamma_diff)
-
+  
   pi=acos(-1.)
-
-   !   defining Pperp and Ppar for both cases, anisotropic and isotropic.
-   !   Advantages: use the same form of Maxwellian/kappa dist
-   !   since in the case of isotropic PSD 
-
+  
+  !   defining Pperp and Ppar for both cases, anisotropic and isotropic.
+  !   Advantages: use the same form of Maxwellian/kappa dist
+  !   since in the case of isotropic PSD 
+  
   do n=1,nspec
      do j=MinLonPar,MaxLonPar
         BoundaryTempperp_IC(n,j) = &
              (3*BoundaryTemp_IC(n,j) - BoundaryTempPar_IC(n,j))/2
      enddo
   enddo
+
 
   fb(1:nspec,MinLonPar:MaxLonPar,1:nm,1:nk)=0.
   do n=1,nspec
@@ -1163,55 +1237,56 @@ subroutine boundaryIM(nspec,neng,np,nt,nm,nk,iba,irm,amu_I,xjac,energy,vel,fb)
      xmass=amu_I(n)*1.673e-27
      chmass=1.6e-19/xmass 
      do j=MinLonPar,MaxLonPar
-         parE1=BoundaryTempPar_IC(n,j)/1000.      ! characteristic in keV
-         perE1=BoundaryTempPerp_IC(n,j)/1000.     ! characteristic in keV
-         den1 =BoundaryDens_IC(n,j)                     ! density in m-3
+        parE1=BoundaryTempPar_IC(n,j)/1000.      ! characteristic in keV
+        perE1=BoundaryTempPerp_IC(n,j)/1000.     ! characteristic in keV
+        den1 =BoundaryDens_IC(n,j)                     ! density in m-3
         temp32=sqrt(parE1)*perE1*1.6e-16**1.5
         ib1=iba(j)+1   ! difference bewteen cimi standalone where ib1=iba(j)
         if (ib1.gt.irm(j)) ib1=irm(j)
         if (n .eq. nspec) then    !    kappa, for electrons only
-            fbb1=den1*gamma_ratio/temp32/(2.*pi*kappa*xmass)**1.5
+           fbb1=den1*gamma_ratio/temp32/(2.*pi*kappa*xmass)**1.5
         else
-            fbb1=den1/temp32/(2.*pi*xmass)**1.5 ! Maxwellian
-        endif       
-
-  !      do k=1,nm   ! magnetic moment
-          do m=1,nk   ! K invariant 
+           fbb1=den1/temp32/(2.*pi*xmass)**1.5 ! Maxwellian
+        endif
+        
+        !      do k=1,nm   ! magnetic moment
+        do m=1,nk   ! K invariant 
               y2=sinA(ib1,j,m)*sinA(ib1,j,m)
               x2=1.-y2
-            do k=1,iw2(n,m)   ! magnetic moment            
-              fbb=0.
-              if ((ekev(n,ib1,j,k,m) .gt. e_min) .and. &
-                   (BoundaryDens_IC(n,j).gt.0.)) then
-
+              do k=1,iw2(n,m)   ! magnetic moment            
+                 fbb=0.
+                 if ((ekev(n,ib1,j,k,m) .gt. e_min) .and. &
+                      (BoundaryDens_IC(n,j).gt.0.)) then
+                    
                if (n .eq. nspec) then   ! KAPPA FOR ELECTRONS
                   Psq=pp(n,ib1,j,k,m)*pp(n,ib1,j,k,m)
                   Ppar2=Psq*x2
                   Pper2=Psq*y2
                   erpp=(Ppar2/parE1+Pper2/perE1)/2./xmass/1.6e-16
                   fbb=fbb1/(1.+erpp/kappa)**kappa_plus_one                    
-
-                                 else ! MAXWELLIAN OTHERWISE:
+                  
+               else ! MAXWELLIAN OTHERWISE:
                   Vsq=vel(n,ib1,j,k,m)*vel(n,ib1,j,k,m)
                   Vpar2=Vsq*x2
                   Vper2=Vsq*y2
                   erpp=(Vpar2/parE1+Vper2/perE1)/2./1000./chmass
                   fbb=0.
                   if (erpp.lt.500.) fbb=fbb1/exp(erpp)                      
-               endif 
-             endif      ! end of ekev(n,ib,j,k,m).gt.e_min.and.den1.gt.0
+               endif
+            endif      ! end of ekev(n,ib,j,k,m).gt.e_min.and.den1.gt.0
 
+            
+            fb(n,j,k,m)=fbb*xjac(n,ib1,k)
+            !        if ((n.eq.nspec).and.(j.eq.1).and.(m.eq.10)) write(*,*) fbb,xjac(n,ib1,k), &
+            !        ekev(n,ib1,j,k,m), vel(n,ib1,j,k,m),xmass,chmass, &
+            !        Psq,Ppar2,Vsq,Vpar2, 'f,jac,e,vel,m,chm,Psq,Ppar,Vsq,Vpar'   !   NB Jan 20 2017
+         enddo                ! end of m loop
 
-              fb(n,j,k,m)=fbb*xjac(n,ib1,k)
- !        if ((n.eq.nspec).and.(j.eq.1).and.(m.eq.10)) write(*,*) fbb,xjac(n,ib1,k), &
- !        ekev(n,ib1,j,k,m), vel(n,ib1,j,k,m),xmass,chmass, &
- !        Psq,Ppar2,Vsq,Vpar2, 'f,jac,e,vel,m,chm,Psq,Ppar,Vsq,Vpar'   !   NB Jan 20 2017
-           enddo                ! end of m loop
-        enddo                   ! end of k loop
-     enddo                      ! end of j loop
-  enddo                         ! end of n loop
+      enddo                   ! end of k loop
 
+   enddo                      ! end of j loop
 
+enddo                         ! end of n loop
 
 end subroutine boundaryIM
    
@@ -1278,21 +1353,23 @@ subroutine ceparaIM(nspec,np,nt,nm,nk,irm,dt,vel,ekev,Have,achar)
 end subroutine ceparaIM
 
 !-------------------------------------------------------------------------------
-subroutine set_cimi_potential(CurrentTime,rc)
+subroutine set_cimi_potential(CurrentTime)
   !-----------------------------------------------------------------------------
   ! Routine sets the ionospheric potentials from weimer when not using MHD input
   !
-  use ModCimiGrid, ONLY: xlatr, xmlt, np, nt
-  use ModIeCimi,   ONLY: pot
-!  use ModTsyInput, ONLY: xnswa,vswa,bxw,byw,bzw
+  use ModCimiGrid,	ONLY: xlatr, xmlt, np, nt
+  use ModIeCimi,	ONLY: pot
   use ModMpi 
-  use EIE_ModWeimer, ONLY: setmodel00, boundarylat00, epotval00
-  use ModNumConst, ONLY: cPi, cRadToDeg
+  use EIE_ModWeimer,	ONLY: setmodel00, &
+       boundarylat00, epotval00
+  use ModNumConst,	ONLY: cPi, cRadToDeg
   use ModIndicesInterfaces
-  use ModCimiTrace, ONLY: UsePotential
+  use ModCimiTrace,	ONLY: UsePotential
+  use ModCimiPlanet,	ONLY: rc
+  
   implicit none
 
-  real, intent(in) :: CurrentTime,rc
+  real, intent(in) :: CurrentTime
 
   logical :: UseAL
   real :: ALindex
@@ -1944,10 +2021,11 @@ end subroutine charexchangeIM
 !                                StDiTime                                      
 !  Routine calculate the strong diffusion lifetime for electrons.     
 !*****************************************************************************
-subroutine StDiTime(dt,vel,volume,rc,re_m,xme,iba)
+subroutine StDiTime(dt,vel,volume,iba)
   use ModCimi,       ONLY: SDtime
   use ModCimiGrid,   ONLY: np,nt,nm,nk, xlatr,MinLonPar,MaxLonPar
-  use ModCimiPlanet, ONLY: nspec
+  use ModCimiPlanet, ONLY: nspec, rc, re_m, xme => dipmom
+
   real vel(nspec,np,nt,nm,nk),volume(np,nt)
   integer iba(nt)
   
@@ -2253,7 +2331,6 @@ subroutine sume_cimi(OperatorName)
        write(*,*) 'tot particles, el: ',psum(nspec,30,5,je+2)
 
 end subroutine sume_cimi
-
 
 !==============================================================================
 
@@ -2582,29 +2659,28 @@ end subroutine cimi_output
 
 subroutine cimi_gather( delta_t, psd, flux, vlea, vpea )
 
-  use DensityTemp,	ONLY: density
-  use ModCimi,		ONLY: &
+  use DensityTemp,	ONLY: 	density
+  use ModCimi,		ONLY:	&
        Time, FAC_C, Pressure_IC, PressurePar_IC, Bmin_C, &
        phot, Ppar_IC, preP, preF, Eje1, &
        vdr_q3, eng_q3, vexb, dif_q3, Part_phot
-  use ModCimiBoundary,	 ONLY: Outputboundary
-  use ModCimiGrid,	ONLY: &
+  use ModCimiBoundary,	ONLY: 	Outputboundary
+  use ModCimiGrid,	ONLY: 	&
        iProc, nProc, iComm, nLonPar, nLonPar_P, nLonBefore_P, &
        MinLonPar, MaxLonPar, nt, np, neng, npit, nm, nk, dlat, &
        phi, sinao, xlat, xmlt
-  use ModCimiPlanet,	ONLY: nspec
+  use ModCimiPlanet,	ONLY:	nspec
   use ModCimiPlot
-  use ModCimiTrace,	ONLY: &
-       ftv => volume, xo, yo, bo, xmlto, brad => ro, bm, irm, iba
-  use ModCoupleSami,	ONLY: DoCoupleSami
-  use ModGmCimi,	ONLY: Den_IC
-  use ModImSat,		ONLY: DoWriteSats, DtSatOut
+  use ModCimiTrace,	ONLY:	gather_field_trace
+  use ModCoupleSami,	ONLY:	DoCoupleSami
+  use ModGmCimi,	ONLY:	Den_IC
+  use ModImSat,		ONLY:	DoWriteSats, DtSatOut
   use ModMPI
-
+  
   real, intent(in) :: delta_t
   real flux( nspec, np, nt, neng, npit ), psd( nspec, np, nt, nm, nk ), &
        vlEa( nspec, np, nt, neng, npit ), vpEa (nspec, np, nt, neng, npit )
-
+  
   
   !Vars for mpi passing
   integer, allocatable :: iBufferSend_I(:), iBufferRecv_I(:)
@@ -2614,9 +2690,9 @@ subroutine cimi_gather( delta_t, psd, flux, vlea, vpea )
   real :: BufferSend_C( np, nt ), BufferRecv_C( np, nt )
   integer :: BufferSend_I( nt ), BufferRecv_I( nt )
   integer :: iStatus_I( MPI_STATUS_SIZE )
-
+  
   allocate( iReceiveCount_P( nProc ), iDisplacement_P( nProc ) )
-
+  
   !Gather to root
   iSendCount = np * nLonPar
   iReceiveCount_P = np * nLonPar_P
@@ -2660,12 +2736,6 @@ subroutine cimi_gather( delta_t, psd, flux, vlea, vpea )
      if (iProc==0) Den_IC(iSpecies,:,:)=BufferRecv_C(:,:)
      
   enddo
-
-  BufferSend_I(:) = iba(:)
-  call MPI_GATHERV(BufferSend_I(MinLonPar:MaxLonPar), nLonPar, &
-       MPI_INTEGER, BufferRecv_I, nLonPar_P, nLonBefore_P, &
-       MPI_INTEGER, 0, iComm, iError)
-  if (iProc==0) iba(:)=BufferRecv_I(:)
   
   BufferSend_C(:,:) = Bmin_C(:,:)
   call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
@@ -2673,231 +2743,131 @@ subroutine cimi_gather( delta_t, psd, flux, vlea, vpea )
        MPI_REAL, 0, iComm, iError)
   if (iProc==0) Bmin_C(:,:)=BufferRecv_C(:,:)
 
-  ! On processor O, gather info and save plots
-  ! When time to write output, consolodate xo,yo,flux,pot,ftv, bo, and irm 
-  ! on iProc 0
-!!$  if ( DoSavePlot .and. &
-!!$       ( floor( ( Time + 1.0e-5 ) / DtOutput ) /= &
-!!$         floor( ( Time + 1.0e-5-delta_t ) / DtOutput ) ) ) then
-!!$     
-!!$!     call MPI_GATHERV(pot(:,MinLonPar:MaxLonPar), iSendCount, MPI_REAL, &
-!!$!          pot, iReceiveCount_P, iDisplacement_P, MPI_REAL, &
-!!$!          0, iComm, iError)
+  call gather_field_trace
 
-     BufferSend_C(:,:)=ftv(:,:)
+  if ( .not. DoCoupleSami ) then
+     
+     BufferSend_C(:,:) = density(:,:)
      call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
           MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
           MPI_REAL, 0, iComm, iError)
-     if (iProc==0) ftv(:,:)=BufferRecv_C(:,:)
+     if (iProc==0) density(:,:) = BufferRecv_C(:,:)
      
-     BufferSend_C(:,:)=xo(:,:)
-     call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
-          MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
-          MPI_REAL, 0, iComm, iError)
-     if (iProc==0) xo(:,:)=BufferRecv_C(:,:)
+  end if
+  
+  do  iSpecies = 1, nspec
      
-     BufferSend_C(:,:)=yo(:,:)
-     call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
-          MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
-          MPI_REAL, 0, iComm, iError)
-     if (iProc==0) yo(:,:)=BufferRecv_C(:,:)
-     
-     BufferSend_C(:,:)=bo(:,:)
-     call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
-          MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
-          MPI_REAL, 0, iComm, iError)
-     if (iProc==0) bo(:,:)=BufferRecv_C(:,:)
-     
-     BufferSend_C(:,:)=xmlto(:,:)
-     call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
-          MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
-          MPI_REAL, 0, iComm, iError)
-     if (iProc==0) xmlto(:,:)=BufferRecv_C(:,:)
-     
-     BufferSend_C(:,:)=brad(:,:)
-     call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
-          MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
-          MPI_REAL, 0, iComm, iError)
-     if (iProc==0) brad(:,:)=BufferRecv_C(:,:)
-     
-     if ( .not. DoCoupleSami ) then
+     do iM = 1, nm
         
-        BufferSend_C(:,:) = density(:,:)
-        call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
-             MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
-             MPI_REAL, 0, iComm, iError)
-        if (iProc==0) density(:,:) = BufferRecv_C(:,:)
-        
-     end if
-     
-     BufferSend_I(:)=irm(:)
-     call MPI_GATHERV(BufferSend_I(MinLonPar:MaxLonPar), nLonPar, &
-          MPI_INTEGER, BufferRecv_I, nLonPar_P, nLonBefore_P, &
-          MPI_INTEGER, 0, iComm, iError)
-     if (iProc==0) irm(:)=BufferRecv_I(:)
-     
-!!$  elseif ( &
-!!$       ( DoWriteSats .and. &
-!!$         floor( ( Time + 1.0e-5 ) / DtSatOut ) /= &
-!!$         floor( ( Time + 1.0e-5 - delta_t) / DtSatOut ) ) .or. &
-!!$       ( DoSaveLstar .and. &
-!!$         floor( ( Time + 1.0e-5 ) / DtLstarOutput ) /= &
-!!$         floor( ( Time + 1.0e-5 - delta_t ) / DtLstarOutput ) ) ) &
-!!$  then
-
-     BufferSend_C(:,:)=bo(:,:)
-     call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
-          MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
-          MPI_REAL, 0, iComm, iError)     
-     if (iProc==0) bo(:,:)=BufferRecv_C(:,:)
-     
-!!$  endif
-!!$
-!!$  if ( DoSavePlot .and. &
-!!$       ( floor( ( Time + 1.0e-5 ) / DtOutput ) /= &
-!!$         floor( ( Time + 1.0e-5 - delta_t ) / DtOutput ) .or. &
-!!$       ( floor( ( Time + 1.0e-5 ) / DtSatOut ) /= &
-!!$         floor( ( Time + 1.0e-5 - delta_t ) / DtSatOut ) .and. &
-!!$         DoWriteSats ) ) ) then
-
-     do  iSpecies = 1, nspec
-        
-        do iM = 1, nm
+        do iK = 1, nk
            
-           do iK = 1, nk
-
-              BufferSend_C(:,:)=psd(iSpecies,:,:,im,iK)
-              call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
-                   MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
-                   MPI_REAL, 0, iComm, iError)
-              if (iProc==0) psd(iSpecies,:,:,im,ik)=BufferRecv_C(:,:)
-
-           end do
+           BufferSend_C(:,:)=psd(iSpecies,:,:,im,iK)
+           call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
+                MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
+                MPI_REAL, 0, iComm, iError)
+           if (iProc==0) psd(iSpecies,:,:,im,ik)=BufferRecv_C(:,:)
            
         end do
         
-        do iEnergy = 1, neng
-           do iPit = 1, nPit
-
-              BufferSend_C(:,:)=flux(iSpecies,:,:,iEnergy,iPit)
-              call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
-                   MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
-                   MPI_REAL, 0, iComm, iError)
-              if (iProc==0) flux(iSpecies,:,:,iEnergy,iPit)=BufferRecv_C(:,:)
-
-              BufferSend_C(:,:)=vlEa(iSpecies,:,:,iEnergy,iPit)
-              call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
-                   MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
-                   MPI_REAL, 0, iComm, iError)
-              if (iProc==0) vlEa(iSpecies,:,:,iEnergy,iPit)=BufferRecv_C(:,:)
-
-              BufferSend_C(:,:)=vpEa(iSpecies,:,:,iEnergy,iPit)
-              call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
-                   MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
-                   MPI_REAL, 0, iComm, iError)
-              if (iProc==0) vpEa(iSpecies,:,:,iEnergy,iPit)=BufferRecv_C(:,:)
-
-           enddo
+     end do
+     
+     do iEnergy = 1, neng
+        do iPit = 1, nPit
+           
+           BufferSend_C(:,:)=flux(iSpecies,:,:,iEnergy,iPit)
+           call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
+                MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
+                MPI_REAL, 0, iComm, iError)
+           if (iProc==0) flux(iSpecies,:,:,iEnergy,iPit)=BufferRecv_C(:,:)
+           
+           BufferSend_C(:,:)=vlEa(iSpecies,:,:,iEnergy,iPit)
+           call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
+                MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
+                MPI_REAL, 0, iComm, iError)
+           if (iProc==0) vlEa(iSpecies,:,:,iEnergy,iPit)=BufferRecv_C(:,:)
+           
+           BufferSend_C(:,:)=vpEa(iSpecies,:,:,iEnergy,iPit)
+           call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
+                MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
+                MPI_REAL, 0, iComm, iError)
+           if (iProc==0) vpEa(iSpecies,:,:,iEnergy,iPit)=BufferRecv_C(:,:)
+           
         enddo
      enddo
-!!$  endif
+  enddo
 
   do  iSpecies=1,nspec
-!!$     if ( DoSavePreci( iSpecies ) .and. &   
-!!$          floor( ( Time + 1.0e-5 ) / &
-!!$          	DtPreciOutput( iSpecies ) ) /= &
-!!$          floor( ( Time + 1.0e-5 - delta_t ) / &
-!!$          	DtPreciOutput( iSpecies ) ) ) then
+     
+     do iEnergy = 1, neng + 2
         
-        do iEnergy = 1, neng + 2
+        BufferSend_C(:,:)=preP(iSpecies,:,:,iEnergy)
+        call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
+             MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
+             MPI_REAL, 0, iComm, iError)
+        if (iProc==0) preP(iSpecies,:,:,iEnergy)=BufferRecv_C(:,:)
+        
+        BufferSend_C(:,:)=preF(iSpecies,:,:,iEnergy)  
+        call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
+             MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
+             MPI_REAL, 0, iComm, iError)
+        if (iProc==0) preF(iSpecies,:,:,iEnergy)=BufferRecv_C(:,:)
+        
+     enddo ! Do loop over iEnergy
+     
+     BufferSend_C(:,:)=Eje1(iSpecies,:,:)
+     call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
+          MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
+          MPI_REAL, 0, iComm, iError)
+     if (iProc==0) Eje1(iSpecies,:,:)=BufferRecv_C(:,:)
+     
+  enddo !Do loop over Species
+  
+  ! gather information for boundary output
+  if ( OutputBoundary ) then
+     
+     do  iSpecies=1, nspec
+        
+        do iEnergy=1,neng
            
-           BufferSend_C(:,:)=preP(iSpecies,:,:,iEnergy)
+           BufferSend_C(:,:) = Part_phot(iSpecies,:,:,iEnergy)
            call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
                 MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
                 MPI_REAL, 0, iComm, iError)
-           if (iProc==0) preP(iSpecies,:,:,iEnergy)=BufferRecv_C(:,:)
-           
-           BufferSend_C(:,:)=preF(iSpecies,:,:,iEnergy)  
-           call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
-                MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
-                MPI_REAL, 0, iComm, iError)
-           if (iProc==0) preF(iSpecies,:,:,iEnergy)=BufferRecv_C(:,:)
+           if (iProc==0) &
+                Part_phot(iSpecies,:,:,iEnergy)=BufferRecv_C(:,:)
            
         enddo ! Do loop over iEnergy
         
-        BufferSend_C(:,:)=Eje1(iSpecies,:,:)
+        BufferSend_C(:,:)=eng_q3(iSpecies,:,:)
         call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
              MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
              MPI_REAL, 0, iComm, iError)
-        if (iProc==0) Eje1(iSpecies,:,:)=BufferRecv_C(:,:)
+        if (iProc==0) eng_q3(iSpecies,:,:)=BufferRecv_C(:,:)
         
-!!$     endif
-     
-  enddo !Do loop over Species
-
-   ! Gather bm to root for multiple processes for Lstar2 calculation.
-!!$  if ( DoSaveLstar .and. &
-!!$       floor( ( Time + 1.0e-5 ) / DtOutput ) /= &
-!!$       floor( ( Time + 1.0e-5 - delta_t ) / DtOutput ) ) then
-     
-     do iK = 1, nk
-        
-        BufferSend_C(:,:)=bm(:,:,iK)
+        BufferSend_C(:,:)=vexb(iSpecies,:,:)
         call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
              MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
              MPI_REAL, 0, iComm, iError)
-        if (iProc==0) bm(:,:,iK)=BufferRecv_C(:,:)
-
-     end do
+        if (iProc==0) vexb(iSpecies,:,:)=BufferRecv_C(:,:)
+        
+        BufferSend_C(:,:)=vdr_q3(iSpecies,:,:)
+        call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
+             MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
+             MPI_REAL, 0, iComm, iError)
+        if (iProc==0) vdr_q3(iSpecies,:,:)=BufferRecv_C(:,:)
+        
+        BufferSend_C(:,:)=dif_q3(iSpecies,:,:)
+        call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
+             MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
+             MPI_REAL, 0, iComm, iError)
+        if (iProc==0) dif_q3(iSpecies,:,:)=BufferRecv_C(:,:)
+        
+     enddo
      
-!!$  endif
+  endif
   
-  ! gather information for boundary output
-   if ( OutputBoundary ) then
-      
-      do  iSpecies=1, nspec
-         
-         do iEnergy=1,neng
-            
-            BufferSend_C(:,:) = Part_phot(iSpecies,:,:,iEnergy)
-            call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
-                 MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
-                 MPI_REAL, 0, iComm, iError)
-            if (iProc==0) &
-                 Part_phot(iSpecies,:,:,iEnergy)=BufferRecv_C(:,:)
-            
-         enddo ! Do loop over iEnergy
-
-         BufferSend_C(:,:)=eng_q3(iSpecies,:,:)
-         call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
-                  MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
-                  MPI_REAL, 0, iComm, iError)
-         if (iProc==0) eng_q3(iSpecies,:,:)=BufferRecv_C(:,:)
-
-         BufferSend_C(:,:)=vexb(iSpecies,:,:)
-         call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
-                  MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
-                  MPI_REAL, 0, iComm, iError)
-         if (iProc==0) vexb(iSpecies,:,:)=BufferRecv_C(:,:)
-
-         BufferSend_C(:,:)=vdr_q3(iSpecies,:,:)
-         call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
-                  MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
-                  MPI_REAL, 0, iComm, iError)
-         if (iProc==0) vdr_q3(iSpecies,:,:)=BufferRecv_C(:,:)
-
-         BufferSend_C(:,:)=dif_q3(iSpecies,:,:)
-         call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
-                  MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
-                  MPI_REAL, 0, iComm, iError)
-         if (iProc==0) dif_q3(iSpecies,:,:)=BufferRecv_C(:,:)
-         
-      enddo
-      
-   endif
-
-   deallocate( iReceiveCount_P, iDisplacement_P )
-
+  deallocate( iReceiveCount_P, iDisplacement_P )
+  
 end subroutine cimi_gather
 
 !==============================================================================
@@ -2953,23 +2923,23 @@ subroutine core_ps_gather
 end subroutine core_ps_gather
 
 
-subroutine cimi_precip_calc(rc,dsec)
+subroutine cimi_precip_calc(dsec)
 
-  use ModCimi,       ONLY: &
+  use ModCimi,			ONLY:	&
        preF, preP, Eje1, &
-       xlel=>eChangeOperator_VICI, plel=>pChangeOperator_VICI, &
+       xlel => eChangeOperator_VICI, plel => pChangeOperator_VICI, &
        OpLossCone_, OpLossCone0_
-  use ModCimiTrace, ONLY: iba
-  use ModCimiGrid,   ONLY: &
+  use ModCimiTrace, 		ONLY:	iba
+  use ModCimiGrid,		ONLY:	&
        nProc,iProc,iComm,MinLonPar,MaxLonPar,nt,np,neng,xlatr,xmlt,dlat
-  use ModCimiPlanet, ONLY: nspec,re_m
+  use ModCimiPlanet,		ONLY: 	nspec, re_m, rc
   use ModMPI
-  use ModCimiInitialize, ONLY: dphi
+  use ModCimiInitialize, 	ONLY: 	dphi
   
   implicit none
   
-  real :: rc,dsec,dlel,dplel,area,area1,Asec
-  integer :: n,i,j,k
+  real :: dsec, dlel, dplel, area, area1, Asec
+  integer :: n, i, j, k
   
   preF(1:nspec,1:np,1:nt,1:neng+2)=0.
   preP(1:nspec,1:np,1:nt,1:neng+2)=0.

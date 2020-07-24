@@ -53,9 +53,7 @@ species, the code will immediately stop.  Default shown.
 	<parameter name="nCIMIPlotType" type="integer" default="0"/>
 
 	<for name="iPlot" from="1" to="$nCIMIPlotType">
-
 	  <parameter name="StringPlot" type="strings" min="2" max="2">
-
 	    <part name="plottype" type="string" input="select" required="T">
 	      <option value="fls" name="FLS"/>
 	      <option value="flux" name="FLS"/>
@@ -74,28 +72,35 @@ species, the code will immediately stop.  Default shown.
 	      <option value="all" name="ALL"/>
 	      <option value="ions" name="IONS"/>
 	      <option value="electrons" name="ELECTRONS"/>
-	      <option value="e-" name="ELECTRONS"/>
-	      <option value="h+" name="HYDROGEN"/>
-	      <option value="he+" name="HELIUM"/>
-	      <option value="o+" name="OXYGEN"/>
+	      <option value="e" name="ELECTRONS"/>
+	      <option value="h" name="HYDROGEN"/>
+	      <option value="he" name="HELIUM"/>
+	      <option value="o" name="OXYGEN"/>
 	      <option value="both" name="ALL"/>
 	      <option value="eq" name="EQUATOR"/>
 	      <option value="equator" name="EQUATOR"/>
 	      <option value="iono" name="IONOSPHERE"/>
 	      <option value="ionosphere" name="IONOSPHERE"/>
 	      <option value="lstar" name="LSTAR"/>
-	      <option value="l*" name="LSTAR"/>
+	      <option value="[l\*]" name="LSTAR"/>
 	    </part>
 	  </parameter>
 
 	  <parameter name="DtOutputCIMIPlot" type="real" min="60."
 		     default="60."/>
 
-	  <if expr="$plottype =~ fls" or expr="$plottype =~ flux" or expr="$plottype =~ psd" or	expr="$plottype =~ vl" or expr="$plottype =~ vldrift" or expr="$plottype =~ vp" or expr="$plottype =~ vpdrift" or expr="$plottype =~ precipitation" or expr="$plottype =~ precip" or expr="$plottype =~ preci" or expr="$plotoption =~ lstar" or expr="$plotoption =~ l*">
+	  <if expr="$plottype =~ /\bfls|flux|psd|vl|vldrift|vp|vpdrift|
+		    precipitation|precip|preci\b/">
 
 	    <parameter name="DoSaveSeparateFiles" type="logical"
 		       default="F"/>
 	    
+	  </if>
+	  <if expr="$plottype =~ /\b2d\b/">
+	    <if expr="$plotoption =~ /\blstar|[l\*]\b/">
+	      <parameter name="DoSaveSeparateFiles" type="logical"
+			 default="F"/>
+	    </if>
 	  </if>
 	</for>
 
@@ -105,7 +110,7 @@ species, the code will immediately stop.  Default shown.
 fls ions	StringPlot
 300.		DtOutput
 F		DoSaveSeparateFiles
-fls e-		StringPlot
+fls e		StringPlot
 60.		DtOutput
 T		DoSaveSeparateFiles
 psd all		StringPlot
@@ -155,11 +160,11 @@ values for the aforementioned PARTICLE output types:
 \begin{verbatim}
 `all'			- Output all particle species.
 `ions'			- Output only the ion species' information.
-`e-' or `electrons'	- Output only the electron's information.
-`h+'			- Output only the hydrogen's information.
-`o+'			- Output only the oxygen's information.
+`e' or `electrons'	- Output only the electron's information.
+`h'			- Output only the hydrogen's information.
+`o'			- Output only the oxygen's information.
 			  (Only available if CIMI is compiled with `-EarthHO' option.)
-`he+'			- Output only the helium's information.
+`he'			- Output only the helium's information.
 			  (Only available if CIMI is compiled with `-EarthHOHe' option.)
 \end{verbatim}
 
@@ -215,6 +220,19 @@ Default is DoVerboseLstar=F
 
 </command>
 
+<command name="VERBOSELATGRID">
+  	<parameter name="DoVerboseLatGrid" type="logical" default="F"/>
+
+#VERBOSELATGRID
+F		DoVerboseLatGrid
+
+Prints to screen latitude and equatorial grid information.
+
+Default is DoVerboseLatGrid=F.
+
+</command>
+
+
 <command name="SAVELOG">
 	<parameter name="DtLogOut" type="real" />
 #SAVELOG
@@ -259,17 +277,33 @@ Determine whether or not to continue a previous run.
 	<parameter name="IsEmptyF2" type="logical" />
 	<parameter name="IsGMInitial" type="logical" />
 	<parameter name="IsDataInitial" type="logical" />
+	<parameter name="IsRBSPData" type="logical" />
 
 #INITIALF2
 F			IsEmptyF2
 T			IsGmInitial
 F			IsDataInitial
+F			IsRBSPData
 
 Determines whether to fill the fluxes in the simulation domain based
 on a Maxwellian determined from MHD quantities (IsGmInitial=T) or to
 set the initial fluxes in the simulation domain to zero (IsEmptyF2=T,
 not recommended) or to set the initial fluxes in the simulation to
-values from AMPTE/CCE data (IsDataInitial=T). The default is shown.
+values from AMPTE/CCE data (IsDataInitial=T).  One can also put RBSP
+observed fluxes into the same format as the AMPTE/CCE data to
+initilaize CIMI with RBSP observations which is controlled with the
+IsRBSPData logical, which is only read if IsDataInitial=T. The default
+is shown.
+</command>
+
+<command name="INITIALLSTAR">
+	<parameter name="DoLstarInitialization" type="logical" />
+
+#INITIALLSTAR
+F			DoLstarInitialization
+
+Determines whether to initialize the PSD array from dipolar L values
+or CIMI calculated Lstar. Default is shown.
 </command>
 
 <command name="END">
@@ -333,30 +367,6 @@ ignored. Default shown.
 
 </command>
 
-<command name="VERBOSELSTAR">
-  	<parameter name="DoVerboseLstar" type="logical" default="F"/>
-
-#VERBOSELSTAR
-F		DoVerboseLstar
-
-Command controls the printing of Lstar values and magnetic island
-information to screen. Default shown.
-
-shown.
-
-</command>
-
-<command name="VERBOSELATGRID">
-  	<parameter name="DoVerboseLatGrid" type="logical" default="F"/>
-
-#VERBOSELATGRID
-F		DoVerboseLatGrid
-
-Prints to screen latitude and equatorial grid information. Default
-shown.
-
-</command>
-
 </commandgroup>
 
 <commandgroup name="PHYSICS PARAMETERS">
@@ -404,6 +414,69 @@ of electron PSD is controlled with the #STRONGDIFFUSION routine.
 The default is UseDecay false.
 </command>
 
+<command name="LATITUDINALGRID">
+  	<parameter name="DoDefineVarNpower" type="logical" default="F"/>
+  	<parameter name="varNpower" type="real" default="2." />
+  	<parameter name="xlatmax" type="real" default="72.4356255492731975" />
+
+#LATITUDINALGRID
+T		DoDefineVarNpower
+2. 		varNpower
+72.4356255492731975	xlatmax
+
+If DoDefineVarNpower is true, calculate ionospheric latitude grid by 
+xlat = acos(1./varL)**(1./varNpower)
+varL is uniformly spacing from varLmin to varLmax.
+xlatmin = acos(1./varLmin)**(1./varNpower)
+xlatmax = acos(1./varLmax)**(1./varNpower)
+Note. If LATITUDINALGRID is not turned on, default varNpower is 2.
+parameter xlatmax is in a unit of deg 
+</command>
+
+<command name="HIGHERORDERDRIFT">
+  	<parameter name="UseHigherOrder" type="logical" default="F"/>
+  	<parameter name="iOrderLat" type="integer" default="2"/>
+  	<parameter name="iOrderLon" type="integer" default="2"/>
+#HIGHERORDERDRIFT
+T		UseHigherOrder 
+7		iOrderLat
+7		iOrderLon
+
+If UseHigherOrder is true, construct inter flux during CIMI advection
+in higher order using ULTIMATE advection scheme (Lagrangian
+interpoation + Universal Limiter).  E.g. if iOrderLat = 7, then
+construct latitude inter flux in 7th order scheme.  If iOrderLon = 7,
+then construct longitude inter flux in 7th order scheme.  If iOrderLat
+and iOrderLon are equal to 2 then use 2nd order scheme and Superbee
+limter.
+</command>
+
+<command name="DIAGONALIZEDDIFFUSION">
+  	<parameter name="UseDiagDiffusion" type="logical" default="F"/>
+#DIAGONALIZEDDIFFUSION
+T		UseDiagDiffusion
+
+If UseDiagDiffusion is true, use (Q1,Q2) coordinates instead of (a0,E)
+or (M,K) during diffusion calculation, where Q1 = K and Q2 is defined
+to be Q2_min = E and Q2 is obtaind from constant Q2 curve (dQ2 = 0) in
+(a0,E), integrating dE/da0 = DaE/Daa Note. UseWaveDiffusion must be
+true to use this option.
+</command>
+
+<command name="#DIFFUSIONTEST">
+  	<parameter name="UsePitchAngleDiffusionTest" type="logical" default="F"/>
+  	<parameter name="UseEnergyDiffusionTest" type="logical" default="F"/>
+
+#DIFFUSIONTEST
+F		UsePitchAngleDiffusionTest
+F		UseEnergyDiffusionTest
+
+If either of the parameters is true, calculate diffusion and compare
+with analytical solution.  NOTE: UseWaveDiffusion and UseDiagDiffusion
+must be true to use this option.  Only UsePitchAngleDiffusionTest OR
+UseEnergyDiffusionTest can be TRUE at a time; the other must be false.
+
+</command>
 </commandgroup>
 
 </commandList>

@@ -1,8 +1,8 @@
 Module ModCimiPlanet
+
   implicit none
 
-  real :: re_m, dipmom
-  real :: Hiono = 120 ! ionosphere altitude in km
+  real :: re_m, dipmom, Hiono, rc
   
   !Species Information: Number of Ion Species (Earth=H+)
   integer,parameter :: nspec=2  ! number of species
@@ -45,8 +45,8 @@ Module ModCimiPlanet
   integer, dimension(nspec+1) :: iPhotplot_I =(/7,8,9/) 
   integer, dimension(nspec+1) :: iPparhotplot_I =(/10,11,12/)
   integer, dimension(nspec+1) :: iNplot_I    =(/12,14,15/)
-  integer, parameter          :: Beq_=16,Vol_=17,Pot_=18, FAC_=19, FAC_=20,&
-                                 Lstar_=21, Plas_=22, nVar=22
+  integer, parameter          :: Beq_=16,Vol_=17,Pot_=18, FAC_=19, Lstar_=20,&
+                                 Plas_=21, nVar=21
 
   !set coupling variables for GM
   character(len=*), parameter :: &
@@ -64,4 +64,26 @@ Module ModCimiPlanet
        'RbSume RcSume  eDrift  eBfield  eChargeEx  eWaves '// &
        ' eStrongDiff  eDecay  eLossCone  eDriftIn  eDriftOut'
 
+  public :: init_cimi_planet_const
+
+contains
+
+  subroutine init_cimi_planet_const
+
+    use ModPlanetConst,	ONLY: Earth_, DipoleStrengthPlanet_I, rPlanet_I
+
+    ! ionosphere altitude in km
+    Hiono = 120.0
+
+    ! earth's radius (m)
+    re_m = rPlanet_I( Earth_ )
+
+    ! earth's dipole moment
+    dipmom = ABS( DipoleStrengthPlanet_I( Earth_ ) * re_m ** 3 )
+
+    ! ionosphere distance in RE
+    rc = ( re_m + Hiono * 1000. ) / re_m
+    
+  end subroutine init_cimi_planet_const
+  
 end Module ModCimiPlanet

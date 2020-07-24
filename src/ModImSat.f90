@@ -4,7 +4,7 @@ Module ModImSat
   logical :: DoWriteSats  = .false., ReadRestartSat = .false.
   logical,            allocatable :: IsFirstWrite(:,:)
   integer :: nImSats = 0, iStartTime = 0
-  real    :: DtSatOut = 1.0 !Default write sat output every minute
+  real    :: DtSatOut = 60.0 !Default write sat output every minute
   real,               allocatable :: SatLoc_3I(:,:,:), SatFlux_3I(:,:,:)
   real,               allocatable :: BfieldEq2_G(:,:)
   real,               allocatable :: LonGrid_G(:), Flux_G(:,:,:,:,:)
@@ -61,8 +61,9 @@ contains
     
     if(.not. allocated(SatFlux_3I))  &
          allocate(SatFlux_3I(nSpecies,nEnergy,nAngle))
-    if(.not. allocated(BfieldEq2_G)) allocate(BfieldEq2_G(nLat,0:nLon+1))
-
+    if(.not. allocated(BfieldEq2_G)) &
+       allocate(BfieldEq2_G(nLat,0:nLon+1))
+    
     ! Allocate Lat, Lon and Flux grids with Ghost Cells
     if(.not. allocated(LonGrid_G)) then
        allocate(LonGrid_G(0:nLon+1))
@@ -84,10 +85,10 @@ contains
     endif
 
     ! Set BfieldEq^2 on first sat call
-    if (iSatIn == 1) then 
-       BfieldEq2_G(:,1:nLon) = (BfieldEq_C(:,1:nLon))**2.0
-       BfieldEq2_G(:,nLon+1) =  BfieldEq2_G(:,1)
-       BfieldEq2_G(:,0)      =  BfieldEq2_G(:,nLon)
+    if (iSatIn == 1) then
+       BfieldEq2_G(:,1:nLon) = ( BfieldEq_C(:,1:nLon) ) ** 2.0
+       BfieldEq2_G(:,nLon+1) =   BfieldEq2_G(:,1)
+       BfieldEq2_G(:,0)      =   BfieldEq2_G(:,nLon)
     endif
 
     ! Collect variables.
@@ -119,7 +120,7 @@ contains
           SatB2 = SatLoc_3I(4,2,iSatIn)
           EqB2 = bilinear(BfieldEq2_G,1,nLat,0,nLon+1,& 
                (/ LatSatGen, LonSatGen /) )
-          RatioBeqBsat  = sqrt(EqB2 / SatB2)
+          RatioBeqBsat  = sqrt( EqB2 / SatB2 )
           
           ! Beq must be minimum so ratio can not be larger than 1
           if (RatioBeqBsat > 1.0) RatioBeqBsat=1.0
@@ -210,7 +211,7 @@ contains
        write(UnitTmp_,'(3es13.5)',ADVANCE='NO') &
             SatLoc_3I(1:3,1,iSatIn)
        write(UnitTmp_,'(2es13.5)',ADVANCE='NO') &
-            SQRT( EqB2 )*1.e9, SQRT( SatB2 ) * 1.e9
+            SQRT( EqB2 ) * 1.e9, SQRT( SatB2 ) * 1.e9
        write(numChannels,'(I4)') nEnergy*nAngle
        write(UnitTmp_,'('//numChannels//'es13.5)') &
             SatFlux_3I(iSpecies,:,:)!SatVar_I

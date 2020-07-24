@@ -7,6 +7,7 @@ $^I = "";
 push @INC, ".";
 
 use strict;
+
 our @Arguments       = @ARGV;
 our $MakefileDefOrig = "src/Makefile.def";
 our $Component = "IM";
