@@ -1,8 +1,10 @@
 # use a docker image of ubuntu linux with gcc and mpich
-image: aglocer/ubuntu-mpich:v1
+# image: aglocer/ubuntu-mpich:v1
 
 build:
   stage: build
+  tags:
+    - macbook 
   script:
     - ./Config.pl -install -compiler=gfortran
     - make -j test_compile
@@ -17,6 +19,8 @@ build:
 # run tests using the binary built before
 test:
   stage: test
+  tags:
+    - macbook 
   script:
     - ./Config.pl -install -compiler=gfortran
     - make -j test_compile
