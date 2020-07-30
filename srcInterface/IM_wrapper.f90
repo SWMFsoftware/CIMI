@@ -145,7 +145,7 @@ contains
     use ModCimiGrid,      ONLY: np, xlat
     use ModCimi,          ONLY: init_mod_cimi, Time
     use ModCimiTrace,     ONLY: init_mod_field_trace
-    !use ModGmCimi,        ONLY: init_gm_cimi
+    use ModCimiPlanet,    ONLY: init_cimi_planet_const
     use ModImTime
     use ModTimeConvert,   ONLY: time_real_to_int
     use CON_physics,      ONLY: get_time
@@ -156,8 +156,11 @@ contains
     character(len=*), parameter :: NameSub='IM_init_session'
     !------------------------------------------------------------------------
     ! GM info needed before initialization just set up latitude/longitude grid
+    
     call init_mod_cimi
     call init_mod_field_trace
+    call init_cimi_planet_const
+
     call cimi_init
     !call init_gm_cimi
     
@@ -218,13 +221,17 @@ contains
   !===========================================================================
 
   subroutine IM_save_restart(TimeSimulation)
-    use ModCimiRestart, ONLY: cimi_write_restart
-    use ModPlasmasphere,   ONLY: UseCorePsModel,save_restart_plasmasphere
+
+    use CON_coupler,     ONLY: NameRestartOutDirComp
+    use ModCimiRestart,  ONLY: cimi_write_restart, NameRestartOutDir
+    use ModPlasmasphere, ONLY: UseCorePsModel, save_restart_plasmasphere
     
     real,     intent(in) :: TimeSimulation   ! seconds from start time
     character(len=*), parameter :: NameSub='IM_save_restart'
 
     !-------------------------------------------------------------------------
+    if(NameRestartOutDirComp /= '') NameRestartOutDir = NameRestartOutDirComp
+
     call cimi_write_restart
     if (UseCorePsModel) call save_restart_plasmasphere
     
@@ -465,8 +472,7 @@ contains
     LatBodyGm = acos(sqrt(1.0/(rBodyGM)))
     !set iLatMin for Minimum latitude in MHD boundary
     FIND_iLatMin: do iLat=1,nLat
-       if (abs(xlatr(iLat))>=LatBodyGm) then
-
+       if (xlatr(iLat)>=LatBodyGm) then
           iLatMin=iLat
           exit FIND_iLatMin
        end if
@@ -514,8 +520,8 @@ contains
 
     !Solar wind values
     if(IsFirstCall .or. (.not. UseSmooth)) then
-       xnswa(1) = BufferSolarWind_V(1)*1.0e-6                   !m^-3 -->/cc
-       vswa (1) = sqrt(sum(BufferSolarWind_V(2:4)**2.0))*1.0e-3 !m/s-->km/s
+       xnswa(1) = BufferSolarWind_V(1)*1e-6                 !m^-3 -->/cc
+       vswa (1) = sqrt(sum(BufferSolarWind_V(2:4)**2))*1e-3 !m/s-->km/s
     else
        ! Update Solar wind value, but do not let them change 
        ! more than 5 percent per update
@@ -523,14 +529,14 @@ contains
        SwDensMin = 0.95*xnswa(1)
        SwVelMax  = 1.05*vswa(1)
        SwVelMin  = 0.95*vswa(1)
-       xnswa(1) = min(SwDensMax,BufferSolarWind_V(1)*1.0e-6)
+       xnswa(1) = min(SwDensMax,BufferSolarWind_V(1)*1e-6)
        xnswa(1) = max(SwDensMin,xnswa(1))
-       vswa(1)  = min(SwVelMax,sqrt(sum(BufferSolarWind_V(2:4)**2.0))*1.0e-3)
+       vswa(1)  = min(SwVelMax,sqrt(sum(BufferSolarWind_V(2:4)**2))*1e-3)
        vswa(1)  = max(SwVelMin,vswa(1))
     endif
-    bxw(1) = BufferSolarWind_V(5)*1.0e9      !T --> nT
-    byw(1) = BufferSolarWind_V(6)*1.0e9      !T --> nT
-    bzw(1) = BufferSolarWind_V(7)*1.0e9      !T --> nT
+    bxw(1) = BufferSolarWind_V(5)*1e9      !T --> nT
+    byw(1) = BufferSolarWind_V(6)*1e9      !T --> nT
+    bzw(1) = BufferSolarWind_V(7)*1e9      !T --> nT
 
     nsw = 1
 
