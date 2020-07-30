@@ -419,7 +419,7 @@ subroutine cimi_run(delta_t)
         endif 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!        
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!                                                  !!!
 !!!     THIS NEEDS TO BE UNCOMMENTED ONCE            !!!
 !!!     CROSS-DIFFUSION IS FIXED.  :::COLIN:::       !!!
@@ -815,8 +815,8 @@ subroutine cimi_init
 !  do k=2,neng
 !     Ebound(k)=sqrt(energy(k-1)*energy(k))
 !  enddo
-!  Ebound(1) = energy(1)**2.0/Ebound(2)
-!  Ebound(neng+1)=energy(neng)**2.0/Ebound(neng)
+!  Ebound(1) = energy(1)**2/Ebound(2)
+!  Ebound(neng+1)=energy(neng)**2/Ebound(neng)
 
 
 ! setup energies:
@@ -848,23 +848,24 @@ subroutine cimi_init
 
      ! Calculates the rest mass energy [ keV ] of the particle
      ! species.
-     E0 = amu_I( n ) * cProtonMass * cLightSpeed ** 2. / &
+     E0 = amu_I( n ) * cProtonMass * cLightSpeed ** 2 / &
           cElectronCharge / 1000.
 
      ! Convert energy from keV to J to calculate mu in [ J / Tesla ]
      ! The minimum of the mu grid should fit the lowest energy
      ! particles at the Earth's surface.
+
      xmm( n, 01 ) = &
           energy( n, 1 ) * 1000. * cElectronCharge * &
           ( energy( n, 1 ) + 2. * E0 ) / E0 / &
-          ( 2 * dipmom / ( 01.0 * re_m ) ** 3.0 )
+          ( 2 * dipmom / (  1.0 * re_m ) ** 3 )
 
      ! The maximum of mu grid should fit the highest energy particles
      ! at 45 R_E well beyond the extent of the simulation grid.
      xmm( n, nm ) = &
           energy( n, neng ) * 1000. * cElectronCharge * &
           ( energy( n, neng ) + 2. * E0 ) / E0 / &
-          ( 2 * dipmom / ( 45.0 * re_m ) ** 3.0 )
+          ( 2 * dipmom / ( 45.0 * re_m ) ** 3 )
 
      rw = ( xmm( n, nm ) / xmm( n, 01 ) ) ** ( 1. / FLOAT( nm ) )
 
@@ -890,7 +891,7 @@ subroutine cimi_init
   ! This setup makes xmm(k+0.5)=sqrt(xmm(k)*xmm(k+1))
 
 !!$  do n=1,nspec
-!!$     xmm(n,1)=energy(n,1)*cElectronCharge/(dipmom/(2*re_m)**3.0)
+!!$     xmm(n,1)=energy(n,1)*cElectronCharge/(dipmom/(2*re_m)**3)
 !!$     rw=1.55 
 !!$     rw1=(rw-1.)/sqrt(rw)
 !!$     xmm(n,0)=xmm(n,1)/rw                      
@@ -901,15 +902,15 @@ subroutine cimi_init
 !!$     xmm(n,nm+1)=xmm(n,nm)*rw
 !!$  enddo
 
-  !-----------------------------------------------------------------------------
-  !-----------------------------------------------------------------------------
+  !---------------------------------------------------------------------------
+  !---------------------------------------------------------------------------
   
   ! OLDEST INITIALIZATION of CIMI magnetic moment, xmm1 (pre-2016)
   ! This setup has been saved and commented out here for comparison
   ! with older simulations
 
 !!$  do n=1,nspec
-!!$     xmm(n,1)=energy(n,1)*cElectronCharge/(dipmom/(2*re_m)**3.0)
+!!$     xmm(n,1)=energy(n,1)*cElectronCharge/(dipmom/(2*re_m)**3)
 !!$     dmm(n,1)=xmm(n,1)*2.              
 !!$     rw=1.55 
 !!$     do i=2,nm                    
@@ -918,8 +919,8 @@ subroutine cimi_init
 !!$     enddo
 !!$  enddo
 
-  !-----------------------------------------------------------------------------
-  !-----------------------------------------------------------------------------
+  !---------------------------------------------------------------------------
+  !---------------------------------------------------------------------------
 
   ! CIMI K grid, xk: Minimum value is 40 T^0.5 / m
   ! (~89 degrees at L = 1 R_E or ~87 degrees at L = 7.)

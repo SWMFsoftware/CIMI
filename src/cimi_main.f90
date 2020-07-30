@@ -129,7 +129,7 @@ program cimi
      if (floor((Time+1.0e-5)/DtSaveRestart) /= &
           floor((Time+1.0e-5-DtAdvance)/DtSaveRestart)) then
         call cimi_write_restart
-        if (UseCorePsModel) call save_restart_plasmasphere
+        if (UseCorePsModel .and. iProc == 0) call save_restart_plasmasphere
      endif
      
      ! Read new prerun file if using prerun fields and it is time to read
@@ -145,7 +145,7 @@ program cimi
 
   ! Save restart at TimeMax
   call cimi_write_restart
-  if (UseCorePsModel) call save_restart_plasmasphere
+  if (UseCorePsModel .and. iProc == 0) call save_restart_plasmasphere
   
   ! Finalize timing commands
   call timing_stop('CIMI')

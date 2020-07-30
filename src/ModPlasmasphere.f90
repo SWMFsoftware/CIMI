@@ -1,14 +1,11 @@
+module ModPlasmasphere
 
-!-------------------------------------------------------------------------------
-!                            plasmasphere_cimi.f90
-! 
-! A code to calculate plaamasphere flux tube content. The code is coupled with
-! the cimi code, which provides the grid and the convection potential.
-!
-! Created on 1 February 2019 by Mei-Ching Fok. Code 673, NASA GSFC.
-!-------------------------------------------------------------------------------
+  ! A code to calculate plaamasphere flux tube content. The code is coupled with
+  ! the cimi code, which provides the grid and the convection potential.
+  !
+  ! Created on 1 February 2019 by Mei-Ching Fok. Code 673, NASA GSFC.
 
-Module ModPlasmasphere
+  use ModCimiRestart, ONLY: NameRestartInDir, NameRestartOutDir
 
   implicit none
 
@@ -23,7 +20,7 @@ Module ModPlasmasphere
   real,parameter	::	DipM = 8068892578927199.0
   ! radial distance of ionosphere in RE
   real,parameter	::	rc = 1.0188146754468486       
- 
+
 
   !grid and saturation density values
   integer,parameter,public :: nl=209,np=192
@@ -42,13 +39,13 @@ Module ModPlasmasphere
   integer,allocatable :: ibCimi(:)
   real, allocatable :: xlatCimi(:),phiCimi(:),roCimi(:,:),volumeCimi(:,:),&
        potentCimi(:,:),phi2Cimi(:,:)
-  
 
-  
+
+
   ! Setup the trough by trough(6.6)*dipolevolumep(6.6) as in pbo_2.f
   ! number of particle per unit magnetic flux at trough 
   real, parameter :: NTro=9.40e20   
-  
+
   real Bi(nl),dilatp(nl),dlatp(nl)
 
   character*1 Ndon(nl,np),Sdon(nl,np)
@@ -77,7 +74,7 @@ contains
          rotest(nltest,nptest),volumetest(nltest,nptest),&
          phitest2(nltest,nptest),potenttest(nltest,nptest)
     !--------------------------------------------------------------------------
-    
+
     ! Setup grid (or provided in cimi)
     xlat1=20.
     xlat2=71.
@@ -92,7 +89,7 @@ contains
     do j=1,nptest
        phitest(j)=(j-1)*dphi
     enddo
-    
+
     ! Setup ibp, rop, phip and volume assuming dipole (or provided in cimi)
     ibtest(:)=nltest
     volume0=9.14e-4*re_m**4/DipM
@@ -108,7 +105,7 @@ contains
        enddo
     enddo
 
-    
+
     ! More setup and output the initial density
     delt=30.      ! call plasmasphere every delt seconds
     tmin=0.
@@ -130,12 +127,12 @@ contains
     !or else the initialization calculation will be garbage
     call init_plasmasphere(nltest,nptest,xlattest,phitest,ibtest,&
          rotest,phitest2,volumetest,potenttest,.false.)
-    
+
     call cimi_put_to_plasmasphere(nltest,nptest,rotest,phitest2,volumetest,&
          potenttest,ibtest)
 
     call save_plot_plasmasphere(tsec,0,.false.)
-    
+
     ! Run the model with Vollend-Stern field (or potential in cimi)
     do n=1,Nstep
        write(*,*) n,tsec
@@ -154,7 +151,7 @@ contains
 
        call cimi_put_to_plasmasphere(nltest,nptest,rotest,phitest2,volumetest,&
             potenttest,ibtest)
-              
+
        call advance_plasmasphere(delt)
        ! output densityp
        if (mod(tsec,1800.).eq.0) then
@@ -162,7 +159,7 @@ contains
        endif
     enddo
 
-    
+
   end subroutine unit_test_plasmasphere
 
   !=============================================================================
@@ -177,7 +174,7 @@ contains
     real,    allocatable:: X_C(:,:), Y_C(:,:)
 
     real, allocatable   :: Coord_DII(:,:,:), PlotState_IIV(:,:,:)
-    
+
     integer             :: iLat,iLon,iSpecies,nLat,nLon
     integer, parameter  :: x_=1, y_=2, nDim=2,nVar=3
     real                :: Theta, Phi
@@ -188,11 +185,11 @@ contains
     logical,save             :: IsFirstCall = .true.
     character(len=100)  :: NamePlotVar='x y density vol potent g rbody'
     character(len=5)    :: TypePlot   = 'ascii'
-    
+
     !--------------------------------------------------------------------------
     nLat=nl
     nLon=np
-    
+
     allocate(Coord_DII(nDim,nLat,nLon+1), &
          PlotState_IIV(nLat,nLon+1,nVar),X_C(nLat,nLon), Y_C(nLat,nLon))
 
@@ -202,19 +199,19 @@ contains
           Y_C(iLat,iLon)=rop(iLat,iLon)*sin(phip(iLat,iLon))
        enddo
     enddo
-    
+
     PlotState_IIV = 0.0
     Coord_DII     = 0.0
-    
+
     !Set Coords
     Coord_DII(x_,:, 1:nLon) = X_C(:,1:nLon)
     Coord_DII(y_,:, 1:nLon) = Y_C(:,1:nLon)
-    
+
 
     !fill ghost cells of Coords
     Coord_DII(x_,:, nLon+1) = X_C(:,1)
     Coord_DII(y_,:, nLon+1) = Y_C(:,1)
-    
+
 
     !Set plot data
     do iLon = 1, nLon
@@ -247,33 +244,33 @@ contains
          nStepIn = nStep, TimeIn = Time, &
          nDimIn = 2, CoordIn_DII = Coord_DII, &
          VarIn_IIV = PlotState_IIV, ParamIn_I = (/ Gamma, rBody /) )
-    
+
     deallocate( Coord_DII,  PlotState_IIV,X_C, Y_C)
 
   end subroutine save_plot_plasmasphere
 
 
-  
-!-------------------------------------------------------------------------------
+
+  !-------------------------------------------------------------------------------
   subroutine advance_plasmasphere(delt) 
-!-------------------------------------------------------------------------------
-! A plasmasphere model calculates number of plasmasphere ions per unit magnetic
-! flux, Nion. This code is similar to Dan Ober's model (pbo_2.f).
-!
-! INPUT
-! potentp(nl,np): potential in Volt at (xlatp,pphi)
-! delt: simulation time in second of this call
-!
-! INPUT/OUTPUT
-! Nion: number of ions per unit magnetic flux.    
-!-------------------------------------------------------------------------------
+    !-------------------------------------------------------------------------------
+    ! A plasmasphere model calculates number of plasmasphere ions per unit magnetic
+    ! flux, Nion. This code is similar to Dan Ober's model (pbo_2.f).
+    !
+    ! INPUT
+    ! potentp(nl,np): potential in Volt at (xlatp,pphi)
+    ! delt: simulation time in second of this call
+    !
+    ! INPUT/OUTPUT
+    ! Nion: number of ions per unit magnetic flux.    
+    !-------------------------------------------------------------------------------
     real, intent(in) :: delt
     integer n,nstep,nrun,i,j
 
     real dtmax,dt,vl(nl,np),vp(nl,np)
     real dt1,cl(nl,np),cp(nl,np)
     !--------------------------------------------------------------------------
-    
+
     ! determine time step 
     dtmax=30.                    ! maximum time step in second
     nstep=ceiling(delt/dtmax)
@@ -287,11 +284,11 @@ contains
           Nsat(i,j)=denSat(i,j)*volumep(i,j)
        enddo
     enddo
-    
+
     ! calculate convection velocity and Courant numbers
     call Vconvect(dt, dt1,nrun,vl,vp,cl,cp)
 
-    
+
     ! time loop to update Nion    
     do n=1,nstep    
        call trough(nl,np)
@@ -305,15 +302,15 @@ contains
           densityp(i,j)=Nion(i,j)/volumep(i,j)
        enddo
     enddo
-        
+
     !after calculation interpolate data back to CIMI grid
     call interpolate_plasmasphere_to_cimi
-    
+
   end subroutine advance_plasmasphere
   !==========================================================================
   subroutine init_plasmasphere(nLatIn,nLonIn,xlatIn,phiIn,ibIn,&
        roIn,phi2In,VolumeIn,potentIn,IsRestart)
-         
+
     integer, intent(in) :: nLatIn,nLonIn
     real,    intent(in) :: xlatIn(nLatIn),phiIn(nLonIn),roIn(nLatIn,nLonIn),&
          phi2In(nLatIn,nLonIn),volumeIn(nLatIn,nLonIn),potentIn(nLatIn,nLonIn)
@@ -340,7 +337,7 @@ contains
     !allocate cimi arrays to hold input and output variables
     if (allocated(roCimi)) deallocate(roCimi)
     allocate(roCimi(nLatCimi,nLonCimi))
-    
+
     if (allocated(volumeCimi)) deallocate(volumeCimi)
     allocate(volumeCimi(nLatCimi,nLonCimi))
 
@@ -356,13 +353,13 @@ contains
     if (allocated(PlasDensity_C)) deallocate(PlasDensity_C)
     allocate(PlasDensity_C(nLatCimi,nLonCimi))
 
-    
+
     !save cimi grid
     xlatCimi = xlatIn
     phiCimi  = phiIn
     ibCimi   = ibIn
 
-    
+
     !save initial cimi values
     roCimi=roIn
     volumeCimi=volumeIn
@@ -407,7 +404,7 @@ contains
     dilatp(nl)=2.*(xlatu-xlatp(nl))      
     dlatp(1)=xlatp(1)-xlatl+0.5*dilatp(1) 
     dlatp(nl)=xlatu-xlatp(nl)+0.5*dilatp(nl-1)
-    
+
     ! find Bi, Ndon, Sdon
     DipMr3=DipM/(rc*re_m)**3
     do j=1,np
@@ -427,7 +424,7 @@ contains
     !interpolate initial values to plasmasphere grid
     call interpolate_cimi_to_plasmasphere
 
-    
+
     !set initial plasmasphere condition
     Nion=0.0
     if (.not.IsRestart) then
@@ -453,41 +450,37 @@ contains
        enddo
     enddo
 
-    
+
   end subroutine init_plasmasphere
 
   !=========================================================================
-  ! load the plasmasphere data when restarting
-  !
   subroutine load_restart_plasmasphere
+
+    ! load the plasmasphere data when restarting
+
     use ModUtilities, ONLY: open_file, close_file
     use ModIoUnit,    ONLY: UnitTmp_
-    integer :: iLat,iLon
-    character(len=100) :: NameRestartInDir="IM/restartIN/"
-    character(len=100) :: NameRestartOutDir="IM/restartOUT/"
+
     character(len=*), parameter:: NameSub = 'load_restart_plasmasphere'    
-    
     !--------------------------------------------------------------------------
 
     call open_file(file=trim(NameRestartInDir)//'plasdata.restart',&
          status='old',form='unformatted', NameCaller=NameSub)
-       
+
     read(UnitTmp_) Nion  
 
     call close_file
   end subroutine load_restart_plasmasphere
 
-    !=========================================================================
-  ! load the plasmasphere data when restarting
-  !
+  !=========================================================================
   subroutine save_restart_plasmasphere
+
+    ! save the plasmasphere data for restarting
+
     use ModUtilities, ONLY: open_file, close_file
     use ModIoUnit,    ONLY: UnitTmp_
-    integer :: iLat,iLon
-    character(len=100) :: NameRestartInDir="IM/restartIN/"
-    character(len=100) :: NameRestartOutDir="IM/restartOUT/"
+
     character(len=*), parameter:: NameSub = 'save_restart_plasmasphere'    
-    
     !--------------------------------------------------------------------------
 
     call open_file(file=trim(NameRestartOutDir)//'plasdata.restart',&
@@ -503,19 +496,19 @@ contains
     real,    intent(in) :: roIn(nLatIn,nLonIn),phi2In(nLatIn,nLonIn),&
          volumeIn(nLatIn,nLonIn),potentIn(nLatIn,nLonIn)
     integer, intent(in) ::ibIn(nLonIn)
-    
+
     !-------------------------------------------------------------------------
     roCimi     = roIn
     volumeCimi = volumeIn
     potentCimi = potentIn
     phi2Cimi   = phi2In
     ibCimi     = ibIn
-    
+
     call interpolate_cimi_to_plasmasphere
-    
+
 
   end subroutine cimi_put_to_plasmasphere
-  
+
   !==========================================================================
   subroutine interpolate_cimi_to_plasmasphere
     use ModInterpolate, ONLY: bilinear,linear
@@ -524,14 +517,14 @@ contains
     real :: LatLon_D(2), LatBcPlasTmp
     real, allocatable :: LatBcTmp(:)
     !--------------------------------------------------------------------------
-    
+
     !interpolate ibCimi to ibp
     !first find find latitude boundary array for CIMI
     if (.not.allocated(LatBcTmp))allocate(LatBcTmp(nLonCimi))
     do iLon = 1, nLonCimi
        LatBcTmp(iLon)=xlatCimi(ibCimi(iLon))
     enddo
-    
+
     !for each longitude, interpolate to find boundary lat
     do iLon=1,np
        LatBcPlasTmp=linear(LatBcTmp,1,nLonCimi,pphi(iLon),phiCimi,&
@@ -578,10 +571,10 @@ contains
        enddo
     enddo
 
-    
+
   end subroutine interpolate_cimi_to_plasmasphere
-     
-  
+
+
   !==========================================================================
   subroutine interpolate_plasmasphere_to_cimi
     use ModInterpolate, ONLY: bilinear
@@ -597,277 +590,277 @@ contains
 
           PlasDensity_C(iLat,iLon) = &
                bilinear(densityp,1,nl,1,np,LatLon_D, &
-               		xlatp,pphi,DoExtrapolate=.true.)
+               xlatp,pphi,DoExtrapolate=.true.)
        enddo
     enddo
-              
+
   end subroutine interpolate_plasmasphere_to_cimi
 
 
-!-------------------------------------------------------------------------------
+  !-------------------------------------------------------------------------------
   subroutine Vconvect(dt,dt1,nrun,vl,vp,cl,cp)
-!-------------------------------------------------------------------------------
-! Routine calculates the convection velocities vl and vp
-! Input: nl,np,ibp,xlatp,dilatp,dphi,DipM,rc,re,dt
-! Output: dt1,nrun,vl,vp,cl,cp
+    !-------------------------------------------------------------------------------
+    ! Routine calculates the convection velocities vl and vp
+    ! Input: nl,np,ibp,xlatp,dilatp,dphi,DipM,rc,re,dt
+    ! Output: dt1,nrun,vl,vp,cl,cp
 
-  implicit none
+    implicit none
 
-  integer i,j,j0,j2,i0,i2,nrun
-  real vl(nl,np),vp(nl,np)
-  real cl(nl,np),cp(nl,np)
-  real pi,dphi2,kfactor,cor,ksai,xlatp1,ksai1,sf0,sf2,dlat2,dt,dt1,cmax,cmx
+    integer i,j,j0,j2,i0,i2,nrun
+    real vl(nl,np),vp(nl,np)
+    real cl(nl,np),cp(nl,np)
+    real pi,dphi2,kfactor,cor,ksai,xlatp1,ksai1,sf0,sf2,dlat2,dt,dt1,cmax,cmx
 
-  pi=acos(-1.)
-  dphi2=dphip*2.
-  kfactor=DipM/rc/re_m
-  cor=2.*pi/86400.                  ! corotation speed in rad/s
+    pi=acos(-1.)
+    dphi2=dphip*2.
+    kfactor=DipM/rc/re_m
+    cor=2.*pi/86400.                  ! corotation speed in rad/s
 
-! Find vl, vp
-  do i=1,nl
-     ksai=kfactor*sin(2.*xlatp(i))
-     xlatp1=xlatp(i)+0.5*dilatp(i)    
-     ksai1=kfactor*sin(2.*xlatp1)         ! ksai at i+0.5
-     do j=1,np
-        j0=j-1
-        if (j0.lt.1) j0=j0+np
-        j2=j+1
-        if (j2.gt.np) j2=j2-np
+    ! Find vl, vp
+    do i=1,nl
+       ksai=kfactor*sin(2.*xlatp(i))
+       xlatp1=xlatp(i)+0.5*dilatp(i)    
+       ksai1=kfactor*sin(2.*xlatp1)         ! ksai at i+0.5
+       do j=1,np
+          j0=j-1
+          if (j0.lt.1) j0=j0+np
+          j2=j+1
+          if (j2.gt.np) j2=j2-np
 
-        ! calculate vl
-        if (ibp(j0).gt.i.and.ibp(j2).gt.i) then
-           sf0=0.5*(potentp(i,j0)+potentp(i+1,j0))
-           sf2=0.5*(potentp(i,j2)+potentp(i+1,j2))
-           vl(i,j)=-(sf2-sf0)/dphi2/ksai1        ! vl at (i+0.5,j)
-        else
-           vl(i,j)=vl(i-1,j)
-        endif
+          ! calculate vl
+          if (ibp(j0).gt.i.and.ibp(j2).gt.i) then
+             sf0=0.5*(potentp(i,j0)+potentp(i+1,j0))
+             sf2=0.5*(potentp(i,j2)+potentp(i+1,j2))
+             vl(i,j)=-(sf2-sf0)/dphi2/ksai1        ! vl at (i+0.5,j)
+          else
+             vl(i,j)=vl(i-1,j)
+          endif
 
-        ! calculate vp
-        if (ibp(j2).gt.i.and.ibp(j).gt.i) then
-           i0=i-1
-           if (i.eq.1) i0=1
-           i2=i+1
-           if (i.eq.nl) i2=nl
-           dlat2=xlatp(i2)-xlatp(i0)
-           sf0=0.5*(potentp(i0,j2)+potentp(i0,j))
-           sf2=0.5*(potentp(i2,j2)+potentp(i2,j))
-           vp(i,j)=cor+(sf2-sf0)/dlat2/ksai       ! vp@(i,j+0.5)
-        else
-           vp(i,j)=vp(i-1,j)
-        endif
-     enddo          ! end of j loop
-  enddo             ! end of i loop
-  
-! Find nrun, new dt (dt1), cl and cp
-  cmax=0.
-  do i=1,nl
-     do j=1,np
-        cl(i,j)=dt/dlatp(i)*vl(i,j)
-        cp(i,j)=dt/dphip*vp(i,j)
-        cmx=max(abs(cl(i,j)),abs(cp(i,j))) 
-        cmax=max(cmx,cmax) 
-     enddo
-  enddo
-  nrun=ifix(cmax/0.25)+1     ! nrun to limit the Courant number
-  dt1=dt/nrun
-  if (nrun.gt.1) then       ! reduce cl and cp if nrun > 1
-     cl(1:nl,1:np)=cl(1:nl,1:np)/nrun
-     cp(1:nl,1:np)=cp(1:nl,1:np)/nrun
-  endif
+          ! calculate vp
+          if (ibp(j2).gt.i.and.ibp(j).gt.i) then
+             i0=i-1
+             if (i.eq.1) i0=1
+             i2=i+1
+             if (i.eq.nl) i2=nl
+             dlat2=xlatp(i2)-xlatp(i0)
+             sf0=0.5*(potentp(i0,j2)+potentp(i0,j))
+             sf2=0.5*(potentp(i2,j2)+potentp(i2,j))
+             vp(i,j)=cor+(sf2-sf0)/dlat2/ksai       ! vp@(i,j+0.5)
+          else
+             vp(i,j)=vp(i-1,j)
+          endif
+       enddo          ! end of j loop
+    enddo             ! end of i loop
+
+    ! Find nrun, new dt (dt1), cl and cp
+    cmax=0.
+    do i=1,nl
+       do j=1,np
+          cl(i,j)=dt/dlatp(i)*vl(i,j)
+          cp(i,j)=dt/dphip*vp(i,j)
+          cmx=max(abs(cl(i,j)),abs(cp(i,j))) 
+          cmax=max(cmx,cmax) 
+       enddo
+    enddo
+    nrun=ifix(cmax/0.25)+1     ! nrun to limit the Courant number
+    dt1=dt/nrun
+    if (nrun.gt.1) then       ! reduce cl and cp if nrun > 1
+       cl(1:nl,1:np)=cl(1:nl,1:np)/nrun
+       cp(1:nl,1:np)=cp(1:nl,1:np)/nrun
+    endif
 
   end subroutine Vconvect
 
 
-!-------------------------------------------------------------------------------
+  !-------------------------------------------------------------------------------
   subroutine drift_pl(nrun,vl,cl,cp,dt1)
-!-------------------------------------------------------------------------------
-! Routine updates Nion due to drift (convection+corotation)
+    !-------------------------------------------------------------------------------
+    ! Routine updates Nion due to drift (convection+corotation)
     ! Input: nl,np,ibp,nrun,vl,cl,cp,dt1,dlatp,Nsat
     ! Input/Output: Nion
 
-  implicit none
+    implicit none
 
-  integer i,j,j_1,n,nrun
-  real vl(nl,np),dt1,f2(nl,np),fb1
-  real cl(nl,np),cp(nl,np),fal(nl,np),fap(nl,np),sin2l(nl)
+    integer i,j,j_1,n,nrun
+    real vl(nl,np),dt1,f2(nl,np),fb1
+    real cl(nl,np),cp(nl,np),fal(nl,np),fap(nl,np),sin2l(nl)
 
-! calculate f2
-  Nion(1,1:np)=Nsat(1,1:np)    ! saturation density for first cell
-  do i=1,nl
-     sin2l(i)=sin(2.*xlatp(i))
-     f2(i,1:np)=sin2l(i)*Nion(i,1:np)
-  enddo
+    ! calculate f2
+    Nion(1,1:np)=Nsat(1,1:np)    ! saturation density for first cell
+    do i=1,nl
+       sin2l(i)=sin(2.*xlatp(i))
+       f2(i,1:np)=sin2l(i)*Nion(i,1:np)
+    enddo
 
-! flux at outer boundary
-  fb1=NTro*sin2l(nl)
+    ! flux at outer boundary
+    fb1=NTro*sin2l(nl)
 
-! Update f2 by drift
-  do n=1,nrun
-     call inter_flux(nl,np,ibp,cl,cp,fb1,f2,fal,fap)     
-     do j=1,np
-        j_1=j-1
-        if (j_1.lt.1) j_1=j_1+np
-        do i=2,ibp(j)              
-           f2(i,j)=f2(i,j)+dt1/dlatp(i)*(vl(i-1,j)*fal(i-1,j)-vl(i,j)*fal(i,j))&
-                   +cp(i,j_1)*fap(i,j_1)-cp(i,j)*fap(i,j)  
-           if (f2(i,j).lt.0.) then
-              write(*,*) ' Error: f2(i,j).lt.0.'
-              stop
-           endif
-        enddo
-     enddo
-  enddo 
+    ! Update f2 by drift
+    do n=1,nrun
+       call inter_flux(nl,np,ibp,cl,cp,fb1,f2,fal,fap)     
+       do j=1,np
+          j_1=j-1
+          if (j_1.lt.1) j_1=j_1+np
+          do i=2,ibp(j)              
+             f2(i,j)=f2(i,j)+dt1/dlatp(i)*(vl(i-1,j)*fal(i-1,j)-vl(i,j)*fal(i,j))&
+                  +cp(i,j_1)*fap(i,j_1)-cp(i,j)*fap(i,j)  
+             if (f2(i,j).lt.0.) then
+                write(*,*) ' Error: f2(i,j).lt.0.'
+                stop
+             endif
+          enddo
+       enddo
+    enddo
 
-! get tbe new Nion
-  do j=1,np
-     Nion(1:nl,j)=f2(1:nl,j)/sin2l(1:nl)
-  enddo
+    ! get tbe new Nion
+    do j=1,np
+       Nion(1:nl,j)=f2(1:nl,j)/sin2l(1:nl)
+    enddo
 
   end subroutine drift_pl
 
 
-!-------------------------------------------------------------------------------
+  !-------------------------------------------------------------------------------
   subroutine refill_loss(dt)
-!-------------------------------------------------------------------------------
-! Routine updates Nion due to refilling and loss.
-! On the nightside, dN/dt = -N/(Bi*tau) and N = No*exp(-dt/tau)
-! on the dayside, dN/dt = Fmax*(Nsat-N)/Nsat and 
-!                 N = Nsat - (Nsat - No)*exp(-dt*Fmax/Nsat/Bi)
-!
-! Input: nl,np,ibp,dt,velume,Nsat,Bi,Ndon,Sdon
-! Input/Output: Nion
+    !-------------------------------------------------------------------------------
+    ! Routine updates Nion due to refilling and loss.
+    ! On the nightside, dN/dt = -N/(Bi*tau) and N = No*exp(-dt/tau)
+    ! on the dayside, dN/dt = Fmax*(Nsat-N)/Nsat and 
+    !                 N = Nsat - (Nsat - No)*exp(-dt*Fmax/Nsat/Bi)
+    !
+    ! Input: nl,np,ibp,dt,velume,Nsat,Bi,Ndon,Sdon
+    ! Input/Output: Nion
 
-  implicit none
+    implicit none
 
-  integer i,j
-  real dt
-  real tau,Fmax,factorN,factorD,tFNB
+    integer i,j
+    real dt
+    real tau,Fmax,factorN,factorD,tFNB
 
-  Fmax=2.e12          ! limiting refilling flux in particles/m**2/sec
-  tau=10.*86400.      ! nightside downward diffusion lifetime in second
-  factorN=exp(-dt/tau)
+    Fmax=2.e12          ! limiting refilling flux in particles/m**2/sec
+    tau=10.*86400.      ! nightside downward diffusion lifetime in second
+    factorN=exp(-dt/tau)
 
-  do j=1,np
-     do i=1,ibp(j)
-        ! at Northern ionosphere
-        if (Ndon(i,j).eq.'d') then          ! dayside refilling
-           tFNB=-dt*Fmax/Nsat(i,j)/Bi(i)
-           factorD=exp(tFNB)
-           Nion(i,j)=Nsat(i,j)-(Nsat(i,j)-Nion(i,j))*factorD
-        else
-           Nion(i,j)=Nion(i,j)*factorN      ! nightside diffusion
-        endif
+    do j=1,np
+       do i=1,ibp(j)
+          ! at Northern ionosphere
+          if (Ndon(i,j).eq.'d') then          ! dayside refilling
+             tFNB=-dt*Fmax/Nsat(i,j)/Bi(i)
+             factorD=exp(tFNB)
+             Nion(i,j)=Nsat(i,j)-(Nsat(i,j)-Nion(i,j))*factorD
+          else
+             Nion(i,j)=Nion(i,j)*factorN      ! nightside diffusion
+          endif
 
-        ! at Southern ionosphere
-        if (Sdon(i,j).eq.'d') then          ! dayside refilling
-           tFNB=-dt*Fmax/Nsat(i,j)/Bi(i)
-           factorD=exp(tFNB)
-           Nion(i,j)=Nsat(i,j)-(Nsat(i,j)-Nion(i,j))*factorD
-        else
-           Nion(i,j)=Nion(i,j)*factorN      ! nightside diffusion
-        endif
+          ! at Southern ionosphere
+          if (Sdon(i,j).eq.'d') then          ! dayside refilling
+             tFNB=-dt*Fmax/Nsat(i,j)/Bi(i)
+             factorD=exp(tFNB)
+             Nion(i,j)=Nsat(i,j)-(Nsat(i,j)-Nion(i,j))*factorD
+          else
+             Nion(i,j)=Nion(i,j)*factorN      ! nightside diffusion
+          endif
 
-        ! limit Nion to Nsat
-        if (Nion(i,j).gt.Nsat(i,j)) Nion(i,j)=Nsat(i,j)
-     enddo
-  enddo
+          ! limit Nion to Nsat
+          if (Nion(i,j).gt.Nsat(i,j)) Nion(i,j)=Nsat(i,j)
+       enddo
+    enddo
 
   end subroutine refill_loss
 
 
-!*******************************************************************************
+  !*******************************************************************************
   subroutine trough(nl,np)
-!*******************************************************************************
-! Routine makes sure the plasmasphere density is not lower than the trough
-! density.
-!
-! Input: nl,np
-! Input/Output: Nion
+    !*******************************************************************************
+    ! Routine makes sure the plasmasphere density is not lower than the trough
+    ! density.
+    !
+    ! Input: nl,np
+    ! Input/Output: Nion
 
-  implicit none
+    implicit none
 
-  integer nl,np,i,j
-
-
-  do j=1,np
-     do i=1,nl
-        if (Nion(i,j).lt.NTro) Nion(i,j)=NTro
-     enddo
-  enddo
-
-end subroutine trough
+    integer nl,np,i,j
 
 
-!*******************************************************************************
-subroutine inter_flux(nl,np,ibp,cl,cp,fb1,f2,fal,fap)
-!*******************************************************************************
-!  Routine calculates the inter-flux, fal(i+0.5,j) and fap(i,j+0.5), using
-!  2nd order flux limited scheme with super-bee flux limiter method.
-!
-!  Input: nl,np,ibp,cl,cp,fb1,f2
-!  Output: fal,fap
+    do j=1,np
+       do i=1,nl
+          if (Nion(i,j).lt.NTro) Nion(i,j)=NTro
+       enddo
+    enddo
 
-  implicit none
-  
-  integer nl,np,i,j,j_1,j1,j2
-  integer ibp(np),ibm
-  real cl(nl,np),cp(nl,np),f2(nl,np),fal(nl,np),fap(nl,np),fb1, &
-       fwbc(0:nl+2,np),xsign,fup,flw,x,r,xlimiter,corr
-  
-  fwbc(1:nl,1:np)=f2(1:nl,1:np)     ! fwbc is f2 with boundary condition
-  
-  ! Set up boundary condition
-  fwbc(0,1:np)=f2(1,1:np)
-  fwbc(nl+1:nl+2,1:np)=fb1
-  
-  ! find fa*
-  do j=1,np
-     j_1=j-1
-     j1=j+1
-     j2=j+2
-     if (j_1.lt.1) j_1=j_1+np
-     if (j1.gt.np) j1=j1-np
-     if (j2.gt.np) j2=j2-np
-     ibm=max(ibp(j),ibp(j1))
-     do i=1,ibm    
-        ! find fal
-        xsign=sign(1.,cl(i,j))
-        fup=0.5*(1.+xsign)*fwbc(i,j)+0.5*(1.-xsign)*fwbc(i+1,j)   ! upwind
-        flw=0.5*(1.+cl(i,j))*fwbc(i,j)+0.5*(1.-cl(i,j))*fwbc(i+1,j)   ! LW
-        x=fwbc(i+1,j)-fwbc(i,j)
-        if (abs(x).le.1.e-27) fal(i,j)=fup
-        if (abs(x).gt.1.e-27) then
-           if (xsign.eq.1.) r=(fwbc(i,j)-fwbc(i-1,j))/x
-           if (xsign.eq.-1.) r=(fwbc(i+2,j)-fwbc(i+1,j))/x
-           if (r.le.0.) fal(i,j)=fup
-           if (r.gt.0.) then
-              xlimiter=max(min(2.*r,1.),min(r,2.))
-              corr=flw-fup
-              fal(i,j)=fup+xlimiter*corr
-              if (fal(i,j).lt.0.) fal(i,j)=fup
-           endif
-        endif
-        ! find fap
-        xsign=sign(1.,cp(i,j))
-        fup=0.5*(1.+xsign)*fwbc(i,j)+0.5*(1.-xsign)*fwbc(i,j1)   ! upwind
-        flw=0.5*(1.+cp(i,j))*fwbc(i,j)+0.5*(1.-cp(i,j))*fwbc(i,j1)   ! LW
-        x=fwbc(i,j1)-fwbc(i,j)
-        if (abs(x).le.1.e-27) fap(i,j)=fup
-        if (abs(x).gt.1.e-27) then
-           if (xsign.eq.1.) r=(fwbc(i,j)-fwbc(i,j_1))/x
-           if (xsign.eq.-1.) r=(fwbc(i,j2)-fwbc(i,j1))/x
-           if (r.le.0.) fap(i,j)=fup
-           if (r.gt.0.) then
-              xlimiter=max(min(2.*r,1.),min(r,2.))
-              corr=flw-fup
-              fap(i,j)=fup+xlimiter*corr
-              if (fap(i,j).lt.0.) fap(i,j)=fup
-           endif
-        endif
-     enddo              ! end of do i=1,nl
-  enddo                 ! end of do j=1,np
-  
-end subroutine inter_flux
+  end subroutine trough
 
-end Module ModPlasmasphere
+
+  !*******************************************************************************
+  subroutine inter_flux(nl,np,ibp,cl,cp,fb1,f2,fal,fap)
+    !*******************************************************************************
+    !  Routine calculates the inter-flux, fal(i+0.5,j) and fap(i,j+0.5), using
+    !  2nd order flux limited scheme with super-bee flux limiter method.
+    !
+    !  Input: nl,np,ibp,cl,cp,fb1,f2
+    !  Output: fal,fap
+
+    implicit none
+
+    integer nl,np,i,j,j_1,j1,j2
+    integer ibp(np),ibm
+    real cl(nl,np),cp(nl,np),f2(nl,np),fal(nl,np),fap(nl,np),fb1, &
+         fwbc(0:nl+2,np),xsign,fup,flw,x,r,xlimiter,corr
+
+    fwbc(1:nl,1:np)=f2(1:nl,1:np)     ! fwbc is f2 with boundary condition
+
+    ! Set up boundary condition
+    fwbc(0,1:np)=f2(1,1:np)
+    fwbc(nl+1:nl+2,1:np)=fb1
+
+    ! find fa*
+    do j=1,np
+       j_1=j-1
+       j1=j+1
+       j2=j+2
+       if (j_1.lt.1) j_1=j_1+np
+       if (j1.gt.np) j1=j1-np
+       if (j2.gt.np) j2=j2-np
+       ibm=max(ibp(j),ibp(j1))
+       do i=1,ibm    
+          ! find fal
+          xsign=sign(1.,cl(i,j))
+          fup=0.5*(1.+xsign)*fwbc(i,j)+0.5*(1.-xsign)*fwbc(i+1,j)   ! upwind
+          flw=0.5*(1.+cl(i,j))*fwbc(i,j)+0.5*(1.-cl(i,j))*fwbc(i+1,j)   ! LW
+          x=fwbc(i+1,j)-fwbc(i,j)
+          if (abs(x).le.1.e-27) fal(i,j)=fup
+          if (abs(x).gt.1.e-27) then
+             if (xsign.eq.1.) r=(fwbc(i,j)-fwbc(i-1,j))/x
+             if (xsign.eq.-1.) r=(fwbc(i+2,j)-fwbc(i+1,j))/x
+             if (r.le.0.) fal(i,j)=fup
+             if (r.gt.0.) then
+                xlimiter=max(min(2.*r,1.),min(r,2.))
+                corr=flw-fup
+                fal(i,j)=fup+xlimiter*corr
+                if (fal(i,j).lt.0.) fal(i,j)=fup
+             endif
+          endif
+          ! find fap
+          xsign=sign(1.,cp(i,j))
+          fup=0.5*(1.+xsign)*fwbc(i,j)+0.5*(1.-xsign)*fwbc(i,j1)   ! upwind
+          flw=0.5*(1.+cp(i,j))*fwbc(i,j)+0.5*(1.-cp(i,j))*fwbc(i,j1)   ! LW
+          x=fwbc(i,j1)-fwbc(i,j)
+          if (abs(x).le.1.e-27) fap(i,j)=fup
+          if (abs(x).gt.1.e-27) then
+             if (xsign.eq.1.) r=(fwbc(i,j)-fwbc(i,j_1))/x
+             if (xsign.eq.-1.) r=(fwbc(i,j2)-fwbc(i,j1))/x
+             if (r.le.0.) fap(i,j)=fup
+             if (r.gt.0.) then
+                xlimiter=max(min(2.*r,1.),min(r,2.))
+                corr=flw-fup
+                fap(i,j)=fup+xlimiter*corr
+                if (fap(i,j).lt.0.) fap(i,j)=fup
+             endif
+          endif
+       enddo              ! end of do i=1,nl
+    enddo                 ! end of do j=1,np
+
+  end subroutine inter_flux
+
+end module ModPlasmasphere

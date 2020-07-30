@@ -59,3 +59,13 @@ doc/Tex/CIMI.dvi
 doc/Tex/CIMI.log
 doc/Tex/CIMI.toc
 doc/Tex/CIMIXML.tex
+
+# Link to SWMF_data
+data
+
+# Temporary files
+config.log
+src/ModGrid.f90
+src/ModPlanet.f90
+srcSAMI3/Makefile.suff
+
