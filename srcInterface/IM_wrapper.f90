@@ -225,7 +225,7 @@ contains
     use CON_coupler,     ONLY: NameRestartOutDirComp
     use ModCimiRestart,  ONLY: cimi_write_restart, NameRestartOutDir
     use ModPlasmasphere, ONLY: UseCorePsModel, save_restart_plasmasphere
-    
+    use ModCimiGrid, ONLY: iProc
     real,     intent(in) :: TimeSimulation   ! seconds from start time
     character(len=*), parameter :: NameSub='IM_save_restart'
 
@@ -233,7 +233,7 @@ contains
     if(NameRestartOutDirComp /= '') NameRestartOutDir = NameRestartOutDirComp
 
     call cimi_write_restart
-    if (UseCorePsModel) call save_restart_plasmasphere
+    if (UseCorePsModel .and. iProc == 0) call save_restart_plasmasphere
     
   end subroutine IM_save_restart
   !===========================================================================
