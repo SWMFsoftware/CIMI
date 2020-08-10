@@ -1,3 +1,7 @@
+input
+output
+*.diff
+
 # Prerequisites
 *.d
 
