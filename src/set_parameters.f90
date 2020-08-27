@@ -54,7 +54,7 @@ subroutine CIMI_set_parameters(NameAction)
   logical :: DoSaveSeparateFiles
 
   character (len=5)             :: TypeComposition='FIXED'
-
+  integer :: iSpec
   !\
   ! Description:
   ! This subroutine gets the inputs for CIMI
