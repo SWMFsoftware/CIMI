@@ -707,8 +707,7 @@ subroutine CIMI_set_parameters(NameAction)
               call read_var('DensityFraction', dFactor_I(iSpec))
            end do
         case default
-           call CON_stop(NameSub//': &
-                unknown TypeComposition='//TypeComposition)
+           call CON_stop(NameSub//': unknown TypeComposition='//TypeComposition)
         end select
 
         
