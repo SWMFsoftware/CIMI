@@ -13,7 +13,7 @@ subroutine CIMI_set_parameters(NameAction)
        IsStandAlone, UseStrongDiff, UseDecay, DecayTimescale,&
        dt, dtmax, DoCalcPrecip, DtCalcPrecip, IsStrictDrift
   use ModCimiRestart,	 ONLY: IsRestart, DtSaveRestart
-  use ModCimiPlanet,	 ONLY: nspec
+  use ModCimiPlanet,	 ONLY: nspec, dFactor_I, tFactor_I
   use ModImTime,	 ONLY: iStartTime_I, TimeMax
   use ModCimiBoundary,	 ONLY: &
        UseBoundaryEbihara, UseYoungEtAl, CIMIboundary, Outputboundary
@@ -52,6 +52,9 @@ subroutine CIMI_set_parameters(NameAction)
   integer :: iError, iDate, iCIMIPlotType, nCIMIPlotType
   real :: DensitySW, VelSW, BxSW, BySW, BzSW, DtOutputCIMIPlot
   logical :: DoSaveSeparateFiles
+
+  character (len=5)             :: TypeComposition='FIXED'
+
   !\
   ! Description:
   ! This subroutine gets the inputs for CIMI
@@ -693,6 +696,18 @@ subroutine CIMI_set_parameters(NameAction)
         call read_var('UseDecay',UseDecay)
         if ( UseDecay ) &
              call read_var('DecayTimescale in seconds', DecayTimescale)
+
+     case('#COMPOSITION')
+        call read_var('TypeComposition', TypeComposition, IsUpperCase=.true.)
+        select case(TypeComposition)
+        case('FIXED')
+           do iSpec = 1, nSpec
+              call read_var('DensityFraction', dFactor_I(iSpec))
+           end do
+        case default
+           call CON_stop(NameSub//': unknown TypeComposition='//TypeComposition)
+        end select
+
         
      case('#STRONGDIFFUSION')
         call read_var('UseStrongDiff',UseStrongDiff)
