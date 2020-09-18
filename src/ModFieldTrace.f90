@@ -87,7 +87,8 @@ contains
          h3(np),bs(np),bba(np),&
          x1(ir),xmlt(ip),xli(0:ir),&
          ra(np),dssa(np),tya3(np)
-    integer :: n,i,j,k,m,mir,npf,npf1,im,im1,im2,igood,ii,iTaylor
+    integer :: n,i,j,k,m,mir,npf,npf1,im,im1,im2,igood,ii,iTaylor, j1
+    real    :: rNeighborMax
     integer :: iopt, n5, iout,n8,n7,n6,m0,n70,ib
     real    :: rlim,xmltlim,dre,xlati1,phi1,xmlt1,ro1,volume1,bo1,dss2
     real    :: dssm,rm1,rme,rl,cost,dssp
@@ -103,6 +104,7 @@ contains
             bsi           ! =bs, averaged magnetic field strength btwn 2 points
 
     integer :: imax
+    integer :: iBufferSend_I(ip)
     real :: R_12,R_24,xmltr,xBoundary(ip),BufferSend_I(ip),MajorAxis,MinorAxis,&
          MajorAxis2,MinorAxis2,sin2,Req2,xo1,xc,xCenter,rell2
     real, parameter :: LengthMax = 50.0
@@ -110,7 +112,11 @@ contains
     real :: bmin
 
     logical, save ::  IsFirstCall=.true.
+
+    real, allocatable :: BufferSend_C(:,:), BufferRecv_C(:,:)
+
     !--------------------------------------------------------------------------
+    
     DstOutput=0.0
     ekev=0.0
     volume = 0.0
@@ -118,10 +124,10 @@ contains
 
     iopt=1               ! dummy parameter in t96_01 and t04_s 
     rlim=2.*rb
-    xmltlim=2.           ! limit of field line warping in hour
+    xmltlim=1.!2.           ! limit of field line warping in hour
     dre=0.06             ! r interval below the surface of the Earth
     n5=16                ! no. of point below the surface of the Earth
-    DeltaRMax = 2.0
+    DeltaRMax = 0.75!2.0
 
     ! Sets the non-Monotonicity length threshold (in R_E)
     NonMonoLengthThresh = 1. 
@@ -527,6 +533,45 @@ contains
           call locate1IM(x1,irm(j),rb,ib)
           iba(j)=ib
        enddo
+
+       !kludge add check to make sure iba is not too far past neighbor          
+       ! need to loop both ways to ensure smooth boundary                       
+       !When nProc>1 gather ro to all procs                                     
+       !Gather ro to root to start                                              
+       !!!if (nProc>1)then
+       !!!   if (.not.allocated(BufferSend_C)) &
+       !!!        allocate( BufferSend_C( ir, np ), BufferRecv_C( ir, np ))
+       !!!   BufferSend_C(:,:)=ro(:,:)
+       !!!   call MPI_ALLGATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), ir*nLonPar, &
+       !!!        MPI_REAL, BufferRecv_C, ir*nLonPar_P, ir*nLonBefore_P, &
+       !!!        MPI_REAL, iComm, iError)
+       !!!   ro(:,:)=BufferRecv_C(:,:)
+       !!!
+       !!!   !now gather iba
+       !!!   iBufferSend_I(:) = iba(:)
+       !!!   call MPI_ALLGATHERV(iBufferSend_I(MinLonPar:MaxLonPar), nLonPar, &
+       !!!        MPI_INTEGER, iba, nLonPar_P, nLonBefore_P, MPI_INTEGER, iComm, &
+       !!!        iError)
+       !!!end if
+       !!!
+       !!!do j=MinLonPar,MaxLonPar
+       !!!   j1=j-1
+       !!!   if (j1 == 0) j1=ip
+       !!!   rNeighborMax = ro(iba(j1),j1)+1.0
+       !!!   if(ro(iba(j),j) > rNeighborMax ) then
+       !!!      call locate1IM(ro(1:irm(j),j),irm(j),rNeighborMax,ib)
+       !!!      iba(j)=ib
+       !!!   endif
+       !!!enddo
+       !!!do j=MaxLonPar,MinLonPar
+       !!!   j1=j+1
+       !!!   if (j1 == ip+1) j1=1
+       !!!   rNeighborMax = ro(iba(j1),j1)+1.0
+       !!!   if(ro(iba(j),j) > rNeighborMax ) then
+       !!!      call locate1IM(ro(1:irm(j),j),irm(j),rNeighborMax,ib)
+       !!!      iba(j)=ib
+       !!!   endif
+       !!!enddo
     endif
 
     ! Find iw2(m) (max invariant grid that fits in output energy grid)

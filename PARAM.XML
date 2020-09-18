@@ -477,6 +477,73 @@ must be true to use this option.  Only UsePitchAngleDiffusionTest OR
 UseEnergyDiffusionTest can be TRUE at a time; the other must be false.
 
 </command>
+
+<command name="COMPOSITION">
+  <parameter name="NameCompModel" type="string"  case="upper" input="select">
+    <option name="FIXED" default="T"/>
+  </parameter>
+  <if expr="$NameCompModel eq 'FIXED'">
+    <parameter name="FractionH" type="real" min="0" max="1" default="0.85"/>
+    <parameter name="FractionO" type="real" min="0" max="1" default="1-$FractionH"/>
+    <parameter name="FractionElectron" type="real" min="0" max="1" default="1.0"/>
+  </if>
+
+#COMPOSITION
+FIXED                   NameCompModel  
+0.85      		FractionH
+0.15      		FractionO
+1.0                     FractionElectron
+
+When CIMI is coupled with a single fluid MHD code, the boundary conditions
+obtained from GM do not determine the composition of the plasma.
+This command sets the assumed fraction of H+ and O+.   The combined global-inner
+magnetospheric dynamics strongly depends on these values.
+NameCompModel selects the model used to set the composition.
+Currently only "FIXED" is implemented. The fraction of O+, H+ and electrons
+are given by the next three parameters.
+The first two should add up to 1, and the electron number density should be 1,
+so in fact only the first parameter is adjustable, the rest is provided for
+testing purposes only.
+
+Default values are shown.
+
+</command>
+
+<command name="#WAVEDIFFUSION">
+  	<parameter name="UseWaveDiffusion" type="logical" default="F"/>
+  	<parameter name="DiffStartT" type="real" />
+  	<parameter name="UseHiss" type="logical" />
+	<parameter name="UseChorus" type="logical" />
+	<parameter name="UseChorusUB" type="logical" />
+	<parameter name="HissWaveD" type="character" />
+	<parameter name="ChorusWavesD" type="character" />
+	<parameter name="ChorusUpperBandD" type="character" />
+  	<parameter name="UseKpIndex" type="logical" />
+	<parameter name="NameAeFile" type="character" />
+#WAVEDIFFUSION
+T               UseWaveDiffusion
+0.0             DiffStartT     
+T               UseHiss
+T               UseChorus
+F               UseChorusUB
+D_hiss_UCLA.dat    HissWavesD
+D_LBchorus_merge3.dat    ChorusWavesD
+THE_FILE_IS_NOT_READY_YET    ChorusUpperBandD
+T		UseKpIndex
+AE_Index.dat	NameAeFile
+
+This command defines the wave diffusion in CIMI. By default the waves are off 
+so this command must be added to turn on waves. Other commands include the 
+time from the start of the simulation that the waves should be turn on, 
+whether to use use plasmaspheric hiss, lower band Chorus, and upper band 
+Chorus waves, The data files for the wave diffusion coeficients that should be 
+in the rundir/IM/ directory. Note that wayves can be driven by KP or AE. 
+When KP is used and GM coupling is true we take the KP passed from GM (note 
+that GEOMAGINDICES should be turned on in BATSRUS for this to work. When 
+Kp is used then AE file is not read.
+
+</command>
+
 </commandgroup>
 
 </commandList>

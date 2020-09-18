@@ -26,7 +26,7 @@ subroutine cimi_run(delta_t)
        brad => ro, ftv => volume, xo, yo, rb, irm, &
        ekev, iba, bo, pp, Have, sinA, vel, alscone, iw2, xmlto, bm, phi2o, &
        gather_field_trace, bcast_field_trace
-  use ModGmCimi,		ONLY:	Den_IC, UseGm
+  use ModGmCimi,		ONLY:	Den_IC, UseGm, UseGmKp, KpGm
   use ModIeCimi,		ONLY:	UseWeimer, pot
   use ModCimiPlot
   use ModCimiRestart,		ONLY:	IsRestart
@@ -57,7 +57,7 @@ subroutine cimi_run(delta_t)
        UseCorePsModel, PlasSpinUpTime, init_plasmasphere, &
        advance_plasmasphere, DoSavePlas, DtPlasOutput,&
        PlasDensity_C, save_plot_plasmasphere, &
-       cimi_put_to_plasmasphere
+       cimi_put_to_plasmasphere,PlasMinDensity
   use ModDiagDiff,		ONLY:	&
        UseDiagDiffusion, calc_DQQ, interpol_D_coefK, &
        mapPSDtoQ, mapPSDtoE, diffuse_Q1, diffuse_Q2, &
@@ -108,7 +108,8 @@ subroutine cimi_run(delta_t)
   call fieldpara(Time,dt,cLightSpeed,cElectronCharge,xlat,xmlt,phi,xk,&
        IsRestart)
   call timing_stop('cimi_fieldpara')
-
+  
+  
   ! Checks to see if this is the first call of CIMI, so as to gather
   ! all the relevant information to initialize CIMI f2 as a function
   ! of L*.  Necessary variables are bo and bm in ModFieldTrace.
@@ -174,7 +175,11 @@ subroutine cimi_run(delta_t)
   if (UseCorePsModel) then
      !when using the core PS model overwrite the density in the
      !wave calculation
-     density=PlasDensity_C
+     where (PlasDensity_C > PlasMinDensity)
+        density=PlasDensity_C
+     elsewhere
+        density=PlasMinDensity
+     end where
   endif
   
   ! get Bmin, needs to be passed to GM for anisotropic pressure coupling
@@ -219,17 +224,28 @@ subroutine cimi_run(delta_t)
 
   ! calculate boundary flux (fb) at the CIMI outer boundary at the equator
   call boundaryIM(nspec,neng,np,nt,nm,nk,iba,irm,amu_I,xjac,energy,vel,fb)
-
+  
   if (Time.ge.DiffStartT .and. UseWaveDiffusion) then
 
      ! calculate wave power for the first time; the second time is in the loop
-     if (.not.UseKpIndex) &
+     if (UseKpIndex) then
+        if (UseGmKp) then
+           Kp_temp=KpGm
+        else
+           call get_kp(CurrentTime, Kp_temp, iError)        
+        endif
+     else
         call interpolate_ae(CurrentTime, AE_temp)
+     endif
 
      ! Determines if the simple plasmasphere model needs to be used.
      if ( .not. DoCoupleSami .and. .not. UseCorePsModel) then
         call timing_start('cimi_simp_psphere')
-        call get_kp(CurrentTime, Kp_temp, iError)        
+        if (UseGmKp) then
+           Kp_temp=KpGm
+        else
+           call get_kp(CurrentTime, Kp_temp, iError)        
+        endif
         call simple_plasmasphere(Kp_temp)
         call timing_stop('cimi_simp_psphere')
      end if
@@ -359,7 +375,11 @@ subroutine cimi_run(delta_t)
      if (UseCorePsModel) then
         !when using the core PS model overwrite the density in the
         !wave calculation
-        density=PlasDensity_C
+        where (PlasDensity_C > PlasMinDensity)
+           density=PlasDensity_C
+        elsewhere
+           density=PlasMinDensity
+        end where
      endif
 
      call timing_start('cimi_driftIM')
@@ -439,7 +459,11 @@ subroutine cimi_run(delta_t)
 
         if ( .not. DoCoupleSami .and. .not. UseCorePsModel) then
            call timing_start('cimi_simp_psphere')
-           call get_kp(CurrentTime, Kp_temp, iError)        
+           if (UseGmKp) then
+              Kp_temp=KpGm
+           else
+              call get_kp(CurrentTime, Kp_temp, iError)        
+           endif
            call simple_plasmasphere(Kp_temp)
            call timing_stop('cimi_simp_psphere')
         end if
@@ -1200,7 +1224,7 @@ subroutine boundaryIM(nspec,neng,np,nt,nm,nk,iba,irm,amu_I,xjac,energy,vel,fb)
   
   implicit none
   
-  integer nspec,neng,np,nt,nm,nk,iba(nt),irm(nt),j,n,k,m,ib1
+  integer nspec,neng,np,nt,nm,nk,iba(nt),irm(nt),j,n,k,m,ib1,iLat
   real amu_I(nspec),energy(nspec,neng),xjac(nspec,np,nm)
   real vel(nspec,np,nt,nm,nk),fb(nspec,nt,nm,nk),pi,xmass,chmass,fb1,fb_temp,vtchm
   real velperp2, velpar2,fbb,fbb1,parE1,perE1,den1,temp32,y2,x2,Psq,Pper2,Ppar2
@@ -1278,6 +1302,11 @@ subroutine boundaryIM(nspec,neng,np,nt,nm,nk,iba,irm,amu_I,xjac,energy,vel,fb)
 
             
             fb(n,j,k,m)=fbb*xjac(n,ib1,k)
+            
+            do iLat=ib1,np
+               f2(n,iLat,j,k,m)=fbb*xjac(n,ib1,k) !f2 beyond rb
+            enddo
+ 
             !        if ((n.eq.nspec).and.(j.eq.1).and.(m.eq.10)) write(*,*) fbb,xjac(n,ib1,k), &
             !        ekev(n,ib1,j,k,m), vel(n,ib1,j,k,m),xmass,chmass, &
             !        Psq,Ppar2,Vsq,Vpar2, 'f,jac,e,vel,m,chm,Psq,Ppar,Vsq,Vpar'   !   NB Jan 20 2017
