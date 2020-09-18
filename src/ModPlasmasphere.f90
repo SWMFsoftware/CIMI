@@ -54,6 +54,7 @@ module ModPlasmasphere
   real,    public :: DtPlasOutput
   logical, public :: UseCorePsModel=.true.
   real   , public :: PlasSpinUpTime=86400. !one day
+  real   , public :: PlasMinDensity = 1e4 !m-3 = 0.01/cc
 
   public :: unit_test_plasmasphere
   public :: init_plasmasphere

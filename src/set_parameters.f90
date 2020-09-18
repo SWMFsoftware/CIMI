@@ -34,7 +34,7 @@ subroutine CIMI_set_parameters(NameAction)
        DtReadSat, DoWriteSats, ReadRestartSat
   use ModCimiGrid
   use ModLstar,		 ONLY: DoVerboseLstar
-  use ModPlasmasphere,   ONLY: DoSavePlas, DtPlasOutput,UseCorePsModel
+  use ModPlasmasphere,   ONLY: DoSavePlas, DtPlasOutput,UseCorePsModel,PlasMinDensity
   use ModInterFlux,      ONLY: UseHigherOrder,iOrderLat,iOrderLon
   
   implicit none
@@ -722,9 +722,11 @@ subroutine CIMI_set_parameters(NameAction)
            call read_var('HissWavesD', HissWavesD)
            call read_var('ChorusWavesD', ChorusWavesD)
            call read_var('ChorusUpperBandD', ChorusUpperBandD)
-           call read_var('NameAeFile',NameAeFile)
-           call read_ae_wdc_kyoto(iError)
            call read_var('UseKpIndex',UseKpIndex)
+           if (.not.UseKpIndex) then
+              call read_var('NameAeFile',NameAeFile)
+              call read_ae_wdc_kyoto(iError)
+           endif
 
            if (iError /= 0) then
               write(*,*) "read AE index was not successful "//&
@@ -775,6 +777,7 @@ subroutine CIMI_set_parameters(NameAction)
 
      case('#COREPLASMASPHERE')
         call read_var('UseCorePsModel',UseCorePsModel)
+        call read_var('PlasMinDensity',PlasMinDensity)
         
      case('#SETRB')
         call read_var('rb [R_E]', rb)
