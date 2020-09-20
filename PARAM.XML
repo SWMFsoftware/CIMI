@@ -265,35 +265,35 @@ Sets minimum pressure passed to GM.
 
 
 <command name="RESTART">
-	<parameter name="IsRestart" type="logical" />
+	<parameter name="DoRestart" type="logical" />
 
 #RESTART
-F		IsRestart
+F			DoRestart
 
 Determine whether or not to continue a previous run.
 </command>
 
 <command name="INITIALF2">
-	<parameter name="IsEmptyF2" type="logical" />
-	<parameter name="IsGMInitial" type="logical" />
+	<parameter name="IsEmptyInitial" type="logical" />
+	<parameter name="IsGmInitial" type="logical" />
 	<parameter name="IsDataInitial" type="logical" />
-	<parameter name="IsRBSPData" type="logical" />
+	<parameter name="IsRBSPData" type="logical" if="$IsDataInitial"/>
 
 #INITIALF2
-F			IsEmptyF2
+F			IsEmptyInitial
 T			IsGmInitial
-F			IsDataInitial
-F			IsRBSPData
+F			IsDataInitial 
+F			IsRBSPData (read if IsDataInitial is true)
 
 Determines whether to fill the fluxes in the simulation domain based
 on a Maxwellian determined from MHD quantities (IsGmInitial=T) or to
-set the initial fluxes in the simulation domain to zero (IsEmptyF2=T,
-not recommended) or to set the initial fluxes in the simulation to
-values from AMPTE/CCE data (IsDataInitial=T).  One can also put RBSP
-observed fluxes into the same format as the AMPTE/CCE data to
-initilaize CIMI with RBSP observations which is controlled with the
-IsRBSPData logical, which is only read if IsDataInitial=T. The default
-is shown.
+set the initial fluxes in the simulation domain to zero
+(IsEmptyInitial=T, not recommended) or to set the initial fluxes in
+the simulation to values from AMPTE/CCE data (IsDataInitial=T).  One
+can also put RBSP observed fluxes into the same format as the
+AMPTE/CCE data to initilaize CIMI with RBSP observations which is
+controlled with the IsRBSPData logical, which is only read if
+IsDataInitial=T. The default is shown.
 </command>
 
 <command name="INITIALLSTAR">
@@ -399,7 +399,7 @@ Default is UseStrongDiff is false.
 
 #DECAY
 T			UseDecay
-36000.  		DecayTimescale in seconds
+10 hours  		DecayTimescale in seconds
 
 If UseDecay is true, adds exponential decay to ring current ion
 populations, so that if there are no other effects, ion phase space
@@ -479,20 +479,19 @@ UseEnergyDiffusionTest can be TRUE at a time; the other must be false.
 </command>
 
 <command name="COMPOSITION">
-  <parameter name="NameCompModel" type="string"  case="upper" input="select">
+  <parameter name="TypeComposition" type="string"  case="upper" input="select">
     <option name="FIXED" default="T"/>
   </parameter>
-  <if expr="$NameCompModel eq 'FIXED'">
-    <parameter name="FractionH" type="real" min="0" max="1" default="0.85"/>
-    <parameter name="FractionO" type="real" min="0" max="1" default="1-$FractionH"/>
-    <parameter name="FractionElectron" type="real" min="0" max="1" default="1.0"/>
+  <if expr="$TypeComposition" eq 'FIXED'">
+    <parameter name="DensityFraction" type="real" min="0" max="1" />
+    <parameter name="DensityFraction" type="real" min="0" max="1" />
   </if>
 
 #COMPOSITION
 FIXED                   NameCompModel  
-0.85      		FractionH
-0.15      		FractionO
-1.0                     FractionElectron
+0.85      		DensityFraction H+
+0.15      		DensityFraction O+
+1.0                     DensityFraction Electron
 
 When CIMI is coupled with a single fluid MHD code, the boundary conditions
 obtained from GM do not determine the composition of the plasma.
