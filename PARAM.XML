@@ -482,7 +482,7 @@ UseEnergyDiffusionTest can be TRUE at a time; the other must be false.
   <parameter name="TypeComposition" type="string"  case="upper" input="select">
     <option name="FIXED" default="T"/>
   </parameter>
-  <if expr="$TypeComposition" eq 'FIXED'">
+  <if expr="$TypeComposition eq 'FIXED'">
     <parameter name="DensityFraction" type="real" min="0" max="1" />
     <parameter name="DensityFraction" type="real" min="0" max="1" />
   </if>
