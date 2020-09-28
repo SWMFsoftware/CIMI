@@ -463,7 +463,7 @@ to be Q2_min = E and Q2 is obtaind from constant Q2 curve (dQ2 = 0) in
 true to use this option.
 </command>
 
-<command name="#DIFFUSIONTEST">
+<command name="DIFFUSIONTEST">
   	<parameter name="UsePitchAngleDiffusionTest" type="logical" default="F"/>
   	<parameter name="UseEnergyDiffusionTest" type="logical" default="F"/>
 
@@ -508,7 +508,7 @@ Default values are shown.
 
 </command>
 
-<command name="#WAVEDIFFUSION">
+<command name="WAVEDIFFUSION">
   	<parameter name="UseWaveDiffusion" type="logical" default="F"/>
   	<parameter name="DiffStartT" type="real" />
   	<parameter name="UseHiss" type="logical" />
