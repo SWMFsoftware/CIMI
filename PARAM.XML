@@ -514,22 +514,22 @@ Default values are shown.
   	<parameter name="UseHiss" type="logical" />
 	<parameter name="UseChorus" type="logical" />
 	<parameter name="UseChorusUB" type="logical" />
-	<parameter name="HissWaveD" type="character" />
-	<parameter name="ChorusWavesD" type="character" />
-	<parameter name="ChorusUpperBandD" type="character" />
+	<parameter name="HissWaveD" type="string" />
+	<parameter name="ChorusWavesD" type="string" />
+	<parameter name="ChorusUpperBandD" type="string" />
   	<parameter name="UseKpIndex" type="logical" />
-	<parameter name="NameAeFile" type="character" />
+	<parameter name="NameAeFile" type="string" />
 #WAVEDIFFUSION
-T               UseWaveDiffusion
-0.0             DiffStartT     
-T               UseHiss
-T               UseChorus
-F               UseChorusUB
-D_hiss_UCLA.dat    HissWavesD
-D_LBchorus_merge3.dat    ChorusWavesD
+T                            UseWaveDiffusion
+0.0                          DiffStartT     
+T                            UseHiss
+T                            UseChorus
+F                            UseChorusUB
+D_hiss_UCLA.dat              HissWavesD
+D_LBchorus_merge3.dat        ChorusWavesD
 THE_FILE_IS_NOT_READY_YET    ChorusUpperBandD
-T		UseKpIndex
-AE_Index.dat	NameAeFile
+T		             UseKpIndex
+AE_Index.dat	             NameAeFile
 
 This command defines the wave diffusion in CIMI. By default the waves are off 
 so this command must be added to turn on waves. Other commands include the 
