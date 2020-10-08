@@ -8,7 +8,7 @@ subroutine CIMI_set_parameters(NameAction)
        DoLstarInitialization
   use ModCimiPlot
   use ModCimiTrace,	 ONLY: UseEllipse, UseSmooth, UseCorotation, &
-       UsePotential, SmoothWindow, imod, iLatTest, iLonTest
+       UsePotential, SmoothWindow, imod, iLatTest, iLonTest, DeltaRMax,xmltlim
   use ModCimi,		 ONLY: UseMcLimiter, BetaLimiter, time, Pmin, &
        IsStandAlone, UseStrongDiff, UseDecay, DecayTimescale,&
        dt, dtmax, DoCalcPrecip, DtCalcPrecip, IsStrictDrift
@@ -781,6 +781,10 @@ subroutine CIMI_set_parameters(NameAction)
         
      case('#SETRB')
         call read_var('rb [R_E]', rb)
+
+     case('#SETBOUNDARYPARAMS')
+        call read_var('DeltaRMax', DeltaRMax)
+        call read_var('xmltlim', xmltlim)
 
      case('#BOUNDARYCHECK')
         call read_var('CIMIboundary',CIMIboundary)
