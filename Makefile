@@ -529,6 +529,7 @@ allclean:
 	cd src; make distclean
 	cd srcSAMI3; make distclean
 	cd srcInterface; make distclean
+	cd doc/Tex; make distclean
 	rm -f config.log *~
 	@(if [ -h input ]; then rm -f input; fi)
 	@(if [ -h output ]; then rm -f output; fi)
