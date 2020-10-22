@@ -784,7 +784,7 @@ subroutine CIMI_set_parameters(NameAction)
 
      case('#SETBOUNDARYPARAMS')
         call read_var('DeltaRMax', DeltaRMax)
-        call read_var('xmltlim', xmltlim)
+        call read_var('DeltaMLTmax', xmltlim)
 
      case('#BOUNDARYCHECK')
         call read_var('CIMIboundary',CIMIboundary)
