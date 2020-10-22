@@ -245,13 +245,42 @@ every DtSaveLog seconds of simulation time.
 </command>
 
 <command name="TYPEBOUNDARY">
-	<parameter name="TypeBoundary" type="string" />
+  <parameter name="TypeBoundary" type="string" case="lower" input="select">
+    <option name="ellipse" default="T" />
+    <option name="circle"              />
+  </parameter>
 
 #TYPEBOUNDARY
-Ellipse		TypeBoundary
+ellipse		TypeBoundary
 
-Determines if the IM outer boundary is an 'Ellipse' or 'Circle.'
-Default shown.
+Determines if the IM outer boundary is an 'ellipse' or 'circle.'
+Default value is shown.
+</command>
+
+<command name="SETBOUNDARYPARAMS">
+  <parameter name="DeltaRmax" type="real" min="1" max="3" default="2"/>
+  <parameter name="DeltaMLTmax" type="real" min="1" max="4" default="2"/>
+
+#SETBOUNDARYPARAMS
+2.0			DeltaRmax   [Re]
+2.0			DeltaMLTmax [hour]
+
+The CIMI grid is based in the ionosphere and we trace the field from
+those footpoints through the magnetosphere. CIMI then does a number of
+checks to set its domain. First, we check for open-closed boundary,
+and the CIMI domain must be inside that. We then check for multiple
+off equator magnetic field minima. This usually occurs on the dayside
+under northward IMF and strong pressure. This gives the "Shebansky
+orbits", which cannot currently be captured by CIMI so those field
+lines are treated as open as well.
+
+If the spacing between two successive minB points is more than DeltaRmax,
+the line is considered open to avoid excessive deformation. Range is 1 to 3 Re.
+
+If the MLT of the minB changes more than DeltaMLTmax from the footpoint,
+the line is considered open to avoid excessive warping. Range is 1 to 4 hours.
+
+Default values are shown.
 </command>
 
 <command name="MINIMUMPRESSURETOGM">
