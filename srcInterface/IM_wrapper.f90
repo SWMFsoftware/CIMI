@@ -238,9 +238,9 @@ contains
   end subroutine IM_save_restart
   !===========================================================================
 
-  subroutine IM_put_from_gm_crcm(Buffer_IIV,BufferKp,iSizeIn,jSizeIn,nVarIn,&
+  subroutine IM_put_from_gm_crcm(Buffer_IIV,BufferKp,BufferAe,iSizeIn,jSizeIn,nVarIn,&
        BufferLine_VI,nVarLine,nPointLine,NameVar,BufferSolarWind_V,tSimulation)
-    use ModGmCIMI,    ONLY: nVar, KpGm, UseGmKp, iLineIndex_II, &
+    use ModGmCIMI,    ONLY: nVar, KpGm, UseGmKp, AeGm,UseGmAe, iLineIndex_II, &
          DoneGmCoupling, UseTotalRhoGm, UseTotalPGm, UseTotalPparGm, &
          UseMultiRhoGm, UseMultiPGm, UseMultiPparGm, DoFeedbackPs, UsePeGm,  &
          TotalRho_, TotalP_, TotalPpar_, TotalPe_, &
@@ -258,7 +258,8 @@ contains
     !  use ModPrerunField,ONLY: DoWritePrerun, save_prerun
 
     integer, intent(in) :: iSizeIn, jSizeIn, nVarIn
-    real,    intent(in) :: Buffer_IIV(iSizeIn,jSizeIn,nVarIn),BufferKp
+    real,    intent(in) :: Buffer_IIV(iSizeIn,jSizeIn,nVarIn),BufferKp,&
+         BufferAe
     integer, intent(in) :: nVarLine, nPointLine
     real,    intent(in) :: BufferLine_VI(nVarLine, nPointLine)
     real,    intent(in) :: BufferSolarWind_V(8)
@@ -296,7 +297,16 @@ contains
        KpGm=-1.0
        UseGmKp = .false.
     endif
-    
+
+    !if BufferAe >0 then GM is passing Ae and we will store it
+    if (BufferAe>0) then
+       AeGm=BufferAe
+       UseGmAe = .true.
+    else
+       AeGm=-1.0
+       UseGmAe = .false.
+    endif
+
     if(.not.allocated(iVarTarget_V))then
        iGm = lComp_I(GM_)
        iIm = lComp_I(IM_)
@@ -355,64 +365,64 @@ contains
           select case(trim(NameVarCouple_V(iVarTarget_V(iVarBuffer))))
           case('Rho','rho')
              !write(*,*) 'Rho=',iVarBuffer
-             TotalRho_ = iVarBuffer + 3
+             TotalRho_ = iVarBuffer + 5
              UseTotalRhoGm = .true.
           case('p','P')
              !write(*,*) 'p=',iVarBuffer
-             TotalP_ = iVarBuffer + 3
+             TotalP_ = iVarBuffer + 5
              UseTotalPGm = .true.
           case('Ppar','ppar')
              !write(*,*) 'Ppar=',iVarBuffer
-             TotalPpar_ = iVarBuffer + 3
+             TotalPpar_ = iVarBuffer + 5
              UseTotalPparGm = .true.
           case('Pe','pe')
              !write(*,*) 'pe=',iVarBuffer
-             TotalPe_ = iVarBuffer + 3
+             TotalPe_ = iVarBuffer + 5
              UsePeGm = .true.
           case('HpRho','hprho')
              !write(*,*) 'HpRho=',iVarBuffer
              UseMultiRhoGm = .true.
-             iBufferRho_I(H_) = iVarBuffer+3
+             iBufferRho_I(H_) = iVarBuffer+5
              iRho=iRho+1
           case('HpP','hpp')
              !write(*,*) 'HpP=',iVarBuffer
              UseMultiPGm = .true.
-             iBufferP_I(H_) = iVarBuffer+3
+             iBufferP_I(H_) = iVarBuffer+5
              iP = iP+1
           case('HpPpar','hppar')
              !write(*,*) 'HpPpar=',iVarBuffer
              UseMultiPparGm = .true.
-             iBufferPpar_I(H_) = iVarBuffer+3
+             iBufferPpar_I(H_) = iVarBuffer+5
              iPpar=iPpar+1
           case('OpRho','oprho')
              !write(*,*) 'OpRho=',iVarBuffer
              UseMultiRhoGm = .true.
-             iBufferRho_I(O_) = iVarBuffer+3
+             iBufferRho_I(O_) = iVarBuffer+5
              iRho=iRho+1
           case('OpP','opp')
              !write(*,*) 'OpP=',iVarBuffer
              UseMultiPGm = .true.
-             iBufferP_I(O_) = iVarBuffer+3
+             iBufferP_I(O_) = iVarBuffer+5
              iP = iP+1
           case('OpPpar','opppar')
              !write(*,*) 'OpPpar=',iVarBuffer
              UseMultiPparGm = .true.
-             iBufferPpar_I(O_) = iVarBuffer+3
+             iBufferPpar_I(O_) = iVarBuffer+5
              iPpar=iPpar+1
           case('HpSwRho','hpswrho')
              !write(*,*) 'HpSwRho=',iVarBuffer
              UseMultiRhoGm = .true.
-             iBufferRho_I(Sw_) = iVarBuffer+3
+             iBufferRho_I(Sw_) = iVarBuffer+5
              iRho=iRho+1
           case('HpSwP','hpswp')
              !write(*,*) 'HpSwP=',iVarBuffer
              UseMultiPGm = .true.
-             iBufferP_I(Sw_) = iVarBuffer+3
+             iBufferP_I(Sw_) = iVarBuffer+5
              iP = iP+1
           case('HpSwPpar','hpswppar')
              !write(*,*) 'HpPpar=',iVarBuffer
              UseMultiPparGm = .true.
-             iBufferPpar_I(Sw_) = iVarBuffer+3
+             iBufferPpar_I(Sw_) = iVarBuffer+5
              iPpar=iPpar+1
           case('HpPsRho','hppsrho')
              !write(*,*) 'HpPs=',iVarBuffer
@@ -436,11 +446,11 @@ contains
        !write(*,*)NameSub,' Buffer_IIV(21,1,:)=',Buffer_IIV(21,1,:)
        write(*,*)NameSub,' BufferLine_VI(:,1) =',BufferLine_VI(:,1)
        write(*,*)NameSub,' BufferLine_VI(:,2) =',BufferLine_VI(:,2)
-       write(*,*)NameSub,' IMF: Density  = ',Buffer_IIV(1,1,6)
-       write(*,*)NameSub,' IMF: Velocity = ',Buffer_IIV(2,1,6)
-       write(*,*)NameSub,' IMF: Bx       = ',Buffer_IIV(5,1,6)
-       write(*,*)NameSub,' IMF: By       = ',Buffer_IIV(6,1,6)
-       write(*,*)NameSub,' IMF: Bz       = ',Buffer_IIV(7,1,6)
+       write(*,*)NameSub,' IMF: Density  = ',BufferSolarWind_V(1)
+       write(*,*)NameSub,' IMF: Velocity = ',BufferSolarWind_V(2)
+       write(*,*)NameSub,' IMF: Bx       = ',BufferSolarWind_V(5)
+       write(*,*)NameSub,' IMF: By       = ',BufferSolarWind_V(6)
+       write(*,*)NameSub,' IMF: Bz       = ',BufferSolarWind_V(7)
     end if
 
     if (allocated(StateLine_VI)) then
@@ -454,8 +464,6 @@ contains
 
     StateLine_VI      = BufferLine_VI
     StateBmin_IIV(:,:,:) = Buffer_IIV(:,:,:)
-
-    
     
     ! convert unit of locations X and Y
     StateBmin_IIV(:,:,1:2) = StateBmin_IIV(:,:,1:2)/rEarth ! m --> Earth Radii
