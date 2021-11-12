@@ -4,10 +4,10 @@
 This document descibes the installation, configuration, execution and 
 usage of the Comprehensive Inner Magnetosphere Ionosphere (CIMI) model.
 
-\section{Acknowledgments}
+%\section{Acknowledgments}
 
 
-\section{The CIMI model in a Few Paragraphs}
+%\section{The CIMI model in a Few Paragraphs}
 
 
 \section{System Requirements}
@@ -64,17 +64,17 @@ and the following files
 \item {\tt Config.pl}     - Perl script for (un)installation and configuration
 \end{itemize}
 
+Note that some of these directories are not distributed with CIMI and need to separately downloaded. 
 \section{General Hints}
 
 \subsubsection{Getting help with scripts and the Makefile}
 
-Most of the Perl and shell scripts that are distributed with the PWOM
-provide help which can be accessed as follows using the {\tt -h} flag.
+The configuration command and be ellaborated with the  {\tt -h} flag.
 For example, 
 \begin{verbatim}
   Config.pl -h
 \end{verbatim}
-will provide a detailed listing of the options and capabilities of the
+This will provide a detailed listing of the options and capabilities of the
 {\tt Config.pl} script.  In addition, you can find all the possible
 targets  that can be built by typing
 \begin{verbatim}
@@ -97,7 +97,7 @@ PARAM.XML file into the PARAM.in file for a run.
 
 The CIMI model needs to know what architecture you are running the code on
 and what FORTRAN compiler will be used.  For most platforms and compilers,
-it can figure this out all by itself. To install PWOM run the command:
+it can figure this out all by itself. To install CIMI run the command:
 \begin{verbatim}
   Config.pl -install
 \end{verbatim}
@@ -105,14 +105,13 @@ in the main directory. This creates {\tt Makefile.def} with
 the correct absolute path to the base directory and {\tt Makefile.conf}
 which contains the operating system and compiler specific part of
 the Makefile. If the compiler is not the default one for a given
-platform (e.g. not the NAG f95 compiler for a Linux platform) then
+platform  then
 the compiler must be specified explicitly with the {\tt -compiler}
 flag. If the MPI header file is not the default one, it can be
 specified with the {\tt -mpi} flag. For example on a Mac machine
-one can select the g95 compiler with the Intel version of the 
-MPI library using
+one can select the gfortran as follows
 \begin{verbatim}
-  Config.pl -install -compiler=g95 -mpi=Intel
+  Config.pl -install -compiler=gfortran
 \end{verbatim}
 To uninstall CIMI type
 \begin{verbatim}
@@ -131,14 +130,14 @@ To get a complete description of the {\tt Config.pl}  script type
 
 \section{Creating Documentation}
 
-The documentation for PWOM can be generated from the distribution by
+The documentation for CIMI can be generated from the distribution by
 the command
 \begin{verbatim}
   make PDF
 \end{verbatim}
 which creates the user manual
 \begin{verbatim}
-  doc/PWOM.pdf
+  doc/CIMI.pdf
 \end{verbatim}
 In order for this to work you must have
 LaTex installed on your system (and dvips and ps2pdf).  
@@ -235,15 +234,15 @@ Normally the restart files are saved into the IM/restartOUT directory.
 The files in that directory need only be copied into the PW/restartIN 
 directory inorder to prepare a restarted run.
 
-\section{What next?}
+%\section{What next?}
 
-Hopefully this section has guided you through installing CIMI and
-given you a basic knowledge of how to run it.  So what next?
+%Hopefully this section has guided you through installing CIMI and
+%given you a basic knowledge of how to run it.  So what next?
 
-We suggest that you read all of chapter \ref{chapter:basics}, which
-outlines the basic features of CIMI as well as some things you
-really must know in order to use the code.  Once you have done this you
-are ready to experiment.  Chapter \ref{chapter:examples} gives several 
-examples which are intended to make you familiar with the use of CIMI.  We suggest that you try them!
+%We suggest that you read all of chapter \ref{chapter:basics}, which
+%outlines the basic features of CIMI as well as some things you
+%really must know in order to use the code.  Once you have done this you
+%are ready to experiment.  Chapter \ref{chapter:examples} gives several 
+%examples which are intended to make you familiar with the use of CIMI.  We suggest that you try them!
 
 %\end{document}
