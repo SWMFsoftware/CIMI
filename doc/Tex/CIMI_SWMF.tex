@@ -51,29 +51,3 @@ They all, however, start with the same command in the PARAM file:
   IM            COMP2
   10.0          DTcoupling
 \end{verbatim}
-The default method for coupling the IM and GM components is ...
-In the case where composition is important, the GM component can be configured to 
-use the multi-species equations:
-\begin{verbatim}
-  Config.pl -o=GM:e=MhdPw
-\end{verbatim}
-In this case the individual species densities are preserved, but the 
-velocities are combined into a single fluid velocity. This is because the 
-multi-species MHD representation of BATS-R-US solves separate continuity 
-equations, but a single momentum and energy equation. 
-
-The user also has the option to preserve velocity information as well as 
-density information when putting the PW output into GM. This requires the 
-user to configure the GM component to solve the full multi-fluid 
-equations:
-\begin{verbatim}
-  Config.pl -o=GM:e=MultiIon
-\end{verbatim}
-In this case the individual species densities and velocities are conserved, as 
-BATS-R-US solves a full continuity, momentum, and energy equation for each 
-species.
-
-The ansiotropic coupling can be activiated by using the following configuation
-\begin{verbatim}
-  Config.pl -o=GM:e=
-\end{verbatim}
