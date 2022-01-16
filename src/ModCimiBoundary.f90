@@ -1,6 +1,9 @@
-Module ModCimiBoundary
+module ModCimiBoundary
+
   use ModCimiGrid,    ONLY: MinLonPar,MaxLonPar,nt,np
   use ModCimiPlanet,  ONLY: nspec, amu_I, dFactor_I, tFactor_I
+  use ModUtilities,   ONLY: CON_stop
+
   implicit none
   
   SAVE
@@ -179,7 +182,7 @@ contains
   else
      !unknown case
      write(*,*) 'Unknown condition in CIMI boundary'
-     call con_stop('')
+     call CON_stop('')
   endif
   
   !Overwrite e temperature if solving for Pe in GM
@@ -360,4 +363,4 @@ contains
    
  end subroutine get_tsy_plasma
  
-end Module ModCimiBoundary
+end module ModCimiBoundary

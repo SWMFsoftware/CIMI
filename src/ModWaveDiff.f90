@@ -1,4 +1,4 @@
-Module DensityTemp
+module DensityTemp
 
   use ModCimiGrid, ONLY: ir=>np, ip=>nt !, ik=>nk
 
@@ -77,16 +77,16 @@ contains
 
   end subroutine simple_plasmasphere
 
-end Module DensityTemp
+end module DensityTemp
 
 !!!!!!!!!!!!!!!!  Main wave module !!!!!!!!!!!!!1
-Module ModWaveDiff
+module ModWaveDiff
 
 use ModCimiGrid,ONLY: ir=>np, ip=>nt, iw=>nm , ik=>nk  
 use ModCimiPlanet,ONLY: nspec
 use ModCimiTrace, ONLY: ekev,tya,y=>sinA,Bo,ro,xmlto,lintpIM,bm
 use ModNumConst,       ONLY: pi => cPi
-
+use ModUtilities, ONLY: CON_stop
 
 implicit none
 
@@ -1542,4 +1542,4 @@ end subroutine diffuse_aE
   Endif     
   end subroutine lintpIM_diff
 
-EndModule ModWaveDiff
+end module ModWaveDiff

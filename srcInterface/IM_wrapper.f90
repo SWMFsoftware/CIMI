@@ -2,6 +2,8 @@ module IM_wrapper
 
   ! Wrapper for CIMI Internal Magnetosphere (IM) component
 
+  use ModUtilities, ONLY: CON_set_do_test, CON_stop
+  
   implicit none
 
   private ! except

@@ -1,5 +1,6 @@
 !The main cimi code to update one delta t
 subroutine cimi_run(delta_t)
+
   use ModConst,			ONLY:	cLightSpeed, cElectronCharge
   use ModCimiInitialize,	ONLY:	&
        xmm, xk, dphi, dmm, dk, dmu, xjac,&
@@ -63,6 +64,7 @@ subroutine cimi_run(delta_t)
        mapPSDtoQ, mapPSDtoE, diffuse_Q1, diffuse_Q2, &
        UsePitchAngleDiffusionTest,&
        UseEnergyDiffusionTest, init_diag_diff
+  use ModUtilities, ONLY: CON_stop
  
 
 !   NB: empty comment. Will remove later
@@ -402,7 +404,7 @@ subroutine cimi_run(delta_t)
             UseEnergyDiffusionTest) then
            write(*,*) 'UsePitchAngleDiffusionTest',UsePitchAngleDiffusionTest
            write(*,*) 'UseEnergyDiffusionTest',UseEnergyDiffusionTest
-           call CON_STOP('For diag diffusion test, "make DIFFUSIONTEST"')
+           call CON_stop('For diag diffusion test, "make DIFFUSIONTEST"')
         endif
        
         if ( UseDiagDiffusion ) then
@@ -1396,6 +1398,7 @@ subroutine set_cimi_potential(CurrentTime)
   use ModIndicesInterfaces
   use ModCimiTrace,	ONLY: UsePotential
   use ModCimiPlanet,	ONLY: rc
+  use ModUtilities, ONLY: CON_stop
   
   implicit none
 
@@ -1447,7 +1450,7 @@ subroutine set_cimi_potential(CurrentTime)
      vsw=abs(vsw)
      
      if (iError /= 0) then
-        call con_stop&
+        call CON_stop&
              ("IM_ERROR: Problem setting solar wind in set_cimi_potential")
      end if
 !  endif
@@ -1605,7 +1608,7 @@ end subroutine driftV
 !-------------------------------------------------------------------------------
 subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
      fb,f2,driftin,driftout,ib0)
-  !-----------------------------------------------------------------------------
+
   ! Routine updates f2 due to drift
   !
   ! Routine calculates dF/dt = d(vl * F)/dxlat + d(vp * F)/dphi
@@ -1621,6 +1624,8 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
        iProcLeft, iLonLeft, iProcRight, iLonRight, d4Element_C   
   use ModInterFlux, only: UseHigherOrder,FLS_2D_ho,nGhostLonLeft,nGhostLonRight
   use ModMpi
+  use ModUtilities, ONLY: CON_stop
+
   implicit none
 
   integer nk,nspec,np,nt,nm,ib0(nt)
@@ -1896,7 +1901,7 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
                                    write(*,'(a,1p2E11.3)') 'IM:   cl(i-1,j),  cl(i,j)= ',cl(i-1,j),cl(i,j)
                                    write(*,'(a,1p2E11.3)') 'IM: fupp(i,j-1),fupp(i,j)= ',fupp(i,j-1),fupp(i,j)
                                    write(*,'(a,1p2E11.3)') 'IM:   cp(i,j-1),  cp(i,j)= ',cl(i,j-1),cl(i,j)
-                                   call CON_STOP('IM: CIMI dies in driftIM')
+                                   call CON_stop('IM: CIMI dies in driftIM')
                                 else
                                    f2d(i,j)=0.0
                                    iba(j)=i
@@ -1971,7 +1976,7 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
                                 write(*,'(a,1p2E11.3)') 'IM:   cl(i-1,j),  cl(i,j)= ',cl(i-1,j),cl(i,j)
                                 write(*,'(a,1p2E11.3)') 'IM: fupp(i-1,j),fupp(i,j)= ',fupp(i,j-1),fupp(i,j)
                                 write(*,'(a,1p2E11.3)') 'IM:   cp(i-1,j),  cp(i,j)= ',cl(i,j-1),cl(i,j)
-                                call CON_STOP('IM: CIMI dies in driftIM')
+                                call CON_stop('IM: CIMI dies in driftIM')
                              else
                                 f2d(i,j)=0.0
                                 iba(j)=i
@@ -3269,6 +3274,8 @@ subroutine locate1IM(xx,n,x,j)
   !  Input: xx,n,x
   !  Output: j
 
+  use ModUtilities, ONLY: CON_stop
+
   implicit none
 
   integer n,j,i,jl,ju,jm
@@ -3279,12 +3286,12 @@ subroutine locate1IM(xx,n,x,j)
      if (xx(n).gt.xx(1).and.xx(i).lt.xx(i-1)) then
         write(*,*) ' locate1IM: xx is not increasing monotonically '
         write(*,*) n, (xx(j),j=1,n)
-        call CON_STOP('CIMI stopped in locate1IM')
+        call CON_stop('CIMI stopped in locate1IM')
      endif
      if (xx(n).lt.xx(1).and.xx(i).gt.xx(i-1)) then
         write(*,*) ' locate1IM: xx is not decreasing monotonically '
         write(*,*) ' n, xx  ',n,xx
-        call CON_STOP('CIMI stopped in locate1IM')
+        call CON_stop('CIMI stopped in locate1IM')
      endif
   enddo
 

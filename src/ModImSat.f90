@@ -1,4 +1,7 @@
-Module ModImSat
+module ModImSat
+
+  use ModUtilities, ONLY: CON_stop
+
   implicit none
   
   logical :: DoWriteSats  = .false., ReadRestartSat = .false.
@@ -312,5 +315,5 @@ contains
     
   end subroutine read_prerun_sat
   
-end Module ModImSat
+end module ModImSat
 

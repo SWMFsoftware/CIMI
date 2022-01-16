@@ -34,8 +34,10 @@ subroutine CIMI_set_parameters(NameAction)
        DtReadSat, DoWriteSats, ReadRestartSat
   use ModCimiGrid
   use ModLstar,		 ONLY: DoVerboseLstar
-  use ModPlasmasphere,   ONLY: DoSavePlas, DtPlasOutput,UseCorePsModel,PlasMinDensity
+  use ModPlasmasphere,   ONLY: &
+       DoSavePlas, DtPlasOutput,UseCorePsModel,PlasMinDensity
   use ModInterFlux,      ONLY: UseHigherOrder,iOrderLat,iOrderLon
+  use ModUtilities, ONLY: CON_stop
   
   implicit none
 
@@ -705,7 +707,8 @@ subroutine CIMI_set_parameters(NameAction)
               call read_var('DensityFraction', dFactor_I(iSpec))
            end do
         case default
-           call CON_stop(NameSub//': unknown TypeComposition='//TypeComposition)
+           call CON_stop(NameSub//': &
+                unknown TypeComposition='//TypeComposition)
         end select
 
         

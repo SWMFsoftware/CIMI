@@ -9,7 +9,10 @@ Module ModCimiTrace
        MinLonPar,MaxLonPar,iProc,iComm,iProcMidnight,nProc,&
        iLonMidnight,nLonPar,nLonPar_P,nLonBefore_P, rb
   use ModCimiPlanet,ONLY: nspec, amu_I
+  use ModUtilities, ONLY: CON_set_do_test, CON_stop
+
   implicit none
+
   real, allocatable :: &
        bo(:,:), ro(:,:), xmlto(:,:), sinA(:,:,:), &
        Have(:,:,:), pp(:,:,:,:,:), vel(:,:,:,:,:),&
