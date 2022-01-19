@@ -565,6 +565,17 @@ Sets minimum pressure passed to GM.
 
 </command>
 
+<command name="DTSATOUT">
+  <parameter name="DtSatOut" type="real" />
+
+#DTSATOUT
+60.0		DtSatOut
+
+Sets the time cadence, in seconds, that the particle fluxes are
+output. Default shown.
+
+</command>
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!					!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!	   GRIDDING PARAMETERS		!!!!!!!!!!!!!!!!!!!!!!
@@ -794,7 +805,7 @@ Default values are shown.
 
 </command>
 
-<command name="#WAVEDIFFUSION">
+<command name="WAVEDIFFUSION">
   	<parameter name="UseWaveDiffusion" type="logical" default="F"/>
   	<parameter name="DiffStartT" type="real" />
   	<parameter name="UseHiss" type="logical" />

@@ -621,7 +621,10 @@ subroutine CIMI_set_parameters(NameAction)
         DoSavePlot = .true.
 
 !!  END OF SAVEPLOT ROUTINE        
-     
+
+     case('#DTSATOUT')
+        call read_var('DtSatOut', DtSatOut)
+        
      case('#VERBOSELSTAR')
         call read_var('DoVerboseLstar',DoVerboseLstar)
         
