@@ -579,8 +579,8 @@ file saves the change in ring current energy content for each species
 resulting from each operator. A new entry in the log is written out
 every DtSaveLog seconds of simulation time.
 
-<<<<<<< HEAD
-=======
+</command>
+
 <command name="TYPEBOUNDARY">
   <parameter name="TypeBoundary" type="string" case="lower" input="select">
     <option name="ellipse" default="T" />
@@ -592,6 +592,7 @@ ellipse		TypeBoundary
 
 Determines if the IM outer boundary is an 'ellipse' or 'circle.'
 Default value is shown.
+
 </command>
 
 <command name="SETBOUNDARYPARAMS">
@@ -619,7 +620,6 @@ the line is considered open to avoid excessive warping. Range is 1 to 4 hours.
 
 Default values are shown.
 
->>>>>>> 32b1e94 (Reworked, reorganized, and updated the PARAM.XML file.  I added)
 </command>
 
 <command name="MINIMUMPRESSURETOGM">
@@ -629,11 +629,6 @@ Default values are shown.
 1e-2		MinimumPressureToGM
 
 Sets minimum pressure passed to GM.
-<<<<<<< HEAD
-=======
-
-</command>
->>>>>>> 32b1e94 (Reworked, reorganized, and updated the PARAM.XML file.  I added)
 
 </command>
 
@@ -643,20 +638,8 @@ Sets minimum pressure passed to GM.
 #DTSATOUT
 60.0		DtSatOut
 
-<<<<<<< HEAD
 Sets the time cadence, in seconds, that the particle fluxes are
 output. Default shown.
-=======
-Determines whether to fill the fluxes in the simulation domain based
-on a Maxwellian determined from MHD quantities (IsGmInitial=T) or to
-set the initial fluxes in the simulation domain to zero
-(IsEmptyInitial=T, not recommended) or to set the initial fluxes in
-the simulation to values from AMPTE/CCE data (IsDataInitial=T).  One
-can also put RBSP observed fluxes into the same format as the
-AMPTE/CCE data to initilaize CIMI with RBSP observations which is
-controlled with the IsRBSPData logical, which is only read if
-IsDataInitial=T. The default is shown.
->>>>>>> 32b1e94 (Reworked, reorganized, and updated the PARAM.XML file.  I added)
 
 </command>
 
