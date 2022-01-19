@@ -43,7 +43,7 @@ my $gitclone = "share/Scripts/gitclone -s";
 
 # Git clone missing directories as needed. Start with share/ to get $gitclone.
 if (not -f $config and not -f "../../$config"){
-    `git clone $GITDIR/share; $gitclone util`;
+    `git clone $GITDIR/share; git clone $GITDIR/util`;
 }
 
 
