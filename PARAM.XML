@@ -242,17 +242,29 @@ default value is shown.
   <parameter name="iOrderLon" type="integer" default="2"/>
 
 #HIGHERORDERDRIFT
-T		UseHigherOrder 
-7		iOrderLat
-7		iOrderLon
+F		UseHigherOrder 
+2		iOrderLat
+2		iOrderLon
 
 If UseHigherOrder is true, construct inter flux during CIMI advection
 in higher order using ULTIMATE advection scheme (Lagrangian
-interpoation + Universal Limiter).  E.g. if iOrderLat = 7, then
-construct latitude inter flux in 7th order scheme.  If iOrderLon = 7,
-then construct longitude inter flux in 7th order scheme.  If iOrderLat
-and iOrderLon are equal to 2 then use 2nd order scheme and Superbee
-limter.
+interpolation + Universal Limiter), e.g., if iOrderLat = 7, then
+construct latitude inter flux in 7th order scheme. If iOrderLon = 7,
+then construct longitude inter flux in 7th order scheme. If iOrderLat
+and iOrderLon are both equal to 2, then use the default 2nd order
+scheme and Superbee limiter.\\
+
+\noindent Defaults shown.\\
+
+\noindent NOTES:
+\begin{enumerate}
+\item Users wanting to use the 7th order scheme in latitude should
+compile CIMI with the GridUniformL option.
+\item iOrderLat and iOrderLon can take integer values of [1-7], but
+have only been tested and developed with iOrderLat=iOrderLon=2 and
+iOrderLat=iOrderLon=7.
+\end{enumerate}
+
 </command>
 
 <command name="STRICTDRIFT">
