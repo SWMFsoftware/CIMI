@@ -812,10 +812,22 @@ subroutine CIMI_set_parameters(NameAction)
         call read_var( 'DoVerboseLatGrid', DoVerboseLatGrid )
 
      case('#HIGHERORDERDRIFT')   ! use higher order drift
-        call read_var('UseHigherOrder',UseHigherOrder) 
-        call read_var('iOrderLat',iOrderLat)   ! order in latitude
-        call read_var('iOrderLon',iOrderLon)   ! order in longitude
-
+        call read_var('UseHigherOrder',UseHigherOrder)
+        if ( UseHigherOrder ) then
+           
+           call read_var( 'iOrderLat', iOrderLat )   ! order in latitude
+           call read_var( 'iOrderLon', iOrderLon )   ! order in longitude
+           if ( iOrderLat .eq. iOrderLon ) then
+              if ( ( iOrderLat .ne. 2 ) .and. ( iOrderLat .ne. 7 ) ) &
+                   call CON_STOP('IM: ERROR: iOrderLat = iOrderLon = 2 '//&
+                   	'or iOrderLat = iOrderLon = 7')
+           else
+              call CON_STOP('IM: ERROR: iOrderLat = iOrderLon = 2 '//&
+                   'or iOrderLat = iOrderLon = 7')
+           endif
+           
+        endif
+        
      end select
      
   enddo
