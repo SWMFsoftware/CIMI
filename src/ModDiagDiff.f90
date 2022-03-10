@@ -19,6 +19,7 @@
 
 module ModDiagDiff 
   use ModCimiGrid, only: ir=>np,ip=>nt,ik=>nk
+  use ModUtilities, ONLY: CON_stop
 
   private !! except
 
@@ -219,7 +220,7 @@ contains
                     write(*,'(1p3E15.7)') PSD(k-1:k+1,m)
                     write(*,'(1pE15.7)') fnew(k)
                     write(*,'(1p2E15.7)') Dqq2m(k-1:k)/G_Q2(k)
-                    call CON_STOP('IM: CIMI dies in diffuse_Q2')
+                    call CON_stop('IM: CIMI dies in diffuse_Q2')
                  endif
                  if (fnew(k).ne.fnew(k).or.fnew(k).lt.-1.e-50) then
                     write(*,'(a,i3,a,i3,a,i3,a,i3,a)') &
@@ -236,7 +237,7 @@ contains
                     write(*,'(1p10E11.3)') dQ2dE(:,m)
                     write(*,*) ' E(t) for const. Q2'
                     write(*,'(1p10E11.3)') E1(:,m)
-                    call CON_STOP('IM: CIMI dies in diffuse_Q2')
+                    call CON_stop('IM: CIMI dies in diffuse_Q2')
                  endif
               enddo       ! end of k
 !(11) Update PSD_Q
@@ -367,7 +368,7 @@ contains
                     write(*,'(1p10E11.3)') Daa1(k,0:ik+1)
                     write(*,*) ' T(y) in RE'
                     write(*,'(1p10E11.3)') tya(i,j,0:ik+1)
-                    call CON_STOP('IM: CIMI dies in diffuse_Q1')
+                    call CON_stop('IM: CIMI dies in diffuse_Q1')
                  endif
               enddo       ! end of k
 !(11) Update PSD_Q
@@ -610,10 +611,10 @@ contains
               if (E(j,k2,m)/E(j,k,m).ge.0.97) then
                  !!E(j,k,m)=0.97*E(j,k2,m)
               else
-                 call CON_STOP('IM: CIMI dies in calc_Q_curve for '//NameWave)
+                 call CON_stop('IM: CIMI dies in calc_Q_curve for '//NameWave)
                  write(*,'(f6.2,a)') E(j,k2,m)/E(j,k,m)*100.,' %'
               endif
-              call CON_STOP('IM: CIMI dies in calc_Q_curve for '//NameWave)
+              call CON_stop('IM: CIMI dies in calc_Q_curve for '//NameWave)
               !!E1=E(j,k2,m)*r
               !!E(j,k,m)=E1
            endif
@@ -709,7 +710,7 @@ contains
                     write(*,'(a,3i3,a,1p5E11.3)')&
                      ' At j,k,m =',j,k,m,', DQQ,Daa,DEE,DaE =',&
                      Dqq2(j,k,m),Daa1,DEE1,DaE1,DEE1-DaE1*DaE1/Daa1
-                    call CON_STOP('IM: CIMI dies in mapping DaE to Dqq for '//NameWave)
+                    call CON_stop('IM: CIMI dies in mapping DaE to Dqq for '//NameWave)
                  endif
               endif
            enddo
@@ -867,7 +868,7 @@ contains
                         Dqq1K(i,j,k,m).lt.0.) then
                        write(*,*) 'i,j,k,m =',i,j,k,m
                        write(*,*) 'Dqq1K =',Dqq1K(i,j,k,m)
-                       call CON_STOP('IM: CIMI dies in '//'interpol_D_coefK')
+                       call CON_stop('IM: CIMI dies in '//'interpol_D_coefK')
                     endif
                     call lintp(cPA,cDqq2(ipc1,k,:),ipa,a0(m),Dqq2K(i,j,k,m),&
                                'interpol_D_coefK')
@@ -875,7 +876,7 @@ contains
                         Dqq2K(i,j,k,m).lt.0.) then
                        write(*,*) 'i,j,k,m =',i,j,k,m
                        write(*,*) 'Dqq2K =',Dqq2K(i,j,k,m)
-                       call CON_STOP('IM: CIMI dies in '//'interpol_D_coefK')
+                       call CON_stop('IM: CIMI dies in '//'interpol_D_coefK')
                     endif
                     call lintp(cPA,E_Q2c(ipc1,k,:),ipa,a0(m),E_Q2K(i,j,k,m),&
                                'interpol_D_coefK')
@@ -889,7 +890,7 @@ contains
                        write(*,'(10f8.3)') cPA
                        write(*,*) 'E_Q2c (ipc1,k,:)'
                        write(*,'(1p9E13.5)') E_Q2c(ipc1,k,:)
-                       call CON_STOP('IM: CIMI dies in '//'interpol_D_coefK')
+                       call CON_stop('IM: CIMI dies in '//'interpol_D_coefK')
                     endif
                  enddo   ! end of k
               endif
@@ -936,7 +937,7 @@ contains
                         Dqq1K(i,j,k,m).lt.0.) then
                        write(*,*) 'i,j,k,m =',i,j,k,m
                        write(*,*) 'Dqq1K =',Dqq1K(i,j,k,m)
-                       call CON_STOP('IM: CIMI dies in '//'interpol_D_coefK')
+                       call CON_stop('IM: CIMI dies in '//'interpol_D_coefK')
                     endif
                     call lintp(cPA,hDqq2(ipc1,k,:),ipa,a0(m),Dqq2K(i,j,k,m),&
                                'interpol_D_coefK')
@@ -944,7 +945,7 @@ contains
                         Dqq2K(i,j,k,m).lt.0.) then
                        write(*,*) 'i,j,k,m =',i,j,k,m
                        write(*,*) 'Dqq2K =',Dqq2K(i,j,k,m)
-                       call CON_STOP('IM: CIMI dies in '//'interpol_D_coefK')
+                       call CON_stop('IM: CIMI dies in '//'interpol_D_coefK')
                     endif
                     call lintp(cPA,E_Q2h(ipc1,k,:),ipa,a0(m),E_Q2K(i,j,k,m),&
                                'interpol_D_coefK')
@@ -960,7 +961,7 @@ contains
                        write(*,'(1p9E13.5)') E_Q2h(ipc1,k,:)
                        write(*,*) 'E_Q2K (i,j,k,:)'
                        write(*,'(1p9E13.5)') E_Q2K(i,j,k,0:m)
-                       call CON_STOP('IM: CIMI dies in '//'interpol_D_coefK')
+                       call CON_stop('IM: CIMI dies in '//'interpol_D_coefK')
                     endif
                  enddo       ! end of k
              endif ! if (a0(m).ge.cPA(1).and.a0(m).le.cPA(ipa))
@@ -1292,13 +1293,13 @@ contains
      if (xx(n).gt.xx(1).and.xx(i).lt.xx(i-1)) then
         write(*,*) ' lintp: xx is not increasing monotonically '
         write(*,*) n,(xx(j),j=1,n)
-        call CON_STOP('IM: CIMI dies in DiagDiff lintp called from'//&
+        call CON_stop('IM: CIMI dies in DiagDiff lintp called from'//&
                       NameCaller)
       endif
      if (xx(n).lt.xx(1).and.xx(i).gt.xx(i-1)) then
         write(*,*) ' lintp: xx is not decreasing monotonically '
         write(*,*) n,(xx(j),j=1,n)
-        call CON_STOP('IM: CIMI dies in DiagDiff lintp called from'//&
+        call CON_stop('IM: CIMI dies in DiagDiff lintp called from'//&
                       NameCaller)
       endif
   enddo
@@ -1407,7 +1408,7 @@ contains
    enddo monoCheck
    if (nn.ne.n) then
       write(*,*)'locate1: xx is not increasing or decreasing monotonically'
-      call CON_STOP('IM: CIMI dies in DiagDiff locate1 called from'//&
+      call CON_stop('IM: CIMI dies in DiagDiff locate1 called from'//&
                     NameCaller)
    endif
 
@@ -1459,7 +1460,7 @@ gap = n-1
 ! check input
 if (n.le.2) then
    write(*,*) ' In subroutine spline n < 2'
-   call CON_STOP('IM: CIMI dies in DiagDiff spline called from'//&
+   call CON_stop('IM: CIMI dies in DiagDiff spline called from'//&
                  NameCaller)
 endif
 if (n.le.3) then

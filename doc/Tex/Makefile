@@ -24,7 +24,7 @@ CIMIXML:
 	@perl -e 'for $$i (glob("../../PARAM.XML ../../[A-Z][A-Z]/*/PARAM.XML")){`${SCRIPTDIR}/XmlToTex.pl $$i >> CIMIXML.tex`}'
 	@echo "${SCRIPTDIR}/XmlToTex.pl */PARAM.XML > CIMIXML.tex"
 
-CIMI.dvi: \
+CIMI.pdf: \
 	CIMI.tex \
 	CIMI_introduction.tex \
 	CIMI_configuration.tex \

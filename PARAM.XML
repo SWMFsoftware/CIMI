@@ -579,6 +579,44 @@ file saves the change in ring current energy content for each species
 resulting from each operator. A new entry in the log is written out
 every DtSaveLog seconds of simulation time.
 
+<command name="TYPEBOUNDARY">
+  <parameter name="TypeBoundary" type="string" case="lower" input="select">
+    <option name="ellipse" default="T" />
+    <option name="circle"              />
+  </parameter>
+
+#TYPEBOUNDARY
+ellipse		TypeBoundary
+
+Determines if the IM outer boundary is an 'ellipse' or 'circle.'
+Default value is shown.
+</command>
+
+<command name="SETBOUNDARYPARAMS">
+  <parameter name="DeltaRmax" type="real" min="1" max="3" default="2"/>
+  <parameter name="DeltaMLTmax" type="real" min="1" max="4" default="2"/>
+
+#SETBOUNDARYPARAMS
+2.0			DeltaRmax   [Re]
+2.0			DeltaMLTmax [hour]
+
+The CIMI grid is based in the ionosphere and we trace the field from
+those footpoints through the magnetosphere. CIMI then does a number of
+checks to set its domain. First, we check for open-closed boundary,
+and the CIMI domain must be inside that. We then check for multiple
+off equator magnetic field minima. This usually occurs on the dayside
+under northward IMF and strong pressure. This gives the "Shebansky
+orbits", which cannot currently be captured by CIMI so those field
+lines are treated as open as well.
+
+If the spacing between two successive minB points is more than DeltaRmax,
+the line is considered open to avoid excessive deformation. Range is 1 to 3 Re.
+
+If the MLT of the minB changes more than DeltaMLTmax from the footpoint,
+the line is considered open to avoid excessive warping. Range is 1 to 4 hours.
+
+Default values are shown.
+
 </command>
 
 <command name="MINIMUMPRESSURETOGM">
@@ -740,7 +778,7 @@ true to use this option.
 
 #DECAY
 T			UseDecay
-36000.  		DecayTimescale in seconds
+10 hours  		DecayTimescale in seconds
 
 If UseDecay is true, adds exponential decay to ring current ion
 populations, so that if there are no other effects, ion phase space
@@ -801,20 +839,19 @@ UseEnergyDiffusionTest can be TRUE at a time; the other must be false.
 </command>
 
 <command name="COMPOSITION">
-  <parameter name="NameCompModel" type="string"  case="upper" input="select">
+  <parameter name="TypeComposition" type="string"  case="upper" input="select">
     <option name="FIXED" default="T"/>
   </parameter>
-  <if expr="$NameCompModel eq 'FIXED'">
-    <parameter name="FractionH" type="real" min="0" max="1" default="0.85"/>
-    <parameter name="FractionO" type="real" min="0" max="1" default="1-$FractionH"/>
-    <parameter name="FractionElectron" type="real" min="0" max="1" default="1.0"/>
+  <if expr="$TypeComposition eq 'FIXED'">
+    <parameter name="DensityFraction" type="real" min="0" max="1" />
+    <parameter name="DensityFraction" type="real" min="0" max="1" />
   </if>
 
 #COMPOSITION
 FIXED                   NameCompModel  
-0.85      		FractionH
-0.15      		FractionO
-1.0                     FractionElectron
+0.85      		DensityFraction H+
+0.15      		DensityFraction O+
+1.0                     DensityFraction Electron
 
 When CIMI is coupled with a single fluid MHD code, the boundary conditions
 obtained from GM do not determine the composition of the plasma.
@@ -837,22 +874,22 @@ Default values are shown.
   	<parameter name="UseHiss" type="logical" />
 	<parameter name="UseChorus" type="logical" />
 	<parameter name="UseChorusUB" type="logical" />
-	<parameter name="HissWaveD" type="character" />
-	<parameter name="ChorusWavesD" type="character" />
-	<parameter name="ChorusUpperBandD" type="character" />
+	<parameter name="HissWaveD" type="string" />
+	<parameter name="ChorusWavesD" type="string" />
+	<parameter name="ChorusUpperBandD" type="string" />
   	<parameter name="UseKpIndex" type="logical" />
-	<parameter name="NameAeFile" type="character" />
+	<parameter name="NameAeFile" type="string" />
 #WAVEDIFFUSION
-T               UseWaveDiffusion
-0.0             DiffStartT     
-T               UseHiss
-T               UseChorus
-F               UseChorusUB
-D_hiss_UCLA.dat    HissWavesD
-D_LBchorus_merge3.dat    ChorusWavesD
+T                            UseWaveDiffusion
+0.0                          DiffStartT     
+T                            UseHiss
+T                            UseChorus
+F                            UseChorusUB
+D_hiss_UCLA.dat              HissWavesD
+D_LBchorus_merge3.dat        ChorusWavesD
 THE_FILE_IS_NOT_READY_YET    ChorusUpperBandD
-T		UseKpIndex
-AE_Index.dat	NameAeFile
+T		             UseKpIndex
+AE_Index.dat	             NameAeFile
 
 This command defines the wave diffusion in CIMI. By default the waves are off 
 so this command must be added to turn on waves. Other commands include the 

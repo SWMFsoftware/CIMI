@@ -7,6 +7,51 @@ install:
 	@(if [ ! -d input ];  then ln -f -s data/input  input;  fi)
 	@(if [ ! -d output ]; then ln -f -s data/output output; fi)
 
+help:
+	@echo ' '
+	@echo '  You can "make" the following:'
+	@echo ' '
+	@echo '    <default>                     CIMI'
+	@echo ' '
+	@echo '    help                          (makefile option list)'
+	@echo '    PDF                           (doc/CIMI.pdf user manual)'
+	@echo '    install                       (install BATSRUS)'
+	@echo ' '
+	@echo '    CIMI                          (bin/cimi.exe CIMI)'
+	@echo '    CIMI_SAMI                     (bin/cimi_sami.exe CIMI+SAMI3)'
+	@echo '    SAMI3	                 (srcSAMI3/SAMI3.exe SAMI)'
+	@echo '    LIB                           (lib/libIM.a IM library)'
+	@echo '    NOMPI                         (lib/NOMPI.a NOMPI library)'
+	@echo ' '
+	@echo '    rundir                        (run directory for CIMI)'
+	@echo '    rundir_cimi_sami              (run directory for CIMI+SAMI)'
+	@echo '    rundir_sami                   (run directory for SAMI3)'
+	@echo ' '
+	@echo '    test                          (perform nightly test)'
+	@echo '    test_compile                  (compile nightly test)'
+	@echo '    test_rundir                   (create run directory for nightly test)'
+	@echo '    test_run                      (run nightly test)'
+	@echo '    test_check                    (check nightly test)'
+	@echo '    test_check BLESS=YES          (bless nightly test results)'
+	@echo '    test                          (nightly test)'
+	@echo '    test_UniformL                 (test uniform L)'
+	@echo '    test_WAVES                    (test waves)'
+	@echo '    test_dipole                   (test dipole)'
+	@echo '    test_flux                     (test flux)'
+	@echo '    test_drift                    (test drift)'
+	@echo '    test_Prerun                   (test Prerun)'
+	@echo '    test_Highorder                (test high order scheme)'
+	@echo '    test_Highorder_Default'
+	@echo '    test_all                      (all tests)'
+	@echo '    test_rundir_all               (create run directory for all tests)'
+	@echo '    test_check_all                (check all tests)'
+	@echo ' '
+	@echo '    PLASMASPHERE                  (perform plasma sphere unit test)'
+	@echo '    PLASMASPHERE_compile          (compile plasma sphere test)'
+	@echo '    PLASMASPHERE_rundir           (create rundir plasma sphere test)'
+
+
+
 #
 #       General Housekeeping
 #
@@ -267,196 +312,201 @@ test_check_all:
 	-make test_check_drift
 	-make test_check_log
 
+
+BLESS=NO
+
+DIFFNUM = ${SCRIPTDIR}/DiffNum.pl -BLESS=${BLESS}
+
 test_check_WAVES:
-	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+	-${DIFFNUM} -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CimiFlux_n00000000_e.fls \
-		output/CimiFlux_e.fls.WAVES \
+		output/CimiFlux_e.fls.WAVES.gz \
 		> test_cimi_waves.diff
-	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+	-${DIFFNUM} -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CimiPSD_n00000000_e.psd \
-		output/CimiPSD_e.psd.WAVES \
+		output/CimiPSD_e.psd.WAVES.gz \
 		>> test_cimi_waves.diff
-	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+	-${DIFFNUM} -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CIMIeq_n00000000.outs \
-		output/CIMIeq.outs.WAVES \
+		output/CIMIeq.outs.WAVES.gz \
 		>> test_cimi_waves.diff
-	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+	-${DIFFNUM} -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CIMI_n00000000.log \
 		output/CIMI.log.WAVES \
 		>> test_cimi_waves.diff
 
 test_check_UniformL:
-	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+	-${DIFFNUM} -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CIMIeq_n00000000.outs \
-		output/CIMIeq.outs.UniformL \
+		output/CIMIeq.outs.UniformL.gz \
 		> test_cimi_UniformL.diff
-	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+	-${DIFFNUM} -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CimiPSD_n00000000_h.psd \
-		output/CimiPSD_h.psd.UniformL \
+		output/CimiPSD_h.psd.UniformL.gz \
 		>> test_cimi_UniformL.diff
-	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+	-${DIFFNUM} -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CimiPSD_n00000000_o.psd \
-		output/CimiPSD_o.psd.UniformL \
+		output/CimiPSD_o.psd.UniformL.gz \
 		>> test_cimi_UniformL.diff
-	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+	-${DIFFNUM} -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CimiPSD_n00000000_e.psd \
-		output/CimiPSD_e.psd.UniformL \
+		output/CimiPSD_e.psd.UniformL.gz \
 		>> test_cimi_UniformL.diff
-	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+	-${DIFFNUM} -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CimiFlux_n00000000_h.fls \
-		output/CimiFlux_h.fls.UniformL \
+		output/CimiFlux_h.fls.UniformL.gz \
 		>> test_cimi_UniformL.diff
-	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+	-${DIFFNUM} -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CimiFlux_n00000000_o.fls \
-		output/CimiFlux_o.fls.UniformL \
+		output/CimiFlux_o.fls.UniformL.gz \
 		>> test_cimi_UniformL.diff
-	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+	-${DIFFNUM} -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CimiFlux_n00000000_e.fls \
-		output/CimiFlux_e.fls.UniformL \
+		output/CimiFlux_e.fls.UniformL.gz \
 		>> test_cimi_UniformL.diff
-	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+	-${DIFFNUM} -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CimiDrift_n00000000_h.vp \
-		output/CimiDrift_h.vp.UniformL \
+		output/CimiDrift_h.vp.UniformL.gz \
 		>> test_cimi_UniformL.diff
-	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+	-${DIFFNUM} -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CimiDrift_n00000000_o.vp \
-		output/CimiDrift_o.vp.UniformL \
+		output/CimiDrift_o.vp.UniformL.gz \
 		>> test_cimi_UniformL.diff
-	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+	-${DIFFNUM} -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CimiDrift_n00000000_e.vp \
-		output/CimiDrift_e.vp.UniformL \
+		output/CimiDrift_e.vp.UniformL.gz \
 		>> test_cimi_UniformL.diff
-	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+	-${DIFFNUM} -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CIMI_n00000000.log \
 		output/CIMI.log.UniformL \
 		>> test_cimi_UniformL.diff
 
 test_check_flux:
-	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+	-${DIFFNUM} -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CimiFlux_n00000000_h.fls \
-		output/CimiFlux_h.fls \
+		output/CimiFlux_h.fls.gz \
 		> test_cimi_flux.diff
-	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+	-${DIFFNUM} -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CimiFlux_n00000000_o.fls \
-		output/CimiFlux_o.fls \
+		output/CimiFlux_o.fls.gz \
 		>> test_cimi_flux.diff
-	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+	-${DIFFNUM} -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CimiFlux_n00000000_e.fls \
-		output/CimiFlux_e.fls \
+		output/CimiFlux_e.fls.gz \
 		>> test_cimi_flux.diff
 
 test_check_psd:
-	-${SCRIPTDIR}/DiffNum.pl -t -r=0.001 -a=1e-10 \
+	-${DIFFNUM} -t -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CimiPSD_n00000000_h.psd \
-		output/CimiPSD_h.psd \
+		output/CimiPSD_h.psd.gz \
 		> test_cimi_psd.diff
-	-${SCRIPTDIR}/DiffNum.pl -t -r=0.001 -a=1e-10 \
+	-${DIFFNUM} -t -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CimiPSD_n00000000_o.psd \
-		output/CimiPSD_o.psd \
+		output/CimiPSD_o.psd.gz \
 		>> test_cimi_psd.diff
-	-${SCRIPTDIR}/DiffNum.pl -t -r=0.001 -a=1e-10 \
+	-${DIFFNUM} -t -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CimiPSD_n00000000_e.psd \
-		output/CimiPSD_e.psd \
+		output/CimiPSD_e.psd.gz \
 		>> test_cimi_psd.diff
 
 test_check_drift:
-	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+	-${DIFFNUM} -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CimiDrift_n00000000_h.vp \
-		output/CimiDrift_h.vp \
+		output/CimiDrift_h.vp.gz \
 		> test_cimi_drift.diff
-	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+	-${DIFFNUM} -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CimiDrift_n00000000_o.vp \
-		output/CimiDrift_o.vp \
+		output/CimiDrift_o.vp.gz \
 		>> test_cimi_drift.diff
-	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+	-${DIFFNUM} -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CimiDrift_n00000000_e.vp \
-		output/CimiDrift_e.vp \
+		output/CimiDrift_e.vp.gz \
 		>> test_cimi_drift.diff
 
 test_check_dipole:
-	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+	-${DIFFNUM} -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CimiDrift_n00000000_h.vp \
-		output/CimiDrift_h.vp.dipole \
+		output/CimiDrift_h.vp.dipole.gz \
 		> test_cimi_dipole.diff
-	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+	-${DIFFNUM} -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CimiDrift_n00000000_o.vp \
-		output/CimiDrift_o.vp.dipole \
+		output/CimiDrift_o.vp.dipole.gz \
 		>> test_cimi_dipole.diff
-	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+	-${DIFFNUM} -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CimiDrift_n00000000_e.vp \
-		output/CimiDrift_e.vp.dipole \
+		output/CimiDrift_e.vp.dipole.gz \
 		>> test_cimi_dipole.diff
-	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+	-${DIFFNUM} -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CIMI_n00000000.log \
-		output/CIMI.log.dipole \
+		output/CIMI.log.dipole.gz \
 		>> test_cimi_dipole.diff
 
 test_check_eq:
-	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+	-${DIFFNUM} -r=0.001 -a=1e-10 -B=${BLESS} \
 		${TESTDIR}/IM/plots/CIMIeq_n00000000.outs \
-		output/CIMIeq.outs \
+		output/CIMIeq.outs.gz \
 		> test_cimi.diff
 
 test_check_log:
-	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+	-${DIFFNUM} -r=0.001 -a=1e-10 -B=${BLESS} \
 		${TESTDIR}/IM/plots/CIMI_n00000000.log \
 		output/CIMI.log \
 		> test_cimi_log.diff
 
 test_check_Prerun:
-	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+	-${DIFFNUM} -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CimiFlux_n00000000_h.fls \
-		output/CimiFlux_h.fls.Prerun \
+		output/CimiFlux_h.fls.Prerun.gz \
 		> test_cimi_Prerun.diff
-	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+	-${DIFFNUM} -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CimiFlux_n00000000_o.fls \
-		output/CimiFlux_o.fls.Prerun \
+		output/CimiFlux_o.fls.Prerun.gz \
 		>> test_cimi_Prerun.diff
-	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+	-${DIFFNUM} -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CimiFlux_n00000000_e.fls \
-		output/CimiFlux_e.fls.Prerun \
+		output/CimiFlux_e.fls.Prerun.gz \
 		>> test_cimi_Prerun.diff
-	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+	-${DIFFNUM} -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/sat_rbspa_hflux_t000060.sat \
 		output/sat_rbspa_hflux_t000060.sat \
 		>> test_cimi_Prerun.diff
-	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+	-${DIFFNUM} -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/sat_rbspb_hflux_t000060.sat \
 		output/sat_rbspb_hflux_t000060.sat \
 		>> test_cimi_Prerun.diff
-	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+	-${DIFFNUM} -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/sat_rbspa_oflux_t000060.sat \
 		output/sat_rbspa_oflux_t000060.sat \
 		>> test_cimi_Prerun.diff
-	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+	-${DIFFNUM} -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/sat_rbspb_oflux_t000060.sat \
 		output/sat_rbspb_oflux_t000060.sat \
 		>> test_cimi_Prerun.diff
-	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+	-${DIFFNUM} -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/sat_rbspa_eflux_t000060.sat \
 		output/sat_rbspa_eflux_t000060.sat \
 		>> test_cimi_Prerun.diff
-	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+	-${DIFFNUM} -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/sat_rbspb_eflux_t000060.sat \
 		output/sat_rbspb_eflux_t000060.sat \
 		>> test_cimi_Prerun.diff
-	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+	-${DIFFNUM} -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CimiPSD_n00000000_h.psd \
-		output/CimiPSD_h.psd.Prerun \
+		output/CimiPSD_h.psd.Prerun.gz \
 		>> test_cimi_Prerun.diff
-	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+	-${DIFFNUM} -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CimiPSD_n00000000_o.psd \
-		output/CimiPSD_o.psd.Prerun \
+		output/CimiPSD_o.psd.Prerun.gz \
 		>> test_cimi_Prerun.diff
-	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+	-${DIFFNUM} -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CimiPSD_n00000000_e.psd \
-		output/CimiPSD_e.psd.Prerun \
+		output/CimiPSD_e.psd.Prerun.gz \
 		>> test_cimi_Prerun.diff
-	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+	-${DIFFNUM} -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CIMIeq_n00000000.outs \
-		output/CIMIeq.outs.Prerun \
+		output/CIMIeq.outs.Prerun.gz \
 		>> test_cimi_Prerun.diff
-	-${SCRIPTDIR}/DiffNum.pl -r=0.001 -a=1e-10 \
+	-${DIFFNUM} -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CIMI_n00000000.log \
 		output/CIMI.log.Prerun \
 		>> test_cimi_Prerun.diff
@@ -479,6 +529,7 @@ allclean:
 	cd src; make distclean
 	cd srcSAMI3; make distclean
 	cd srcInterface; make distclean
+	cd doc/Tex; make distclean
 	rm -f config.log *~
 	@(if [ -h input ]; then rm -f input; fi)
 	@(if [ -h output ]; then rm -f output; fi)
@@ -536,23 +587,26 @@ rundir_sami:
 	fi);
 
 ########## UNIT Tests
-PLASMASPHERE_compile:
-	@cd ${SHAREDIR};        make LIB
-	@cd src;        make unit_test_plasmasphere_compile
-PLASMASPHERE_rundir:
-	rm -rf ${TESTDIR}
-	@make rundir RUNDIR=${TESTDIR}
-	@cd ${TESTDIR}; ln -s ${BINDIR}/unit_test_plasmasphere.exe
-#PLASMASPHERE_check:
-#        @echo "test_check..." >> test_plasmasphere.diff
-#        -@(${SCRIPTDIR}/DiffNum.pl -b -r=1e-8 \
-#                ${TESTDIR}/plasmasphere.out \
-#                data/output/plasmasphere.out \
-#                > test_plasmasphere.diff)
 PLASMASPHERE:
 	make PLASMASPHERE_compile
 	make PLASMASPHERE_rundir
 	@cd ${TESTDIR};   ./unit_test_plasmasphere.exe
+
+PLASMASPHERE_compile:
+	@cd ${SHAREDIR};        make LIB
+	@cd src;        make unit_test_plasmasphere_compile
+
+PLASMASPHERE_rundir:
+	rm -rf ${TESTDIR}
+	@make rundir RUNDIR=${TESTDIR}
+	@cd ${TESTDIR}; ln -s ${BINDIR}/unit_test_plasmasphere.exe
+
+#PLASMASPHERE_check:
+#        @echo "test_check..." >> test_plasmasphere.diff
+#        -@(${DIFFNUM} -b -r=1e-8 \
+#                ${TESTDIR}/plasmasphere.out \
+#                data/output/plasmasphere.out \
+#                > test_plasmasphere.diff)
 
 
 DIFFUSIONTEST:

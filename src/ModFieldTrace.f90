@@ -9,7 +9,10 @@ Module ModCimiTrace
        MinLonPar,MaxLonPar,iProc,iComm,iProcMidnight,nProc,&
        iLonMidnight,nLonPar,nLonPar_P,nLonBefore_P, rb
   use ModCimiPlanet,ONLY: nspec, amu_I
+  use ModUtilities, ONLY: CON_set_do_test, CON_stop
+
   implicit none
+
   real, allocatable :: &
        bo(:,:), ro(:,:), xmlto(:,:), sinA(:,:,:), &
        Have(:,:,:), pp(:,:,:,:,:), vel(:,:,:,:,:),&
@@ -37,6 +40,10 @@ Module ModCimiTrace
   integer :: iLatTest = -1, iLonTest = -1
 
   real :: DtUpdateB ! update frequency of Bfield 
+
+  real    :: DeltaRMax = 2.0 !Re
+  real    :: xmltlim = 2.0 ! limit of field line warping in hour
+
   
   public :: gather_field_trace
   public :: bcast_field_trace
@@ -90,10 +97,11 @@ contains
     integer :: n,i,j,k,m,mir,npf,npf1,im,im1,im2,igood,ii,iTaylor, j1
     real    :: rNeighborMax
     integer :: iopt, n5, iout,n8,n7,n6,m0,n70,ib
-    real    :: rlim,xmltlim,dre,xlati1,phi1,xmlt1,ro1,volume1,bo1,dss2
+    real    :: rlim,dre,xlati1,phi1,xmlt1,ro1,volume1,bo1,dss2
     real    :: dssm,rm1,rme,rl,cost,dssp
     real    :: sim,bmmx,rmm, tya33,h33,xmass,c2mo,c4mo2,ro2,pp1
-    real    :: pijkm,pc,c2m,e,q,tcone1,tcone2,x,DeltaRMax
+    real    :: pijkm,pc,c2m,e,q,tcone1,tcone2,x
+
     real    cosa, &       ! cos of local pitch angle, a
             SqrtBmCosa,&  ! sqrt(Bm) * cos (a) 
             si3OverSqrtBm,&         ! si3 / sqrt(Bm)
@@ -124,10 +132,10 @@ contains
 
     iopt=1               ! dummy parameter in t96_01 and t04_s 
     rlim=2.*rb
-    xmltlim=1.!2.           ! limit of field line warping in hour
+    !xmltlim=1.!2.           ! limit of field line warping in hour
     dre=0.06             ! r interval below the surface of the Earth
     n5=16                ! no. of point below the surface of the Earth
-    DeltaRMax = 0.75!2.0
+    !DeltaRMax = 0.75!2.0
 
     ! Sets the non-Monotonicity length threshold (in R_E)
     NonMonoLengthThresh = 1. 

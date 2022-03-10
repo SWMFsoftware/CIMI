@@ -11,8 +11,34 @@ contains
     real, intent(in) :: tSimulation
     Character(len=100) :: NameFile             !output file name
     integer :: iTimeOut, iLat, iLon, iVar
+    Logical, save    :: IsFirstCall =.true.
     !---------------------------------------------------------------------------
     
+    if (IsFirstCall) then
+       !create header file to save coupling setup determined in IM_wrapper
+       open(UnitTmp_,file='IM/Prerun.h',status="replace")
+       write(UnitTmp_,*) UseTotalRhoGm 
+       write(UnitTmp_,*) UseTotalPGm   
+       write(UnitTmp_,*) UseTotalPparGm
+       write(UnitTmp_,*) UseMultiRhoGm 
+       write(UnitTmp_,*) UseMultiPGm   
+       write(UnitTmp_,*) UseMultiPparGm
+       write(UnitTmp_,*) DoFeedbackPs  
+       write(UnitTmp_,*) UsePeGm       
+       write(UnitTmp_,*) rBodyGm
+       write(UnitTmp_,*) iLatMin
+       write(UnitTmp_,*) TotalRho_
+       write(UnitTmp_,*) TotalP_
+       write(UnitTmp_,*) TotalPpar_
+       
+       write(UnitTmp_,*) iBufferRho_I 
+       write(UnitTmp_,*) iBufferP_I
+       write(UnitTmp_,*) iBufferPpar_I   
+       
+       close(UnitTmp_)
+       IsFirstCall =.false.
+    endif
+
     ! Create Filename and open file
     iTimeOut=int(tSimulation)
     write(NameFile,"(a,i8.8,a)") &
@@ -21,6 +47,10 @@ contains
 
     ! Write out SW values
     write(UnitTmp_) xnswa(1), vswa(1), bxw(1), byw(1), bzw(1)
+
+    ! Write out Kp values
+    write(UnitTmp_) KpGm
+    write(UnitTmp_) AeGm
     
     ! Write out nPoint and nVarBmin
     write(UnitTmp_) nPoint, nVarBmin
@@ -70,6 +100,14 @@ contains
     ! read SW values
     read(UnitTmp_) xnswa(1), vswa(1), bxw(1), byw(1), bzw(1)
     
+    ! read Kp values
+    read (UnitTmp_) KpGm
+    if (KpGm>0) UseGmKp = .true.
+
+    ! read Kp values
+    read (UnitTmp_) AeGm
+    if (KpGm>0) UseGmAe = .true.
+
     !  read nPoint and nVarBmin
     read(UnitTmp_) nPoint, nVarBmin
 
@@ -96,8 +134,8 @@ contains
     
     close(UnitTmp_)
     
-    ! create an index array on the first call
     if (IsFirstCall) then
+       ! create an index array on the first call
        n = 0
        do iLon = 1, nLon
           do iLat = 1, nLat
@@ -105,8 +143,31 @@ contains
            iLineIndex_II(iLon,iLat) = n
         end do
      end do
-     IsFirstCall = .false.
      UseGm = .true.
+
+     !read header file to get coupling setup determined in IM_wrapper
+     open(UnitTmp_,file='IM/Prerun.h',status="old")
+     read(UnitTmp_,*) UseTotalRhoGm 
+     read(UnitTmp_,*) UseTotalPGm   
+     read(UnitTmp_,*) UseTotalPparGm
+     read(UnitTmp_,*) UseMultiRhoGm 
+     read(UnitTmp_,*) UseMultiPGm   
+     read(UnitTmp_,*) UseMultiPparGm
+     read(UnitTmp_,*) DoFeedbackPs  
+     read(UnitTmp_,*) UsePeGm       
+     read(UnitTmp_,*) rBodyGm
+     read(UnitTmp_,*) iLatMin
+     read(UnitTmp_,*) TotalRho_
+     read(UnitTmp_,*) TotalP_
+     read(UnitTmp_,*) TotalPpar_
+     
+     
+     read(UnitTmp_,*) iBufferRho_I 
+     read(UnitTmp_,*) iBufferP_I
+     read(UnitTmp_,*) iBufferPpar_I   
+     
+     close(UnitTmp_)
+     IsFirstCall =.false.
   endif
 
     

@@ -12,7 +12,9 @@ Module ModGmCimi
   integer, dimension(nspec-1) :: iBufferP_I
   integer, dimension(nspec-1) :: iBufferPpar_I   
   real :: rBodyGm=2.5
-  
+
+  ! index of conjugate lat and lon in StateBmin array
+  integer :: ConjugateLat_=4,ConjugateLon_=5
   logical :: UseTotalRhoGm = .false.
   logical :: UseTotalPGm   = .false.
   logical :: UseTotalPparGm= .false.
@@ -24,8 +26,8 @@ Module ModGmCimi
   !number of variables extacted along field
   integer,parameter :: nVar=4
 
-  real :: KpGm=-1.0
-  logical :: UseGmKp=.false.
+  real :: KpGm=-1.0, AeGm=-1.0
+  logical :: UseGmKp=.false.,UseGmAe=.false.
   
   real :: Den_IC(nspec,nLat,nLon) = 0.0, Temp_IC(nspec,nLat,nLon) = 0.0, &
        Temppar_IC(nspec,nLat,nLon) = 0.0

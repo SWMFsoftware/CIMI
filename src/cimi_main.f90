@@ -160,29 +160,3 @@ program cimi
   call MPI_FINALIZE(iError)
 
 end program cimi
-!============================================================================
-subroutine CON_stop(StringError)
-  use ModCimiGrid,    ONLY: iProc,nProc,iComm
-  use ModCimi,        ONLY: Time
-  use ModMpi
-  implicit none
-  character (len=*), intent(in) :: StringError
-  
-  ! Local variables:
-  integer :: iError,nError
-  !----------------------------------------------------------------------------
-  
-  write(*,*)'Stopping execution! me=',iProc,' at time=',Time,&
-       ' with msg:'
-  write(*,*)StringError
-  call MPI_abort(iComm, nError, iError)
-  stop
-end subroutine CON_stop
-!============================================================================
-subroutine CON_set_do_test(String,DoTest,DoTestMe)
-  implicit none
-  character (len=*), intent(in)  :: String
-  logical          , intent(out) :: DoTest, DoTestMe
-  DoTest   = .false.
-  DoTestMe = .false.
-end subroutine CON_set_do_test

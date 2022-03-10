@@ -425,7 +425,6 @@ contains
     !interpolate initial values to plasmasphere grid
     call interpolate_cimi_to_plasmasphere
 
-
     !set initial plasmasphere condition
     Nion=0.0
     if (.not.IsRestart) then
@@ -451,7 +450,9 @@ contains
        enddo
     enddo
 
-
+    ! Definitely needed for restart
+    call interpolate_plasmasphere_to_cimi
+    
   end subroutine init_plasmasphere
 
   !=========================================================================

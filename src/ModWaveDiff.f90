@@ -1,4 +1,4 @@
-Module DensityTemp
+module DensityTemp
 
   use ModCimiGrid, ONLY: ir=>np, ip=>nt !, ik=>nk
 
@@ -77,17 +77,73 @@ contains
     
   end subroutine simple_plasmasphere
 
-end Module DensityTemp
+end module DensityTemp
 
 !!!!!!!!!!!!!!!!  Main wave module !!!!!!!!!!!!!1
-Module ModWaveDiff
-  
-  use ModCimiGrid,	ONLY:	ir => np, ip => nt, iw => nm, ik => nk  
-  use ModCimiPlanet,	ONLY:	nspec
-  use ModCimiTrace,	ONLY: 	&
-       ekev, tya, y => sinA, Bo, ro, xmlto, lintpIM, bm
-  use ModNumConst,	ONLY:	pi => cPi
-  
+module ModWaveDiff
+
+use ModCimiGrid,ONLY: ir=>np, ip=>nt, iw=>nm , ik=>nk  
+use ModCimiPlanet,ONLY: nspec
+use ModCimiTrace, ONLY: ekev,tya,y=>sinA,Bo,ro,xmlto,lintpIM,bm
+use ModNumConst,       ONLY: pi => cPi
+use ModUtilities, ONLY: CON_stop
+
+implicit none
+
+logical            :: UseWaveDiffusion = .false.
+logical            :: UseHiss  = .false.
+logical            :: UseChorus  = .false.
+logical            :: UseChorusUB = .false.
+logical            :: UseKpIndex = .false.
+real               :: DiffStartT = 0.
+character(len=100)  :: HissWavesD = ' '
+character(len=100)  :: ChorusWavesD= ' '
+character(len=100)  :: ChorusUpperBandD = ' '
+! these variables are needed for testing purposes only
+logical            :: testDiff_aa = .false.
+logical            :: testDiff_EE = .false.
+logical            :: testDiff_aE = .false.
+
+
+
+integer,parameter :: ipu=6,iwu=31,ipa=89    ! from module cimigrid_dim in CIMI: dimension of Qiuhua's UB chorus coef
+integer ipc,iwc,iph,iwh            ! from module cimigrid_dim in CIMI: dimension of LB chorus & hiss diff coef
+integer ichor,iUBC,ihiss           !   switches for three wave models    
+!integer iba(ip),iw2(nspec,ik)
+
+! from module WaveDiffCoef in cimi
+real, allocatable, dimension(:) :: cOmpe,ckeV,hOmpe,hkeV
+real, allocatable, dimension(:,:,:) :: cDEE,cDaa,cDaE,hDEE,hDaa,hDaE
+real cPA(ipa),uOmpe(ipu),ukeV(iwu), &
+     uDEE(ipu,iwu,ipa),uDaa(ipu,iwu,ipa),uDaE(ipu,iwu,ipa)
+
+!from module cWpower in cimi
+real CHpower(ir,ip),UBCpower(ir,ip),HIpower(ir,ip),ompe(ir,ip),r_wave
+real Cpower0,Hpower0,BLc0,BLh0,BLu0
+
+! from module constants
+real,parameter :: re_m=6.375e6                ! earth's radius (m)
+real,parameter :: e_mass=9.11e-31             ! electron mass in kg
+real,parameter :: epsilon0=8.8542e-12         ! permittivity of free space
+
+! For ae index
+real, allocatable :: TimeAeIndex_I(:), AeIndex_I(:)
+character(len=100) :: NameAeFile
+integer :: NumAeElements
+
+contains
+
+  subroutine ReadDiffCoef
+
+!  use constants  check later
+!  use cimigrid_dim
+!  use cread1
+!  use waveDiffCoef
+!  use cWpower
+
+  use ModCimiPlanet,	ONLY: xme=>dipmom, rc
+  use ModIoUnit,	ONLY: UnitTmp_
+  use ModCimiGrid,	ONLY: iProc
   
   implicit none
   
@@ -1554,5 +1610,5 @@ contains
        if (eps_high.le.1.e-5) y=yy(n)
     Endif
   end subroutine lintpIM_diff
-  
-end Module ModWaveDiff
+
+end module ModWaveDiff
