@@ -32,9 +32,6 @@
         
      end select DEFINE_GHOST_CELLS
 
-     write(*,*) "nGhostLonLeft: ", nGhostLonLeft
-     write(*,*) "nGhostLonRight: ", nGhostLonRight
-     
    end subroutine set_nghostcell_scheme
    
      
