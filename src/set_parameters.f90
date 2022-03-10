@@ -833,7 +833,21 @@ subroutine CIMI_set_parameters(NameAction)
            endif
            
         endif
-        
+
+     case('#DRIFTSCHEME')   ! use higher order drift
+        call read_var( 'iOrderLat', iOrderLat )   ! order in latitude
+        call read_var( 'iOrderLon', iOrderLon )   ! order in longitude
+        if ( iOrderLat .eq. iOrderLon ) then
+           if ( iOrderLat .eq. 7 ) UseHigherOrder=.true.
+           if ( ( iOrderLat .ne. 2 ) .and. ( iOrderLat .ne. 7 ) ) &
+                call CON_STOP('IM: ERROR: iOrderLat = iOrderLon = 2 '//&
+                'or iOrderLat = iOrderLon = 7')
+        else
+           call CON_STOP('IM: ERROR: iOrderLat = iOrderLon = 2 '//&
+                'or iOrderLat = iOrderLon = 7')
+        endif
+        write(*,*) "UseHigherOrder: ", UseHigherOrder
+
      end select
      
   enddo
