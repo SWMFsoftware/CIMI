@@ -1,5 +1,6 @@
 !The main cimi code to update one delta t
 subroutine cimi_run(delta_t)
+
   use ModConst,			ONLY:	cLightSpeed, cElectronCharge
   use ModCimiInitialize,	ONLY:	&
        xmm, xk, dphi, dmm, dk, dmu, xjac,&
@@ -63,6 +64,7 @@ subroutine cimi_run(delta_t)
        mapPSDtoQ, mapPSDtoE, diffuse_Q1, diffuse_Q2, &
        UsePitchAngleDiffusionTest,&
        UseEnergyDiffusionTest, init_diag_diff
+  use ModUtilities, ONLY: CON_stop
  
 
 !   NB: empty comment. Will remove later
@@ -158,6 +160,7 @@ subroutine cimi_run(delta_t)
         !initial the 2d core plasmasphere model
         call init_plasmasphere(np,nt,xlatr,phi,iba,&
              brad,phi2o,ftv,pot,IsRestart)
+        write(*,*) 'IsRestart',IsRestart
         if (.not.IsRestart) then
            !spin up the core plasmasphere model by running for one day
            call advance_plasmasphere(PlasSpinUpTime)
@@ -214,7 +217,7 @@ subroutine cimi_run(delta_t)
      call initial_extra
      IsFirstCall=.false.
   elseif(IsFirstCall .and. IsRestart) then
-     ib0=iba
+     ib0(:)=iba(:)
      IsFirstCall=.false.
   endif
   
@@ -402,7 +405,7 @@ subroutine cimi_run(delta_t)
             UseEnergyDiffusionTest) then
            write(*,*) 'UsePitchAngleDiffusionTest',UsePitchAngleDiffusionTest
            write(*,*) 'UseEnergyDiffusionTest',UseEnergyDiffusionTest
-           call CON_STOP('For diag diffusion test, "make DIFFUSIONTEST"')
+           call CON_stop('For diag diffusion test, "make DIFFUSIONTEST"')
         endif
        
         if ( UseDiagDiffusion ) then
@@ -698,16 +701,31 @@ subroutine cimi_init
   !-----------------------------------------------------------------------------
   
   ! Set up proc distribution
-  if (iProc < mod(nt,nProc))then
+
+  ! NB/CK: In most cases mod( nt, nProc ) == 0. For example, when nt =
+  ! 	48, the number of processors is typically an integer divisor
+  ! 	of 48, e.g., [1, 2, 3, 4, 6, 8, 12, 16, 24 ], nLonPar is the
+  ! 	same among all processors (properly load-balanced).  However,
+  ! 	when nProc = 10 with nt = 48, then nLonPar is not constant
+  ! 	among processors (not properly load-balanced). Could this
+  ! 	discrepency trigger problems with ghostcells, especially as we
+  ! 	begin exploring different MLT grids and/or drift schemes?
+
+  if (iProc < mod(nt,nProc))then 
      nLonPar=(nt+nProc-1)/nProc
   else
-     nLonPar=nt/nProc
+     ! nLonPar is the number of points per proccess 
+     nLonPar=nt/nProc    
   endif
 
   ! Figure out the min and max longitude range for each proc
   if (.not.allocated(nLonBefore_P)) allocate(nLonBefore_P(0:nProc-1))
   if (.not.allocated(nLonPar_P))    allocate(nLonPar_P(0:nProc-1))
   call MPI_allgather(nLonPar,1,MPI_INTEGER,nLonPar_P,1,MPI_INTEGER,iComm,iError)
+  ! nLonPar_P is an array, it contains nLonPar gathered from all
+  ! processes; this is synced and could be used to define
+  ! MinLonPar/MaxLonPar for any iProc
+
   nLonBefore_P(0) = 0
   do iPe = 1, nProc - 1
      nLonBefore_P(iPe) = sum(nLonPar_P(0:iPe-1))
@@ -1060,13 +1078,12 @@ subroutine initial_f2(nspec,np,nt,iba,amu_I,vel,xjac,ib0)
   !---------------------------------------------------------------------------
   pi=acos(-1.)
 
-  ib0=iba
-  f2=0.
+  ib0(:)=iba(:)
+  ! Set initial f2 to a small number; this makes IsEmptyInitial
+  ! default
+  f2(:,:,:,:,:)=1.0e-40
 
-  if (IsEmptyInitial) then
-     ! Set initial f2 to a small number
-     f2(:,:,:,:,:)=1.0e-40
-  elseif(IsGmInitial) then
+  if(IsGmInitial) then
      ! Set initial f2 based on Maxwellian or bi-Maxwellian
      Tempperp_IC(:,:,:) = (3*Temp_IC(:,:,:) - Temppar_IC(:,:,:))/2.
      do n=1,nspec
@@ -1074,7 +1091,7 @@ subroutine initial_f2(nspec,np,nt,iba,amu_I,vel,xjac,ib0)
         chmass=1.6e-19/xmass
         do j=MinLonPar,MaxLonPar
            do i=1,iba(j)
-!              write(*,*) n,i,j,iba(j),Den_IC(n,i,j), Temppar_IC(n,i,j), Tempperp_IC(n,i,j)
+              !write(*,*) n,i,j,iba(j),Den_IC(n,i,j), Temppar_IC(n,i,j), Tempperp_IC(n,i,j)
               f21=Den_IC(n,i,j)/(2.*pi*xmass*Temppar_IC(n,i,j)*1.6e-19)**0.5 &
                    /(2.*pi*xmass*Tempperp_IC(n,i,j)*1.6e-19)
               !following lines were for when we had isotropic option
@@ -1384,7 +1401,8 @@ end subroutine ceparaIM
 
 !-------------------------------------------------------------------------------
 subroutine set_cimi_potential(CurrentTime)
-  !-----------------------------------------------------------------------------
+!-----------------------------------------------------------------------------
+
   ! Routine sets the ionospheric potentials from weimer when not using MHD input
   !
   use ModCimiGrid,	ONLY: xlatr, xmlt, np, nt
@@ -1396,6 +1414,7 @@ subroutine set_cimi_potential(CurrentTime)
   use ModIndicesInterfaces
   use ModCimiTrace,	ONLY: UsePotential
   use ModCimiPlanet,	ONLY: rc
+  use ModUtilities, ONLY: CON_stop
   
   implicit none
 
@@ -1447,7 +1466,7 @@ subroutine set_cimi_potential(CurrentTime)
      vsw=abs(vsw)
      
      if (iError /= 0) then
-        call con_stop&
+        call CON_stop&
              ("IM_ERROR: Problem setting solar wind in set_cimi_potential")
      end if
 !  endif
@@ -1478,7 +1497,8 @@ end subroutine set_cimi_potential
 !-------------------------------------------------------------------------------
 subroutine driftV(nspec,np,nt,nm,nk,irm,re_m,Hiono,dipmom,dphi,xlat,dlat, &
      ekev,pot,vl,vp)
-  !-----------------------------------------------------------------------------
+!-------------------------------------------------------------------------------
+
   ! Routine calculates the drift velocities
   !
   ! Input: re_m,Hiono,dipmom,dphi,xlat,dlat,ekev,pot,nspec,np,nt,nm,nk,irm
@@ -1605,7 +1625,8 @@ end subroutine driftV
 !-------------------------------------------------------------------------------
 subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
      fb,f2,driftin,driftout,ib0)
-  !-----------------------------------------------------------------------------
+!-------------------------------------------------------------------------------
+  
   ! Routine updates f2 due to drift
   !
   ! Routine calculates dF/dt = d(vl * F)/dxlat + d(vp * F)/dphi
@@ -1614,13 +1635,17 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
   !
   ! Input: iw2,nspec,np,nt,nm,nk,iba,dt,dlat,dphi,brad,rb,vl,vp,fbi
   ! Input/Output: f2,ib0,driftin,driftout
-  use ModCimiGrid, ONLY: MinLonPar, MaxLonPar, DoUseUniformLGrid, dvarL
-  use ModCimi, ONLY: IsStrictDrift
-  use ModCimiTrace, ONLY: iba, ekev
-  use ModCimiGrid, ONLY: iProc,nProc,iComm,MinLonPar,MaxLonPar, &
-       iProcLeft, iLonLeft, iProcRight, iLonRight, d4Element_C   
-  use ModInterFlux, only: UseHigherOrder,FLS_2D_ho,nGhostLonLeft,nGhostLonRight
+  use ModCimiGrid,	ONLY: MinLonPar, MaxLonPar, DoUseUniformLGrid, dvarL
+  use ModCimi,		ONLY: IsStrictDrift
+  use ModCimiTrace,	ONLY: iba, ekev
+  use ModCimiGrid,	ONLY: iProc, nProc, iComm, MinLonPar, MaxLonPar, &
+       iProcLeft, iLonLeft, iProcRight, iLonRight, d4Element_C, &
+       nLonPar, nLonPar_P, nLonBefore_P   
+  use ModInterFlux,	ONLY: &
+       UseHigherOrder, FLS_2D_ho, nGhostLonLeft, nGhostLonRight
   use ModMpi
+  use ModUtilities,	ONLY: CON_stop
+
   implicit none
 
   integer nk,nspec,np,nt,nm,ib0(nt)
@@ -1638,10 +1663,21 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
   logical :: UseUpwind=.false.
 
   ! MPI status variable
-  integer :: iStatus_I(MPI_STATUS_SIZE)
-  integer :: iError
+  integer :: iStatus_I(MPI_STATUS_SIZE), iSendCount
+  integer :: iError, iReceiveCount_P( nProc ), iDisplacement_P( nProc )
   real, allocatable :: cmax_P(:)
- 
+  
+  real :: buf2D_send( np , MaxLonPar - MinLonPar + 1 )
+  real :: buf2D_recv( np, nt ), buf2D_send_1( np, 2 ), buf2D_recv_1( np, 2 )
+
+  ! number of cells for current proc; should be the same
+  ! MaxLonPar-MinLonPar+1
+  iSendCount = np * nLonPar 
+  ! number of cells per proc; function from proc no
+  iReceiveCount_P = np * nLonPar_P
+  ! number of 1st cell in a given proc; function from proc no
+  iDisplacement_P = np * nLonBefore_P   
+
   if (.not.allocated(cmax_P) .and. nProc>1) allocate(cmax_P(nProc))
   
   ! When nProc>1 pass iba from neighboring procs
@@ -1760,21 +1796,34 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
 !
 !              elseif(nProc>1 .and. UseHigherOrder) then
               !send f2d ghostcells
+
               if(nProc>1 ) then
-                 call MPI_send(f2d(1:np,MaxLonPar-nGhostLonLeft+1:MaxLonPar),&
-                      nGhostLonLeft*np,&
-                      MPI_REAL,iProcRight,3,iComm,iError)
-                 call MPI_send(f2d(1:np,MinLonPar:MinLonPar+nGhostLonRight-1),&
-                      nGhostLonRight*np,MPI_REAL,&
-                      iProcLeft,4,iComm,iError)
-                 !recieve f2d ghostcells from neigboring Procs
-                 call MPI_recv(f2d(1:np,iLonLeft-nGhostLonLeft+1:iLonLeft),&
-                      nGhostLonLeft*np,MPI_REAL,&
-                      iProcLeft,3,iComm,iStatus_I,iError)
-                 call MPI_recv(f2d(1:np,iLonRight:iLonRight+nGhostLonRight-1),&
-                      nGhostLonRight*np,MPI_REAL,&
-                      iProcRight,4,iComm,iStatus_I,iError)
-                 
+
+                 ! Prepare the buffer on each process to send
+                 buf2D_send( :, 1 : ( MaxLonPar - MinLonPar + 1 ) ) = &
+                      f2d( :, MinLonPar : MaxLonPar )
+                 ! Gather buffer from all processes
+                 call MPI_ALLGATHERV( buf2D_send, iSendCount, MPI_REAL, &
+                      buf2D_recv, iReceiveCount_P, iDisplacement_P, &
+                      MPI_REAL, iComm, iError )
+                 ! Store the entire buffer on each process
+                 f2d( :, : ) = buf2D_recv( :, : )
+
+                 ! Old MPI_Send and receive calls for ghost cells.
+!!$                 call MPI_send(f2d(1:np,MaxLonPar-nGhostLonLeft+1:MaxLonPar),&
+!!$                      nGhostLonLeft*np,&
+!!$                      MPI_REAL,iProcRight,3,iComm,iError)
+!!$                 call MPI_send(f2d(1:np,MinLonPar:MinLonPar+nGhostLonRight-1),&
+!!$                      nGhostLonRight*np,MPI_REAL,&
+!!$                      iProcLeft,4,iComm,iError)
+!!$                 !recieve f2d ghostcells from neigboring Procs
+!!$                 call MPI_recv(f2d(1:np,iLonLeft-nGhostLonLeft+1:iLonLeft),&
+!!$                      nGhostLonLeft*np,MPI_REAL,&
+!!$                      iProcLeft,3,iComm,iStatus_I,iError)
+!!$                 call MPI_recv(f2d(1:np,iLonRight:iLonRight+nGhostLonRight-1),&
+!!$                      nGhostLonRight*np,MPI_REAL,&
+!!$                      iProcRight,4,iComm,iStatus_I,iError)
+            
                  !send fb0 ghostcells
                  call MPI_send(fb0(MinLonPar:MinLonPar+nGhostLonRight-1),&
                       nGhostLonRight,MPI_REAL,&
@@ -1782,7 +1831,7 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
                  call MPI_send(fb0(MaxLonPar-nGhostLonLeft+1:MaxLonPar),&
                       nGhostLonLeft,MPI_REAL,iProcRight,&
                       6,iComm,iError)
-                 !recieve fb0 from neigboring Procs
+                 !receive fb0 from neigboring Procs
                  call MPI_recv(fb0(iLonRight:iLonRight+nGhostLonRight-1),&
                       nGhostLonRight,MPI_REAL,&
                       iProcRight,5,iComm,iStatus_I,iError)
@@ -1795,53 +1844,112 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
                       nGhostLonRight,MPI_REAL,&
                       iProcLeft,7,iComm,iError)
                  call MPI_send(fb1(MaxLonPar-nGhostLonLeft+1:MaxLonPar),&
-                      nGhostLonLeft,MPI_REAL,iProcRight,&
-                      8,iComm,iError)
-                 !recieve fb1 from neigboring Procs
+                      nGhostLonLeft,MPI_REAL,&
+                      iProcRight,8,iComm,iError)
+                 !receive fb1 from neigboring Procs
                  call MPI_recv(fb1(iLonRight:iLonRight+nGhostLonRight-1),&
                       nGhostLonRight,MPI_REAL,&
                       iProcRight,7,iComm,iStatus_I,iError)
                  call MPI_recv(fb1(iLonLeft-nGhostLonLeft+1:iLonLeft),&
-                      nGhostLonLeft,MPI_REAL,iProcLeft,&
-                      8,iComm,iStatus_I,iError)
+                      nGhostLonLeft,MPI_REAL,&
+                      iProcLeft,8,iComm,iStatus_I,iError)
               endif
               
               ! calculate fluxes at the cell surface for finite volume scheme.
-              !  dF/dt     = d(vl * F)/dL  +  d(vp * F)/dphi
-              !  F_(t+1,i,j) = F_(t,i,j)  +  cl_(iup,j) * F_(t,iup,j) - cl(idown,j) * F(t,idown,j)   
-              !                           +  cp_(i,jup) * F_(t,i,jup) - cl(i,jdown) * F(t,i,jdown)
-              !  iup: upstream from i, i-1 < iup < i when cl > 0, i < iup < i+1 when cl < 0
-              !  idown: downstream from i, i < idown < i+1 when cl > 0, i-1 < iup < i when cl < 0
-              !  jup: upstream from j, j-1 < jup < j when cp > 0, j < jup < j+1 when cl < 0
-              !  jdown: downstream from j, j < jdown < j+1 when cp > 0, j-1 < jup < j when cp < 0
+              !  dF/dt     = d(vl * F) / dL  +  d(vp * F) / dphi
+              !  F_(t+1,i,j) =
+              !		F_(t,i,j)	+  cl_(iup,j)	* F_(t,iup,j)
+              !				-  cl(idown,j)	* F(t,idown,j)   
+              !				+  cp_(i,jup)	* F_(t,i,jup)
+              !				-  cl(i,jdown)	* F(t,i,jdown)
+              !
+              !  iup: upstream from i, i-1 < iup < i when cl > 0,
+              !		i < iup < i+1 when cl < 0
+              !  idown: downstream from i, i < idown < i+1 when cl > 0,
+              !		i-1 < iup < i when cl < 0
+              !  jup: upstream from j, j-1 < jup < j when cp > 0,
+              !		j < jup < j+1 when cl < 0
+              !  jdown: downstream from j, j < jdown < j+1 when cp > 0,
+              !		j-1 < jup < j when cp < 0
+
               if (.not.UseHigherOrder) then
                  call FLS_2D(np,nt,iba,fb0,fb1,cl,cp,f2d,fal,fap,fupl,fupp)
               else
                  call FLS_2D_ho(np,nt,iba,fb0,fb1,cl,cp,f2d,fal,fap,fupl,fupp)
               endif
-              fal(0,1:nt)=f2d(1,1:nt)
-              ! When nProc>1 pass needed ghost cell info for fap,fupp and cp
+
+              fal( 0, 1 : nt ) = f2d( 1, 1 : nt )
+              ! When nProc>1 pass needed ghost cell info for fap,
+              ! 	fupp, cp, and cl
               if (nProc>1) then
-                 !send fap ghostcells
-                 call MPI_send(fap(:,MaxLonPar-1:MaxLonPar),2*np,MPI_REAL,&
-                      iProcRight,9,iComm,iError)
-                 !recieve fap from neigboring Procs
-                 call MPI_recv(fap(:,iLonLeft-1:iLonLeft),2*np,MPI_REAL,&
-                      iProcLeft,9,iComm,iStatus_I,iError)
 
-                 !send fupp ghostcells
-                 call MPI_send(fupp(:,MaxLonPar-1:MaxLonPar),2*np,MPI_REAL,&
-                      iProcRight,10,iComm,iError)
-                 !recieve fupp from neigboring Procs
-                 call MPI_recv(fupp(:,iLonLeft-1:iLonLeft),2*np,MPI_REAL,&
-                      iProcLeft,10,iComm,iStatus_I,iError)
+                 ! Old MPI calls for sending fap ghostcells
+!!$                 call MPI_send(fap(:,MaxLonPar-1:MaxLonPar),2*np,MPI_REAL,&
+!!$                      iProcRight,9,iComm,iError)
+!!$                 !recieve fap from neigboring Procs
+!!$                 call MPI_recv(fap(:,iLonLeft-1:iLonLeft),2*np,MPI_REAL,&
+!!$                      iProcLeft,9,iComm,iStatus_I,iError)
 
-                 !send cp ghostcells
-                 call MPI_send(cp(:,MaxLonPar-1:MaxLonPar),2*np,MPI_REAL,&
-                      iProcRight,11,iComm,iError)
-                 !recieve cp from neigboring Procs
-                 call MPI_recv(cp(:,iLonLeft-1:iLonLeft),2*np,MPI_REAL,&
-                      iProcLeft,11,iComm,iStatus_I,iError)
+
+!!$                 MPI_SENDRECV Template
+!!$                 call MPI_SENDRECV(sendbuf, sendcount, sendtype, &
+!!$                      dest, sendtag, recvbuf, recvcount, recvtype, &
+!!$                      source, recvtag, comm, status, ierror)
+
+                 ! NEW MPI calls utilizing sendrecv for sending fap
+                 ! ghostcells
+                 buf2D_send_1( :, 1 : 2 ) = &
+                      fap( :, MaxLonPar - 1 : MaxLonPar )
+                 buf2D_recv_1( :, 1 : 2 ) = -1.
+                 call MPI_sendrecv( buf2D_send_1, 2 * np, MPI_REAL, &
+                      iProcRight, 10, buf2D_recv_1, 2 * np, MPI_REAL, &
+                      iProcLeft, 10, iComm, iStatus_I, iError)
+                 fap( :, iLonLeft - 1 : iLonLeft ) = buf2D_recv_1( :, 1 : 2 )
+
+!!$                 ! Old MPI calls for sending fupp ghostcells
+!!$                 call MPI_send(fupp(:,MaxLonPar-1:MaxLonPar),2*np,MPI_REAL,&
+!!$                      iProcRight,10,iComm,iError)
+!!$                 !recieve fupp from neigboring Procs
+!!$                 call MPI_recv(fupp(:,iLonLeft-1:iLonLeft),2*np,MPI_REAL,&
+!!$                      iProcLeft,10,iComm,iStatus_I,iError)
+
+                 ! NEW MPI calls utilizing sendrecv for sending fupp
+                 ! ghostcells
+                 buf2D_send_1( :, 1 : 2 ) = &
+                      fupp( :, MaxLonPar - 1 : MaxLonPar )
+                 buf2D_recv_1( :, 1 : 2 ) = -1.
+                 call MPI_sendrecv( buf2D_send_1, 2 * np, MPI_REAL, &
+                      iProcRight, 10, buf2D_recv_1, 2 * np, MPI_REAL, &
+                      iProcLeft, 10, iComm, iStatus_I, iError )
+                 fupp( :, iLonLeft - 1 : iLonLeft ) = buf2D_recv_1( :, 1 : 2 )
+
+!!$                 ! Old MPI calls for sending cp ghostcells
+!!$                 call MPI_send(cp(:,MaxLonPar-1:MaxLonPar),2*np,MPI_REAL,&
+!!$                      iProcRight,11,iComm,iError)
+!!$                 !recieve cp from neigboring Procs
+!!$                 call MPI_recv(cp(:,iLonLeft-1:iLonLeft),2*np,MPI_REAL,&
+!!$                      iProcLeft,11,iComm,iStatus_I,iError)
+
+                 ! NEW MPI calls utilizing sendrecv for sending cp
+                 ! ghostcells
+                 buf2D_send_1( :, 1 : 2 ) = &
+                      cp( :, MaxLonPar - 1 : MaxLonPar )
+                 buf2D_recv_1( :, 1 : 2 ) = -1.
+                 call MPI_sendrecv( buf2D_send_1, 2 * np, MPI_REAL, &
+                      iProcRight, 10, buf2D_recv_1, 2 * np, MPI_REAL, &
+                      iProcLeft, 10, iComm, iStatus_I, iError )
+                 cp( :, iLonLeft - 1 : iLonLeft ) = buf2D_recv_1( :, 1 : 2 )
+                 
+                 ! NEW MPI calls utilizing sendrecv for sending cl
+                 ! ghostcells
+                 buf2D_send_1( :, 1 : 2 ) = &
+                      cl( :, MaxLonPar - 1 : MaxLonPar )
+                 buf2D_recv_1( :, 1 : 2 ) = -1.
+                 call MPI_sendrecv( buf2D_send_1, 2 * np, MPI_REAL, &
+                      iProcRight, 10, buf2D_recv_1, 2 * np, MPI_REAL, &
+                      iProcLeft, 10, iComm, iStatus_I, iError )
+                 cl( :, iLonLeft - 1 : iLonLeft ) = buf2D_recv_1( :, 1 : 2 )
+
               endif
 
               f2d0(:,:)=f2d(:,:)   ! save f2 in the current time step
@@ -1896,7 +2004,7 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
                                    write(*,'(a,1p2E11.3)') 'IM:   cl(i-1,j),  cl(i,j)= ',cl(i-1,j),cl(i,j)
                                    write(*,'(a,1p2E11.3)') 'IM: fupp(i,j-1),fupp(i,j)= ',fupp(i,j-1),fupp(i,j)
                                    write(*,'(a,1p2E11.3)') 'IM:   cp(i,j-1),  cp(i,j)= ',cl(i,j-1),cl(i,j)
-                                   call CON_STOP('IM: CIMI dies in driftIM')
+                                   call CON_stop('IM: CIMI dies in driftIM')
                                 else
                                    f2d(i,j)=0.0
                                    iba(j)=i
@@ -1971,7 +2079,7 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
                                 write(*,'(a,1p2E11.3)') 'IM:   cl(i-1,j),  cl(i,j)= ',cl(i-1,j),cl(i,j)
                                 write(*,'(a,1p2E11.3)') 'IM: fupp(i-1,j),fupp(i,j)= ',fupp(i,j-1),fupp(i,j)
                                 write(*,'(a,1p2E11.3)') 'IM:   cp(i-1,j),  cp(i,j)= ',cl(i,j-1),cl(i,j)
-                                call CON_STOP('IM: CIMI dies in driftIM')
+                                call CON_stop('IM: CIMI dies in driftIM')
                              else
                                 f2d(i,j)=0.0
                                 iba(j)=i
@@ -3008,18 +3116,27 @@ end subroutine cimi_precip_calc
 !-------------------------------------------------------------------------------
 subroutine FLS_2D(np,nt,iba,fb0,fb1,cl,cp,f2d,fal,fap,fupl,fupp)
 !-------------------------------------------------------------------------------
-  !  Routine calculates the inter-flux, fal(idown,j) and fap(i,jdown), using
-  !  2nd order flux limited scheme with super-bee flux limiter method
-  !   where
-  !   fal(i-1up,j)=fal(idown,j) and fal(idown,j)=fal(i+1up,j)  
-  !   fap(i,j-1up)=fap(i,jdown) and fap(i,jdown)=fap(i,j+1up)  
-  !   iup: upstream from i, i-1 < iup < i when cl > 0, i < iup < i+1 when cl < 0
-  !   idown: downstream from i, i < idown < i+1 when cl > 0, i-1 < iup < i when cl < 0
-  !   jup: upstream from j, j-1 < jup < j when cp > 0, j < jup < j+1 when cl < 0
-  !   jdown: downstream from j, j < jdown < j+1 when cp > 0, j-1 < jup < j when cp < 0
+
+  !  Routine calculates the inter-flux, fal(idown,j) and fap(i,jdown),
+  !  using 2nd order flux limited scheme with super-bee flux limiter
+  !  method where
+  !   	fal( i - 1up , 	   j 	) = fal(   idown    ,	   j 	) and
+  !	fal(  idown  ,	   j 	) = fal(  i + 1up   ,	   j 	)  
+  !   	fap( 	i    , 	j - 1up ) = fap(    i       ,	 jdown 	) and
+  !	fap( 	i    ,	 jdown	) = fap(    i       , 	j + 1up	)  
+  !
+  !   iup: upstream from i, i-1 < iup < i when cl > 0,
+  !	i < iup < i+1 when cl < 0
+  !   idown: downstream from i, i < idown < i+1 when cl > 0,
+  !	i-1 < iup < i when cl < 0
+  !   jup: upstream from j, j-1 < jup < j when cp > 0,
+  !	j < jup < j+1 when cl < 0
+  !   jdown: downstream from j, j < jdown < j+1 when cp > 0,
+  !	j-1 < jup < j when cp < 0
   !
   !  Input: np,nt,iba,fb0,fb1,cl,cp,f2d
   !  Output: fal,fap
+  
   use ModCimi, ONLY: UseMcLimiter, BetaLimiter
   use ModCimi,       ONLY: MinLonPar,MaxLonPar
   implicit none
@@ -3038,6 +3155,8 @@ subroutine FLS_2D(np,nt,iba,fb0,fb1,cl,cp,f2d,fal,fap,fupl,fupp)
      fwbc(ib+1:np+2,j)=fb1(j)
   enddo
 
+  ! NB: Below we will be using fwbc from neighbouring procs; How to
+  ! guarantee that fwbc will be ready when it is needed?
   ! find fal and fap
   jloop: do j=MinLonPar,MaxLonPar
      j_1=j-1
@@ -3269,6 +3388,8 @@ subroutine locate1IM(xx,n,x,j)
   !  Input: xx,n,x
   !  Output: j
 
+  use ModUtilities, ONLY: CON_stop
+
   implicit none
 
   integer n,j,i,jl,ju,jm
@@ -3279,12 +3400,12 @@ subroutine locate1IM(xx,n,x,j)
      if (xx(n).gt.xx(1).and.xx(i).lt.xx(i-1)) then
         write(*,*) ' locate1IM: xx is not increasing monotonically '
         write(*,*) n, (xx(j),j=1,n)
-        call CON_STOP('CIMI stopped in locate1IM')
+        call CON_stop('CIMI stopped in locate1IM')
      endif
      if (xx(n).lt.xx(1).and.xx(i).gt.xx(i-1)) then
         write(*,*) ' locate1IM: xx is not decreasing monotonically '
         write(*,*) ' n, xx  ',n,xx
-        call CON_STOP('CIMI stopped in locate1IM')
+        call CON_stop('CIMI stopped in locate1IM')
      endif
   enddo
 
