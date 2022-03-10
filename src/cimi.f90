@@ -263,6 +263,24 @@ subroutine cimi_run(delta_t)
      call timing_stop('set_cimi_potential')
   endif
   
+  ! calculate the drift velocity
+  call timing_start('cimi_driftV')
+  call driftV(nspec,np,nt,nm,nk,irm,re_m,Hiono,dipmom,dphi,xlat,dlat, &
+       ekev,pot,vl,vp)
+  call timing_stop('cimi_driftV')
+
+  ! calculate the depreciation factor, achar, due to charge exchange loss
+  call timing_start('cimi_ceparaIM')
+  call ceparaIM(nspec,np,nt,nm,nk,irm,dt,vel,ekev,Have,achar)
+  call timing_stop('cimi_ceparaIM')
+
+  if (UseStrongDiff) then
+     ! Calculate the strong diffusion lifetime for electrons
+     call timing_start('cimi_StDiTime')
+     call StDiTime(dt,vel,ftv,iba)
+     call timing_stop('cimi_StDiTime')
+  endif
+  
   ! save the initial point (needs to be fixed and so not called)
   if ( Time == 0.0 .and. DoSavePlot ) then
      call timing_start('cimi_output')
@@ -334,24 +352,6 @@ subroutine cimi_run(delta_t)
 
      endif
 
-  endif
-  
-  ! calculate the drift velocity
-  call timing_start('cimi_driftV')
-  call driftV(nspec,np,nt,nm,nk,irm,re_m,Hiono,dipmom,dphi,xlat,dlat, &
-       ekev,pot,vl,vp)
-  call timing_stop('cimi_driftV')
-
-  ! calculate the depreciation factor, achar, due to charge exchange loss
-  call timing_start('cimi_ceparaIM')
-  call ceparaIM(nspec,np,nt,nm,nk,irm,dt,vel,ekev,Have,achar)
-  call timing_stop('cimi_ceparaIM')
-
-  if (UseStrongDiff) then
-     ! Calculate the strong diffusion lifetime for electrons
-     call timing_start('cimi_StDiTime')
-     call StDiTime(dt,vel,ftv,iba)
-     call timing_stop('cimi_StDiTime')
   endif
   
   ! time loop
