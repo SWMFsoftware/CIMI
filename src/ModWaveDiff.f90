@@ -88,6 +88,7 @@ module ModWaveDiff
        ekev, tya, y => sinA, Bo, ro, xmlto, lintpIM, bm
   use ModNumConst,	ONLY:	pi => cPi
   use ModUtilities,	ONLY:	CON_STOP
+
   implicit none
   
   logical            :: UseWaveDiffusion = .false.
