@@ -294,12 +294,15 @@ Sets minimum pressure passed to GM.
 
 
 <command name="RESTART">
-	<parameter name="DoRestart" type="logical" />
+  <parameter name="DoRestart" type="logical" />
+  <parameter name="DoReadRestartSatellite" type="logical" />
 
 #RESTART
 F			DoRestart
+F			DoReadRestartSatellite
 
 Determine whether or not to continue a previous run.
+This command is usually read from the restart.H file. 
 </command>
 
 <command name="INITIALF2">
@@ -514,6 +517,7 @@ UseEnergyDiffusionTest can be TRUE at a time; the other must be false.
   <if expr="$TypeComposition eq 'FIXED'">
     <parameter name="DensityFraction" type="real" min="0" max="1" />
     <parameter name="DensityFraction" type="real" min="0" max="1" />
+    <parameter name="DensityFraction" type="real" min="0" max="1" />
   </if>
 
 #COMPOSITION
@@ -524,7 +528,7 @@ FIXED                   NameCompModel
 
 When CIMI is coupled with a single fluid MHD code, the boundary conditions
 obtained from GM do not determine the composition of the plasma.
-This command sets the assumed fraction of H+ and O+.   The combined global-inner
+This command sets the assumed fraction of H+ and O+. The combined global-inner
 magnetospheric dynamics strongly depends on these values.
 NameCompModel selects the model used to set the composition.
 Currently only "FIXED" is implemented. The fraction of O+, H+ and electrons
