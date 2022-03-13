@@ -124,6 +124,9 @@ test_all:
 	make   test_run
 	@echo "test_check_dipole..."  >> test_cimi.diff
 	make   test_check_dipole
+
+	@echo "test_compile_Prerun..." >> test_cimi.diff
+	make   test_compile_Prerun
 	@echo "test_rundir_Prerun..." >> test_cimi.diff
 	make   test_rundir_Prerun
 	@echo "test_run..."    >> test_cimi.diff
@@ -188,8 +191,8 @@ test_drift:
 	ls -l test_*.diff
 
 test_Prerun:
-	@echo "test_compile..." > test_cimi.diff
-	make   test_compile
+	@echo "test_compile_Prerun..." > test_cimi.diff
+	make   test_compile_Prerun
 	@echo "test_rundir_Prerun..." >> test_cimi.diff
 	make   test_rundir_Prerun
 	@echo "test_run..."    >> test_cimi.diff
@@ -206,24 +209,14 @@ test_Highorder:
 	@echo "test_run..."    >> test_cimi.diff
 	make   test_run
 	@echo "test_check_flux..."  >> test_cimi.diff
-	make   test_check_flux
-	@echo "test_check_eq..."  >> test_cimi.diff
-	make   test_check_eq
-
-test_Highorder_Default:
-	@echo "test_compile..." > test_cimi.diff
-	make   test_compile
-	@echo "test_rundir_Highorder..." >> test_cimi.diff
-	make   test_rundir_Highorder
-	@echo "test_run..."    >> test_cimi.diff
-	make   test_run
-	@echo "test_check_flux..."  >> test_cimi.diff
-	make   test_check_flux
-	@echo "test_check_eq..."  >> test_cimi.diff
-	make   test_check_eq
+	make   test_check_flux_Highorder
 
 test_compile:
 	./Config.pl -EarthHO -GridDefault -show
+	make CIMI
+
+test_compile_Prerun:
+	./Config.pl -EarthHO -GridExpanded -show
 	make CIMI
 
 test_compile_UniformL:
@@ -395,6 +388,20 @@ test_check_flux:
 		output/CimiFlux_e.fls.gz \
 		>> test_cimi_flux.diff
 
+test_check_flux_Highorder:
+	-${DIFFNUM} -r=0.001 -a=1e-10 \
+		${TESTDIR}/IM/plots/CimiFlux_n00000000_h.fls \
+		output/CimiFlux_h.fls.Highorder.gz \
+		> test_cimi_flux.diff
+	-${DIFFNUM} -r=0.001 -a=1e-10 \
+		${TESTDIR}/IM/plots/CimiFlux_n00000000_o.fls \
+		output/CimiFlux_o.fls.Highorder.gz \
+		>> test_cimi_flux.diff
+	-${DIFFNUM} -r=0.001 -a=1e-10 \
+		${TESTDIR}/IM/plots/CimiFlux_n00000000_e.fls \
+		output/CimiFlux_e.fls.Highorder.gz \
+		>> test_cimi_flux.diff
+
 test_check_psd:
 	-${DIFFNUM} -t -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CimiPSD_n00000000_h.psd \
@@ -438,7 +445,7 @@ test_check_dipole:
 		>> test_cimi_dipole.diff
 	-${DIFFNUM} -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CIMI_n00000000.log \
-		output/CIMI.log.dipole.gz \
+		output/CIMI.log.dipole \
 		>> test_cimi_dipole.diff
 
 test_check_eq:
@@ -455,53 +462,9 @@ test_check_log:
 
 test_check_Prerun:
 	-${DIFFNUM} -r=0.001 -a=1e-10 \
-		${TESTDIR}/IM/plots/CimiFlux_n00000000_h.fls \
-		output/CimiFlux_h.fls.Prerun.gz \
+		${TESTDIR}/IM/plots/sat_sat01_eflux_t000060.sat \
+		output/sat_sat01_eflux_t000060.sat \
 		> test_cimi_Prerun.diff
-	-${DIFFNUM} -r=0.001 -a=1e-10 \
-		${TESTDIR}/IM/plots/CimiFlux_n00000000_o.fls \
-		output/CimiFlux_o.fls.Prerun.gz \
-		>> test_cimi_Prerun.diff
-	-${DIFFNUM} -r=0.001 -a=1e-10 \
-		${TESTDIR}/IM/plots/CimiFlux_n00000000_e.fls \
-		output/CimiFlux_e.fls.Prerun.gz \
-		>> test_cimi_Prerun.diff
-	-${DIFFNUM} -r=0.001 -a=1e-10 \
-		${TESTDIR}/IM/plots/sat_rbspa_hflux_t000060.sat \
-		output/sat_rbspa_hflux_t000060.sat \
-		>> test_cimi_Prerun.diff
-	-${DIFFNUM} -r=0.001 -a=1e-10 \
-		${TESTDIR}/IM/plots/sat_rbspb_hflux_t000060.sat \
-		output/sat_rbspb_hflux_t000060.sat \
-		>> test_cimi_Prerun.diff
-	-${DIFFNUM} -r=0.001 -a=1e-10 \
-		${TESTDIR}/IM/plots/sat_rbspa_oflux_t000060.sat \
-		output/sat_rbspa_oflux_t000060.sat \
-		>> test_cimi_Prerun.diff
-	-${DIFFNUM} -r=0.001 -a=1e-10 \
-		${TESTDIR}/IM/plots/sat_rbspb_oflux_t000060.sat \
-		output/sat_rbspb_oflux_t000060.sat \
-		>> test_cimi_Prerun.diff
-	-${DIFFNUM} -r=0.001 -a=1e-10 \
-		${TESTDIR}/IM/plots/sat_rbspa_eflux_t000060.sat \
-		output/sat_rbspa_eflux_t000060.sat \
-		>> test_cimi_Prerun.diff
-	-${DIFFNUM} -r=0.001 -a=1e-10 \
-		${TESTDIR}/IM/plots/sat_rbspb_eflux_t000060.sat \
-		output/sat_rbspb_eflux_t000060.sat \
-		>> test_cimi_Prerun.diff
-	-${DIFFNUM} -r=0.001 -a=1e-10 \
-		${TESTDIR}/IM/plots/CimiPSD_n00000000_h.psd \
-		output/CimiPSD_h.psd.Prerun.gz \
-		>> test_cimi_Prerun.diff
-	-${DIFFNUM} -r=0.001 -a=1e-10 \
-		${TESTDIR}/IM/plots/CimiPSD_n00000000_o.psd \
-		output/CimiPSD_o.psd.Prerun.gz \
-		>> test_cimi_Prerun.diff
-	-${DIFFNUM} -r=0.001 -a=1e-10 \
-		${TESTDIR}/IM/plots/CimiPSD_n00000000_e.psd \
-		output/CimiPSD_e.psd.Prerun.gz \
-		>> test_cimi_Prerun.diff
 	-${DIFFNUM} -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CIMIeq_n00000000.outs \
 		output/CIMIeq.outs.Prerun.gz \
