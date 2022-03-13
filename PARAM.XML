@@ -30,13 +30,15 @@ at the beginning of the PARAM.in file.
 
 </command>
 
+
 <command name="INCLUDE">
-  <parameter name="NameIncludeFile" type="strings"/>
+  <parameter name="NameCIMIIncludeFile" type="string"
+	     default="IM/restartIN/restart.H" length="100"/>
 	   
 #INCLUDE
-RESTART.in	NameIncludeFile
+IM/restartIN/restart.H	NameCIMIIncludeFile
 
-The NameIncludeFile parameter contains the name of the file to be
+The NameCIMIIncludeFile parameter contains the name of the file to be
 included. The file name may be followed with a trailing comment if it
 is separated with at least 3 spaces or one TAB character. The #INCLUDE
 command can be used anywhere in the parameter file, even in the
@@ -45,6 +47,7 @@ the information in the run/IM/restartIN/restart.H file or parameters
 specific to a component can be included.
 
 </command>
+
 
 <command name="END">
 
@@ -110,11 +113,13 @@ file. CIMI has no default values.
 
 </command>
 
+<!--
 <command name="IMTIMESTEP">
 
 DO THIS!!!
 
 </command>
+-->
 
 </commandgroup>
 
@@ -338,6 +343,7 @@ or CIMI calculated Lstar. Default is shown.
 
 </command>
 
+<!--
 <command name="PLASMASHEET">
 
   DO THIS!!!
@@ -373,7 +379,7 @@ or CIMI calculated Lstar. Default is shown.
   DO THIS!!!
   
 </command>
-
+-->
 
 </commandgroup>
 
@@ -567,7 +573,6 @@ Default is DoVerboseLatGrid=F.
 
 </command>
 
-
 <command name="SAVELOG">
   <parameter name="DtLogOut" type="real" />
   
@@ -578,6 +583,8 @@ When this command is set, a log file for CIMI is written out. The log
 file saves the change in ring current energy content for each species
 resulting from each operator. A new entry in the log is written out
 every DtSaveLog seconds of simulation time.
+
+</command>
 
 <command name="TYPEBOUNDARY">
   <parameter name="TypeBoundary" type="string" case="lower" input="select">
@@ -637,8 +644,10 @@ Sets minimum pressure passed to GM.
 
 Sets the time cadence, in seconds, that the particle fluxes are
 output. Default shown.
-
+! do I print this?
 </command>
+
+</commandgroup>
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!					!!!!!!!!!!!!!!!!!!!!!!
@@ -673,7 +682,6 @@ by 10.  Results in a 15 element grid per species that is evenly spaced
 logarithmically. Parameter included for backwards compatibility. For
 more direct control over the grid, use #SETENERGYGRID command.
 </command>
-</commandgroup>
 
 <command name="SETENERGYGRID">
   <parameter name="neng" type="integer" />
@@ -843,8 +851,9 @@ UseEnergyDiffusionTest can be TRUE at a time; the other must be false.
     <option name="FIXED" default="T"/>
   </parameter>
   <if expr="$TypeComposition eq 'FIXED'">
-    <parameter name="DensityFraction" type="real" min="0" max="1" />
-    <parameter name="DensityFraction" type="real" min="0" max="1" />
+    <parameter name="DensityFractionHp" type="real" min="0" max="1" />
+    <parameter name="DensityFractionOp" type="real" min="0" max="1" />
+    <parameter name="DensityFractione" type="real" min="0" max="1" />
   </if>
 
 #COMPOSITION
