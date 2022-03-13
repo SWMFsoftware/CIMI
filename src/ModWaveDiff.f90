@@ -136,7 +136,7 @@ module ModWaveDiff
   integer :: NumAeElements
   
 contains
-  
+
   subroutine ReadDiffCoef
     
     !  use constants  check later
