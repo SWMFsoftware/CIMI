@@ -95,7 +95,7 @@ subroutine CIMI_set_parameters(NameAction)
 
      case ("#NGDC_INDICES")
         cTempLines(1) = NameCommand
-        call read_var('NameNgdcFile', cTempLine)
+        call read_var('NameNGDCFile', cTempLine)
         cTempLines(2) = cTempLine
         cTempLines(3) = " "
         cTempLines(4) = "#END"
@@ -118,11 +118,11 @@ subroutine CIMI_set_parameters(NameAction)
         call read_MHDIMF_Indices(iError)
 
      case ("#SOLARWIND")
-        call read_var('n',DensitySW)
-        call read_var('vx',VelSW)
-        call read_var('bx',BxSW)
-        call read_var('by',BySW)
-        call read_var('bz',BzSW)
+        call read_var('DensitySW',DensitySW)
+        call read_var('VelSW',VelSW)
+        call read_var('BxSW',BxSW)
+        call read_var('BySW',BySW)
+        call read_var('BzSW',BzSW)
         
         call IO_set_imf_bx_single(BxSW)
         call IO_set_imf_by_single(BySW)
@@ -133,7 +133,7 @@ subroutine CIMI_set_parameters(NameAction)
      case('#SMOOTH')
         !do you want to smooth the solar wind for Tsy model
         call read_var('UseSmooth',UseSmooth)
-        call read_var('SmoothWindow',SmoothWindow)
+        if (UseSmooth) call read_var('SmoothWindow',SmoothWindow)
 
      case('#BMODEL')
         call read_var('NameModel',NameModel)!t96,t04,MHD,Dip

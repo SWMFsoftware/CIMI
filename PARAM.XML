@@ -113,13 +113,19 @@ file. CIMI has no default values.
 
 </command>
 
-<!--
 <command name="IMTIMESTEP">
+  <parameter name="IMDeltaT [s]" type="float"/>
+  <parameter name="IMDeltaTMax [s]" type="float"/>
 
-DO THIS!!!
+#IMTIMESTEP
+1.		IMDeltaT [s]
+1.		IMDeltaTMax [s]
+
+The IMTIMESTEP command controls for the time stepping of CIMI, but
+does not control the sub-cycling based on the courant condition.
+Useful for setting large time-steps for basic tests. Defaults shown.
 
 </command>
--->
 
 </commandgroup>
 
@@ -157,13 +163,19 @@ when CIMI is in standalone mode.
 
 <command name="PRERUNFIELD">
   <parameter name="DoWritePrerun" type="logical" default="F"/>
-  <parameter name="UsePrerun" type="logical" default="F"/>
-  <parameter name="DtRead" type="real" default="0." min="0"/>
+  <if expr="not $DoWritePrerun">
+    <parameter name="UsePrerun" type="logical" default="F"/>
+    <if expr="UsePrerun">
+      <parameter name="DtRead" type="real" default="60." min="0"/>
+    </if>
+  </if>
+
+
   
 #PRERUNFIELD
 F		DoWritePrerun
 F		UsePrerun
-0.		DtRead
+60.		DtRead
 
 Command controls the saving or reading of the Prerun magnetic field
 (IM/PrerunField_********.dat) and ionospheric potential
@@ -187,13 +199,17 @@ PrerunSat files in conducting the Prerun test.
 
 <command name="PRERUNSAT">
   <parameter name="DoWritePrerunSat" type="logical" default="F"/>
-  <parameter name="UsePrerunSat" type="logical" default="F"/>
-  <parameter name="DtReadSat" type="real" default="0." min="0"/>
+  <if expr="not $DoWritePrerunSat">
+    <parameter name="UsePrerunSat" type="logical" default="F"/>
+    <if expr="UsePrerunSat">
+      <parameter name="DtReadSat" type="real" default="60." min="0"/>
+    </if>
+  </if>
   
 #PRERUNSAT
 F		DoWritePrerunSat
 F		UsePrerunSat
-0.		DtReadSat
+60.		DtReadSat
 
 Command controls the saving or reading of the Prerun satellite trace
 files ((IM/PrerunSat_********.dat)), where ******** is the simulation
@@ -312,7 +328,9 @@ species, the code will immediately stop.  Default shown.
   <parameter name="IsEmptyF2" type="logical" />
   <parameter name="IsGMInitial" type="logical" />
   <parameter name="IsDataInitial" type="logical" />
-  <parameter name="IsRBSPData" type="logical" />
+  <if expr="$IsDataInitial">
+    <parameter name="IsRBSPData" type="logical" />
+  </if>
 
 #INITIALF2
 F			IsEmptyF2
@@ -343,43 +361,125 @@ or CIMI calculated Lstar. Default is shown.
 
 </command>
 
-<!--
 <command name="PLASMASHEET">
+  <parameter name="UseYoungEtAl" type="logical"/>
+  <if expr="IsStandAlone">
+    <parameter name="UseBoundaryEbihara" type="logical"/>
+  </if>
 
-  DO THIS!!!
-  
+#PLASMASHEET
+F			UseYoungEtAl
+T			UseBoundaryEbihara
+
+Command determines if the empirical boundary conditions for ions to be
+applied at the plasmasheet boundary. Variable UseBoundaryEbihara is
+only read if CIMI is compiled in stand-alone mode. If
+UseBoundaryEbihara is .true., uses Ebihara \& Ejiri, 2000 and Borovsky
+et al., 1998 models for boundary density and temperatures,
+respectively. When false, uses the Tsyganenko-Mukai plasmasphere
+model. Default shown.
+
 </command>
 
 <command name="BMODEL">
-
-  DO THIS!!!
+  <parameter name="NameModel" type="string"/>
+  <if expr="$NameModel == dip">
+    <parameter name="UseCorotation" type="logical"/>
+    <parameter name="UsePotential" type="logical"/>
+  </if>
   
+#BMODEL
+mhd 			NameModel
+T			UseCorotation
+T			UsePotential
+
+Specify the magnetic field model that CIMI will use. Acceptable values
+for NameModel are:
+
+\begin{itemize}
+\item 'dip' - Static Dipolar magnetic field. (Stand-alone)
+\item 't96' - Tsyganenko 1996 magnetic field model (Stand-alone)
+\item 't04' - Tsyganenko-Sitnov 2004 storm-time magnetic field
+	model. (Stand-alone)
+\item 'mhd' - MHD calculated magnetic fields. (Coupled)
+\end{itemize}
+Variables UseCorotation and UsePotential are only read when the dipole
+field is requested. Defaults shown.
 </command>
 
 <command name="IEMODEL">
-
-  DO THIS!!!
+  <parameter name="UseWeimer" type="logical"/>
   
+#IEMODEL
+F			UseWeimer
+
+Command sets whether the Weimer ionospheric potential is used. Default
+shown.
+
 </command>
 
 <command name="NGDC_INDICES">
-
-  DO THIS!!!
+  <parameter name="NameNGDCFile" type="string" default="Indices.dat"/>
   
+#NGDC_INDICES
+Indices.dat		NameNGDCFile
+
+Command points to the file containing the DST quick look Index and the
+F10.7 to be used during the run. Command is used only in stand-alone
+runs. Example file can be seen in input/testfiles/Indices.dat Default
+shown.
+
 </command>
 
 <command name="MHD_INDICES">
+  <parameter name="UpstreamFile" type="string" default="imf.dat"/>
 
-  DO THIS!!!
-  
+#MHD_INDICES
+imf.dat			UpstreamFile
+
+Command specifies the file containing the upstream solar wind
+parameters to be used during the run. Formatting is identical to the
+solar wind input files used in BATSRUS/SWMF, but an example can be
+found in input/testfiles/imf.dat. Command is used only in stand-alone
+runs. Default shown.
+
 </command>
 
+<command name="SOLARWIND">
+  <parameter name="DensitySW" type="float"/>
+  <parameter name="VelSW" type="float"/>
+  <parameter name="BxSW" type="float"/>
+  <parameter name="BySW" type="float"/>
+  <parameter name="BzSW" type="float"/>
+
+#SOLARWIND
+5.0			DensitySW
+400.0			VelSW
+0.0			BxSW
+0.0			BySW
+-5.0			BzSW
+
+Command sets the constant solar wind values to be used through out the
+simulation. Command is used only in stand-alone runs. VelSW specifies
+the x-component of the solar wind velocity.
+
+</command>
+	 
 <command name="SMOOTH">
-
-  DO THIS!!!
+  <parameter name="UseSmooth" type="logical" default="F"/>
+  <if expr="$UseSmooth">
+    <parameter name="SmoothWindow" type="float" min="60."/>
+  </if>
   
+#SMOOTH
+F			UseSmooth
+60.			SmoothWindow
+
+Command sets the box car averaging smooth window [in seconds] of the
+input solar wind file. Default is UseSmooth=.false., but SmoothWindow
+variable is only read if UseSmooth=.true.
+
 </command>
--->
 
 </commandgroup>
 
