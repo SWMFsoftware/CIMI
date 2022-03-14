@@ -8,10 +8,30 @@
    integer :: nGhostLonLeft, nGhostLonRight
    
  contains
-   !Set the number of longitude ghostcells based on the order of the scheme
+
+   ! Set the number of longitude ghostcells based on the order of the
+   ! scheme
+   !
+   ! March 2022 - CMK: Update as needed as other order schemes are
+   ! implemented
    subroutine set_nghostcell_scheme
-     nGhostLonLeft  = iOrderLon/2
-     nGhostLonRight = iOrderLon/2+1
+
+     DEFINE_GHOST_CELLS: select case( iOrderLon )
+
+     case( 2 )
+        nGhostLonLeft  = 1
+        nGhostLonRight = 2
+        
+     case( 7 )
+        nGhostLonLeft  = 3
+        nGhostLonRight = 4
+        
+     case default 
+        nGhostLonLeft  = 1
+        nGhostLonRight = 2
+        
+     end select DEFINE_GHOST_CELLS
+
    end subroutine set_nghostcell_scheme
    
      

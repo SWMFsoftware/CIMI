@@ -26,11 +26,11 @@ CIMIXML:
 
 CIMI.pdf: \
 	CIMI.tex \
-	HEADER.tex \
 	CIMI_introduction.tex \
 	CIMI_configuration.tex \
 	CIMI_param.tex \
 	CIMIXML
+#HEADER.tex \
 
 PDF_FILES = CIMI.pdf
 PDF: ${PDF_FILES}

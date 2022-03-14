@@ -34,16 +34,16 @@ $NewPlanet="EarthHO" if $Install;
 `touch $ConfigLog`;
 
 #CIMI non-SWMF developers should use the following gitdir
-#my $GITDIR   = "git\@gitlab.com:aglocer";
+my $GITDIR   = "git\@gitlab.com:aglocer";
 #SWMF developers should use the following gitdir
-my $GITDIR   = "git\@gitlab.umich.edu:swmf_software";
+#my $GITDIR   = "git\@gitlab.umich.edu:swmf_software";
 
 my $config   = "share/Scripts/Config.pl";
 my $gitclone = "share/Scripts/gitclone -s";
 
 # Git clone missing directories as needed. Start with share/ to get $gitclone.
 if (not -f $config and not -f "../../$config"){
-    `git clone $GITDIR/share; $gitclone util`;
+    `git clone $GITDIR/share; git clone $GITDIR/util`;
 }
 
 
