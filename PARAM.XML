@@ -71,12 +71,13 @@ PARAM.in file is equivalent with an #END command in the last line.
 <commandgroup name="TIMING CONTROL">
 
 <command name="TIMESIMULATION">
-  <parameter name="TimeSimulation" type="real" min="0"/>
+  <parameter name="tSimulation" type="real" min="0" default="0"/>
 
 #TIMESIMULATION
 0.0			TimeSimulation
 
-This command specifies the current simulation time. 
+This command specifies the current simulation time. It is typically read
+from the IM/restartIN/restart.H file. Default value is 0.
 
 </command>
 
@@ -138,15 +139,20 @@ Useful for setting large time-steps for basic tests. Defaults shown.
 <commandgroup name="RESTART CONTROL">
 
 <command name="RESTART">
-  <parameter name="IsRestart" type="logical" />
+  <parameter name="IsRestart" type="logical" default="F"/>
+  <parameter name="DoReadRestartSatellite" type="logical" default="F"
+	     if="$IsRestart"/>
 
 #RESTART
-F			IsRestart
-F			ReadRestartSat
+T			IsRestart
+F			DoReadRestartSatellite (read if IsRestart=T)
 
-Determine whether or not to continue a previous run. If Satellites are
-being traced in CIMI, ReadRestartSat control to read in the satellite
-buffer file found in IM/restartIN/restart.sat.
+If IsRestart is true, read in restart files from a previous run.  If
+DoReadRestartSatellite is also true, read the satellite buffer file
+found in IM/restartIN/restart.sat for tracing satellites.
+This command is usually read from the IM/restartIN/restart.H file. The
+default is to start the simulation from scratch, so IsRestart is
+false.
 
 </command>
 
@@ -323,28 +329,28 @@ species, the code will immediately stop.  Default shown.
 <commandgroup name="INITIAL AND BOUNDARY CONDITIONS">
 
 <command name="INITIALF2">
-  <parameter name="IsEmptyF2" type="logical" />
-  <parameter name="IsGMInitial" type="logical" />
-  <parameter name="IsDataInitial" type="logical" />
-  <if expr="$IsDataInitial">
-    <parameter name="IsRBSPData" type="logical" />
-  </if>
+  <parameter name="IsEmptyInitial" type="logical" default="F" />
+  <parameter name="IsGmInitial"    type="logical" default="T" />
+  <parameter name="IsDataInitial"  type="logical" default="F" />
+  <parameter name="IsRBSPData"     type="logical" default="F"
+    if="$IsDataInitial"/>
 
 #INITIALF2
-F			IsEmptyF2
-T			IsGmInitial
-F			IsDataInitial
-F			IsRBSPData
+F			IsEmptyInitial
+F			IsGmInitial
+T			IsDataInitial
+F			IsRBSPData (read if IsDataInitial=T)
 
 Determines whether to fill the fluxes in the simulation domain based
 on a Maxwellian determined from MHD quantities (IsGmInitial=T) or to
-set the initial fluxes in the simulation domain to zero (IsEmptyF2=T,
+set the initial fluxes in the simulation domain to zero (IsEmptyInitial=T,
 not recommended) or to set the initial fluxes in the simulation to
 values from AMPTE/CCE data (IsDataInitial=T).  One can also put RBSP
 observed fluxes into the same format as the AMPTE/CCE data to
 initialize CIMI with RBSP observations which is controlled with the
-IsRBSPData logical, which is only read if IsDataInitial=T. The default
-is shown.
+IsRBSPData logical, which is only read if IsDataInitial=T.
+
+The default IsGmInitial=T and all others are false. 
 
 </command>
 
@@ -950,16 +956,16 @@ UseEnergyDiffusionTest can be TRUE at a time; the other must be false.
     <option name="FIXED" default="T"/>
   </parameter>
   <if expr="$TypeComposition eq 'FIXED'">
-    <parameter name="DensityFractionHp" type="real" min="0" max="1" />
-    <parameter name="DensityFractionOp" type="real" min="0" max="1" />
-    <parameter name="DensityFractione" type="real" min="0" max="1" />
+    <parameter name="DensityFraction" type="real" min="0" max="1" />
+    <parameter name="DensityFraction" type="real" min="0" max="1" />
+    <parameter name="DensityFraction" type="real" min="0" max="1" />
   </if>
 
 #COMPOSITION
 FIXED			NameCompModel  
-0.85			DensityFractionHp
-0.15			DensityFractionOp
-1.0			DensityFractione
+0.85			DensityFraction Hp
+0.15			DensityFraction Op
+1.0			DensityFraction e
 
 When CIMI is coupled with a single fluid MHD code, the boundary conditions
 obtained from GM do not determine the composition of the plasma.
