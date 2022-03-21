@@ -87,9 +87,9 @@ contains
     endif
     
   end subroutine cimi_read_restart
-
   !============================================================================
   subroutine cimi_write_restart
+
     use ModCimiPlanet,ONLY: nspec
     use ModCimiGrid,  ONLY: np,nt,nm,nk,neng,MinLonPar,MaxLonPar
     use ModCimi,      ONLY: f2,time, phot, Pressure_IC, PressurePar_IC, &
@@ -100,7 +100,7 @@ contains
     use ModCimiTrace,ONLY: iba,iw2    
     use ModGmCimi,    ONLY: Den_IC
     use ModIoUnit,    ONLY: UnitTmp_
-    use ModUtilities, ONLY: open_file, close_file
+    use ModUtilities, ONLY: open_file, close_file, cTab
     use ModCimiGrid,  ONLY: iProc,nProc,iComm,nLonPar,nLonPar_P,nLonBefore_P
     use ModImSat,     ONLY: DoWriteSats,nImSats,NameSat_I,SatLoc_3I
     use ModMpi
@@ -266,11 +266,11 @@ contains
        call open_file(file=trim(NameRestartOutDir)//'restart.H', &
             NameCaller=NameSub)
        write(UnitTmp_,'(a)') '#TIMESIMULATION'
-       write(UnitTmp_,'(es15.8,a25)') time,'tSimulation'
+       write(UnitTmp_,'(es15.8,a)') time, cTab//cTab//'tSimulation'
        write(UnitTmp_,*)
        write(UnitTmp_,'(a)') '#RESTART'
-       write(UnitTmp_,'(a)') 'T                       DoRestart'
-       write(UnitTmp_,'(l1,a45)') DoWriteSats, 'DoReadRestartSatellite'
+       write(UnitTmp_,'(a)') 'T'//cTab//cTab//cTab//'IsRestart'
+       write(UnitTmp_,'(l1,a)') DoWriteSats, cTab//cTab//cTab//'DoReadRestartSatellite'
        call close_file
 
        if (DoWriteSats) then
