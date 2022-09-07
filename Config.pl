@@ -34,7 +34,7 @@ $NewPlanet="EarthHO" if $Install;
 `touch $ConfigLog`;
 
 #CIMI non-SWMF developers should use the following gitdir
-my $GITDIR   = "git\@gitlab.com:aglocer";
+my $GITDIR   = "https://github.com/MSTEM-QUDA";
 #SWMF developers should use the following gitdir
 #my $GITDIR   = "git\@gitlab.umich.edu:swmf_software";
 
