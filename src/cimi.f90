@@ -2800,7 +2800,7 @@ Part_phot=0.
                  enddo
               enddo
            enddo
-           fac(i,j)=-1.6e-16*fac(i,j)/cos(xlatr(i))/rion**2    ! fac in Amp/m^2
+           fac(i,j)=1.6e-16*fac(i,j)/cos(xlatr(i))/rion**2    ! fac in Amp/m^2
         enddo iloop3
      enddo jloop3
   else

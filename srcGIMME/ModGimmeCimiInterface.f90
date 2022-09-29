@@ -111,8 +111,9 @@ Module ModGimmeCimiInterface
       TimeSimulation=TimeSimulationIn
 
       ! set PotCIMI_C and JrCIMI_C to match incomming values from CIMI
+      ! note cimi Jr is opposite of what GIMME expects
       PotCIMI_C=PotCimiIn_C
-      JrCIMI_C=JrCimiIn_C
+      JrCIMI_C=-1.0*JrCimiIn_C
 
       ! save incomming lat boundary (iba)
       iLatBcCimi_I=iLatBcCimiIn_I
