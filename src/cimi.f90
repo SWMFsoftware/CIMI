@@ -65,7 +65,8 @@ subroutine cimi_run(delta_t)
        UsePitchAngleDiffusionTest,&
        UseEnergyDiffusionTest, init_diag_diff
   use ModUtilities, ONLY: CON_stop
- 
+  use ModGimmeCimiInterface, ONLY: init_gimme_from_cimi, gimme_potential_to_cimi,&
+       UseGimme
 
 !   NB: empty comment. Will remove later
                         
@@ -91,6 +92,8 @@ subroutine cimi_run(delta_t)
   real,   allocatable :: F2SEND_IIIII(:,:,:,:,:),f2RECV_IIIII(:,:,:,:,:)
 
   integer :: tmp_I(6)
+
+
   !----------------------------------------------------------------------------
   dt=dtmax
   if (dt==0) then
@@ -209,6 +212,11 @@ subroutine cimi_run(delta_t)
         call calc_DQQ
      endif
   endif
+
+  !initialize the potential solver
+  if(IsFirstCall .and. UseWeimer .and. UseGimme) then
+     if (iProc==0) call init_gimme_from_cimi(iStartTime_I,np,nt,xlatr,phi)
+  endif
   
   ! setup initial distribution
   if (IsFirstCall .and. .not.IsRestart) then
@@ -261,6 +269,12 @@ subroutine cimi_run(delta_t)
      call timing_start('set_cimi_potential')
      call set_cimi_potential(CurrentTime) 
      call timing_stop('set_cimi_potential')
+
+     if (iProc==0 .and. UseGimme) &
+          call gimme_potential_to_cimi(Time, np, nt, pot, FAC_C, iba,delta_t)
+     if (nProc>1 .and. UseGimme) &
+          call MPI_bcast(pot,np*nt,MPI_REAL,0,iComm,iError)
+
   endif
   
   ! calculate the drift velocity
@@ -2777,7 +2791,7 @@ Part_phot=0.
         iloop3: do i=2,iba(j)-1
            do k=1,nm
               do m=1,nk
-                do n=1,nspec
+                do n=1,nspec !-1 is a kludge to remove electrons
                  dwkdi=(ekev(n,i+1,j,k,m)-ekev(n,i-1,j,k,m))/(xlatr(i+1)-xlatr(i-1))
                  dwkdj=(ekev(n,i,j1,k,m)-ekev(n,i,j_1,k,m))/(2.*dphi)
                     detadi=(eta(n,i+1,j,k,m)-eta(n,i-1,j,k,m))/(xlatr(i+1)-xlatr(i-1))
@@ -2786,7 +2800,7 @@ Part_phot=0.
                  enddo
               enddo
            enddo
-           fac(i,j)=1.6e-16*fac(i,j)/cos(xlatr(i))/rion**2    ! fac in Amp/m^2
+           fac(i,j)=-1.6e-16*fac(i,j)/cos(xlatr(i))/rion**2    ! fac in Amp/m^2
         enddo iloop3
      enddo jloop3
   else

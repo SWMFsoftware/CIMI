@@ -1,7 +1,7 @@
 
 include ../Makefile.def
 
-SEARCHDIR = -I${SHAREDIR} -I${EMPIRICALGMDIR} -I${EMPIRICALIEDIR} -I${DATAREADINDICESDIR} -I../srcSAMI3
+SEARCHDIR = -I${SHAREDIR} -I${EMPIRICALGMDIR} -I${EMPIRICALIEDIR} -I${DATAREADINDICESDIR} -I../srcSAMI3 -I../srcGIMME
 
 include ../Makefile.conf
 -include Makefile.DEPEND
@@ -60,6 +60,7 @@ LIBINDICES  = ${LIBDIR}/libINDICES.a
 LIBEMPIRICALIE   = ${LIBDIR}/libEMPIRICALIE.a
 LIBEMPIRICALGM = ${LIBDIR}/libEMPIRICALGM.a
 LIBSAMI3 = ${LIBDIR}/libSAMI3.a
+LIBGIMME = ${LIBDIR}/libGIMME.a
 
 # Libraries should be compiled first, because modules are used in main
 ${OBJECTS_EXE}: ${LIBSHARE} ${LIBTIMING} ${MY_LIB}   
@@ -80,13 +81,14 @@ ${EXE}: ${OBJECTS_EXE}
 		ar -x ${LIBSHARE}; \
 		ar -x ${LIBINDICES}; \
 		ar -x ${LIBEMPIRICALGM};\
-		ar -x ${LIBEMPIRICALIE};
+		ar -x ${LIBEMPIRICALIE};\
+		ar -x ${LIBGIMME};
 	${LINK.f90} -o ${EXE} ${OBJECTS_EXE} Tmp_/*.o ${LBLAS} ${Lflag1}
 	rm -rf Tmp_
 
 CIMI_orig:
 	${COMPILE.f90} ${Lflag1} -o ${EXE} cimi_main.f90 ${OBJECTS} \
-	-L${LIBDIR} -lTIMING -lSHARE -lNOMPI -lINDICES
+	-L${LIBDIR} -lTIMING -lSHARE -lNOMPI -lINDICES -lGIMME
 
 #SAMI-CIMI targets
 # Object files not included into the library
@@ -119,7 +121,6 @@ CIMI_SAMI_orig:
 	${COMPILE.f90} -o ${EXE} main_cimi_sami.f90 ${OBJECTS} \
 	-L${LIBDIR} -lTIMING -lSHARE -lNOMPI -lINDICES -lSAMI3 \
 	${Lflag1}
-	 
 
 clean: cleanfiles
 

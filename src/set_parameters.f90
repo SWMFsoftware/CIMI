@@ -37,6 +37,7 @@ subroutine CIMI_set_parameters(NameAction)
   use ModPlasmasphere,   ONLY: &
        DoSavePlas, DtPlasOutput,UseCorePsModel,PlasMinDensity
   use ModInterFlux,      ONLY: UseHigherOrder,iOrderLat,iOrderLon
+  use ModGimmeCimiInterface, ONLY: DtGimmePlot,UseGimme
   use ModUtilities, ONLY: CON_stop
   
   implicit none
@@ -160,6 +161,11 @@ subroutine CIMI_set_parameters(NameAction)
      case('#IEMODEL')
         call read_var('UseWeimer',UseWeimer)
 
+     case('#GIMME')
+        call read_var('UseGimme',UseGimme)
+        call read_var('DtGimmePlot',DtGimmePlot)
+        
+        
      case('#SAVELOG')
         call read_var('DtLogOut',DtLogOut)
         DoSaveLog = .true.

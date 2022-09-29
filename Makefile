@@ -63,6 +63,7 @@ CIMI:
 	@cd ${EMPIRICALIEDIR};	make LIB
 	@cd ${EMPIRICALGMDIR};	make LIB
 	@cd ${DATAREADINDICESDIR};make LIB
+	@cd srcGIMME;	make LIB
 	@cd src;	make LIB
 	@cd src;	make CIMI
 
@@ -201,7 +202,7 @@ test_Prerun:
 	make   test_check_Prerun
 	ls -l test_*.diff
 
-test_Highorder:
+test_Highordelsr:
 	@echo "test_compile..." > test_cimi.diff
 	make   test_compile_UniformL
 	@echo "test_rundir_Highorder..." >> test_cimi.diff
@@ -480,6 +481,7 @@ PDF:
 clean:
 	cd src; make clean
 	cd srcSAMI3; make clean
+	cd srcGIMME; make clean
 	cd srcInterface; make clean
 	cd doc/Tex; make clean
 	@(if [ -d util ];  then cd util;  make clean; fi);
