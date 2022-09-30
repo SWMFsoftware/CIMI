@@ -615,7 +615,7 @@ contains
     use ModIndicesInterfaces
     use ModConst,   ONLY: cProtonMass
     use ModDstOutput, ONLY: DstOutput
-
+    use ModImIndices, ONLY: interpolate_dst, UseDstKyoto
     real parmod(10),w04(6),rr(6),xlamb(6),beta(6),gamm(6)
     integer :: iError
 
@@ -672,8 +672,12 @@ contains
           call get_SW_N  (SmoothTime, DensitySwTMP,  iError)
           call get_IMF_Bz(SmoothTime, BzSwTMP,       iError)
           call get_IMF_By(SmoothTime, BySwTMP,       iError)
-          call get_Dst   (SmoothTime, DstTMP,        iError)
-
+          if(UseDstKyoto) then
+             call interpolate_dst(SmoothTime,DstTMP)
+          else
+             call get_Dst   (SmoothTime, DstTMP,        iError)
+          endif
+          
           if (iError /= 0) then
              call con_stop&
                   ("IM_ERROR: Problem getting solar wind in TsyParmod")
@@ -693,7 +697,11 @@ contains
        call get_SW_N  (CurrentTime, DensitySW,  iError)
        call get_IMF_Bz(CurrentTime, BzSW,       iError)
        call get_IMF_By(CurrentTime, BySW,       iError)
-       call get_Dst   (CurrentTime, Dst,        iError)
+       if (UseDstKyoto) then
+          call interpolate_dst(CurrentTime,Dst)
+       else
+          call get_Dst   (CurrentTime, Dst,        iError)
+       endif
     end if
     
     !\

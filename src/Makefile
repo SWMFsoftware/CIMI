@@ -10,6 +10,7 @@ include ../Makefile.conf
 OBJECTS = \
         ModPlanet.o\
 	ModCimi.o\
+	ModImIndices.o\
 	ModInterFlux.o\
 	ModPlasmasphere.o\
 	ModCimiPlot.o\

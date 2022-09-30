@@ -445,6 +445,49 @@ runs. Default shown.
 
 </command>
 
+
+<command name="KYOTO_DST">
+  <parameter name="UseDstKyoto" type="logical" default="F"/>
+  <parameter name="NameDstFile" type="string" />
+
+  
+#KYOTO_DST
+T		UseDstKyoto
+Dst_Kyoto.dat   NameDstFile
+
+Command points to the file containing the DST Index from the
+Kyoto website in the IAGA2002 format. 
+
+</command>
+
+<command name="KYOTO_AE">
+  <parameter name="UseAeKyoto" type="logical" default="F"/>
+  <parameter name="NameAeFile" type="string" />
+
+  
+#KYOTO_AE
+T		UseAeKyoto
+Ae_Kyoto.dat   NameAeFile
+
+Command points to the file containing the AE Index from the
+Kyoto website (https://wdc.kugi.kyoto-u.ac.jp/aeasy/index.html) in the
+IAGA2002 format. 
+
+</command>
+
+<command name="POTSDAM_KP_AP_F107">
+  <parameter name="UseKpApF107IndicesFile" type="logical" default="F"/>
+  
+#POTSDAM_KP_AP_F107
+T		UseKpApF107IndicesFile
+
+
+Command tells CIMI to use the KP,AP,F107 values from
+https://www.gfz-potsdam.de/en/section/geomagnetism/data-products-services/geomagnetic-kp-index. Note that this file contines data from 1937 to the present,
+but must be periodically updated with the latest values. 
+
+</command>
+
 <command name="SOLARWIND">
   <parameter name="DensitySW" type="float"/>
   <parameter name="VelSW" type="float"/>
@@ -988,7 +1031,7 @@ Default values are shown.
 	<parameter name="ChorusWavesD" type="string" />
 	<parameter name="ChorusUpperBandD" type="string" />
   	<parameter name="UseKpIndex" type="logical" />
-	<parameter name="NameAeFile" type="string" />
+
 #WAVEDIFFUSION
 T                            UseWaveDiffusion
 0.0                          DiffStartT     
@@ -999,17 +1042,17 @@ D_hiss_UCLA.dat              HissWavesD
 D_LBchorus_merge3.dat        ChorusWavesD
 THE_FILE_IS_NOT_READY_YET    ChorusUpperBandD
 T		             UseKpIndex
-AE_Index.dat	             NameAeFile
+
 
 This command defines the wave diffusion in CIMI. By default the waves are off 
 so this command must be added to turn on waves. Other commands include the 
 time from the start of the simulation that the waves should be turn on, 
 whether to use use plasmaspheric hiss, lower band Chorus, and upper band 
 Chorus waves, The data files for the wave diffusion coeficients that should be 
-in the rundir/IM/ directory. Note that wayves can be driven by KP or AE. 
+in the rundir/IM/ directory. Note that waves can be driven by KP or AE. 
 When KP is used and GM coupling is true we take the KP passed from GM (note 
-that GEOMAGINDICES should be turned on in BATSRUS for this to work. When 
-Kp is used then AE file is not read.
+that GEOMAGINDICES should be turned on in BATSRUS for this to work. Note, if  
+not using Kp you should make sure to read an AE file using #KYOTO_AE.
 
 </command>
 

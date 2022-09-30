@@ -510,6 +510,7 @@ rundir:
 		fi;)
 	cd ${RUNDIR}/IM; \
 		cp ${IMDIR}/input/quiet*fin . ;\
+		cp ${IMDIR}/input/IndicesKpApF107.dat . ;\
 		cp ${IMDIR}/input/WaveData/*dat . ;\
 		mkdir plots restartIN restartOUT
 	@(if [ "$(STANDALONE)" != "NO" ]; then \
@@ -526,6 +527,7 @@ rundir_cimi_sami:
 		fi;)
 	cd ${RUNDIR}/IM; \
 		cp ${IMDIR}/input/quiet*fin . ;\
+		cp ${IMDIR}/input/IndicesKpApF107.dat . ;\
 		cp ${IMDIR}/input/WaveData/*dat . ;\
 		mkdir plots restartIN restartOUT plotsSAMI3
 	@(if [ "$(STANDALONE)" != "NO" ]; then \

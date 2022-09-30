@@ -46,8 +46,9 @@ subroutine cimi_run(delta_t)
   use ModWaveDiff,		ONLY:	&
        UseWaveDiffusion, UseKpIndex, ReadDiffCoef, WavePower, & 
        diffuse_aa, diffuse_EE, diffuse_aE, DiffStartT, &
-       testDiff_aa, testDiff_EE, testDiff_aE, &
-       TimeAeIndex_I, AeIndex_I, interpolate_ae
+       testDiff_aa, testDiff_EE, testDiff_aE
+  use ModImIndices,             ONLY:   interpolate_ae,&
+       UseAeKyoto,UseKpApF107IndicesFile,get_im_indices_Kp
   use ModCoupleSami,		ONLY:	DoCoupleSami
   use DensityTemp,		ONLY:	density, simple_plasmasphere
   use ModIndicesInterfaces
@@ -237,30 +238,42 @@ subroutine cimi_run(delta_t)
   call boundaryIM(nspec,neng,np,nt,nm,nk,iba,irm,amu_I,xjac,energy,vel,fb)
   
   if (Time.ge.DiffStartT .and. UseWaveDiffusion) then
-
+     
      ! calculate wave power for the first time; the second time is in the loop
      if (UseKpIndex) then
         if (UseGmKp) then
            Kp_temp=KpGm
         else
-           call get_kp(CurrentTime, Kp_temp, iError)        
+           if (UseKpApF107IndicesFile) then
+              call get_im_indices_Kp(CurrentTime, Kp_temp)
+           else
+              call get_kp(CurrentTime, Kp_temp, iError)
+           endif
         endif
      else
-        call interpolate_ae(CurrentTime, AE_temp)
+        if(UseAeKyoto) then
+           call interpolate_ae(CurrentTime, AE_temp)
+        else
+           call CON_stop('IM error: Kp not used and no AE option.'//&
+                'One of the two is needed for waves.')
+        endif
      endif
-
      ! Determines if the simple plasmasphere model needs to be used.
      if ( .not. DoCoupleSami .and. .not. UseCorePsModel) then
         call timing_start('cimi_simp_psphere')
         if (UseGmKp) then
            Kp_temp=KpGm
         else
-           call get_kp(CurrentTime, Kp_temp, iError)        
+           if (UseKpApF107IndicesFile) then
+              call get_im_indices_Kp(CurrentTime, Kp_temp)
+           else
+              call get_kp(CurrentTime, Kp_temp, iError)
+           endif
         endif
         call simple_plasmasphere(Kp_temp)
         call timing_stop('cimi_simp_psphere')
      end if
-
+     
      call WavePower(Time,AE_temp,Kp_temp,iba)
   end if
 
@@ -412,18 +425,18 @@ subroutine cimi_run(delta_t)
      
      if ( ( Time .GE. DiffStartT ) .AND. &
           ( UseWaveDiffusion ) ) then
-
+        
         call timing_start('cimi_WaveDiffusion')
         
         if (UsePitchAngleDiffusionTest.or.&
-            UseEnergyDiffusionTest) then
+             UseEnergyDiffusionTest) then
            write(*,*) 'UsePitchAngleDiffusionTest',UsePitchAngleDiffusionTest
            write(*,*) 'UseEnergyDiffusionTest',UseEnergyDiffusionTest
            call CON_stop('For diag diffusion test, "make DIFFUSIONTEST"')
         endif
-       
+        
         if ( UseDiagDiffusion ) then
-
+           
            call init_diag_diff
            
            ! map PSD from M to Q2      
@@ -453,7 +466,7 @@ subroutine cimi_run(delta_t)
            call timing_start('cimi_Diffuse_EE')
            call diffuse_EE(f2,dt,xmm,xjac,iw2,iba)
            call timing_stop('cimi_Diffuse_EE')
-        endif 
+        endif
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -472,22 +485,26 @@ subroutine cimi_run(delta_t)
         call timing_stop('cimi_WaveDiffusion')
         
         if (.not.UseKpIndex) &
-           call interpolate_ae(CurrentTime, AE_temp)
-
+             call interpolate_ae(CurrentTime, AE_temp)
+        
         if ( .not. DoCoupleSami .and. .not. UseCorePsModel) then
            call timing_start('cimi_simp_psphere')
            if (UseGmKp) then
               Kp_temp=KpGm
            else
-              call get_kp(CurrentTime, Kp_temp, iError)        
+              if (UseKpApF107IndicesFile) then
+                 call get_im_indices_Kp(CurrentTime, Kp_temp)
+              else
+                 call get_kp(CurrentTime, Kp_temp, iError)
+              endif
            endif
            call simple_plasmasphere(Kp_temp)
            call timing_stop('cimi_simp_psphere')
         end if
-
+        
         call WavePower(Time,AE_temp,Kp_temp,iba)
      endif
-
+     
      if ( UseStrongDiff ) then
         
         call timing_start('cimi_StrongDiff')

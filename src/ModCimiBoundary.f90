@@ -233,9 +233,11 @@ contains
     use ModImTime,    ONLY: CurrentTime, TimeLagBoundary
     use ModCimiTrace,ONLY: iba, ro, xmlto, irm
     use ModGmCimi,      ONLY: Den_IC,Temp_IC
+    use ModImIndices,   ONLY: UseKpApF107IndicesFile,get_im_indices_F107,&
+         get_im_indices_Kp
     use ModIndicesInterfaces
     use ModNumConst,       ONLY: cPi
-
+    
     
     real,parameter :: cCm3toM3 =1.0e6, cKevTOeV=1000.0
     real :: TimeBoundary, Bz, vsw, xnsw, Rtsy, phit
@@ -249,9 +251,13 @@ contains
     ! If using Young et al and nspec=3 then overwrite dFactor_I
     if(UseYoungEtAl .and. nspec==3) then
        !Get Inputs
-       call get_kp(CurrentTime, Kp, iError)
-       call get_F107(CurrentTime, F107, iError)
-       
+       if (UseKpApF107IndicesFile) then
+          call get_im_indices_Kp(CurrentTime, Kp)
+          call get_im_indices_F107(CurrentTime, F107)
+       else
+          call get_kp(CurrentTime, Kp, iError)
+          call get_F107(CurrentTime, F107, iError)
+       endif
        !Set O+:H+ ratio
        O_H_ratio = get_OtoH_young(F107, Kp)
        dFactor_I(1) = 1.0/(O_H_ratio+1.0)        !H+

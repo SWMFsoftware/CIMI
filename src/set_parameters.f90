@@ -24,8 +24,10 @@ subroutine CIMI_set_parameters(NameAction)
        UseWaveDiffusion, UseHiss, UseChorus, UseChorusUB, &
        DiffStartT, HissWavesD, ChorusWavesD, ChorusUpperBandD, &
        testDiff_aa, testDiff_EE, testDiff_aE, &
-       NameAeFile, read_ae_wdc_kyoto, &
        UseKpIndex
+  use ModImIndices,      ONLY: NameAeFile, read_ae_wdc_kyoto,&
+       UseKpApF107IndicesFile,read_kpapf107_indices_file,&
+       NameDstFile, read_dst_wdc_kyoto, UseDstKyoto,UseAeKyoto
   use ModDiagDiff,       ONLY: UseDiagDiffusion,&
                                UsePitchAngleDiffusionTest,&
                                UseEnergyDiffusionTest
@@ -118,6 +120,36 @@ subroutine CIMI_set_parameters(NameAction)
         call IO_set_inputs(cTempLines)
         call read_MHDIMF_Indices(iError)
 
+     case ("#KYOTO_DST")
+        call read_var('UseDstKyoto',UseDstKyoto)
+        call read_var('NameDstFile',NameDstFile)
+
+        call read_dst_wdc_kyoto(iError)
+                
+        if (iError /= 0) then
+           write(*,*) "read Dst index was not successful "//&
+                "(WDC Kyoto file; IAGA2002 Format)"
+        end if
+
+     case ("#KYOTO_AE")
+        call read_var('UseAeKyoto',UseAeKyoto)
+        call read_var('NameAeFile',NameAeFile)
+
+        call read_ae_wdc_kyoto(iError)
+                
+        if (iError /= 0) then
+           write(*,*) "read Ae index was not successful "//&
+                "(WDC Kyoto file; IAGA2002 Format)"
+        end if
+
+     case ("#POTSDAM_KP_AP_F107")
+        !use Kp, Ap, and F107 from Geomagnetic Observatory Niemegk, &
+        !GFZ German Research Centre for Geosciences
+        !note this file has all data from 1937, but does need to be periodically
+        !updated from https://www.gfz-potsdam.de/en/section/geomagnetism/data-products-services/geomagnetic-kp-index
+        call read_var('UseKpApF107IndicesFile',UseKpApF107IndicesFile)
+        call read_kpapf107_indices_file
+        
      case ("#SOLARWIND")
         call read_var('DensitySW',DensitySW)
         call read_var('VelSW',VelSW)
@@ -734,16 +766,6 @@ subroutine CIMI_set_parameters(NameAction)
            call read_var('ChorusWavesD', ChorusWavesD)
            call read_var('ChorusUpperBandD', ChorusUpperBandD)
            call read_var('UseKpIndex',UseKpIndex)
-           if (.not.UseKpIndex) then
-              call read_var('NameAeFile',NameAeFile)
-              call read_ae_wdc_kyoto(iError)
-           endif
-
-           if (iError /= 0) then
-              write(*,*) "read AE index was not successful "//&
-                   "(WDC Kyoto file; IAGA2002 Format)"
-           end if
-
         end if
 
      case('#DIAGONALIZEDDIFFUSION')
