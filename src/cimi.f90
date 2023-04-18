@@ -160,7 +160,7 @@ subroutine cimi_run(delta_t)
         !initial the 2d core plasmasphere model
         call init_plasmasphere(np,nt,xlatr,phi,iba,&
              brad,phi2o,ftv,pot,IsRestart)
-        write(*,*) 'IsRestart',IsRestart
+        write(*,*) 'CIMI: IsRestart',IsRestart
         if (.not.IsRestart) then
            !spin up the core plasmasphere model by running for one day
            call advance_plasmasphere(PlasSpinUpTime)
