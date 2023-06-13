@@ -104,12 +104,12 @@ contains
            ! set temperatures
            Temp_IC(1:nSpec,iLat,iLon) = tFactor_I(1:nSpec) * &
                 StateBmin_IIV(jLat,iLon,TotalP_)  &
-                /(Den_IC(nSpec,jLat,iLon)) &
+                /(Den_IC(nSpec,iLat,iLon)) &
                 * cJouleToEv
            if(UseTotalPparGm) then
               Temppar_IC(1:nSpec,iLat,iLon) = tFactor_I(iSpecies) * &
                    StateBmin_IIV(jLat,iLon,TotalPpar_) &
-                   / (Den_IC(nSpec,jLat,iLon)) &
+                   / (Den_IC(nSpec,iLat,iLon)) &
                    * cJouleToEv
            else
               Temppar_IC(:,iLat,iLon) = Temp_IC(:,iLat,iLon)
