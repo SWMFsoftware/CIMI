@@ -53,8 +53,8 @@ contains
   subroutine init_mod_field_trace
     
     if(allocated(bo)) RETURN
-    allocate( bo(ir,ip),ro(ir,ip),xmlto(ir,ip),sinA(ir,ip,0:ik+1),&
-         Have(ir,ip,ik),pp(nspec,ir,ip,iw,ik),vel(nspec,ir,ip,iw,ik),&
+    allocate( bo(ir,ip),ro(ir,ip),xmlto(ir,ip),sinA(ir,ip,0:ik+1) )
+    allocate(Have(ir,ip,ik),pp(nspec,ir,ip,iw,ik),vel(nspec,ir,ip,iw,ik),&
          ekev(nspec,ir,ip,iw,ik),rmir(ir,ip,ik),alscone(nspec,ir,ip,iw,ik),&
          tanA2(ir,ip,0:ik+1),phi2o(ir,ip),&
          volume(ir,ip),bm(ir,ip,ik),gamma(ir,ip,iw,ik),&
@@ -89,7 +89,7 @@ contains
 
     integer, parameter :: np=10000,nd=3
     real :: t, dt, c
-    real xlati(ir),phi(ip),si(0:ik+1),&
+    real :: xlati(ir),phi(ip),si(0:ik+1),&
          si3(np),bm1(np),rm(np),rs(np),dss(np),&
          h3(np),bs(np),bba(np),&
          x1(ir),xmlt(ip),xli(0:ir),&
@@ -114,10 +114,10 @@ contains
     integer :: imax
     integer :: iBufferSend_I(ip)
     real :: R_12,R_24,xmltr,xBoundary(ip),BufferSend_I(ip),MajorAxis,MinorAxis,&
-         MajorAxis2,MinorAxis2,sin2,Req2,xo1,xc,xCenter,rell2
+         MajorAxis2,MinorAxis2,sin2,Req2,xo1,xc,xCenter,rell2, bmin
     real, parameter :: LengthMax = 50.0
     integer :: iError
-    real :: bmin
+    
 
     logical, save ::  IsFirstCall=.true.
 
@@ -392,16 +392,24 @@ contains
              !write(*,*) '!!! iLat,iLon',i,j
              sim=si(m)                 ! get Bm @ given K & location
              call lintpIM(si3,bm1,im2,sim,bmmx)
-             if (m.ge.1.and.m.le.ik) bm(i,j,m)=bmmx
+             if (m.ge.1.and.m.le.ik) then
+                bm(i,j,m)=bmmx
+             endif
              !  sinA(i,j,m)=sqrt(bmin/bmmx)
-             sinA(i,j,m)=sqrt(bo(i,j)/bmmx) 
+             sinA(i,j,m)=bo(i,j)/bmmx
+             sinA(i,j,m)=sqrt(sinA(i,j,m)) 
              if (sinA(i,j,m).gt.1.) sinA(i,j,m)=1.
              call lintpIM(si3,rm,im2,sim,rmm)
-             if (m.ge.1.and.m.le.ik) rmir(i,j,m)=rmm
+             if (m.ge.1.and.m.le.ik) then
+                rmir(i,j,m)=rmm
+             endif
              call lintpIM(si3,tya3,im2,sim,tya33)
              tya(i,j,m)=tya33
              call lintpIM(si3,h3,im2,sim,h33)
-             if (m.ge.1.and.m.le.ik)  Have(i,j,m)=h33  ! bounce-ave [H]
+             ! bounce-ave [H]
+             if (m.ge.1.and.m.le.ik)  then
+                Have(i,j,m)=h33
+             endif
           enddo
           ! test si (K) values
           !if (i.eq.30.and.j.eq.1) then
@@ -842,12 +850,13 @@ contains
     integer imod,np,npf1,i,j,n,ii,iopt,ind(np)
     integer, intent(in) :: iLat  
     real, intent(out)   :: ra(np)
-    integer  :: ieq,ibmin
+    integer  :: ieq
+    integer  :: ibmin
     real rlim,re,rc,xlati1,phi1,t,ps,parmod(10),dssa(np),bba(np),volume1,ro1,&
          xmlt1,bo1
     real xa(np),ya(np),za(np),x0(3),xend(3),f(3),t0,tend,h,h1,aza(np)
     real dir,pas,xwrk(4,nd),b_mid,dss(np),ss,yint(np)
-    real bba_abs(np)
+    !real bba_abs(np)
 
     iopt=1               ! dummy variable for tsy models
     !  rlim=20.
@@ -919,18 +928,18 @@ contains
     ! find the equatorial crossing point
     aza(1:npf1)=abs(za(1:npf1))
 
-    bba_abs(1:npf1)=abs(bba(1:npf1))
-    ibmin=minloc(bba_abs(1:npf1),DIM=1)
-    ro1=ra(ibmin)
-    bo1=bba(ibmin)
-
- !   call sort_quick(npf1,aza,ind)    ! find the equatorial crossing point
- !   ieq=ind(1)
- !   ro1=ra(ieq)
- !   xmlt1=atan2(-ya(ieq),-xa(ieq))*12./cPi   ! mlt in hr
-    xmlt1=atan2(-ya(ibmin),-xa(ibmin))*12./cPi   ! mlt in hr
+    !bba_abs(1:npf1)=abs(bba(1:npf1))
+    !ibmin=minloc(bba_abs(1:npf1),DIM=1)
+    ibmin=minloc(abs(bba(1:npf1)),DIM=1)
+    if (ibmin>-1) then
+       bo1=bba(ibmin)
+       ro1=ra(ibmin)
+    endif
+    !here we get xmlt1 at the bmin which is done exactly the same was as we
+    ! did it before for the equator but now we use the bmin index. 
+    xmlt1 = &
+         atan2(-ya(ibmin),-xa(ibmin))*12./cPi   ! mlt in hr
     if (xmlt1.lt.0.) xmlt1=xmlt1+24.
- !   bo1=bba(ieq)
 
   end subroutine tsy_trace
   !-----------------------------------------------------------------------------

@@ -125,13 +125,13 @@ pro Generate_RBSP_fin, $
 ; Defines the length of the header and the data structure in
 ; preparation for reading the HOPE data files.
   
-  HOPE_Oplus_header_length=60
+  HOPE_Oplus_header_length=68
   HOPE_Oplus_header=STRARR(HOPE_Oplus_header_length)
 
-  HOPE_Hplus_header_length=60
+  HOPE_Hplus_header_length=68
   HOPE_Hplus_header=STRARR(HOPE_Hplus_header_length)
 
-  HOPE_e_header_length=60
+  HOPE_e_header_length=68
   HOPE_e_header=STRARR(HOPE_e_header_length)
 
   num_HOPE_Energy_Channels=72
@@ -142,7 +142,7 @@ pro Generate_RBSP_fin, $
 ; Defines the length of the header and the data structure in
 ; preparation for reading the MagEIS H+ data files.
   
-  MagEIS_Hplus_header_length=50
+  MagEIS_Hplus_header_length=57
   MagEIS_Hplus_header=STRARR(MagEIS_Hplus_header_length)
 
   num_MagEIS_Hplus_Energy_channels=31
@@ -153,7 +153,7 @@ pro Generate_RBSP_fin, $
 ; Defines the length of the header and the data structure in
 ; preparation for reading the MagEIS e- data files.
   
-  MagEIS_e_header_length=52
+  MagEIS_e_header_length=58
   MagEIS_e_header=STRARR(MagEIS_e_header_length)
   
   num_MagEIS_e_Energy_channels=25
@@ -171,7 +171,7 @@ pro Generate_RBSP_fin, $
 ; Defines the length of the header and the data structure in
 ; preparation for reading the REPT e- data files.
   
-  REPT_e_header_length=52
+  REPT_e_header_length=56
   REPT_e_header=STRARR(REPT_e_header_length)
   dataStruct_REPT_e={year:0S,seconds:0.0D,L:0.0, $
                      FLUXES:fltarr(num_REPT_e_Energy_channels)}

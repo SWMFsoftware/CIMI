@@ -40,17 +40,15 @@ subroutine cimi_run(delta_t)
        MinLonPar, MaxLonPar, nt, np, neng, npit, nm, nk, dlat, &
        phi, sinao, xlat, xlatr, xmlt
   use ModCimiBoundary,		ONLY:	&
-       cimi_set_boundary_mhd, cimi_set_boundary_empirical, &
+       cimi_set_boundary_mhd, cimi_set_boundary_empirical,&
        CIMIboundary, Outputboundary
   use ModMpi
-  use ModWaveDiff,		ONLY:	&
-       UseWaveDiffusion, UseKpIndex, ReadDiffCoef, WavePower, & 
-       diffuse_aa, diffuse_EE, diffuse_aE, DiffStartT, &
-       testDiff_aa, testDiff_EE, testDiff_aE
+  use ModWaves,  		ONLY:	&
+       UseWaves, UseKpIndex, ReadDiffCoef, WavePower
   use ModImIndices,             ONLY:   interpolate_ae,&
        UseAeKyoto,UseKpApF107IndicesFile,get_im_indices_Kp
   use ModCoupleSami,		ONLY:	DoCoupleSami
-  use DensityTemp,		ONLY:	density, simple_plasmasphere
+  
   use ModIndicesInterfaces
   use ModLstar,			ONLY:	&
        Lstar_C, Lstarm, &
@@ -65,12 +63,11 @@ subroutine cimi_run(delta_t)
        mapPSDtoQ, mapPSDtoE, diffuse_Q1, diffuse_Q2, &
        UsePitchAngleDiffusionTest,&
        UseEnergyDiffusionTest, init_diag_diff
+  use ModWaveDiff,              ONLY:   &
+       diffuse_aa,diffuse_EE,diffuse_aE
   use ModUtilities, ONLY: CON_stop
   use ModGimmeCimiInterface, ONLY: init_gimme_from_cimi, gimme_potential_to_cimi,&
        UseGimme
-
-!   NB: empty comment. Will remove later
-                        
   implicit none
 
   !regular variables
@@ -149,7 +146,7 @@ subroutine cimi_run(delta_t)
 
   ! interpolate a0 of const. Q2 curve correspoding K
   if ( .NOT.( IsFirstCall ) .AND. &
-       ( UseDiagDiffusion ) ) then
+       UseWaves .and. UseDiagDiffusion ) then
      call init_diag_diff
      call timing_start('cimi_interpol_D_coefK')
      call interpol_D_coefK
@@ -179,15 +176,15 @@ subroutine cimi_run(delta_t)
   if (UseCorePsModel .and. nProc>1) then
      call MPI_bcast(PlasDensity_C,np*nt,MPI_REAL,0,iComm,iError)
   endif
-  if (UseCorePsModel) then
-     !when using the core PS model overwrite the density in the
-     !wave calculation
-     where (PlasDensity_C > PlasMinDensity)
-        density=PlasDensity_C
-     elsewhere
-        density=PlasMinDensity
-     end where
-  endif
+!  if (UseCorePsModel) then
+!     !when using the core PS model overwrite the density in the
+!     !wave calculation
+!     where (PlasDensity_C > PlasMinDensity)
+!        density=PlasDensity_C
+!     elsewhere
+!        density=PlasMinDensity
+!     end where
+!  endif
   
   ! get Bmin, needs to be passed to GM for anisotropic pressure coupling
   Bmin_C = bo
@@ -205,15 +202,59 @@ subroutine cimi_run(delta_t)
      call MPI_bcast(DoWriteSats,1,MPI_LOGICAL,0,iComm,iError)
   endif
 
-  !  read wave models 
-  if (IsFirstCall) then
-     if (UseWaveDiffusion) call ReadDiffCoef
-     if (UseDiagDiffusion) then
+  if (UseWaves) then
+     
+     ! calculate wave power for the first time; the second time is in the loop
+     if (UseKpIndex) then
+        if (UseGmKp) then
+           Kp_temp=KpGm
+        else
+           if (UseKpApF107IndicesFile) then
+              call get_im_indices_Kp(CurrentTime, Kp_temp)
+           else
+              call get_kp(CurrentTime, Kp_temp, iError)
+           endif
+        endif
+     else
+        if(UseAeKyoto) then
+           call interpolate_ae(CurrentTime, AE_temp)
+        else
+           call CON_stop('IM error: Kp not used and no AE option.'//&
+                'One of the two is needed for waves.')
+        endif
+     endif
+     ! Determines if the simple plasmasphere model needs to be used.
+     if ( .not. DoCoupleSami .and. .not. UseCorePsModel) then
+        if (UseGmKp) then
+           Kp_temp=KpGm
+        else
+           if (UseKpApF107IndicesFile) then
+              call get_im_indices_Kp(CurrentTime, Kp_temp)
+           else
+              call get_kp(CurrentTime, Kp_temp, iError)
+           endif
+        endif
+        call timing_start('simple_plasmasphere')
+        call simple_plasmasphere(Kp_temp)
+        call timing_stop('simple_plasmasphere')
+     end if
+
+     
+     !  read wave diffcoef 
+     if (IsFirstCall) call ReadDiffCoef(np,nt)
+     
+     call WavePower(np,nt,Time,PlasDensity_C,AE_temp,Kp_Temp, &
+          Bo,brad,xmlto,iba,MinLonPar,MaxLonPar)
+
+     if (IsFirstCall .and. UseDiagDiffusion) then
         call init_diag_diff
         call calc_DQQ
      endif
-  endif
+  end if
 
+
+  
+ 
   !initialize the potential solver
   if(IsFirstCall .and. UseWeimer .and. UseGimme) then
      if (iProc==0) call init_gimme_from_cimi(iStartTime_I,np,nt,xlatr,phi)
@@ -237,45 +278,6 @@ subroutine cimi_run(delta_t)
   ! calculate boundary flux (fb) at the CIMI outer boundary at the equator
   call boundaryIM(nspec,neng,np,nt,nm,nk,iba,irm,amu_I,xjac,energy,vel,fb)
   
-  if (Time.ge.DiffStartT .and. UseWaveDiffusion) then
-     
-     ! calculate wave power for the first time; the second time is in the loop
-     if (UseKpIndex) then
-        if (UseGmKp) then
-           Kp_temp=KpGm
-        else
-           if (UseKpApF107IndicesFile) then
-              call get_im_indices_Kp(CurrentTime, Kp_temp)
-           else
-              call get_kp(CurrentTime, Kp_temp, iError)
-           endif
-        endif
-     else
-        if(UseAeKyoto) then
-           call interpolate_ae(CurrentTime, AE_temp)
-        else
-           call CON_stop('IM error: Kp not used and no AE option.'//&
-                'One of the two is needed for waves.')
-        endif
-     endif
-     ! Determines if the simple plasmasphere model needs to be used.
-     if ( .not. DoCoupleSami .and. .not. UseCorePsModel) then
-        call timing_start('cimi_simp_psphere')
-        if (UseGmKp) then
-           Kp_temp=KpGm
-        else
-           if (UseKpApF107IndicesFile) then
-              call get_im_indices_Kp(CurrentTime, Kp_temp)
-           else
-              call get_kp(CurrentTime, Kp_temp, iError)
-           endif
-        endif
-        call simple_plasmasphere(Kp_temp)
-        call timing_stop('cimi_simp_psphere')
-     end if
-     
-     call WavePower(Time,AE_temp,Kp_temp,iba)
-  end if
 
   ! calculate the ionospheric potential (if not using MHD potential)
   if (UseWeimer) then
@@ -315,7 +317,7 @@ subroutine cimi_run(delta_t)
           np, nt, nm, nk, nspec, neng, npit, iba, ftv, f2, ekev, &
           sinA, energy, sinAo, delE, dmu, amu_I, xjac, pp, xmm, dmm, &
           dk, xlat, dphi, re_m, Hiono, vl, vp, flux, FAC_C, phot, &
-          Ppar_IC, Pressure_IC, PressurePar_IC, vlEa, vpEa, psd )
+          Ppar_IC, Pressure_IC, PressurePar_IC, vlEa, vpEa, psd,brad,xmlto )
      call timing_stop('cimi_output')
 
      if ( nProc > 1 ) call cimi_gather( delta_t, psd, flux, vlea, vpea )
@@ -362,9 +364,11 @@ subroutine cimi_run(delta_t)
 
         do iSpecies = 1, nspec
 
-           if ( DoSaveFlux( iSpecies ) ) &
+           if ( DoSaveFlux( iSpecies ) ) then
                 call Cimi_plot_fls( flux( iSpecies, :, :, :, : ), &
-                iSpecies, time )
+                     iSpecies, time )
+                !write(*,*) 'first',iSpecies,DoSaveFlux(iSpecies),iProc,time
+             endif
            if ( DoSavePSD( iSpecies ) ) &
                 call Cimi_plot_psd( psd( iSpecies, :, :, :, : ), &
                 iSpecies, time, xmm, xk )
@@ -402,15 +406,15 @@ subroutine cimi_run(delta_t)
      if (nProc>1 .and. UseCorePsModel) &
           call MPI_bcast(PlasDensity_C,np*nt,MPI_REAL,0,iComm,iError)
 
-     if (UseCorePsModel) then
-        !when using the core PS model overwrite the density in the
-        !wave calculation
-        where (PlasDensity_C > PlasMinDensity)
-           density=PlasDensity_C
-        elsewhere
-           density=PlasMinDensity
-        end where
-     endif
+     !if (UseCorePsModel) then
+     !   !when using the core PS model overwrite the density in the
+     !   !wave calculation
+     !   where (PlasDensity_C > PlasMinDensity)
+     !      density=PlasDensity_C
+     !   elsewhere
+     !      density=PlasMinDensity
+     !   end where
+     !endif
 
      call timing_start('cimi_driftIM')
      call driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
@@ -423,16 +427,14 @@ subroutine cimi_run(delta_t)
      call sume_cimi(OpChargeEx_)
      call timing_stop('cimi_charexchange') 
      
-     if ( ( Time .GE. DiffStartT ) .AND. &
-          ( UseWaveDiffusion ) ) then
-        
+     if ( UseWaves ) then
         call timing_start('cimi_WaveDiffusion')
         
         if (UsePitchAngleDiffusionTest.or.&
              UseEnergyDiffusionTest) then
            write(*,*) 'UsePitchAngleDiffusionTest',UsePitchAngleDiffusionTest
            write(*,*) 'UseEnergyDiffusionTest',UseEnergyDiffusionTest
-           call CON_stop('For diag diffusion test, "make DIFFUSIONTEST"')
+           call CON_stop('IM ERROR: For diag diffusion test, "make DIFFUSIONTEST"')
         endif
         
         if ( UseDiagDiffusion ) then
@@ -459,6 +461,7 @@ subroutine cimi_run(delta_t)
            call mapPSDtoE
            call timing_stop('cimi_mapPSDtoE')
         else
+           call con_stop('IM ERROR: Currently Diag diffusion is only option')
            call timing_start('cimi_Diffuse_aa')
            call diffuse_aa(f2,dt,xjac,iba,iw2)
            call timing_stop('cimi_Diffuse_aa')
@@ -488,7 +491,6 @@ subroutine cimi_run(delta_t)
              call interpolate_ae(CurrentTime, AE_temp)
         
         if ( .not. DoCoupleSami .and. .not. UseCorePsModel) then
-           call timing_start('cimi_simp_psphere')
            if (UseGmKp) then
               Kp_temp=KpGm
            else
@@ -498,11 +500,13 @@ subroutine cimi_run(delta_t)
                  call get_kp(CurrentTime, Kp_temp, iError)
               endif
            endif
+           call timing_start('simple_plasmasphere')
            call simple_plasmasphere(Kp_temp)
-           call timing_stop('cimi_simp_psphere')
+           call timing_stop('simple_plasmasphere')
         end if
         
-        call WavePower(Time,AE_temp,Kp_temp,iba)
+        call WavePower(np,nt,Time,PlasDensity_C,AE_temp,Kp_Temp, &
+          Bo,Brad,xmlto,iba,MinLonPar,MaxLonPar)
      endif
      
      if ( UseStrongDiff ) then
@@ -548,7 +552,7 @@ subroutine cimi_run(delta_t)
        np, nt, nm, nk, nspec, neng, npit, iba, ftv, f2, ekev, &
        sinA, energy, sinAo, delE, dmu, amu_I, xjac, pp, xmm, dmm, &
        dk, xlat, dphi, re_m, Hiono, vl, vp, flux, FAC_C, phot, &
-       Ppar_IC, Pressure_IC, PressurePar_IC, vlEa, vpEa, psd )
+       Ppar_IC, Pressure_IC, PressurePar_IC, vlEa, vpEa, psd,brad,xmlto )
   call timing_stop('cimi_output')
 
   ! When nProc >1 gather all relevant output variables.
@@ -613,9 +617,11 @@ subroutine cimi_run(delta_t)
              ( floor( ( Time + 1.0e-5 ) / &
              	DtFluxOutput( iSpecies ) ) /= &
              floor( ( Time + 1.0e-5 - delta_t ) / &
-             	DtFluxOutput( iSpecies ) ) ) ) &
-             call Cimi_plot_fls( flux( iSpecies, :, :, :, : ), &
+             DtFluxOutput( iSpecies ) ) ) ) then
+           !write(*,*) iSpecies,DoSaveFlux(iSpecies),DtFluxOutput(iSpecies),iProc,time
+           call Cimi_plot_fls( flux( iSpecies, :, :, :, : ), &
              	iSpecies, time )
+        endif
         
         ! Output Species' PSD
         if ( DoSavePSD( iSpecies ) .and. &
@@ -1087,8 +1093,7 @@ subroutine initial_f2(nspec,np,nt,iba,amu_I,vel,xjac,ib0)
   use ModCimiTrace, ONLY: sinA,ro, ekev,pp,iw2,irm
 
   use ModMpi
-  use ModWaveDiff, 		ONLY:	&
-       testDiff_aa, testDiff_EE, testDiff_aE
+
   use ModLstar, 		ONLY:	&
        Lstar_C, Lstarm
        
@@ -1189,8 +1194,7 @@ subroutine initial_f2(nspec,np,nt,iba,amu_I,vel,xjac,ib0)
                        call lintp2IM(roi,ei,fi,il,ie,roii,e1,x)
                        fluxi=10.**x          ! flux in (cm^2 s sr keV)^-1
                        psd2=fluxi/(1.6e19*pp(n,i,j,k,m))/pp(n,i,j,k,m)
-                   !   if (testDiff_aa) psd2=psd2*sinA(i,j,m)*sinA(i,j,m)  !  
-                       if (testDiff_EE.or.testDiff_aE)  psd2=1.
+                   
                        f2(n,i,j,k,m)=psd2*xjac(n,i,k)*1.e20*1.e19
                        !kludge
                        !if (j>0 .and. j<24) f2(n,i,j,k,m) = 0.0
@@ -1593,7 +1597,6 @@ subroutine driftV(nspec,np,nt,nm,nk,irm,re_m,Hiono,dipmom,dphi,xlat,dlat, &
                    3,iComm,iStatus_I,iError)
               call MPI_recv(irm(iLonRight),1,MPI_INTEGER,iProcRight,&
                    4,iComm,iStatus_I,iError)
-              
            endif
 
            ! calculate drift velocities vl and vp
@@ -2407,7 +2410,7 @@ subroutine sume_cimi(OperatorName)
   use ModCimi, 		ONLY: Energy, Ebound
   use ModCimiPlanet, 	ONLY: nspec
   use ModMPI
-  use ModWaveDiff,    	ONLY: testDiff_aE 
+
 
   implicit none
 
@@ -2496,9 +2499,6 @@ subroutine sume_cimi(OperatorName)
      
   enddo                      ! end of do n=1,nSpecies
   
-  if (testDiff_aE) &
-       write(*,*) 'tot particles, el: ',psum(nspec,30,5,je+2)
-
 end subroutine sume_cimi
 
 !==============================================================================
@@ -2507,7 +2507,7 @@ subroutine cimi_output( &
      np, nt, nm, nk, nspec, neng, npit, iba, ftv, f2, ekev, &
      sinA, energy, sinAo, delE, dmu, amu_I, xjac, pp, xmm, dmm, &
      dk, xlat, dphi, re_m, Hiono, vl, vp, flux, fac, phot, &
-     Ppar_IC, Pressure_IC, PressurePar_IC, vlEa, vpEa, psd )
+     Ppar_IC, Pressure_IC, PressurePar_IC, vlEa, vpEa, psd,ro,xmlto )
   !----------------------------------------------------------------------------
   ! Routine calculates CIMI output, flux, fac and phot from f2
   ! Routine also converts the particle drifts from (m,K) space to (E,a) space
@@ -2521,8 +2521,7 @@ subroutine cimi_output( &
   use ModCimiGrid,ONLY: iProc,nProc,iComm,MinLonPar,MaxLonPar,&
        iProcLeft, iLonLeft, iProcRight, iLonRight
   use ModMpi
-  use ModCimiTrace, ONLY: ro,xmlto
-  use ModCimiBoundary, ONLY: CIMIboundary, Outputboundary   ! read from PARAM file
+  use ModCimiBoundary, ONLY: CIMIboundary, Outputboundary
   use ModCimi, ONLY: vdr_q1,vdr_q3,vgyr_q1,vgyr_q3,eng_q1, &
       eng_q3,vexb,dif_q1,dif_q3,Part_phot
 
@@ -2534,7 +2533,8 @@ subroutine cimi_output( &
        energy(nspec,neng), sinAo(npit), xjac(nspec,np,nm), &
        delE(nspec,neng), dmu(npit), amu_I(nspec), pp(nspec,np,nt,nm,nk), &
        xmm(nspec,0:nm+1),dmm(nspec,nm), dk(nk), xlat(np),dphi, re_m, Hiono, &
-       vl(nspec,0:np,nt,nm,nk), vp(nspec,0:np,nt,nm,nk)
+       vl(nspec,0:np,nt,nm,nk), vp(nspec,0:np,nt,nm,nk),&
+       ro(np,nt),xmlto(np,nt)
 
   real, intent(out) 	:: &
        flux(nspec,np,nt,neng,npit), fac(np,nt), phot(nspec,np,nt), &
@@ -2676,16 +2676,18 @@ subroutine cimi_output( &
                       sinAo(m),vp_lo)
                  
                  flux(n,i,j,k,m)=10.**flx_lo
-                 vlEa(n,i,j,k,m)=vl_lo*re_m   ! bounce-averaged vl  PROJECTED to ionosphere 
-                 vpEa(n,i,j,k,m)= vp_lo*re_m*cos(xlatr(i))    !  bounce averaged vp PROJECTED to ionosphere
-                 !  vpEa(n,i,j,k,m)=re_m*ro(i,j)*1.e-3*vp_lo !
+                 vlEa(n,i,j,k,m)=&
+                      vl_lo*re_m   ! bounce-averaged vl  PROJECTED to ionosphere 
+                 vpEa(n,i,j,k,m)= &
+                      vp_lo*re_m*cos(xlatr(i))    !  bounce averaged vp PROJECTED to ionosphere
+
               enddo
            enddo
         enddo nloop
      enddo iloop1
   enddo jloop1
 
-Part_phot=0.
+  Part_phot=0.
 
   ! Calculate pressure of the 'hot' ring current, phot, and temperature, Temp_IC
   jloop2: do j=MinLonPar,MaxLonPar
@@ -2703,7 +2705,7 @@ Part_phot=0.
         do n=1,nspec
            do k=1,neng
               phot(n,i,j)=phot(n,i,j)+fave(n,i,j,k)*delEE(n,k)*pf(n) ! phot in nPa
-               if (CIMIboundary) Part_phot(n,i,j,k) = fave(n,i,j,k)*delEE(n,k)*pf(n)
+              if (CIMIboundary) Part_phot(n,i,j,k) = fave(n,i,j,k)*delEE(n,k)*pf(n) 
            enddo
            Temp_IC(n,i,j)=0.
            if (Den_IC(n,i,j).gt.0.) &
@@ -2722,41 +2724,48 @@ Part_phot=0.
 ! boundary calculations: 
         if (CIMIboundary) then
            do n=1,nspec
-            p_min = 0.
-            p_max = 0.
-            p_q1 = Phot(n,i,j) * 0.25
-            p_q3 = Phot(n,i,j) * 0.75
-             do k=1,neng
-                  if (p_min.lt.p_q1) then
-                      p_min = Part_phot(n,i,j,k) + p_min
-                      eng_q1(n,i,j)=energy(n,k)   ! in kev(?) - check
-                      k_q1=k
-                  endif
-                  if (p_max.lt.p_q3) then
-                      p_max = Part_phot(n,i,j,k) + p_max
-                      eng_q3(n,i,j)=energy(n,k)
-                      k_q3=k
-                  endif
+              p_min = 0.
+              p_max = 0.
+              p_q1 = Phot(n,i,j) * 0.25
+              p_q3 = Phot(n,i,j) * 0.75
+              do k=1,neng
+                 if (p_min.lt.p_q1) then
+                    p_min = Part_phot(n,i,j,k) + p_min
+                    eng_q1(n,i,j)=energy(n,k)   ! in kev(?) - check
+                    k_q1=k
+                 endif
+                 if (p_max.lt.p_q3) then
+                    p_max = Part_phot(n,i,j,k) + p_max
+                    eng_q3(n,i,j)=energy(n,k)
+                    k_q3=k
+                 endif
               enddo
-            enddo
-
-     vexb(1,i,j) = vpEa(1,i,j,1,1)*vpEa(1,i,j,1,1)
-     vexb(1,i,j) = sqrt(vlEa(1,i,j,1,1)*vlEa(1,i,j,1,1) + vexb(1,i,j))
-
-     vdr_q1(1,i,j) = sqrt(vlEa(1,i,j,k_q1,1)*vlEa(1,i,j,k_q1,1)+vpEa(1,i,j,k_q1,1)*vpEa(1,i,j,k_q1,1))
-     vdr_q3(1,i,j) = sqrt(vlEa(1,i,j,k_q3,1)*vlEa(1,i,j,k_q3,1)+vpEa(1,i,j,k_q3,1)*vpEa(1,i,j,k_q3,1))
-     vgyr_q1(1,i,j) = 440. *sqrt(energy(1,k_q1))
-     vgyr_q3(1,i,j) = 440. *sqrt(energy(1,k_q3))
-     vexb(1,i,j) = sqrt(vlEa(1,i,j,1,1)*vlEa(1,i,j,1,1)+vpEa(1,i,j,1,1)*vpEa(1,i,j,1,1))
-
-     dif_q1(1,i,j) = (vlEa(1,i,j,k_q1,1)-vlEa(1,i,j,1,1))*(vlEa(1,i,j,k_q1,1)-vlEa(1,i,j,1,1))
-     dif_q1(1,i,j) = dif_q1(1,i,j)+(vpEa(1,i,j,k_q1,1)-vpEa(1,i,j,1,1))*(vpEa(1,i,j,k_q1,1)-vpEa(1,i,j,1,1))
-     dif_q1(1,i,j)  = sqrt(dif_q1(1,i,j))/vexb(1,i,j)   ! relative difference between vdr and vExB, q1
-
-     dif_q3(1,i,j) = (vlEa(1,i,j,k_q3,1)-vlEa(1,i,j,1,1))*(vlEa(1,i,j,k_q3,1)-vlEa(1,i,j,1,1))
-     dif_q3(1,i,j) = dif_q3(1,i,j)+(vpEa(1,i,j,k_q3,1)-vpEa(1,i,j,1,1))*(vpEa(1,i,j,k_q3,1)-vpEa(1,i,j,1,1))
-     dif_q3(1,i,j)  = sqrt(dif_q3(1,i,j))/vexb(1,i,j)   ! relative difference between vdr and vExB, q3
-         endif
+           enddo
+           
+           vexb(1,i,j) = vpEa(1,i,j,1,1)*vpEa(1,i,j,1,1)
+           vexb(1,i,j) = sqrt(vlEa(1,i,j,1,1)*vlEa(1,i,j,1,1) + vexb(1,i,j))
+           
+           vdr_q1(1,i,j) = sqrt(vlEa(1,i,j,k_q1,1)*vlEa(1,i,j,k_q1,1)&
+                +vpEa(1,i,j,k_q1,1)*vpEa(1,i,j,k_q1,1))
+           vdr_q3(1,i,j) = sqrt(vlEa(1,i,j,k_q3,1)*vlEa(1,i,j,k_q3,1)&
+                +vpEa(1,i,j,k_q3,1)*vpEa(1,i,j,k_q3,1))
+           vgyr_q1(1,i,j) = 440. *sqrt(energy(1,k_q1))
+           vgyr_q3(1,i,j) = 440. *sqrt(energy(1,k_q3))
+           vexb(1,i,j) = sqrt(vlEa(1,i,j,1,1)*vlEa(1,i,j,1,1)&
+                +vpEa(1,i,j,1,1)*vpEa(1,i,j,1,1))
+           
+           dif_q1(1,i,j) = (vlEa(1,i,j,k_q1,1)-vlEa(1,i,j,1,1))&
+                *(vlEa(1,i,j,k_q1,1)-vlEa(1,i,j,1,1))
+           dif_q1(1,i,j) = dif_q1(1,i,j)+(vpEa(1,i,j,k_q1,1)&
+                -vpEa(1,i,j,1,1))*(vpEa(1,i,j,k_q1,1)-vpEa(1,i,j,1,1))
+           dif_q1(1,i,j)  = sqrt(dif_q1(1,i,j))/vexb(1,i,j)   ! relative difference between vdr and vExB, q1
+           
+           dif_q3(1,i,j) = (vlEa(1,i,j,k_q3,1)-vlEa(1,i,j,1,1))&
+                *(vlEa(1,i,j,k_q3,1)-vlEa(1,i,j,1,1))
+           dif_q3(1,i,j) = dif_q3(1,i,j)+(vpEa(1,i,j,k_q3,1)&
+                -vpEa(1,i,j,1,1))*(vpEa(1,i,j,k_q3,1)-vpEa(1,i,j,1,1))
+           dif_q3(1,i,j)  = sqrt(dif_q3(1,i,j))/vexb(1,i,j)   ! relative difference between vdr and vExB, q3
+        endif
      enddo iloop2
   enddo jloop2
 
@@ -2828,11 +2837,11 @@ end subroutine cimi_output
 
 subroutine cimi_gather( delta_t, psd, flux, vlea, vpea )
 
-  use DensityTemp,	ONLY: 	density
   use ModCimi,		ONLY:	&
        Time, FAC_C, Pressure_IC, PressurePar_IC, Bmin_C, &
-       phot, Ppar_IC, preP, preF, Eje1, &
+       phot, Ppar_IC, preP, preF, Eje1,&
        vdr_q3, eng_q3, vexb, dif_q3, Part_phot
+
   use ModCimiBoundary,	ONLY: 	Outputboundary
   use ModCimiGrid,	ONLY: 	&
        iProc, nProc, iComm, nLonPar, nLonPar_P, nLonBefore_P, &
@@ -2913,16 +2922,6 @@ subroutine cimi_gather( delta_t, psd, flux, vlea, vpea )
   if (iProc==0) Bmin_C(:,:)=BufferRecv_C(:,:)
 
   call gather_field_trace
-
-  if ( .not. DoCoupleSami ) then
-     
-     BufferSend_C(:,:) = density(:,:)
-     call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
-          MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
-          MPI_REAL, 0, iComm, iError)
-     if (iProc==0) density(:,:) = BufferRecv_C(:,:)
-     
-  end if
   
   do  iSpecies = 1, nspec
      

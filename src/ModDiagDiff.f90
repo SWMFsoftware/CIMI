@@ -79,7 +79,7 @@ module ModDiagDiff
   real rpp(ip)
   integer, allocatable :: ipc0(:,:),iph0(:,:),iLpp(:)
   
-  logical :: UseDiagDiffusion=.false.,&
+  logical :: UseDiagDiffusion=.true.,&
        UsePitchAngleDiffusionTest=.false.,&
        UseEnergyDiffusionTest=.false.  
   ! Use test_diff.f90 
@@ -103,14 +103,14 @@ contains
   subroutine find_loc_plasmapause
   use ModCimiGrid, only: np,nt
   use ModCimiTrace, only: ro,iba
-  use DensityTemp, only: density,densityP
+  use ModPlasmasphere, ONLY:PlasDensity_C,PlasmaPauseDensity
   implicit none
 
   integer i,j
 
   do j=1,nt
      find_Lpp: do i=iba(j),1,-1
-        if (density(i,j).ge.densityP) then
+        if (PlasDensity_C(i,j).ge.PlasmaPauseDensity) then
            rpp(j)=ro(i,j)
            iLpp(j)=i
            exit find_Lpp 
@@ -135,7 +135,7 @@ contains
   use ModCimiGrid, only: ir=>np,ip=>nt,ik=>nk
   use ModCimiInitialize, only: xjac
   use ModCimi, only: f2,dt
-  use ModWaveDiff, only: ichor,ihiss,&
+  use ModWaves, only: UseChorus, UseHiss,&
                      CHpower,HIpower,&
                      Cpower0,Hpower0,BLc0,BLh0
   use ModCimiTrace, only: iba,bo,ro
@@ -169,16 +169,22 @@ contains
   do j=MinLonPar,MaxLonPar    ! start of j
      do i=1,iba(j)      ! start of i
         DoDiff=.False.
-        if (i.gt.iLpp(j).and.ichor.ge.1) then
+        if (i.gt.iLpp(j).and.UseChorus) then
 !(3) outside plasmasphere
            Po=(BLc0/bo(i,j))*CHpower(i,j)/Cpower0
            DoDiff=.True.
-        else if (ihiss.ge.1) then
+        else if (UseHiss) then
 !(4) inside plasmasphere
            Po=(BLh0/bo(i,j))*HIpower(i,j)/Hpower0
            DoDiff=.True.
+        else
+           !!! Either inside the plasmasphere, but not using hiss, ore
+           !!! or not using chorus and not using hiss
+           Po=-1
+           DoDiff=.false.
         endif
         ! no mapping if Po =< 0.
+        !write(*,*) '!!! Po', Po
         if (Po.le.0.) DoDiff=.False.
         if (DoDiff) then
            Dqq2(1:iq,1:ik)=Dqq2K(i,j,1:iq,1:ik)*Po
@@ -267,7 +273,7 @@ contains
   use ModCimiGrid, only: ir=>np,ip=>nt,ik=>nk
   use ModCimiInitialize, only: xjac,xk
   use ModCimi, only: f2,dt
-  use ModWaveDiff, only: ichor,ihiss,&
+  use ModWaves, only: UseChorus, UseHiss,&
                      CHpower,HIpower,&
                      Cpower0,Hpower0,BLc0,BLh0
   use ModCimiTrace, only: iba,bo,bm,ro,tya,y=>sinA
@@ -301,14 +307,19 @@ contains
         dU_Q1=log(VarK(2)/VarK(1))
         jac0=dt/dU_Q1/dU_Q1
         DoDiff=.False.
-        if (i.gt.iLpp(j).and.ichor.ge.1) then
+        if (i.gt.iLpp(j).and.UseChorus) then
 !(3) outside plasmasphere
            Po=(BLc0/bo(i,j))*CHpower(i,j)/Cpower0
            DoDiff=.True.
-        else if (ihiss.ge.1) then
+        else if (UseHiss) then
 !(4) inside plasmasphere
            Po=(BLh0/bo(i,j))*HIpower(i,j)/Hpower0
            DoDiff=.True.
+        else 
+           !!! Either inside the plasmasphere, but not using hiss, ore
+           !!! or not using chorus and not using hiss
+           Po=-1.
+           DoDiff=.false.
         endif
         ! no mapping if Po =< 0.
         if (Po.le.0.) DoDiff=.False.
@@ -318,13 +329,14 @@ contains
 !(5) calulate Jacobian G_Q1
            bm1(1:ik)=bm(i,j,1:ik)
            bm1(0)=bo(i,j)/y(i,j,0)**2
-           bm1(ik)=bo(i,j)/y(i,j,ik+1)**2
+           bm1(ik+1)=bo(i,j)/y(i,j,ik+1)**2
            do m=0,ik+1
               sina=y(i,j,m)
               cosa=sqrt(1.-sina*sina)
               G_a(m)=tya(i,j,m)*sina*cosa                            ! T(a0)sin2a0/2
               ! note: Tya is normalized in 1/4 bounce versus
               !       VarK or si is in 1/2 bounce.
+              !write(*,*) 'ro(i,j),bm1(m),cosa,sina,tya(i,j,m),VarK(m)',ro(i,j),bm1(m),cosa,sina,tya(i,j,m),VarK(m)
               dKda_K(m)=2.*ro(i,j)*sqrt(bm1(m)) &
                        *cosa/sina*tya(i,j,m)/VarK(m) ! -dK/da/K
               G_Q1(m)=G_a(m)/dKda_K(m)
@@ -427,7 +439,7 @@ contains
   subroutine find_ompe_index
   use ModCimiGrid, only: ir=>np,ip=>nt,ik=>nk
   use ModCimiTrace, only: iba
-  use ModWaveDiff, only: ichor,ihiss,&
+  use ModWaves, only: UseChorus, UseHiss,&
                          ompe,&
                          cOmpe,hOmpe,&
                          ipc,iph
@@ -438,27 +450,48 @@ contains
   real ompe1
   integer i,j,ipc1,iph1
 
+!!!
+  ipc1=0
+  iph1=0
+  
   do j=MinLonPar,MaxLonPar ! start of j
      do i=1,iba(j)         ! start of i
         ompe1=ompe(i,j)                         ! fpe/fce
-        if (ichor.ge.1) then
+        if (UseChorus) then
+           !write(*,*)' '
+           !write(*,*)'ompe1 = ',ompe1
+           !write(*,*)'cOmpe',cOmpe
            call locate1(cOmpe,ipc,ompe1,ipc1,'find_ompe_index')
            if (ipc1.eq.0) ipc1=1
-           if (ipc1.gt.ipc) ipc1=ipc
-           if (ipc1.lt.ipc.and.&
-               (cOmpe(ipc1+1)-ompe1).lt.(ompe1-cOmpe(ipc1))) ipc1=ipc1+1
-           ipc0(i,j)=ipc1
+           if (ipc1.lt.ipc) then
+              if((cOmpe(ipc1+1)-ompe1).lt.(ompe1-cOmpe(ipc1))) ipc1=ipc1+1
+              ipc0(i,j)=ipc1
+           else
+              !!!ipc1=ipc
+              ipc0(i,j)=ipc
+           endif
         endif
-        if (ihiss.ge.1) then
+        if (UseHiss) then
            call locate1(hOmpe,iph,ompe1,iph1,'find_ompe_index')
            if (iph1.eq.0) iph1=1
            if (iph1.gt.iph) iph1=iph
-           if ((hOmpe(iph1+1)-ompe1).lt.(ompe1-hOmpe(iph1))) iph1=iph1+1
-           iph0(i,j)=iph1
+           if (iph1.lt.iph) then
+              if ((hOmpe(iph1+1)-ompe1).lt.(ompe1-hOmpe(iph1))) iph1=iph1+1
+              iph0(i,j)=iph1
+           else
+              !!!iph1=iph
+              iph0(i,j)=iph1
+           endif
         endif
      enddo              ! end of i
   enddo                 ! end of j
- 
+
+  do j=MinLonPar,MaxLonPar ! start of j
+     do i=1,iba(j)         ! start of i
+        if (ipc0(i,j)==0) write(*,*) i,j,ompe(i,j),cOmpe(:)
+     enddo
+  enddo
+
   end subroutine find_ompe_index
   
   
@@ -478,8 +511,8 @@ contains
   use ModNumConst, only: pi=>cPi
   use ModCimiGrid, only: ir=>np,ip=>nt,ik=>nk,&
                          iProc
-  use ModWaveDiff, only: ipc,iwc,iph,iwh,ipa,&
-                         ichor,ihiss,&
+  use ModWaves, only: ipc,iwc,iph,iwh,ipa,&
+                         UseChorus, UseHiss,&
                          ckeV,hkeV,&
                          cDEE,cDaa,cDaE,&
                          hDEE,hDaa,hDaE,&
@@ -504,7 +537,7 @@ contains
    Eq(0:iq+1)=VarQ(0:iq+1)
    logEq(:)=log(Eq(:))
 
-  if (ichor.ge.1) then
+  if (UseChorus) then
      allocate (cSign(ipc,iwc,ipa))
      cSign(:,:,:)=sign(1.,cDaE(:,:,:))
      where (cDaE(:,:,:).eq.0.) cSign(:,:,:)=1.
@@ -523,7 +556,7 @@ contains
   endif
 
 !(5) Hiss
-  if (ihiss.ge.1) then
+  if (UseHiss) then
      allocate (hSign(iph,iwh,ipa))
      hSign(:,:,:)=sign(1.,hDaE(:,:,:))
      where (hDaE(:,:,:).eq.0.) hSign(:,:,:)=1.
@@ -541,13 +574,13 @@ contains
   endif
 
   if (iProc.eq.0) then
-     call write_Q2info(cDEE,cDaE,cDaa0,cDaE0,cDEE0,&
+     if (UseChorus) call write_Q2info(cDEE,cDaE,cDaa0,cDaE0,cDEE0,&
                        cDqq1,cDqq2,&
                        ckeV,cOmpe,Eq,E_Q2c,ipc,iwc,iq,&
                        'IM/plots/chorus_constQ.dat',&
                        'IM/plots/chorus_constQ2.dat',&
                        'IM/plots/D_LBchorus_QQ.dat')
-     call write_Q2info(hDEE,hDaE,hDaa0,hDaE0,hDEE0,&
+     if (UseHiss) call write_Q2info(hDEE,hDaE,hDaa0,hDaE0,hDEE0,&
                        hDqq1,hDqq2,&
                        hkeV,hOmpe,Eq,E_Q2h,iph,iwh,iq,&
                        'IM/plots/hiss_constQ.dat',&
@@ -576,20 +609,46 @@ contains
   real r,dEdam,dEda1
   integer j,k,m,m0,k1,k2,kk,iww
 
+!!! this is a limit on the DaE to Daa ratio which in the future should
+  !!! be a parameter input in PARAM.in. We should also include an offset
+  real, parameter :: DaEtoDaaMax = 0.0
+  real, parameter :: LowEnerLimit = 10.0
+  
+  
   iww=iw-iw0+1
-  allocate (da(ipa-1))
+!!!allocate (da(ipa-1))
+  allocate (da(ipa))
   allocate (keV1(iww),dEda(iww,ipa))
  
   r=0.99  ! minimum ratio difference between adjacent grids
   do m=1,ipa-1
      da(m)=a0(m+1)-a0(m)
   enddo
+!!!
+  da(ipa)=a0(ipa)-a0(ipa-1)
+  
   keV1(1:iww)=keV(iw0:iw)
 
   do j=1,ip
      dEda(:,:)=0.
-     where(Daa(j,:,:).ne.0.) &
-        dEda(1:iww,1:ipa)=DaE(j,iw0:iw,1:ipa)/Daa(j,iw0:iw,1:ipa)
+!    where(Daa(j,:,:).ne.0.) 
+!       dEda(1:iww,1:ipa)=&
+!            min(DaE(j,iw0:iw,1:ipa)/Daa(j,iw0:iw,1:ipa),DaEtoDaaMax)
+!       dEda(1:iww,1:ipa)=&
+!            max(dEda(1:iww,1:ipa),-1.0*DaEtoDaaMax)
+!    end where
+
+     do m=1,ipa
+        do k=1,iww
+           if (Daa(j,k+iw0-1,m).ne.0. .and. keV1(k)<LowEnerLimit) then
+              dEda(k,m)=&
+                   min(DaE(j,k+iw0-1,m)/Daa(j,k+iw0-1,m),DaEtoDaaMax)
+              dEda(k,m)=&
+                   max(dEda(k,m),-1.0*DaEtoDaaMax)
+           end if
+        end do
+     end do
+           
      do m=1,ipa
         dEda(:,m)=dEda(:,m)*keV1(:)
      enddo
@@ -633,7 +692,7 @@ contains
 !   from Daa,DEE,DaE at fixed grids of (a0,E)
 !*****************************************************************************
      subroutine DaEtoDQQ(Daa,DEE,DaE,keV,E,VarQ,ip,iw,iq,Dqq1,Dqq2,NameWave)
-     use ModWaveDiff, only:ipa
+     use ModWaves, only:ipa
      use ModCimi,       ONLY: MinLonPar,MaxLonPar
      implicit none
 
@@ -660,6 +719,8 @@ contains
      do j=1,ip
         do m=1,ipa
            E2(0:iq+1)=E(j,0:iq+1,m)*E(j,0:iq+1,m)
+           !write(*,*) ' '
+           !write(*,*) E(j,0:iq+1,m)
            logE(0:iq+1)=log(E(j,0:iq+1,m))
            logDaa(:)=-75.
            logDaE(:)=-75.
@@ -686,7 +747,7 @@ contains
                     DEE1=0.
                  endif
                  if (Daa1.gt.0..and.DEE1.gt.0.) then
-                    if (DaE1.gt.-70.) then
+                    if (logDaE1.gt.-70.) then
                        DaE1=exp(logDaE1)
                     else
                        DaE1=0.
@@ -726,7 +787,7 @@ contains
 !   where Q2 = E at a0 = a0(m=1)
 !*****************************************************************************
      subroutine interpol_D_coef(Daa,DaE,DEE,xSign,keV,logE,ip,iw,iq,Daa0,DaE0,DEE0)
-     use ModWaveDiff, only: cPA,ipa
+     use ModWaves, only: cPA,ipa
      use ModCimi,       ONLY: MinLonPar,MaxLonPar
      implicit none
 
@@ -813,8 +874,8 @@ contains
   subroutine interpol_D_coefK
   use ModNumConst, only: pi=>cPi
   use ModCimiGrid, only: ir=>np,ip=>nt,ik=>nk
-  use ModWaveDiff, only: ipc,iwc,iph,iwh,ipa,&
-                         ichor,ihiss,&
+  use ModWaves, only: ipc,iwc,iph,iwh,ipa,&
+                         UseChorus, UseHiss,&
                          cOmpe,cPA
   use ModCimiTrace, only: y=>sinA,iba,ro
   use ModCimi,       ONLY: MinLonPar,MaxLonPar
@@ -849,7 +910,7 @@ contains
   do j=MinLonPar,MaxLonPar
 !(1) interpolate begins when L>Lpp for chorus
      do i=iLpp(j)+1,iba(j)
-        if (ichor.eq.1) then
+        if (UseChorus) then
            ipc1=ipc0(i,j)
            a0(0:ik+1)=asin(y(i,j,0:ik+1))*RadToDeg
            m1=ik+1
@@ -920,7 +981,7 @@ contains
   do j=MinLonPar,MaxLonPar
 !(5) interpolate begins when L>Lpp for hiss
      do i=1,iLpp(j)
-        if (ihiss.ge.1) then
+        if (UseHiss) then
            iph1=iph0(i,j)
            a0(:)=asin(y(i,j,:))*RadToDeg
            m1=ik+1
@@ -1001,7 +1062,7 @@ contains
                            NameSpeciesExtension_I
   use ModCimiGrid, only: ir=>np,ip=>nt,iw=>nm,ik=>nk
   use ModCimiInitialize, only: xjac
-  use ModWaveDiff, only: ichor,ihiss,&
+  use ModWaves, only: UseChorus, UseHiss,&
                      CHpower,HIpower  
   use ModCimiTrace, only: iba,y=>sinA,ekev
   use ModCimi, only: f2
@@ -1023,11 +1084,11 @@ contains
   do j=MinLonPar,MaxLonPar
      do i=1,iba(j)
         DoMapping=.False.
-        if (ichor.eq.1.and.i.gt.iLpp(j)) then
+        if (UseChorus .and.i.gt.iLpp(j)) then
            DoMapping=.True.
            ! no mapping if CHpower =< 0.
            if (CHpower(i,j).le.0.) DoMapping=.False.
-        else if (ihiss.ge.1.and.i.le.iLpp(j)) then
+        else if (UseHiss.and.i.le.iLpp(j)) then
            DoMapping=.True.
            ! no mapping if HIpower =< 0.
            if (HIpower(i,j).le.0.) DoMapping=.False.
@@ -1079,7 +1140,7 @@ contains
                            NameSpeciesExtension_I
   use ModCimiGrid, only: ir=>np,ip=>nt,iw=>nm,ik=>nk
   use ModCimiInitialize, only: xjac
-  use ModWaveDiff, only: ichor,ihiss,&
+  use ModWaves, only: UseChorus, UseHiss,&
                      CHpower,HIpower  
   use ModCimiTrace, only: iba,y=>sinA,ekev
   use ModCimi, only: f2
@@ -1101,11 +1162,11 @@ contains
   do j=MinLonPar,MaxLonPar
      do i=1,iba(j)
         DoMapping=.False.
-        if (ichor.eq.1.and.i.gt.iLpp(j)) then
+        if (UseChorus.and.i.gt.iLpp(j)) then
            DoMapping=.True.
            ! no mapping if CHpower =< 0.
            if (CHpower(i,j).le.0.) DoMapping=.False.
-        else if (ihiss.ge.1.and.i.le.iLpp(j)) then
+        else if (UseHiss.and.i.le.iLpp(j)) then
            DoMapping=.True.
            ! no mapping if HIpower =< 0.
            if (HIpower(i,j).le.0.) DoMapping=.False.
@@ -1116,8 +1177,10 @@ contains
               EQ(:)=E_Q2K(i,j,1:iq,m)
               where(EQ(:).ge.1.e-50) logEQ(:)=log(EQ)
               where(EQ(:).lt.1.e-50) logEQ(:)=-50.   
-              logPSD(:)=log(PSD_Q(i,j,1:iq,m))
-              logPSD(:)=-50.
+              !logPSD(:)=log(PSD_Q(i,j,1:iq,m))
+              !logPSD(:)=-50.
+              where(PSD_Q(i,j,:,m).ge.1.e-50)logPSD(:)=log(PSD_Q(i,j,1:iq,m))
+              where(PSD_Q(i,j,:,m).lt.1.e-50)logPSD(:)=-50.
               call spline (logEQ, logPSD, b, c, d, iq, 'mapPSDtoE')
               do k=2,iw    ! keep PSD(k=1) unchanged during mapping
                  ekev0=ekev(nel,i,j,k,m)
@@ -1188,7 +1251,7 @@ contains
   subroutine write_Q2info(DEE,DaE,Daa0,DaE0,DEE0,Dqq1,Dqq2,keV,Ompe,&
                           Eq,E,ip,iw,iq,&
                           FileName1,FileName2,FileName3)
-  use ModWaveDiff, only: ipa,cPA,cOmpe,hOmpe
+  use ModWaves, only: ipa,cPA
   !!use diagDiffCoef, only: VarQ
   implicit none
 
@@ -1209,7 +1272,7 @@ contains
   write(48,'(8f12.5)') VarQ(1:iq)  
   do j=1,ip
      do k=1,iq
-        write(48,'(f7.2,f12.5,a)') cOmpe(j),VarQ(k),'     ! fpe/fce   E(keV)'
+        write(48,'(f7.2,f12.5,a)') Ompe(j),VarQ(k),'     ! fpe/fce   E(keV)'
         write(48,*) 'alpha0    Daa/p^2     DQQ/Q^2  (sec^-1)'
         do m=1,ipa
            write(48,'(f5.1,1p2E18.5)') cPA(m),Dqq1(j,k,m),Dqq2(j,k,m)
@@ -1539,7 +1602,7 @@ end subroutine spline
   use ModCimiGrid, ONLY: nm
   use ModCimi, ONLY: f2
   use ModCimiTrace, ONLY: sinA
-  use DensityTemp, ONLY: simple_plasmasphere
+  
   implicit none 
 
   integer,intent(in) :: iChorMltLoc,&  ! MLT index for chorus wave test
@@ -1556,7 +1619,7 @@ end subroutine spline
           Emin,Emax,E1,Xmin,Xmax,X1,DEE0,&
           E0=510.99895000        ! electron rest mass in keV
 
-  call simple_plasmasphere(2.)  ! Kp=2, quiet time
+  call test_plasmasphere 
   call find_loc_plasmapause
 
   iChorLatLoc=iLpp(iChorMltLoc)+4
@@ -1646,12 +1709,12 @@ end subroutine spline
 !*****************************************************************************
   subroutine calc_Dcoef_for_diff_test(iChorMltLoc,iHissMltLoc,D0)
   use ModNumConst,    ONLY: cDegToRad
-  use ModWaveDiff, ONLY: cDaa,cDaE,cDEE,&
+  use ModWaves, ONLY: cDaa,cDaE,cDEE,&
                          hDaa,hDaE,hDEE,&
                          CHpower,HIpower,&
                          Cpower0,Hpower0,BLc0,BLh0,&
                          cPA,ipa
-  use DensityTemp, ONLY: simple_plasmasphere
+  
   use ModCimiTrace, ONLY: bo,sinA,tya
   implicit none
 
@@ -1673,7 +1736,7 @@ end subroutine spline
   Dqq2K(:,:,:,:)=0.
  
   ! set plasmasphere density and location 
-  call simple_plasmasphere(2.)  ! Kp=2, quiet time
+  call test_plasmasphere  
   call find_loc_plasmapause
 
   ! set the area of interest for chorus and hiss    
@@ -1794,4 +1857,25 @@ end subroutine spline
 
   end subroutine write_PSD_for_diff_test
 
+  !=============================================================================
+  !subroutine to fill plasmasphere for testing
+  subroutine test_plasmasphere
+    use ModCimiGrid,    ONLY: MinLonPar, MaxLonPar,ir=>np, ip=>nt
+    use ModCimiTrace,   ONLY: ro, iba
+    use ModPlasmasphere, ONLY:PlasDensity_C
+    integer :: i,j
+    !--------------------------------------------------------------------------
+    allocate(PlasDensity_C(ir,ip))
+    do j = MinLonPar, MaxLonPar
+       do i = 1, iba(j)
+          if (ro(i,j) <5.0) then
+             PlasDensity_C(i,j) = 1000.0
+          else
+             PlasDensity_C(i,j) = 1.0
+          endif
+       end do
+    end do
+          
+  end subroutine test_plasmasphere
+  
   end module

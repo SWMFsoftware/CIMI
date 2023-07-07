@@ -98,7 +98,7 @@ program cimi
   TIMELOOP:do
      !report progress on proc 0
      if ( iProc == 0 ) &
-          write(*,*) 'IM: In Time Loop iStep, Time = ', iStep, Time
+          write(*,*) 'IM: In Time Loop iProc, iStep, Time = ',iProc, iStep, Time
      ! If Time exceeds max time then stop advancing
      if (Time >= TimeMax) exit TIMELOOP
      

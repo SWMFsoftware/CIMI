@@ -18,14 +18,14 @@ help:
 	@echo '    install                       (install BATSRUS)'
 	@echo ' '
 	@echo '    CIMI                          (bin/cimi.exe CIMI)'
-	@echo '    CIMI_SAMI                     (bin/cimi_sami.exe CIMI+SAMI3)'
-	@echo '    SAMI3	                 (srcSAMI3/SAMI3.exe SAMI)'
+#	@echo '    CIMI_SAMI                     (bin/cimi_sami.exe CIMI+SAMI3)'
+#	@echo '    SAMI3	                 (srcSAMI3/SAMI3.exe SAMI)'
 	@echo '    LIB                           (lib/libIM.a IM library)'
 	@echo '    NOMPI                         (lib/NOMPI.a NOMPI library)'
 	@echo ' '
 	@echo '    rundir                        (run directory for CIMI)'
-	@echo '    rundir_cimi_sami              (run directory for CIMI+SAMI)'
-	@echo '    rundir_sami                   (run directory for SAMI3)'
+#	@echo '    rundir_cimi_sami              (run directory for CIMI+SAMI)'
+#	@echo '    rundir_sami                   (run directory for SAMI3)'
 	@echo ' '
 	@echo '    test                          (perform nightly test)'
 	@echo '    test_compile                  (compile nightly test)'
@@ -67,23 +67,23 @@ CIMI:
 	@cd src;	make LIB
 	@cd src;	make CIMI
 
-CIMI_SAMI:
-	@cd ${SHAREDIR};  	make LIB
-	@cd ${NOMPIDIR};	make LIB
-	@cd ${TIMINGDIR}; 	make LIB 
-	@cd ${EMPIRICALIEDIR};	make LIB
-	@cd ${EMPIRICALGMDIR};	make LIB
-	@cd ${DATAREADINDICESDIR};make LIB
-	@cd srcSAMI3;	make LIB
-	@cd src;	make LIB
-	@cd src;	make CIMI_SAMI
-
-
-SAMI3:
-	@cd ${SHAREDIR};  	make LIB
-	@cd ${TIMINGDIR}; 	make LIB 
-	@cd srcSAMI3;	make LIB
-	@cd srcSAMI3;	make SAMI3
+#CIMI_SAMI:
+#	@cd ${SHAREDIR};  	make LIB
+#	@cd ${NOMPIDIR};	make LIB
+#	@cd ${TIMINGDIR}; 	make LIB 
+#	@cd ${EMPIRICALIEDIR};	make LIB
+#	@cd ${EMPIRICALGMDIR};	make LIB
+#	@cd ${DATAREADINDICESDIR};make LIB
+#	@cd srcSAMI3;	make LIB
+#	@cd src;	make LIB
+#	@cd src;	make CIMI_SAMI
+#
+#
+#SAMI3:
+#	@cd ${SHAREDIR};  	make LIB
+#	@cd ${TIMINGDIR}; 	make LIB 
+#	@cd srcSAMI3;	make LIB
+#	@cd srcSAMI3;	make SAMI3
 
 NOMPI:
 	cd util/NOMPI/src; $(MAKE) LIB
@@ -480,7 +480,7 @@ PDF:
 
 clean:
 	cd src; make clean
-	cd srcSAMI3; make clean
+#	cd srcSAMI3; make clean
 	cd srcGIMME; make clean
 	cd srcInterface; make clean
 	cd doc/Tex; make clean
@@ -492,7 +492,7 @@ distclean:
 
 allclean:
 	cd src; make distclean
-	cd srcSAMI3; make distclean
+#	cd srcSAMI3; make distclean
 	cd srcInterface; make distclean
 	cd doc/Tex; make distclean
 	rm -f config.log *~
@@ -519,39 +519,39 @@ rundir:
 		touch core ; chmod 444 core;\
 	fi);
 
-rundir_cimi_sami:
-	mkdir -p ${RUNDIR}/IM
-	@(cd ${RUNDIR}; \
-		if [ ! -e "EIE/README" ]; then \
-			ln -s ${EMPIRICALIEDIR}/data EIE;\
-		fi;)
-	cd ${RUNDIR}/IM; \
-		cp ${IMDIR}/input/quiet*fin . ;\
-		cp ${IMDIR}/input/IndicesKpApF107.dat . ;\
-		cp ${IMDIR}/input/WaveData/*dat . ;\
-		mkdir plots restartIN restartOUT plotsSAMI3
-	@(if [ "$(STANDALONE)" != "NO" ]; then \
-		cp input/testfiles/*.dat ${RUNDIR}/ ;\
-		cp input/testfiles/PARAM.in.test.WAVES ${RUNDIR}/;\
-		cp srcSAMI3/sami3_mpi-1.98.namelist ${RUNDIR}/ ;\
-		cp srcSAMI3/*.inp ${RUNDIR}/ ;\
-		cd ${RUNDIR} ; \
-		ln -s ${BINDIR}/cimi_sami.exe .   ; \
-		touch core ; chmod 444 core;\
-	fi);
-
-
-rundir_sami:
-	mkdir -p ${RUNDIR}/IM
-	cd ${RUNDIR}/IM; \
-		mkdir restartIN restartOUT plotsSAMI3
-	@(if [ "$(STANDALONE)" != "NO" ]; then \
-		cp srcSAMI3/sami3_mpi-1.98.namelist ${RUNDIR}/ ;\
-		cp srcSAMI3/*.inp ${RUNDIR}/ ;\
-		ln -s srcSAMI3/sami3.exe ${RUNDIR}/SAMI3.exe ;\
-		cd ${RUNDIR} ; \
-		touch core ; chmod 444 core;\
-	fi);
+#rundir_cimi_sami:
+#	mkdir -p ${RUNDIR}/IM
+#	@(cd ${RUNDIR}; \
+#		if [ ! -e "EIE/README" ]; then \
+#			ln -s ${EMPIRICALIEDIR}/data EIE;\
+#		fi;)
+#	cd ${RUNDIR}/IM; \
+#		cp ${IMDIR}/input/quiet*fin . ;\
+#		cp ${IMDIR}/input/IndicesKpApF107.dat . ;\
+#		cp ${IMDIR}/input/WaveData/*dat . ;\
+#		mkdir plots restartIN restartOUT plotsSAMI3
+#	@(if [ "$(STANDALONE)" != "NO" ]; then \
+#		cp input/testfiles/*.dat ${RUNDIR}/ ;\
+#		cp input/testfiles/PARAM.in.test.WAVES ${RUNDIR}/;\
+#		cp srcSAMI3/sami3_mpi-1.98.namelist ${RUNDIR}/ ;\
+#		cp srcSAMI3/*.inp ${RUNDIR}/ ;\
+#		cd ${RUNDIR} ; \
+#		ln -s ${BINDIR}/cimi_sami.exe .   ; \
+#		touch core ; chmod 444 core;\
+#	fi);
+#
+#
+#rundir_sami:
+#	mkdir -p ${RUNDIR}/IM
+#	cd ${RUNDIR}/IM; \
+#		mkdir restartIN restartOUT plotsSAMI3
+#	@(if [ "$(STANDALONE)" != "NO" ]; then \
+#		cp srcSAMI3/sami3_mpi-1.98.namelist ${RUNDIR}/ ;\
+#		cp srcSAMI3/*.inp ${RUNDIR}/ ;\
+#		ln -s srcSAMI3/sami3.exe ${RUNDIR}/SAMI3.exe ;\
+#		cd ${RUNDIR} ; \
+#		touch core ; chmod 444 core;\
+#	fi);
 
 ########## UNIT Tests
 PLASMASPHERE:
@@ -575,14 +575,4 @@ PLASMASPHERE_rundir:
 #                data/output/plasmasphere.out \
 #                > test_plasmasphere.diff)
 
-
-DIFFUSIONTEST:
-	@cd ${SHAREDIR};  	make LIB
-	@cd ${NOMPIDIR};	make LIB
-	@cd ${TIMINGDIR}; 	make LIB 
-	@cd ${EMPIRICALIEDIR};	make LIB
-	@cd ${EMPIRICALGMDIR};	make LIB
-	@cd ${DATAREADINDICESDIR};make LIB
-	@cd src;	make test_diffusion
-	@cd ${TESTDIR}; ln -s ${BINDIR}/test_diff.exe
 

@@ -244,8 +244,8 @@ for n=0,ntime-1 do begin
             lstar(n,i,j)=lstar1
             for k=0,je-1 do begin
                readf,2,fy
-               print,fy
-               stop
+               ;print,fy
+               ;stop
                 ; calculate pitch-angle (PA) averaged flux and PA anisotropy
                 plsfluxk(n,i,j,k)=0.
                 anisok(n,i,j,k)=0.

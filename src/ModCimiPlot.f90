@@ -90,7 +90,6 @@ contains
     use ModCimiGrid,		ONLY:	&
          PhiIono_C => phi, LatIono_C => xlatr
     use ModCimiTrace,		ONLY:	iba
-    use DensityTemp,		ONLY:	density
     use ModPlasmasphere,	ONLY:   UseCorePsModel, PlasDensity_C
     
     integer, intent(in) :: nLat, nLon
@@ -173,13 +172,8 @@ contains
             FAC_C	( 1 : iba( iLon ), iLon )    
        PlotState_IIV( 1 : iba( iLon ), iLon, Lstar_) = &
             Lstar_C	( 1 : iba( iLon ), iLon )    
-       if (UseCorePsModel) then
-          PlotState_IIV( 1 : iba( iLon ), iLon, Plas_) = &
-               PlasDensity_C	( 1 : iba( iLon ), iLon )
-       else
-          PlotState_IIV( 1 : iba( iLon ), iLon, Plas_) = &
-               density	( 1 : iba( iLon ), iLon )
-       endif
+       PlotState_IIV( 1 : iba( iLon ), iLon, Plas_) = &
+            PlasDensity_C	( 1 : iba( iLon ), iLon )
     enddo
     !fill ghost cells of plot data
     PlotState_IIV(:,nLon+1,iPplot_I(1))= &
@@ -209,12 +203,8 @@ contains
     PlotState_IIV(:,nLon+1,Pot_) = Potential_C(:,1)    
     PlotState_IIV(:,nLon+1,FAC_) = FAC_C(:,1)    
     PlotState_IIV(:,nLon+1,Lstar_) = Lstar_C(:,1)    
-    if (UseCorePsModel) then
-       PlotState_IIV(:,nLon+1,Plas_) = PlasDensity_C(:,1)
-    else
-       PlotState_IIV(:,nLon+1,Plas_) = density(:,1)    
-    endif
-    
+    PlotState_IIV(:,nLon+1,Plas_) = PlasDensity_C(:,1)
+        
     TypePosition = 'append'
     if(IsFirstCall .and. .not. IsRestart) TypePosition = 'rewind'
     IsFirstCall = .false.
@@ -242,7 +232,7 @@ contains
          Beq_, Vol_, Pot_, FAC_, Lstar_, Plas_, nVar
     use ModCimiGrid,		ONLY: 	PhiIono_C => phi, LatIono_C => xlatr
     use ModCimiTrace,		ONLY:	iba
-    use DensityTemp,		ONLY:	density
+    
     use ModPlasmasphere,	ONLY:	UseCorePsModel, PlasDensity_C
     use ModLstar,		ONLY:	Lstar_C
     
@@ -332,13 +322,8 @@ contains
             FAC_C	( 1 : iba( iLon ), iLon )    
        PlotState_IIV( 1 : iba( iLon ), iLon, Lstar_) = &
             Lstar_C	( 1 : iba( iLon ), iLon )    
-       if (UseCorePsModel) then
-          PlotState_IIV( 1 : iba( iLon ), iLon, Plas_) = &
-               PlasDensity_C	( 1 : iba( iLon ), iLon )
-       else
-          PlotState_IIV( 1 : iba( iLon ), iLon, Plas_) = &
-               density	( 1 : iba( iLon ), iLon )
-       endif
+       PlotState_IIV( 1 : iba( iLon ), iLon, Plas_) = &
+            PlasDensity_C	( 1 : iba( iLon ), iLon )
     enddo
     !fill ghost cells of plot data
     PlotState_IIV(:,nLon+1,iPplot_I(1))= &
@@ -368,12 +353,8 @@ contains
     PlotState_IIV(:,nLon+1,Pot_) = Potential_C(:,1)    
     PlotState_IIV(:,nLon+1,FAC_) = FAC_C(:,1)    
     PlotState_IIV(:,nLon+1,Lstar_) = Lstar_C(:,1)    
-    if (UseCorePsModel) then
-       PlotState_IIV(:,nLon+1,Plas_) = PlasDensity_C(:,1)
-    else
-       PlotState_IIV(:,nLon+1,Plas_) = density(:,1)    
-    endif
-    
+    PlotState_IIV(:,nLon+1,Plas_) = PlasDensity_C(:,1)
+        
     TypePosition = 'append'
     if(IsFirstCall .and. .not. IsRestart) TypePosition = 'rewind'
     IsFirstCall = .false.
@@ -485,8 +466,8 @@ contains
     use ModConst,		ONLY:	cElectronCharge, cLightSpeed
     use ModLstar,		ONLY:	Lstarm
     
-    real, intent(in) :: psd( nLat, nLon, nm, nk), &
-         xmm(nSpecies,0:nm+1),xk(nk),time
+    real, intent(in) :: psd( nLat, nLon, nm, nk), xmm(nSpecies,0:nm+1),&
+         xk(nk),time
     
     real          :: parmod(1:10)=0.0,lat,ro1,xmlt1,bo1
     integer       :: iLat,iLon,k,m,n,i,nprint
@@ -937,8 +918,8 @@ contains
     IsFirstCall=.false.
     
   end subroutine Cimi_plot_Lstar
-  
-  subroutine Cimi_plot_boundary_check(time)
+  !============================================================================
+    subroutine Cimi_plot_boundary_check(time)
     use ModIoUnit,      ONLY: UnitTmp_
     use ModCimiTrace,   ONLY: ro,bm,xmlto,irm
     use ModCimiRestart, ONLY: IsRestart
@@ -1002,6 +983,7 @@ contains
     IsFirstCall=.false.
     
   end subroutine Cimi_plot_boundary_check
+
   
 end module ModCimiPlot
 

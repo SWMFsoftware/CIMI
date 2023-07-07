@@ -10,20 +10,20 @@ subroutine CIMI_set_parameters(NameAction)
   use ModCimiTrace,	 ONLY: UseEllipse, UseSmooth, UseCorotation, &
        UsePotential, SmoothWindow, imod, iLatTest, iLonTest, DeltaRMax,xmltlim
   use ModCimi,		 ONLY: UseMcLimiter, BetaLimiter, time, Pmin, &
-       IsStandAlone, UseStrongDiff, UseDecay, DecayTimescale,&
-       dt, dtmax, DoCalcPrecip, DtCalcPrecip, IsStrictDrift
+       IsStandAlone, UseStrongDiff, &
+       dt, dtmax, DoCalcPrecip, DtCalcPrecip, IsStrictDrift,&
+       UseDecay, DecayTimescale
   use ModCimiRestart,	 ONLY: IsRestart, DtSaveRestart
   use ModCimiPlanet,	 ONLY: nspec, dFactor_I, tFactor_I
   use ModImTime,	 ONLY: iStartTime_I, TimeMax
   use ModCimiBoundary,	 ONLY: &
-       UseBoundaryEbihara, UseYoungEtAl, CIMIboundary, Outputboundary
+       UseBoundaryEbihara, UseYoungEtAl
   use ModIeCimi,	 ONLY: UseWeimer
   use ModPrerunField,	 ONLY: DoWritePrerun, UsePrerun, DtRead
   use ModGmCIMI,	 ONLY: UseGm
-  use ModWaveDiff,	 ONLY: &
-       UseWaveDiffusion, UseHiss, UseChorus, UseChorusUB, &
-       DiffStartT, HissWavesD, ChorusWavesD, ChorusUpperBandD, &
-       testDiff_aa, testDiff_EE, testDiff_aE, &
+  use ModWaves,	 ONLY: &
+       UseWaves, UseHiss, UseChorus, &
+       NameHissFile, NameChorusFile,  &
        UseKpIndex
   use ModImIndices,      ONLY: NameAeFile, read_ae_wdc_kyoto,&
        UseKpApF107IndicesFile,read_kpapf107_indices_file,&
@@ -31,13 +31,13 @@ subroutine CIMI_set_parameters(NameAction)
   use ModDiagDiff,       ONLY: UseDiagDiffusion,&
                                UsePitchAngleDiffusionTest,&
                                UseEnergyDiffusionTest
-  use DensityTemp,	 ONLY: densityP
+   
   use ModImSat,		 ONLY: DtSatOut, DoWritePrerunSat, UsePrerunSat, &
        DtReadSat, DoWriteSats, ReadRestartSat
   use ModCimiGrid
   use ModLstar,		 ONLY: DoVerboseLstar
   use ModPlasmasphere,   ONLY: &
-       DoSavePlas, DtPlasOutput,UseCorePsModel,PlasMinDensity
+       DoSavePlas, DtPlasOutput,UseCorePsModel,PlasMinDensity,PlasmaPauseDensity
   use ModInterFlux,      ONLY: UseHigherOrder,iOrderLat,iOrderLon
   use ModGimmeCimiInterface, ONLY: DtGimmePlot,UseGimme
   use ModUtilities, ONLY: CON_stop
@@ -734,7 +734,6 @@ subroutine CIMI_set_parameters(NameAction)
         if(.not.DoWritePrerun) call read_var('UsePrerun',UsePrerun)
         if(UsePrerun)          call read_var('DtRead',   DtRead)
         if(UsePrerun .or. DoWritePrerun) UseGm=.true.
-
      case('#DECAY')
         call read_var('UseDecay',UseDecay)
         if ( UseDecay ) &
@@ -755,26 +754,19 @@ subroutine CIMI_set_parameters(NameAction)
      case('#STRONGDIFFUSION')
         call read_var('UseStrongDiff',UseStrongDiff)
         
-     case('#WAVEDIFFUSION')
-        call read_var('UseWaveDiffusion',UseWaveDiffusion)
-        if(UseWaveDiffusion) then
-           call read_var('DiffStartT',  DiffStartT)
+     case('#WAVES')
+        call read_var('UseWaves',UseWaves)
+        if(UseWaves) then
            call read_var('UseHiss',  UseHiss)
            call read_var('UseChorus',  UseChorus)
-           call read_var('UseChorusUB',  UseChorusUB)
-           call read_var('HissWavesD', HissWavesD)
-           call read_var('ChorusWavesD', ChorusWavesD)
-           call read_var('ChorusUpperBandD', ChorusUpperBandD)
+           call read_var('NameHissFile', NameHissFile)
+           call read_var('NameChorusFile', NameChorusFile)
            call read_var('UseKpIndex',UseKpIndex)
         end if
 
      case('#DIAGONALIZEDDIFFUSION')
         call read_var('UseDiagDiffusion',UseDiagDiffusion)
 
-     case('#DIFFUSIONTEST')
-        call read_var('testDiff_aa', testDiff_aa )
-        call read_var('testDiff_EE', testDiff_EE )
-        call read_var('testDiff_aE', testDiff_aE )
         
      case('#DIAGDIFFUSIONTEST')
         call read_var('UsePitchAngleDiffusionTest',&
@@ -811,7 +803,7 @@ subroutine CIMI_set_parameters(NameAction)
         call read_var('iLonTest',iLonTest)
         
      case('#PLASMAPAUSEDENSITY')
-        call read_var('DensityP [m^3]',densityP)
+        call read_var('DensityP [m^3]',PlasmaPauseDensity)
 
      case('#COREPLASMASPHERE')
         call read_var('UseCorePsModel',UseCorePsModel)
@@ -819,21 +811,16 @@ subroutine CIMI_set_parameters(NameAction)
         
      case('#SETRB')
         call read_var('rb [R_E]', rb)
-
      case('#SETBOUNDARYPARAMS')
         call read_var('DeltaRMax', DeltaRMax)
         call read_var('DeltaMLTmax', xmltlim)
-
-     case('#BOUNDARYCHECK')
-        call read_var('CIMIboundary',CIMIboundary)
-        if (CIMIboundary) call read_var('Outputboundary',Outputboundary)
-
-     case('#PRECIPITATION')
-        call read_var('DoCalcPrecip',DoCalcPrecip)
-        if (DoCalcPrecip) call read_var('DtCalcPrecip',DtCalcPrecip)
-!!$        if (DoCalcPrecip) call read_var('PrecipOutput',PrecipOutput)
-!!$        if (PrecipOutput) call read_var('DtPreOut',DtPreOut)
-
+!        
+!     case('#PRECIPITATION')
+!        call read_var('DoCalcPrecip',DoCalcPrecip)
+!        if (DoCalcPrecip) call read_var('DtCalcPrecip',DtCalcPrecip)
+!!!$        if (DoCalcPrecip) call read_var('PrecipOutput',PrecipOutput)
+!!!$        if (PrecipOutput) call read_var('DtPreOut',DtPreOut)
+!
      case('#STRICTDRIFT')
         call read_var('IsStrictDrift',IsStrictDrift) ! .T : STOP when f2 < 0
 

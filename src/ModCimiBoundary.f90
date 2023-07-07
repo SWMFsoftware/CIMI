@@ -18,7 +18,7 @@ module ModCimiBoundary
   logical,public :: UseYoungEtAl =.false.
   logical,public :: CIMIboundary = .false.
   logical,public :: Outputboundary = .false.
-
+  
   !boundary density in m^-3 and temperature in eV
   real, public :: BoundaryDens_IC(nspec,nt)
   real, public :: BoundaryTemp_IC(nspec,nt),BoundaryTempPar_IC(nspec,nt)

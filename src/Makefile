@@ -26,13 +26,15 @@ OBJECTS = \
 	ModCimiBoundary.o\
 	ModTsyInput.o\
 	ModPrerunField.o\
+	simple_plasmasphere.o\
 	cimi.o\
 	set_parameters.o\
 	plot_fieldline.o\
 	trace_dipole.o\
-	geopack.o\
-        ModWaveDiff.o\
-        ModDiagDiff.o\
+	geopack.o \
+	ModWaves.o\
+	ModDiagDiff.o\
+	ModWaveDiff.o\
         ModLstar.o
 
 DEPEND:
@@ -145,39 +147,3 @@ unit_test_plasmasphere_compile:
 		unit_test_plasmasphere.o \
 		-L${LIBDIR} -lSHARE ${Lflag1}
 
-OBJ_DIFFTEST = \
-        ModPlanet.o\
-	ModCimi.o\
-	ModInterFlux.o\
-	ModPlasmasphere.o\
-	ModCimiPlot.o\
-	ModFieldTrace.o\
-	ModGmCIMI.o\
-	ModGrid.o\
-	ModCoupleSAMI.o\
-	ModIeCimi.o\
-	ModImSat.o\
-	ModImTime.o\
-	ModInitialize.o\
-	ModRestart.o\
-	ModCimiBoundary.o\
-	ModTsyInput.o\
-	ModPrerunField.o\
-	set_parameters.o\
-	plot_fieldline.o\
-	trace_dipole.o\
-	geopack.o\
-        ModWaveDiff.o\
-        ModDiagDiff.o\
-        ModLstar.o\
-	test_diff.o
- 
-test_diffusion:
-	make ${OBJ_DIFFTEST}
-	@make cimi_main.o
-	@${SCRIPTDIR}/depend.pl ${SEARCHDIR} ${OBJ_DIFFTEST}
-	${LINK.f90} -o ${BINDIR}/test_diff.exe cimi_main.o \
-		${OBJ_DIFFTEST} \
-		-L${LIBDIR} -lEMPIRICALIE -lEMPIRICALGM\
-		-lINDICES -lSHARE -lTIMING -lNOMPI\
-		${Lflag1}

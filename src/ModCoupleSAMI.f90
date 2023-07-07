@@ -133,7 +133,8 @@ Module ModCoupleSami
       allocate(PlasSamiOnCimiGrid_C(nLat,nLon))      
       allocate(PlasHpSamiOnCimiGrid_C(nLat,nLon))      
       allocate(PlasHepSamiOnCimiGrid_C(nLat,nLon))      
-      allocate(PlasOpSamiOnCimiGrid_C(nLat,nLon))      
+      allocate(PlasOpSamiOnCimiGrid_C(nLat,nLon))
+
     end subroutine cimi_put_init_from_sami
     
     !==========================================================================
@@ -141,7 +142,7 @@ Module ModCoupleSami
     subroutine cimi_get_from_sami(TimeSimulation)
       use ModMPI
       use ModCimiGrid, ONLY: iProc, nProc, iComm, nLat=>np, nLon=>nt      
-      use DensityTemp,    ONLY: density
+      use ModPlasmasphere, ONLY: PlasDensity_C
       
       real, intent(in) :: TimeSimulation
       integer :: iwrk, iError
@@ -209,8 +210,8 @@ Module ModCoupleSami
       
       write(*,*) iProc,'finished send/recv of PlasSamiOnCimiGrid_C'
 
-      ! Set plas in module for waves
-      density=PlasSamiOnCimiGrid_C*cCm3ToM3
+      ! Set plas in cimi plasmasphere module
+      PlasDensity_C=PlasSamiOnCimiGrid_C*cCm3ToM3
 
     end subroutine cimi_get_from_sami
 

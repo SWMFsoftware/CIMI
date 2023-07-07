@@ -55,6 +55,7 @@ module ModPlasmasphere
   logical, public :: UseCorePsModel=.true.
   real   , public :: PlasSpinUpTime=86400. !one day
   real   , public :: PlasMinDensity = 1e4 !m-3 = 0.01/cc
+  real   , public :: PlasmaPauseDensity = 1e7 !m-3 = 10/cc
 
   public :: unit_test_plasmasphere
   public :: init_plasmasphere
@@ -593,6 +594,9 @@ contains
           PlasDensity_C(iLat,iLon) = &
                bilinear(densityp,1,nl,1,np,LatLon_D, &
                xlatp,pphi,DoExtrapolate=.true.)
+
+          if (PlasDensity_C(iLat,iLon)<PlasMinDensity) &
+               PlasDensity_C(iLat,iLon)=PlasMinDensity
        enddo
     enddo
 
