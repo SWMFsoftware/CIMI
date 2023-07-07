@@ -21,7 +21,7 @@ List of IM commands used in the PARAM.in file
   <parameter name="DoEcho" type="logical"/>
 	   
 #ECHO
-T	DoEcho
+T			DoEcho
 
 If the DoEcho variable is true, the input parameters are echoed
 back. The echoing either goes to the standard output.  The default
@@ -36,7 +36,7 @@ at the beginning of the PARAM.in file.
 	     default="IM/restartIN/restart.H" length="100"/>
 	   
 #INCLUDE
-IM/restartIN/restart.H	NameCIMIIncludeFile
+IM/restartIN/restart.H		NameCIMIIncludeFile
 
 The NameCIMIIncludeFile parameter contains the name of the file to be
 included. The file name may be followed with a trailing comment if it
@@ -71,12 +71,13 @@ PARAM.in file is equivalent with an #END command in the last line.
 <commandgroup name="TIMING CONTROL">
 
 <command name="TIMESIMULATION">
-  <parameter name="TimeSimulation" type="real" min="0"/>
+  <parameter name="tSimulation" type="real" min="0" default="0"/>
 
 #TIMESIMULATION
-0.0		TimeSimulation
+0.0			TimeSimulation
 
-This command specifies the current simulation time. 
+This command specifies the current simulation time. It is typically read
+from the IM/restartIN/restart.H file. Default value is 0.
 
 </command>
 
@@ -84,7 +85,7 @@ This command specifies the current simulation time.
   <parameter name="MaxTime" type="real" min="0"/>
 
 #STOP
-3600.0		TimeSimulation
+1 hour			TimeSimulation
 
 This command specifies the simulation stop time. 
 
@@ -99,12 +100,12 @@ This command specifies the simulation stop time.
   <parameter name="iSecond" type="integer"/>
 
 #STARTTIME
-2012            iYear
-11              iMonth
-12              iDay
-18              iHour
-00              iMinute
-00              iSecond
+2012			iYear
+11			iMonth
+12			iDay
+18			iHour
+00			iMinute
+00			iSecond
 
 The #STARTTIME command sets the initial date and time for the
 simulation in Greenwich Mean Time (GMT) or Universal Time (UT) in
@@ -114,12 +115,12 @@ file. CIMI has no default values.
 </command>
 
 <command name="IMTIMESTEP">
-  <parameter name="IMDeltaT [s]" type="float"/>
-  <parameter name="IMDeltaTMax [s]" type="float"/>
+  <parameter name="IMDeltaT [s]" type="real"/>
+  <parameter name="IMDeltaTMax [s]" type="real"/>
 
 #IMTIMESTEP
-1.		IMDeltaT [s]
-1.		IMDeltaTMax [s]
+1.			IMDeltaT [s]
+1.			IMDeltaTMax [s]
 
 The IMTIMESTEP command controls for the time stepping of CIMI, but
 does not control the sub-cycling based on the courant condition.
@@ -138,15 +139,20 @@ Useful for setting large time-steps for basic tests. Defaults shown.
 <commandgroup name="RESTART CONTROL">
 
 <command name="RESTART">
-  <parameter name="IsRestart" type="logical" />
+  <parameter name="IsRestart" type="logical" default="F"/>
+  <parameter name="DoReadRestartSatellite" type="logical" default="F"
+	     if="$IsRestart"/>
 
 #RESTART
-F		IsRestart
-F		ReadRestartSat
+T			IsRestart
+F			DoReadRestartSatellite (read if IsRestart=T)
 
-Determine whether or not to continue a previous run. If Satellites are
-being traced in CIMI, ReadRestartSat control to read in the satellite
-buffer file found in IM/restartIN/restart.sat.
+If IsRestart is true, read in restart files from a previous run.  If
+DoReadRestartSatellite is also true, read the satellite buffer file
+found in IM/restartIN/restart.sat for tracing satellites.
+This command is usually read from the IM/restartIN/restart.H file. The
+default is to start the simulation from scratch, so IsRestart is
+false.
 
 </command>
 
@@ -154,7 +160,7 @@ buffer file found in IM/restartIN/restart.sat.
   <parameter name="DtSaveRestart" type="real" min="0."/>
 
 #SAVERESTART
-100.0           DtSaveRestart
+100.0			DtSaveRestart
 
 Command controls how often restart files are saved.  This only works
 when CIMI is in standalone mode.
@@ -170,12 +176,10 @@ when CIMI is in standalone mode.
     </if>
   </if>
 
-
-  
 #PRERUNFIELD
-F		DoWritePrerun
-F		UsePrerun
-60.		DtRead
+F			DoWritePrerun
+F			UsePrerun
+60.			DtRead
 
 Command controls the saving or reading of the Prerun magnetic field
 (IM/PrerunField_********.dat) and ionospheric potential
@@ -207,9 +211,9 @@ PrerunSat files in conducting the Prerun test.
   </if>
   
 #PRERUNSAT
-F		DoWritePrerunSat
-F		UsePrerunSat
-60.		DtReadSat
+F			DoWritePrerunSat
+F			UsePrerunSat
+60.			DtReadSat
 
 Command controls the saving or reading of the Prerun satellite trace
 files ((IM/PrerunSat_********.dat)), where ******** is the simulation
@@ -250,7 +254,7 @@ in the Prerun test.
 #LIMITER
 F			UseMcLimiter
 2			BetaLimiter
-    
+   
 Set whether or not the MC limiter is used. If it is not, the super bee
 limiter is used. Also set the Beta parameter for the MC limiter.  The
 default value is shown.
@@ -292,9 +296,9 @@ iOrderLat=iOrderLon=7.
   <parameter name="iOrderLon" type="integer" default="2"/>
 
 #HIGHERORDERDRIFT
-F		UseHigherOrder 
-2		iOrderLat
-2		iOrderLon
+F			UseHigherOrder 
+2			iOrderLat
+2			iOrderLon
 
 This command has the same functionality as the updated #DRIFTSCHEME,
 but is included for backwards compatibility.
@@ -306,7 +310,7 @@ Default values shown.
   <parameter name="IsStrictDrift" type="logical" min="F"/>
 
 #STRICTDRIFT
-F		IsStrictDrift
+F			IsStrictDrift
 
 This command specifies whether to force phase space density to be
 $\ge0$.  If set to TRUE and phase space density goes negative for any
@@ -325,28 +329,28 @@ species, the code will immediately stop.  Default shown.
 <commandgroup name="INITIAL AND BOUNDARY CONDITIONS">
 
 <command name="INITIALF2">
-  <parameter name="IsEmptyF2" type="logical" />
-  <parameter name="IsGMInitial" type="logical" />
-  <parameter name="IsDataInitial" type="logical" />
-  <if expr="$IsDataInitial">
-    <parameter name="IsRBSPData" type="logical" />
-  </if>
+  <parameter name="IsEmptyInitial" type="logical" default="F" />
+  <parameter name="IsGmInitial"    type="logical" default="T" />
+  <parameter name="IsDataInitial"  type="logical" default="F" />
+  <parameter name="IsRBSPData"     type="logical" default="F"
+    if="$IsDataInitial"/>
 
 #INITIALF2
-F			IsEmptyF2
-T			IsGmInitial
-F			IsDataInitial
-F			IsRBSPData
+F			IsEmptyInitial
+F			IsGmInitial
+T			IsDataInitial
+F			IsRBSPData (read if IsDataInitial=T)
 
 Determines whether to fill the fluxes in the simulation domain based
 on a Maxwellian determined from MHD quantities (IsGmInitial=T) or to
-set the initial fluxes in the simulation domain to zero (IsEmptyF2=T,
+set the initial fluxes in the simulation domain to zero (IsEmptyInitial=T,
 not recommended) or to set the initial fluxes in the simulation to
 values from AMPTE/CCE data (IsDataInitial=T).  One can also put RBSP
 observed fluxes into the same format as the AMPTE/CCE data to
 initialize CIMI with RBSP observations which is controlled with the
-IsRBSPData logical, which is only read if IsDataInitial=T. The default
-is shown.
+IsRBSPData logical, which is only read if IsDataInitial=T.
+
+The default IsGmInitial=T and all others are false. 
 
 </command>
 
@@ -489,11 +493,11 @@ but must be periodically updated with the latest values.
 </command>
 
 <command name="SOLARWIND">
-  <parameter name="DensitySW" type="float"/>
-  <parameter name="VelSW" type="float"/>
-  <parameter name="BxSW" type="float"/>
-  <parameter name="BySW" type="float"/>
-  <parameter name="BzSW" type="float"/>
+  <parameter name="DensitySW" type="real"/>
+  <parameter name="VelSW" type="real"/>
+  <parameter name="BxSW" type="real"/>
+  <parameter name="BySW" type="real"/>
+  <parameter name="BzSW" type="real"/>
 
 #SOLARWIND
 5.0			DensitySW
@@ -511,7 +515,7 @@ the x-component of the solar wind velocity.
 <command name="SMOOTH">
   <parameter name="UseSmooth" type="logical" default="F"/>
   <if expr="$UseSmooth">
-    <parameter name="SmoothWindow" type="float" min="60."/>
+    <parameter name="SmoothWindow" type="real" min="60."/>
   </if>
   
 #SMOOTH
@@ -590,30 +594,30 @@ variable is only read if UseSmooth=.true.
   </for>
 	
 #SAVEPLOT
-8		nCIMIFileType
-fls ions	StringPlot
-300.		DtOutput
-F		DoSaveSeparateFiles
-fls e		StringPlot
-60.		DtOutput
-T		DoSaveSeparateFiles
-psd all		StringPlot
-60.		DtOutput
-F		DoSaveSeparateFiles
-vl H		StringPlot
-60.		DtOutput
-T		DoSaveSeparateFiles
-vpdrift ions	StringPlot
-60.		DtOutput
-F		DoSaveSeparateFiles
-preci all	StringPlot
-60.		DtOutput
-F		DoSaveSeparateFiles
-2d both		StringPlot
-60.		DtOutput
-2d lstar	StringPlot
-60.		DtOutput
-F		DoSaveSeparateFiles
+8			nCIMIFileType
+fls ions		StringPlot
+300.			DtOutput
+F			DoSaveSeparateFiles
+fls e			StringPlot
+60.			DtOutput
+T			DoSaveSeparateFiles
+psd all			StringPlot
+60.			DtOutput
+F			DoSaveSeparateFiles
+vl H			StringPlot
+60.			DtOutput
+T			DoSaveSeparateFiles
+vpdrift ions		StringPlot
+60.			DtOutput
+F			DoSaveSeparateFiles
+preci all		StringPlot
+60.			DtOutput
+F			DoSaveSeparateFiles
+2d both			StringPlot
+60.			DtOutput
+2d lstar		StringPlot
+60.			DtOutput
+F			DoSaveSeparateFiles
 
 The #SAVEPLOT command determines the number, type, and frequency of
 output from CIMI.
@@ -693,7 +697,7 @@ Default is nCIMIPlotType=0 so no plot files are saved.
   <parameter name="DoVerboseLstar" type="logical" default="F"/>
 
 #VERBOSELSTAR
-F		DoVerboseLstar
+F			DoVerboseLstar
 
 Command controls for the output of the Lstar calculation to the
 screen, including information about magnetic island locations (those
@@ -708,7 +712,7 @@ Default is DoVerboseLstar=F.
   <parameter name="DoVerboseLatGrid" type="logical" default="F"/>
 
 #VERBOSELATGRID
-F		DoVerboseLatGrid
+F			DoVerboseLatGrid
 
 Prints to screen latitude and equatorial grid information.
 
@@ -720,7 +724,7 @@ Default is DoVerboseLatGrid=F.
   <parameter name="DtLogOut" type="real" />
   
 #SAVELOG
-10		DtSaveLog
+10			DtSaveLog
 
 When this command is set, a log file for CIMI is written out. The log
 file saves the change in ring current energy content for each species
@@ -736,7 +740,7 @@ every DtSaveLog seconds of simulation time.
   </parameter>
 
 #TYPEBOUNDARY
-ellipse		TypeBoundary
+ellipse			TypeBoundary
 
 Determines if the IM outer boundary is an 'ellipse' or 'circle.'
 Default value is shown.
@@ -774,7 +778,7 @@ Default values are shown.
   <parameter name="MinimumPressureToGM" type="real" />
 
 #MINIMUMPRESSURETOGM
-1e-2		MinimumPressureToGM
+1e-2			MinimumPressureToGM
 
 Sets minimum pressure passed to GM.
 
@@ -784,7 +788,7 @@ Sets minimum pressure passed to GM.
   <parameter name="DtSatOut" type="real" />
 
 #DTSATOUT
-60.0		DtSatOut
+60.0			DtSatOut
 
 Sets the time cadence, in seconds, that the particle fluxes are
 output. Default shown.
@@ -805,7 +809,7 @@ output. Default shown.
   <parameter name="TypeBoundary" type="string" />
 
 #TYPEBOUNDARY
-Ellipse		TypeBoundary
+Ellipse			TypeBoundary
 
 Determines if the IM outer boundary is an 'Ellipse' or 'Circle.'
 Default shown.
@@ -816,8 +820,8 @@ Default shown.
   <parameter name="MaxIonEnergy" type="real" />
 
 #ENERGYGRID
-  0.10000	MinIonEnergy (in keV)
-316.22777	MaxIonEnergy (in keV)
+  0.10000		MinIonEnergy (in keV)
+316.22777		MaxIonEnergy (in keV)
 
 DEPRECATED - Command sets the minimum and maximum of the ion energy
 grid for the output fluxes. MinIonEnergy and MaxIonEnergy are the
@@ -834,10 +838,10 @@ more direct control over the grid, use #SETENERGYGRID command.
   <parameter name="MaxIonEnergy" type="real" />
 
 #SETENERGYGRID
-15		neng
-T	        UseLogEGrid
-  0.10000	MinIonEnergy (in keV)
-316.22777	MaxIonEnergy (in keV)
+15			neng
+T	        	UseLogEGrid
+  0.10000		MinIonEnergy (in keV)
+316.22777		MaxIonEnergy (in keV)
 
 Command provides user with direct control over the size, spacing, and
 energy extent of the ion energy grid for the output fluxes.  neng is
@@ -853,7 +857,7 @@ of #SETENERGYGRID being specified in PARAM.in.
   <parameter name="UseRBSPGrid" type="logical" default="F"/>
 
 #RBSPENERGYGRID
-F		UseRBSPGrid
+F			UseRBSPGrid
 
 Command sets the output energy grid to exactly the energy centroids of
 the Van Allen Probes' MagEIS and REPT instruments. If this parameter
@@ -868,9 +872,9 @@ ignored. Default shown.
   <parameter name="xlatmax" type="real" default="72.4356255492731975" />
 
 #LATITUDINALGRID
-T		DoDefineVarNpower
-2. 		varNpower
-72.4356255492731975	xlatmax
+T			DoDefineVarNpower
+2. 			varNpower
+72.4356255492731975		xlatmax
 
 If DoDefineVarNpower is true, calculate ionospheric latitude grid by 
 xlat = acos(1./varL)**(1./varNpower)
@@ -878,7 +882,7 @@ varL is uniformly spacing from varLmin to varLmax.
 xlatmin = acos(1./varLmin)**(1./varNpower)
 xlatmax = acos(1./varLmax)**(1./varNpower)
 Note. If LATITUDINALGRID is not turned on, default varNpower is 2.
-parameter xlatmax is in a unit of deg 
+parameter xlatmax is in a unit of degrees.
 
 </command>
 
@@ -911,7 +915,7 @@ Default is UseStrongDiff is false.
   <parameter name="UseDiagDiffusion" type="logical" default="F"/>
   
 #DIAGONALIZEDDIFFUSION
-T		UseDiagDiffusion
+T			UseDiagDiffusion
 
 If UseDiagDiffusion is true, use (Q1,Q2) coordinates instead of (a0,E)
 or (M,K) during diffusion calculation, where Q1 = K and Q2 is defined
@@ -964,8 +968,8 @@ The default is UseDecay false.
 	     type="logical" default="F"/>
 
 #DIAGDIFFUSIONTEST
-F		UsePitchAngleDiffusionTest
-F		UseEnergyDiffusionTest
+F			UsePitchAngleDiffusionTest
+F			UseEnergyDiffusionTest
   
 If either of the parameters is true, calculate diffusion and compare
 with analytical solution.  NOTE: UseWaveDiffusion and UseDiagDiffusion
@@ -979,16 +983,16 @@ UseEnergyDiffusionTest can be TRUE at a time; the other must be false.
     <option name="FIXED" default="T"/>
   </parameter>
   <if expr="$TypeComposition eq 'FIXED'">
-    <parameter name="DensityFractionHp" type="real" min="0" max="1" />
-    <parameter name="DensityFractionOp" type="real" min="0" max="1" />
-    <parameter name="DensityFractione" type="real" min="0" max="1" />
+    <parameter name="DensityFraction" type="real" min="0" max="1" />
+    <parameter name="DensityFraction" type="real" min="0" max="1" />
+    <parameter name="DensityFraction" type="real" min="0" max="1" />
   </if>
 
 #COMPOSITION
-FIXED                   NameCompModel  
-0.85      		DensityFractionHp
-0.15      		DensityFractionOp
-1.0                     DensityFractione
+FIXED			NameCompModel  
+0.85			DensityFraction Hp
+0.15			DensityFraction Op
+1.0			DensityFraction e
 
 When CIMI is coupled with a single fluid MHD code, the boundary conditions
 obtained from GM do not determine the composition of the plasma.
