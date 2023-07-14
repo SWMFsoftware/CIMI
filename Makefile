@@ -89,6 +89,7 @@ NOMPI:
 	cd util/NOMPI/src; $(MAKE) LIB
 
 LIB:
+	cd srcGIMME; make LIB
 	cd src; make LIB
 	cd srcInterface; make LIB
 

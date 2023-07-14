@@ -694,8 +694,8 @@ contains
          nspec, amu_I, NameVarCouple, nVarImToGm, Sw_, H_, O_, e_
     use ModConst,     ONLY: cProtonMass, cBoltzmann
     use ModUtilities,       ONLY: split_string
-    ! use ModPlasmasphere, ONLY: PlasDensity_C
-    use DensityTemp,     ONLY: density
+    use ModPlasmasphere, ONLY: PlasDensity_C
+    !use DensityTemp,     ONLY: density
 
     integer, intent(in)         :: iSizeIn, jSizeIn, nVar
     real, intent(out)           :: Buffer_IIV(iSizeIn,jSizeIn,nVar)
@@ -886,7 +886,7 @@ contains
              if( i<iLatMin .or.  i > iba(j) ) then
                 Buffer_IIV(i,j,iVarCimi) = -1.
              else
-                Buffer_IIV(i,j,iVarCimi) = density(i,j)*cProtonMass
+                Buffer_IIV(i,j,iVarCimi) = PlasDensity_C(i,j)*cProtonMass
                 ! PlasDensity_C (i,j)*cProtonMass
              end if
           enddo; enddo
@@ -896,7 +896,7 @@ contains
                 Buffer_IIV(i,j,iVarCimi) = -1.
              else
                 Buffer_IIV(i,j,iVarCimi) = &
-                     density(i,j) * Tplas * cBoltzmann * 1e-9
+                     PlasDensity_C(i,j) * Tplas * cBoltzmann * 1e-9
                 ! PlasDensity_C (i,j) * Tplas * cBoltzmann * 1e-9
              end if
           enddo; enddo
