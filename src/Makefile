@@ -42,6 +42,7 @@ DEPEND:
 
 
 MY_LIB = libCIMI.a
+LIBGIMME  = ${LIBDIR}/libGIMME.a
 
 LIB: DEPEND
 	make ${MY_LIB}
@@ -49,8 +50,8 @@ LIB: DEPEND
 	@echo ${MY_LIB} has been brought up to date.
 	@echo
 
-${MY_LIB}: ${OBJECTS}
-	rm -f ${MY_LIB}
+${MY_LIB}: ${LIBGIMME} ${OBJECTS}
+	cp -f ${LIBGIMME} ${MY_LIB}
 	${AR} ${MY_LIB} ${OBJECTS} 
 
 # Object files not included into the library
