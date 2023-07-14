@@ -29,7 +29,7 @@ module ModWaveDiff
        ekev, tya, y => sinA, Bo, ro, xmlto, lintpIM, bm
   use ModNumConst,	ONLY:	pi => cPi
   use ModUtilities,	ONLY:	CON_STOP
-  use ModWaves,         ONLY: cOmpe,hOmpe,ckeV,hkeV,cDaa,cDEE,cDaE,&
+  use CIMI_waves,         ONLY: cOmpe,hOmpe,ckeV,hkeV,cDaa,cDEE,cDaE,&
        hDaa,hDEE,hDaE,UseChorus,UseHiss,&
        ipc,iwc,iph,iwh,ipa,&
        Cpower0,Hpower0,BLc0,BLh0,&

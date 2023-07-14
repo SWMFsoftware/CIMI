@@ -135,7 +135,7 @@ contains
   use ModCimiGrid, only: ir=>np,ip=>nt,ik=>nk
   use ModCimiInitialize, only: xjac
   use ModCimi, only: f2,dt
-  use ModWaves, only: UseChorus, UseHiss,&
+  use CIMI_waves, only: UseChorus, UseHiss,&
                      CHpower,HIpower,&
                      Cpower0,Hpower0,BLc0,BLh0
   use ModCimiTrace, only: iba,bo,ro
@@ -273,7 +273,7 @@ contains
   use ModCimiGrid, only: ir=>np,ip=>nt,ik=>nk
   use ModCimiInitialize, only: xjac,xk
   use ModCimi, only: f2,dt
-  use ModWaves, only: UseChorus, UseHiss,&
+  use CIMI_waves, only: UseChorus, UseHiss,&
                      CHpower,HIpower,&
                      Cpower0,Hpower0,BLc0,BLh0
   use ModCimiTrace, only: iba,bo,bm,ro,tya,y=>sinA
@@ -439,7 +439,7 @@ contains
   subroutine find_ompe_index
   use ModCimiGrid, only: ir=>np,ip=>nt,ik=>nk
   use ModCimiTrace, only: iba
-  use ModWaves, only: UseChorus, UseHiss,&
+  use CIMI_waves, only: UseChorus, UseHiss,&
                          ompe,&
                          cOmpe,hOmpe,&
                          ipc,iph
@@ -511,7 +511,7 @@ contains
   use ModNumConst, only: pi=>cPi
   use ModCimiGrid, only: ir=>np,ip=>nt,ik=>nk,&
                          iProc
-  use ModWaves, only: ipc,iwc,iph,iwh,ipa,&
+  use CIMI_waves, only: ipc,iwc,iph,iwh,ipa,&
                          UseChorus, UseHiss,&
                          ckeV,hkeV,&
                          cDEE,cDaa,cDaE,&
@@ -692,7 +692,7 @@ contains
 !   from Daa,DEE,DaE at fixed grids of (a0,E)
 !*****************************************************************************
      subroutine DaEtoDQQ(Daa,DEE,DaE,keV,E,VarQ,ip,iw,iq,Dqq1,Dqq2,NameWave)
-     use ModWaves, only:ipa
+     use CIMI_waves, only:ipa
      use ModCimi,       ONLY: MinLonPar,MaxLonPar
      implicit none
 
@@ -787,7 +787,7 @@ contains
 !   where Q2 = E at a0 = a0(m=1)
 !*****************************************************************************
      subroutine interpol_D_coef(Daa,DaE,DEE,xSign,keV,logE,ip,iw,iq,Daa0,DaE0,DEE0)
-     use ModWaves, only: cPA,ipa
+     use CIMI_waves, only: cPA,ipa
      use ModCimi,       ONLY: MinLonPar,MaxLonPar
      implicit none
 
@@ -874,7 +874,7 @@ contains
   subroutine interpol_D_coefK
   use ModNumConst, only: pi=>cPi
   use ModCimiGrid, only: ir=>np,ip=>nt,ik=>nk
-  use ModWaves, only: ipc,iwc,iph,iwh,ipa,&
+  use CIMI_waves, only: ipc,iwc,iph,iwh,ipa,&
                          UseChorus, UseHiss,&
                          cOmpe,cPA
   use ModCimiTrace, only: y=>sinA,iba,ro
@@ -1062,7 +1062,7 @@ contains
                            NameSpeciesExtension_I
   use ModCimiGrid, only: ir=>np,ip=>nt,iw=>nm,ik=>nk
   use ModCimiInitialize, only: xjac
-  use ModWaves, only: UseChorus, UseHiss,&
+  use CIMI_waves, only: UseChorus, UseHiss,&
                      CHpower,HIpower  
   use ModCimiTrace, only: iba,y=>sinA,ekev
   use ModCimi, only: f2
@@ -1140,7 +1140,7 @@ contains
                            NameSpeciesExtension_I
   use ModCimiGrid, only: ir=>np,ip=>nt,iw=>nm,ik=>nk
   use ModCimiInitialize, only: xjac
-  use ModWaves, only: UseChorus, UseHiss,&
+  use CIMI_waves, only: UseChorus, UseHiss,&
                      CHpower,HIpower  
   use ModCimiTrace, only: iba,y=>sinA,ekev
   use ModCimi, only: f2
@@ -1251,7 +1251,7 @@ contains
   subroutine write_Q2info(DEE,DaE,Daa0,DaE0,DEE0,Dqq1,Dqq2,keV,Ompe,&
                           Eq,E,ip,iw,iq,&
                           FileName1,FileName2,FileName3)
-  use ModWaves, only: ipa,cPA
+  use CIMI_waves, only: ipa,cPA
   !!use diagDiffCoef, only: VarQ
   implicit none
 
@@ -1709,7 +1709,7 @@ end subroutine spline
 !*****************************************************************************
   subroutine calc_Dcoef_for_diff_test(iChorMltLoc,iHissMltLoc,D0)
   use ModNumConst,    ONLY: cDegToRad
-  use ModWaves, ONLY: cDaa,cDaE,cDEE,&
+  use CIMI_waves, ONLY: cDaa,cDaE,cDEE,&
                          hDaa,hDaE,hDEE,&
                          CHpower,HIpower,&
                          Cpower0,Hpower0,BLc0,BLh0,&

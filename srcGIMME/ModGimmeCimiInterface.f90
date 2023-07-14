@@ -41,7 +41,7 @@ Module ModGimmeCimiInterface
          nLatCimiIn,nLonCimiIn,LatCimiIn_C,LonCimiIn_C)
       use ModGridIono,     only: init_grid_iono,UseFullSphere, iStartTime_I,&
            nTheta, nPhi
-      use ModConductance , only: init_conductance
+      use GIMME_conductance , only: init_conductance
       use ModMagInput    , only: init_mag_input
       
       !recv CIMI time and grid at initialization for later interpolation
@@ -97,7 +97,7 @@ Module ModGimmeCimiInterface
          PotCimiIn_C,JrCimiIn_C, iLatBcCimiIn_I,DtCimi)
       use ModGridIono, only: TimeSimulation
       use ModMagInput, only: Jr_C,iThetaBC_I,PotBC_C
-      use ModConductance, only: set_conductance,calc_coeficients
+      use GIMME_conductance, only: set_conductance,calc_coeficients
       use ModGimmePlots,  only: gimme_plots
       real,    intent(in)    :: TimeSimulationIn
       integer, intent(in)    :: nLatCimiIn, nLonCimiIn

@@ -9,10 +9,10 @@ include ../Makefile.conf
 
 OBJECTS = \
 	ModGridIono.o\
-	ModConductance.o\
+	GIMME_conductance.o\
 	ModMagInput.o\
 	ModGimmePlots.o\
-	gimme_potential.o\
+	GIMME_potential.o\
 	ModGimmeCimiInterface.o
 
 

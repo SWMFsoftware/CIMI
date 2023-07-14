@@ -19,7 +19,7 @@
 !  real Cpower0,Hpower0,BLc0,BLh0
 !end module cWpower
 
-Module ModWaves
+Module CIMI_waves
   !these data used to be taken from the constants module of the standalone cimi
   use ModConst, only: cEps,cLightSpeed, cElectronCharge, cElectronMass, cProtonMAss
   use ModNumConst,      ONLY: cPi
@@ -369,7 +369,7 @@ contains
   
   !note that other routines like diffuse_aa and diffuse_ee can be added later
   !from the standalone code
-end Module ModWaves
+end Module CIMI_waves
 
 
 

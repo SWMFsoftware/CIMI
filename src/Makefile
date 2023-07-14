@@ -32,7 +32,7 @@ OBJECTS = \
 	plot_fieldline.o\
 	trace_dipole.o\
 	geopack.o \
-	ModWaves.o\
+	CIMI_waves.o\
 	ModDiagDiff.o\
 	ModWaveDiff.o\
         ModLstar.o

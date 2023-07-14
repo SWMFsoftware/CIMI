@@ -21,7 +21,7 @@ subroutine CIMI_set_parameters(NameAction)
   use ModIeCimi,	 ONLY: UseWeimer
   use ModPrerunField,	 ONLY: DoWritePrerun, UsePrerun, DtRead
   use ModGmCIMI,	 ONLY: UseGm
-  use ModWaves,	 ONLY: &
+  use CIMI_waves,	 ONLY: &
        UseWaves, UseHiss, UseChorus, &
        NameHissFile, NameChorusFile,  &
        UseKpIndex

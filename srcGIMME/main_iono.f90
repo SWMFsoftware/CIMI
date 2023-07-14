@@ -1,6 +1,6 @@
 program main_iono
   use ModGridIono,     only: init_grid_iono,iProc, nProc, iComm
-  use ModConductance , only: init_conductance, set_conductance, calc_coeficients
+  use GIMME_conductance , only: init_conductance, set_conductance, calc_coeficients
   use ModMagInput    , only: init_mag_input, test_input
   use ModGimmePlots  , only: gimme_plots
   use ModMpi

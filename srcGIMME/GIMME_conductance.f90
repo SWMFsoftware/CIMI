@@ -1,4 +1,4 @@
-Module ModConductance
+Module GIMME_conductance
   use ModGridIono, only: nTheta,nPhi,Theta_G,Phi_G,dTheta,dPhi
   implicit none
   private
@@ -289,4 +289,4 @@ contains
   END SUBROUTINE SUNCOR
 
   
-end Module ModConductance
+end Module GIMME_conductance

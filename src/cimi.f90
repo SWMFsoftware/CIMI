@@ -44,7 +44,7 @@ subroutine cimi_run(delta_t)
        cimi_set_boundary_mhd, cimi_set_boundary_empirical,&
        CIMIboundary, Outputboundary
   use ModMpi
-  use ModWaves,  		ONLY:	&
+  use CIMI_waves,  		ONLY:	&
        UseWaves, UseKpIndex, ReadDiffCoef, WavePower
   use ModImIndices,             ONLY:   interpolate_ae,&
        UseAeKyoto,UseKpApF107IndicesFile,get_im_indices_Kp

@@ -9,7 +9,7 @@ contains
          dPhi, iThetaGround, iPhiGround, rPlanet,Potential_G,StartTime,&
          TimeSimulation,Year_,Month_,Day_,Hour_,Minute_,Second_
     use ModMagInput,    only: Jr_C
-    use ModConductance, only: SigmaP_G,SigmaH_G,Sigma0_G
+    use GIMME_conductance, only: SigmaP_G,SigmaH_G,Sigma0_G
     use ModIoUnit, ONLY: UnitTmp_
     use ModTimeConvert, ONLY: time_real_to_int
     !integer, parameter ::UnitTmp_=101
