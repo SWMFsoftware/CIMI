@@ -12,7 +12,7 @@ OBJECTS = \
 	GIMME_conductance.o\
 	ModMagInput.o\
 	ModGimmePlots.o\
-	GIMME_potential.o\
+	gimme_potential.o\
 	ModGimmeCimiInterface.o
 
 
