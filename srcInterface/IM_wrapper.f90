@@ -883,7 +883,8 @@ contains
           enddo; enddo
        case('HpPsRho')
           do i=1,iSize; do j=1,jSize
-             if( i<iLatMin .or.  i > iba(j) ) then
+             if( i<iLatMin .or.  i > iba(j) &
+                  .or. .not.allocated(PlasDensity_C)) then
                 Buffer_IIV(i,j,iVarCimi) = -1.
              else
                 Buffer_IIV(i,j,iVarCimi) = PlasDensity_C(i,j)*cProtonMass
@@ -892,7 +893,8 @@ contains
           enddo; enddo
        case('HpPsP')
           do i=1,iSize; do j=1,jSize
-             if( i<iLatMin .or.  i > iba(j) ) then
+             if( i<iLatMin .or.  i > iba(j) &
+                  .or. .not.allocated(PlasDensity_C)) then
                 Buffer_IIV(i,j,iVarCimi) = -1.
              else
                 Buffer_IIV(i,j,iVarCimi) = &
