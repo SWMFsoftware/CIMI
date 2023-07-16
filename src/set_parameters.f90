@@ -37,9 +37,10 @@ subroutine CIMI_set_parameters(NameAction)
   use ModCimiGrid
   use ModLstar,		 ONLY: DoVerboseLstar
   use ModPlasmasphere,   ONLY: &
-       DoSavePlas, DtPlasOutput,UseCorePsModel,PlasMinDensity,PlasmaPauseDensity
-  use ModInterFlux,      ONLY: UseHigherOrder,iOrderLat,iOrderLon
-  use ModGimmeCimiInterface, ONLY: DtGimmePlot,UseGimme
+       DoSavePlas, DtPlasOutput, UseCorePsModel, PlasMinDensity,&
+       PlasmaPauseDensity
+  use ModInterFlux,      ONLY: UseHigherOrder, iOrderLat, iOrderLon
+  use GIMME_cimi_interface, ONLY: DtGimmePlot, UseGimme
   use ModUtilities, ONLY: CON_stop
   
   implicit none

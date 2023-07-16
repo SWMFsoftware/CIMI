@@ -2,11 +2,11 @@ subroutine cimi_run(delta_t)
 
   ! The main cimi code to update by one delta_t
 
-  use ModConst,			ONLY:	cLightSpeed, cElectronCharge
-  use ModCimiInitialize,	ONLY:	&
+  use ModConst,	ONLY: cLightSpeed, cElectronCharge
+  use ModCimiInitialize, ONLY:	&
        xmm, xk, dphi, dmm, dk, dmu, xjac,&
        DoLstarInitialization
-  use ModCimi,			ONLY:	&
+  use ModCimi, ONLY:	&
        f2, dt, dtmax,Time, phot, Ppar_IC, Pressure_IC, &
        PressurePar_IC, FAC_C, Bmin_C, &
        OpDrift_, OpBfield_, OpChargeEx_, &
@@ -21,54 +21,54 @@ subroutine cimi_run(delta_t)
        eChangeLocal, eChangeGlobal, &
        DoCalcPrecip, DtCalcPrecip, &
        vdr_q3, eng_q3, vexb, dif_q3, Part_phot
-  use ModCimiPlanet,		ONLY:	&
+  use ModCimiPlanet, ONLY: &
        re_m, dipmom, Hiono, rc, nspec, amu_I, dFactor_I, tFactor_I
-  use ModCimiTrace,		ONLY:	&
+  use ModCimiTrace, ONLY: &
        fieldpara, &
        brad => ro, ftv => volume, xo, yo, rb, irm, &
        ekev, iba, bo, pp, Have, sinA, vel, alscone, iw2, xmlto, bm, phi2o, &
        gather_field_trace, bcast_field_trace
-  use ModGmCimi,		ONLY:	Den_IC, UseGm, UseGmKp, KpGm
-  use ModIeCimi,		ONLY:	UseWeimer, pot
+  use ModGmCimi, ONLY: Den_IC, UseGm, UseGmKp, KpGm
+  use ModIeCimi, ONLY: UseWeimer, pot
   use ModCimiPlot
-  use ModCimiRestart,		ONLY:	IsRestart
+  use ModCimiRestart, ONLY: IsRestart
   use ModImTime
-  use ModTimeConvert,		ONLY: 	time_real_to_int
-  use ModImSat,			ONLY:	&
+  use ModTimeConvert, ONLY: time_real_to_int
+  use ModImSat,	ONLY: &
        nImSats, write_im_sat, DoWriteSats, DtSatOut
-  use ModCimiGrid,		ONLY:	&
+  use ModCimiGrid, ONLY:	&
        iProc, nProc, iComm, nLonPar, nLonPar_P, nLonBefore_P, &
        MinLonPar, MaxLonPar, nt, np, neng, npit, nm, nk, dlat, &
        phi, sinao, xlat, xlatr, xmlt
-  use ModCimiBoundary,		ONLY:	&
+  use ModCimiBoundary, ONLY:	&
        cimi_set_boundary_mhd, cimi_set_boundary_empirical,&
        CIMIboundary, Outputboundary
   use ModMpi
-  use CIMI_waves,  		ONLY:	&
+  use CIMI_waves, ONLY:	&
        UseWaves, UseKpIndex, ReadDiffCoef, WavePower
-  use ModImIndices,             ONLY:   interpolate_ae,&
+  use ModImIndices, ONLY:   interpolate_ae,&
        UseAeKyoto,UseKpApF107IndicesFile,get_im_indices_Kp
-  use ModCoupleSami,		ONLY:	DoCoupleSami
-  
+  use ModCoupleSami, ONLY:	DoCoupleSami
   use ModIndicesInterfaces
-  use ModLstar,			ONLY:	&
+  use ModLstar,	ONLY:	&
        Lstar_C, Lstarm, &
        calc_Lstar1, calc_Lstar2
-  use ModPlasmasphere,		ONLY:	&
+  use ModPlasmasphere, ONLY:	&
        UseCorePsModel, PlasSpinUpTime, init_plasmasphere, &
        advance_plasmasphere, DoSavePlas, DtPlasOutput,&
        PlasDensity_C, save_plot_plasmasphere, &
        cimi_put_to_plasmasphere,PlasMinDensity
-  use ModDiagDiff,		ONLY:	&
+  use ModDiagDiff, ONLY:	&
        UseDiagDiffusion, calc_DQQ, interpol_D_coefK, &
        mapPSDtoQ, mapPSDtoE, diffuse_Q1, diffuse_Q2, &
        UsePitchAngleDiffusionTest,&
        UseEnergyDiffusionTest, init_diag_diff
-  use ModWaveDiff,              ONLY:   &
-       diffuse_aa,diffuse_EE,diffuse_aE
+  use ModWaveDiff, ONLY:   &
+       diffuse_aa, diffuse_EE, diffuse_aE
   use ModUtilities, ONLY: CON_stop
-  use ModGimmeCimiInterface, ONLY: init_gimme_from_cimi, gimme_potential_to_cimi,&
-       UseGimme
+  use GIMME_cimi_interface, ONLY: &
+       UseGimme, init_gimme_from_cimi, gimme_potential_to_cimi
+
   implicit none
 
   ! regular variables
@@ -254,7 +254,7 @@ subroutine cimi_run(delta_t)
  
   !initialize the potential solver
   if(IsFirstCall .and. UseWeimer .and. UseGimme) then
-     if (iProc==0) call init_gimme_from_cimi(iStartTime_I,np,nt,xlatr,phi)
+     if(iProc==0) call init_gimme_from_cimi(iStartTime_I, np, nt, xlatr, phi)
   endif
 
   ! setup initial distribution
