@@ -90,7 +90,7 @@ subroutine atx_cr ( n, nz_num, ia, ja, a, x, w )
     w(ja(k1:k2)) = w(ja(k1:k2)) + a(k1:k2) * x(i)
   end do
 
-  return
+  RETURN
 end
 subroutine atx_st ( n, nz_num, ia, ja, a, x, w )
 
@@ -160,7 +160,6 @@ subroutine atx_st ( n, nz_num, ia, ja, a, x, w )
 !
 !    Output, real  W(N), the value of A'*X.
 !
-  implicit none
 
   integer  n
   integer  nz_num
@@ -182,7 +181,7 @@ subroutine atx_st ( n, nz_num, ia, ja, a, x, w )
     w(j) = w(j) + a(k) * x(i)
   end do
 
-  return
+  RETURN
 end
 subroutine ax_cr ( n, nz_num, ia, ja, a, x, w )
 
@@ -253,7 +252,6 @@ subroutine ax_cr ( n, nz_num, ia, ja, a, x, w )
 !
 !    Output, real  W(N), the value of A*X.
 !
-  implicit none
 
   integer  n
   integer  nz_num
@@ -276,7 +274,7 @@ subroutine ax_cr ( n, nz_num, ia, ja, a, x, w )
     w(i) = w(i) + dot_product ( a(k1:k2), x(ja(k1:k2)) )
   end do
 
-  return
+  RETURN
 end
 subroutine ax_st ( n, nz_num, ia, ja, a, x, w )
 
@@ -346,7 +344,6 @@ subroutine ax_st ( n, nz_num, ia, ja, a, x, w )
 !
 !    Output, real  W(N), the value of A*X.
 !
-  implicit none
 
   integer  n
   integer  nz_num
@@ -368,7 +365,7 @@ subroutine ax_st ( n, nz_num, ia, ja, a, x, w )
     w(i) = w(i) + a(k) * x(j)
   end do
 
-  return
+  RETURN
 end
 subroutine diagonal_pointer_cr ( n, nz_num, ia, ja, ua )
 
@@ -417,7 +414,6 @@ subroutine diagonal_pointer_cr ( n, nz_num, ia, ja, ua )
 !    Output, integer  UA(N), the index of the diagonal element
 !    of each row.
 !
-  implicit none
 
   integer  n
   integer  nz_num
@@ -438,7 +434,7 @@ subroutine diagonal_pointer_cr ( n, nz_num, ia, ja, ua )
     end do
   end do
 
-  return
+  RETURN
 end
 subroutine ilu_cr ( n, nz_num, ia, ja, a, ua, l )
 
@@ -484,7 +480,6 @@ subroutine ilu_cr ( n, nz_num, ia, ja, a, ua, l )
 !
 !    Output, real  L(NZ_NUM), the ILU factorization of A.
 !
-  implicit none
 
   integer  n
   integer  nz_num
@@ -520,7 +515,7 @@ subroutine ilu_cr ( n, nz_num, ia, ja, a, ua, l )
     do j = ia(i), ia(i+1) - 1
       jrow = ja(j)
       if ( i <= jrow ) then
-        exit
+        EXIT
       end if
       tl = l(j) * l(ua(jrow))
       l(j) = tl
@@ -557,7 +552,7 @@ subroutine ilu_cr ( n, nz_num, ia, ja, a, ua, l )
 
   l(ua(1:n)) = 1.0D+00 / l(ua(1:n))
 
-  return
+  RETURN
 end
 subroutine lus_cr ( n, nz_num, ia, ja, l, ua, r, z )
 
@@ -609,7 +604,6 @@ subroutine lus_cr ( n, nz_num, ia, ja, l, ua, r, z )
 !
 !    Output, real  Z(N), the solution of the system M * Z = R.
 !
-  implicit none
 
   integer  n
   integer  nz_num
@@ -649,7 +643,7 @@ subroutine lus_cr ( n, nz_num, ia, ja, l, ua, r, z )
 !
   z(1:n) = w(1:n)
 
-  return
+  RETURN
 end
 subroutine mgmres_st ( n, nz_num, ia, ja, a, x, rhs, itr_max, mr, tol_abs, &
   tol_rel )
@@ -738,7 +732,6 @@ subroutine mgmres_st ( n, nz_num, ia, ja, a, x, rhs, itr_max, mr, tol_abs, &
 !    Input, real  TOL_REL, a relative tolerance comparing the
 !    current residual to the initial residual.
 !
-  implicit none
 
   integer  mr
   integer  n
@@ -769,7 +762,7 @@ subroutine mgmres_st ( n, nz_num, ia, ja, a, x, rhs, itr_max, mr, tol_abs, &
   real  tol_abs
   real  tol_rel
   real  v(1:n,1:mr+1)
-  !logical, parameter :: verbose = .true.
+  ! logical, parameter :: verbose = .true.
   logical, parameter :: verbose = .false.
   real  x(1:n)
   real  y(1:mr+1)
@@ -866,7 +859,7 @@ subroutine mgmres_st ( n, nz_num, ia, ja, a, x, rhs, itr_max, mr, tol_abs, &
       end if
 
       if ( rho <= rho_tol .and. rho <= tol_abs ) then
-        exit
+        EXIT
       end if
 
     end do
@@ -884,7 +877,7 @@ subroutine mgmres_st ( n, nz_num, ia, ja, a, x, rhs, itr_max, mr, tol_abs, &
     end do
 
     if ( rho <= rho_tol .and. rho <= tol_abs ) then
-      exit
+      EXIT
     end if
 
   end do
@@ -896,7 +889,7 @@ subroutine mgmres_st ( n, nz_num, ia, ja, a, x, rhs, itr_max, mr, tol_abs, &
     write ( *, '(a,g14.6)' ) '  Final residual = ', rho
   end if
 
-  return
+  RETURN
 end
 subroutine mult_givens ( c, s, k, g )
 
@@ -957,7 +950,6 @@ subroutine mult_givens ( c, s, k, g )
 !    Input/output, real  G(1:K+1), the vector to be modified.
 !    On output, the Givens rotation has been applied to entries G(K) and G(K+1).
 !
-  implicit none
 
   integer  k
 
@@ -973,7 +965,7 @@ subroutine mult_givens ( c, s, k, g )
   g(k)   = g1
   g(k+1) = g2
 
-  return
+  RETURN
 end
 subroutine pmgmres_ilu_cr ( n, nz_num, ia, ja, a, x, rhs, itr_max, mr, &
   tol_abs, tol_rel )
@@ -1002,7 +994,7 @@ subroutine pmgmres_ilu_cr ( n, nz_num, ia, ja, a, x, rhs, itr_max, mr, &
 !
 !  Licensing:
 !
-!    This code is distributed under the GNU LGPL license. 
+!    This code is distributed under the GNU LGPL license.
 !
 !  Modified:
 !
@@ -1053,10 +1045,10 @@ subroutine pmgmres_ilu_cr ( n, nz_num, ia, ja, a, x, rhs, itr_max, mr, &
 !
 !    Input, real  RHS(N), the right hand side of the linear system.
 !
-!    Input, integer  ITR_MAX, the maximum number of (outer) 
+!    Input, integer  ITR_MAX, the maximum number of (outer)
 !    iterations to take.
 !
-!    Input, integer  MR, the maximum number of (inner) iterations 
+!    Input, integer  MR, the maximum number of (inner) iterations
 !    to take.  MR must be less than N.
 !
 !    Input, real  TOL_ABS, an absolute tolerance applied to the
@@ -1065,8 +1057,8 @@ subroutine pmgmres_ilu_cr ( n, nz_num, ia, ja, a, x, rhs, itr_max, mr, &
 !    Input, real  TOL_REL, a relative tolerance comparing the
 !    current residual to the initial residual.
 !
-  implicit none
 
+                    !----------------------------------------------------------
   integer  mr
   integer  n
   integer  nz_num
@@ -1098,7 +1090,7 @@ subroutine pmgmres_ilu_cr ( n, nz_num, ia, ja, a, x, rhs, itr_max, mr, &
   real  tol_rel
   integer  ua(n)
   real  v(n,mr+1);
-  !logical, parameter :: verbose = .true.
+  ! logical, parameter :: verbose = .true.
   logical, parameter :: verbose = .false.
   real  x(n)
   real  y(mr+1)
@@ -1146,7 +1138,7 @@ subroutine pmgmres_ilu_cr ( n, nz_num, ia, ja, a, x, rhs, itr_max, mr, &
 
       k_copy = k
 
-      call ax_cr ( n, nz_num, ia, ja, a, v(1:n,k), v(1:n,k+1) ) 
+      call ax_cr ( n, nz_num, ia, ja, a, v(1:n,k), v(1:n,k+1) )
 
       call lus_cr ( n, nz_num, ia, ja, l, ua, v(1:n,k+1), v(1:n,k+1) )
 
@@ -1197,7 +1189,7 @@ subroutine pmgmres_ilu_cr ( n, nz_num, ia, ja, a, x, rhs, itr_max, mr, &
       end if
 
       if ( rho <= rho_tol .and. rho <= tol_abs ) then
-        exit
+        EXIT
       end if
 
     end do
@@ -1215,7 +1207,7 @@ subroutine pmgmres_ilu_cr ( n, nz_num, ia, ja, a, x, rhs, itr_max, mr, &
     end do
 
     if ( rho <= rho_tol .and. rho <= tol_abs ) then
-      exit
+      EXIT
     end if
 
   end do
@@ -1227,8 +1219,9 @@ subroutine pmgmres_ilu_cr ( n, nz_num, ia, ja, a, x, rhs, itr_max, mr, &
     write ( *, '(a,g14.6)' ) '  Final residual = ', rho
   end if
 
-  return
+  RETURN
 end subroutine pmgmres_ilu_cr
+                  !============================================================
 subroutine r8vec_uniform_01 ( n, seed, r )
 
 !*****************************************************************************80
@@ -1289,7 +1282,6 @@ subroutine r8vec_uniform_01 ( n, seed, r )
 !
 !    Output, real  R(N), the vector of pseudorandom values.
 !
-  implicit none
 
   integer  n
 
@@ -1319,7 +1311,7 @@ subroutine r8vec_uniform_01 ( n, seed, r )
 
   end do
 
-  return
+  RETURN
 end
 subroutine rearrange_cr ( n, nz_num, ia, ja, a )
 
@@ -1394,7 +1386,6 @@ subroutine rearrange_cr ( n, nz_num, ia, ja, a )
 !    Input/output, real  A(NZ_NUM), the matrix values.  On output,
 !    the matrix values may have been moved somewhat because of the sorting.
 !
-  implicit none
 
   integer  n
   integer  nz_num
@@ -1428,7 +1419,7 @@ subroutine rearrange_cr ( n, nz_num, ia, ja, a )
 
   end do
 
-  return
+  RETURN
 end
 subroutine timestamp ( )
 
@@ -1456,17 +1447,16 @@ subroutine timestamp ( )
 !
 !    None
 !
-  implicit none
 
   character ( len = 8 ) ampm
   integer  d
   integer  h
   integer  m
   integer  mm
-  character ( len = 9 ), parameter, dimension(12) :: month = (/ &
+  character ( len = 9 ), parameter, dimension(12) :: month = [ &
     'January  ', 'February ', 'March    ', 'April    ', &
     'May      ', 'June     ', 'July     ', 'August   ', &
-    'September', 'October  ', 'November ', 'December ' /)
+    'September', 'October  ', 'November ', 'December ' ]
   integer  n
   integer  s
   integer  values(8)
@@ -1506,5 +1496,5 @@ subroutine timestamp ( )
   write ( *, '(i2.2,1x,a,1x,i4,2x,i2,a1,i2.2,a1,i2.2,a1,i3.3,1x,a)' ) &
     d, trim ( month(m) ), y, h, ':', n, ':', s, '.', mm, trim ( ampm )
 
-  return
+  RETURN
 end

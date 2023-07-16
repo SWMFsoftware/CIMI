@@ -8,12 +8,12 @@ include ../Makefile.conf
 -include Makefile.RULES
 
 OBJECTS = \
-	ModGridIono.o\
+	GIMME_iono_grid.o\
 	GIMME_conductance.o\
-	ModMagInput.o\
-	ModGimmePlots.o\
-	gimme_potential.o\
-	ModGimmeCimiInterface.o
+	GIMME_mag_input.o\
+	GIMME_plots.o\
+	GIMME_potential.o\
+	GIMME_cimi_interface.o
 
 
 DEPEND:
@@ -50,7 +50,7 @@ LIBTIMING = ${LIBDIR}/libTIMING.a
 # Libraries should be compiled first, because modules are used in main
 ${OBJECTS_EXE}: ${LIBSHARE} ${LIBTIMING} ${MY_LIB}   
 
-EXE = ${BINDIR}/gimme.exe
+EXE = ${BINDIR}/GIMME.exe
 
 GIMME:
 	@echo ' '
@@ -61,14 +61,14 @@ GIMME:
 ${EXE}: ${OBJECTS_EXE}
 	rm -rf Tmp_; mkdir Tmp_
 	cd Tmp_; \
-		ar -x ../${MY_LIB}; \
+		ar -x ${MY_LIB}; \
 		ar -x ${LIBTIMING}; \
 		ar -x ${LIBDIR}/libINDICES.a; \
 		ar -x ${LIBSHARE};\
 		ar -x ${LIBDIR}/libEMPIRICALUA.a; \
 		ar -x ${LIBDIR}/libSE.a
 	${LINK.f90} -o ${EXE} ${OBJECTS_EXE} Tmp_/*.o ${LBLAS} ${Lflag1}
-	rm -rf Tmp_
+	#rm -rf Tmp_
 
 GIMME_orig:
 	${COMPILE.f90} ${Lflag1} -o ${EXE} main_iono.f90 ${OBJECTS} \
