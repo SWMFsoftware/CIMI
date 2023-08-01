@@ -12,7 +12,7 @@ OBJECTS = \
 	GIMME_conductance.o\
 	GIMME_mag_input.o\
 	GIMME_plots.o\
-	GIMME_potential.o\
+	GIMME_electric_potential.o\
 	GIMME_cimi_interface.o
 
 
