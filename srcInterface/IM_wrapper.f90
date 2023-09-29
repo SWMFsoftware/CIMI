@@ -494,6 +494,7 @@ contains
             iLatMin, rBodyGm, StateBmin_IIV(iLatMin,1,:)
        write(*,*) NameSub,': iBufferRho_I=', iBufferRho_I
     end if
+
     ! for anisopressure coupling
     ! if(DoTest .and. DoAnisoPressureGMCoupling)then
     !   write(NameOut,"(a,f6.1)") 'StateBmin_t_',tSimulation
