@@ -67,11 +67,11 @@ ${EXE}: ${OBJECTS_EXE}
 		ar -x ${LIBSHARE};\
 		ar -x ${LIBDIR}/libEMPIRICALUA.a; \
 		ar -x ${LIBDIR}/libSE.a
-	${LINK.f90} -o ${EXE} ${OBJECTS_EXE} Tmp_/*.o ${LBLAS} ${Lflag1}
+	${LINK.f90} -o ${EXE} ${OBJECTS_EXE} Tmp_/*.o ${LBLAS} ${LflagMpi}
 	#rm -rf Tmp_
 
 GIMME_orig:
-	${COMPILE.f90} ${Lflag1} -o ${EXE} main_iono.f90 ${OBJECTS} \
+	${COMPILE.f90} ${LflagMpi} -o ${EXE} main_iono.f90 ${OBJECTS} \
 	-L${LIBDIR} -lEMPIRICALUA -lTIMING -lINDICES -lSE -lSHARE -lNOMPI
 
 #######################################################################   
@@ -82,7 +82,7 @@ unit_test_conductivity_compile:
 	@(make calc_conductivity.o)
 	${LINK.f90} -o ${BINDIR}/unit_test_conductivity.exe \
 		ModChem_MR.o ModConduct.o ModMsis00.o \
-		calc_conductivity.o -L${LIBDIR}  ${Lflag1}
+		calc_conductivity.o -L${LIBDIR}  ${LflagMpi}
 
 #######################################################################    
 

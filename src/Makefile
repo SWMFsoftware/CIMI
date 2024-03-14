@@ -87,11 +87,11 @@ ${EXE}: ${OBJECTS_EXE}
 		ar -x ${LIBEMPIRICALGM};\
 		ar -x ${LIBEMPIRICALIE};\
 		ar -x ${LIBGIMME};
-	${LINK.f90} -o ${EXE} ${OBJECTS_EXE} Tmp_/*.o ${LBLAS} ${Lflag1}
+	${LINK.f90} -o ${EXE} ${OBJECTS_EXE} Tmp_/*.o ${LBLAS} ${LflagMpi}
 	rm -rf Tmp_
 
 CIMI_orig:
-	${COMPILE.f90} ${Lflag1} -o ${EXE} cimi_main.f90 ${OBJECTS} \
+	${COMPILE.f90} ${LflagMpi} -o ${EXE} cimi_main.f90 ${OBJECTS} \
 	-L${LIBDIR} -lTIMING -lSHARE -lNOMPI -lINDICES -lGIMME
 
 #SAMI-CIMI targets
@@ -118,13 +118,13 @@ ${CIMI_SAMI_EXE}: ${CIMI_SAMI_OBJECTS_EXE}
 		ar -x ${LIBINDICES}; \
 		ar -x ${LIBEMPIRICALGM};\
 		ar -x ${LIBEMPIRICALIE};
-	${LINK.f90} -o ${CIMI_SAMI_EXE} ${CIMI_SAMI_OBJECTS_EXE} Tmp_/*.o ${LBLAS} ${Lflag1}
+	${LINK.f90} -o ${CIMI_SAMI_EXE} ${CIMI_SAMI_OBJECTS_EXE} Tmp_/*.o ${LBLAS} ${LflagMpi}
 	rm -rf Tmp_
 
 CIMI_SAMI_orig:
 	${COMPILE.f90} -o ${EXE} main_cimi_sami.f90 ${OBJECTS} \
 	-L${LIBDIR} -lTIMING -lSHARE -lNOMPI -lINDICES -lSAMI3 \
-	${Lflag1}
+	${LflagMpi}
 
 clean: cleanfiles
 
@@ -146,5 +146,5 @@ unit_test_plasmasphere_compile:
 	${LINK.f90} -o ${BINDIR}/unit_test_plasmasphere.exe \
 		${OBJ_PLASMASPHERE} \
 		unit_test_plasmasphere.o \
-		-L${LIBDIR} -lSHARE ${Lflag1}
+		-L${LIBDIR} -lSHARE ${LflagMpi}
 
