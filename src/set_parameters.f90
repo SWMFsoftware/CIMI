@@ -1,5 +1,8 @@
 subroutine CIMI_set_parameters(NameAction)
 
+  ! Description:
+  ! This subroutine gets the inputs for CIMI
+  
   use ModIoUnit,         ONLY: UnitTmp_, io_unit_new
   use ModReadParam
   use ModUtilities,	 ONLY: lower_case
@@ -61,13 +64,7 @@ subroutine CIMI_set_parameters(NameAction)
 
   character (len=5)             :: TypeComposition='FIXED'
   integer :: iSpec
-  !\
-  ! Description:
-  ! This subroutine gets the inputs for CIMI
-  !/
-
   !---------------------------------------------------------------------------
-  
   do
      if(.not.read_line() ) EXIT
      if(.not.read_command(NameCommand)) CYCLE
@@ -107,8 +104,9 @@ subroutine CIMI_set_parameters(NameAction)
         call IO_set_inputs(cTempLines)
         call read_NGDC_Indices(iError)
         
-        if (iError /= 0) then 
-           write(*,*) "read indices was NOT successful (NOAA file)"
+        if (iError /= 0) then
+           write(*,*) 'IM: read_NGDC_Indices iError=', iError
+           call CON_stop('IM: Could not read '//trim(cTempLine))
         endif
 
      case ("#MHD_INDICES")
@@ -120,29 +118,33 @@ subroutine CIMI_set_parameters(NameAction)
         
         call IO_set_inputs(cTempLines)
         call read_MHDIMF_Indices(iError)
-
+        if(iError /= 0)then
+           write(*,*)'IM: read_MHDIMF_Indices iError=', iError
+           call CON_stop('IM: Could not read '//trim(cTempLine))
+        end if
      case ("#KYOTO_DST")
         call read_var('UseDstKyoto',UseDstKyoto)
-        call read_var('NameDstFile',NameDstFile)
+        if(UseDstKyoto)then
+           call read_var('NameDstFile',NameDstFile)
 
-        call read_dst_wdc_kyoto(iError)
+           call read_dst_wdc_kyoto(iError)
                 
-        if (iError /= 0) then
-           write(*,*) "read Dst index was not successful "//&
-                "(WDC Kyoto file; IAGA2002 Format)"
+           if (iError /= 0) then
+              write(*,*)'IM: read_dst_wdc_kyotom iError=', iError
+              call CON_stop('IM: Could not read '//trim(NameDstFile))
+           end if
         end if
-
      case ("#KYOTO_AE")
         call read_var('UseAeKyoto',UseAeKyoto)
-        call read_var('NameAeFile',NameAeFile)
-
-        call read_ae_wdc_kyoto(iError)
+        if(UseAeKyoto)then
+           call read_var('NameAeFile',NameAeFile)
+           call read_ae_wdc_kyoto(iError)
                 
-        if (iError /= 0) then
-           write(*,*) "read Ae index was not successful "//&
-                "(WDC Kyoto file; IAGA2002 Format)"
+           if (iError /= 0) then
+              write(*,*)'IM: read_ae_wdc_kyoto iError=', iError
+              call CON_stop('IM: Could not read '//trim(NameAeFile))
+           end if
         end if
-
      case ("#POTSDAM_KP_AP_F107")
         !use Kp, Ap, and F107 from Geomagnetic Observatory Niemegk, &
         !GFZ German Research Centre for Geosciences
