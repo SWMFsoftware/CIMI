@@ -57,6 +57,7 @@ help:
 #
 
 CIMI:
+	rm -f ${BINDIR}/cimi.exe
 	@cd ${SHAREDIR};  	make LIB
 	@cd ${NOMPIDIR};	make LIB
 	@cd ${TIMINGDIR}; 	make LIB 
