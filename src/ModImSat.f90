@@ -58,7 +58,7 @@ contains
     ! Allocate array for satellite flux
 
     if (.not. allocated(IsFirstWrite)) then
-       allocate( IsFirstWrite(3,nImSats) )
+       allocate( IsFirstWrite(nSpecies,nImSats) )
        IsFirstWrite = .true.
     end if
     
@@ -166,6 +166,9 @@ contains
           LatSatGen=-1.0
           LonSatGen=-1.0
           SatFlux_3I(iSpecies,:,:) = 0.0
+          EqB2 =0.0
+          SatB2=0.0
+
        end if
        
        ! Write satellite output

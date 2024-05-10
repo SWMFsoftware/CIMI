@@ -421,6 +421,8 @@ contains
              iPpar=iPpar+1
           case('hppsrho')
              DoFeedbackPs = .true.
+          case('hppsp')
+             !do nothing for incomming plasmasphere pressure
           case default
              call CON_stop(NameSub//': unknown NameVarCouple='//trim(NameVar1))
           end select
