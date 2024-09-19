@@ -35,7 +35,8 @@ OBJECTS = \
 	CIMI_waves.o\
 	ModDiagDiff.o\
 	ModWaveDiff.o\
-        ModLstar.o
+        ModLstar.o\
+	ModCurvScatt.o
 
 DEPEND:
 	@${SCRIPTDIR}/depend.pl ${SEARCHDIR} ${OBJECTS}

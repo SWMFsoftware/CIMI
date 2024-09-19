@@ -950,6 +950,21 @@ The default is UseDecay false.
 
 </command>
 
+<command name="FLC">
+  <parameter name="UseFLC" type="logical" default="F"/>
+  
+#FLC
+T			UseFLC
+
+
+If UseFLC is true, adds exponential decay to ring current 
+populations, due to field line curvature scattering. This
+is based on the formulation in Young et al 2002 and 2008.
+
+The default is UseFLC false.
+
+</command>
+
 </commandgroup>
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

@@ -60,9 +60,9 @@ Module ModCimiPlanet
        NamePlotVarLog=&
        'it t dst '// &
        'RbSumH RcSumH HpDrift HpBfield HpChargeEx HpWaves '// &
-       'HpStrongDiff HpDecay HpLossCone HpDriftIn HpDriftOut '// &
+       'HpStrongDiff HpDecay HpLossCone HpFLC HpDriftIn HpDriftOut '// &
        'RbSume RcSume  eDrift  eBfield  eChargeEx  eWaves '// &
-       ' eStrongDiff  eDecay  eLossCone  eDriftIn  eDriftOut'
+       ' eStrongDiff  eDecay  eLossCone eFLC eDriftIn  eDriftOut'
 
   public :: init_cimi_planet_const
 

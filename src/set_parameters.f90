@@ -15,7 +15,7 @@ subroutine CIMI_set_parameters(NameAction)
   use ModCimi,		 ONLY: UseMcLimiter, BetaLimiter, time, Pmin, &
        IsStandAlone, UseStrongDiff, &
        dt, dtmax, DoCalcPrecip, DtCalcPrecip, IsStrictDrift,&
-       UseDecay, DecayTimescale
+       UseDecay, DecayTimescale, UseFLC
   use ModCimiRestart,	 ONLY: IsRestart, DtSaveRestart
   use ModCimiPlanet,	 ONLY: nspec, dFactor_I, tFactor_I
   use ModImTime,	 ONLY: iStartTime_I, TimeMax
@@ -742,6 +742,9 @@ subroutine CIMI_set_parameters(NameAction)
         if ( UseDecay ) &
              call read_var('DecayTimescale in seconds', DecayTimescale)
 
+     case('#FLC')
+        call read_var('UseFLC',UseFLC)
+        
      case('#COMPOSITION')
         call read_var('TypeComposition', TypeComposition, IsUpperCase=.true.)
         select case(TypeComposition)

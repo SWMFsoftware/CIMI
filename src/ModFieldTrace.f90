@@ -18,7 +18,8 @@ Module ModCimiTrace
        Have(:,:,:), pp(:,:,:,:,:), vel(:,:,:,:,:),&
        ekev(:,:,:,:,:), rmir(:,:,:), alscone(:,:,:,:,:),&
        tanA2(:,:,:), volume(:,:), bm(:,:,:), gamma(:,:,:,:),&
-       xo(:,:), yo(:,:), tya(:,:,:), gridoc(:,:),phi2o(:,:)
+       xo(:,:), yo(:,:), tya(:,:,:), gridoc(:,:),phi2o(:,:),&
+       Tbounce(:,:,:,:,:)
 
   real	  :: parmod(10)
 
@@ -44,11 +45,13 @@ Module ModCimiTrace
   real    :: DeltaRMax = 2.0 !Re
   real    :: xmltlim = 2.0 ! limit of field line warping in hour
 
+  !save 5 points around min B when using Tsy model. Otherwise this is from GM in that module. Also save B values at points for both Tsy and MHD
+  real, allocatable :: CurvaturePointsXyz_IIID(:,:,:,:)
+  real, allocatable :: BCurvaturePoints_III(:,:,:)
   
   public :: gather_field_trace
   public :: bcast_field_trace
-  
-contains
+  contains
   
   subroutine init_mod_field_trace
     
@@ -56,6 +59,7 @@ contains
     allocate( bo(ir,ip),ro(ir,ip),xmlto(ir,ip),sinA(ir,ip,0:ik+1) )
     allocate(Have(ir,ip,ik),pp(nspec,ir,ip,iw,ik),vel(nspec,ir,ip,iw,ik),&
          ekev(nspec,ir,ip,iw,ik),rmir(ir,ip,ik),alscone(nspec,ir,ip,iw,ik),&
+         Tbounce(nspec,ir,ip,iw,ik),&
          tanA2(ir,ip,0:ik+1),phi2o(ir,ip),&
          volume(ir,ip),bm(ir,ip,ik),gamma(ir,ip,iw,ik),&
          xo(ir,ip),yo(ir,ip),tya(ir,ip,0:ik+1),gridoc(ir,ip) )
@@ -159,6 +163,13 @@ contains
                iCurrentTime_I(5),iCurrentTime_I(6))
        endif
     endif
+
+    if (imod <= 2) then
+       if (.not.allocated(CurvaturePointsXyz_IIID))&
+            allocate(CurvaturePointsXyz_IIID(ir,ip,5,3))
+    endif
+    if (.not.allocated(BCurvaturePoints_III))&
+         allocate(BCurvaturePoints_III(ir,ip,5))
     
     !initialize to zero
     ro=0.0
@@ -175,8 +186,11 @@ contains
           phi1=phi(j)                  ! +x corresponing to noon
 
           ! uncomment when T04 Tracing fixed
-          if (imod.le.2) call tsy_trace(i,rlim,re,rc,xlati1,phi1,t,ps,parmod,&
-               imod,np,npf1,dssa,bba,volume1,ro1,xmlt1,bo1,ra)
+          if (imod.le.2) then
+             call tsy_trace(i,j,rlim,re,rc,xlati1,phi1,t,ps,parmod,&
+                  imod,np,npf1,dssa,bba,volume1,ro1,xmlt1,bo1,ra)
+             
+          endif
           if (imod.eq.3) call Mhd_trace_IM(xlati1,phi(j),re,i,j,np, &
                npf1,dssa,bba,volume1,ro1,xmlt1,bo1,ra)
           if ( i == iLatTest .and. j == iLonTest ) then
@@ -272,6 +286,17 @@ contains
 
           im1 = MINLOC(bba( 1:npf1 ), 1)
 
+          !save 5 points around min B for curvature scattering calculation
+          if (npf1==1) then
+             BCurvaturePoints_III(i,j,1:5) = -1.0
+          else
+             BCurvaturePoints_III(i,j,1) =bba(im1-2)
+             BCurvaturePoints_III(i,j,2) =bba(im1-1)
+             BCurvaturePoints_III(i,j,3) =bba(im1)
+             BCurvaturePoints_III(i,j,4) =bba(im1+1)
+             BCurvaturePoints_III(i,j,5) =bba(im1+2)
+          endif
+          
           npf=n5           ! make sure B decreases to bba(im1) and rises
           dssm=0.
           NonMonoLength=0.
@@ -475,8 +500,9 @@ contains
                    pp(n,i,j,k,m)=pijkm  
                    vel(n,i,j,k,m)=pc*c/c2m
                    alscone(n,i,j,k,m)=1.
+                   tcone2=tcone1/vel(n,i,j,k,m)      ! Tbounce/2
+                   Tbounce(n,i,j,k,m)=tcone2
                    if (rmir(i,j,m).le.rc) then
-                      tcone2=tcone1/vel(n,i,j,k,m)      ! Tbounce/2
                       x=dt/tcone2
                       alscone(n,i,j,k,m)=0.
                       if (x.le.80.) alscone(n,i,j,k,m)=exp(-x)
@@ -830,7 +856,7 @@ contains
   end subroutine tsyndipoleSM
   
   !=============================================================================
-  subroutine tsy_trace(iLat,rlim,re,rc,xlati1,phi1,t,ps,parmod,imod,np, &
+  subroutine tsy_trace(iLat,iLon,rlim,re,rc,xlati1,phi1,t,ps,parmod,imod,np, &
        npf1,dssa,bba,volume1,ro1,xmlt1,bo1,ra)
     ! Routine does field line tracing in Tsyganenko field.For a given xlati1 and
     ! phi1, output distance from the ionosphere,magnetic field, flux tube volume
@@ -848,7 +874,7 @@ contains
 
     integer, parameter :: nd=3
     integer imod,np,npf1,i,j,n,ii,iopt,ind(np)
-    integer, intent(in) :: iLat  
+    integer, intent(in) :: iLat,iLon  
     real, intent(out)   :: ra(np)
     integer  :: ieq
     integer  :: ibmin
@@ -934,6 +960,28 @@ contains
     if (ibmin>-1) then
        bo1=bba(ibmin)
        ro1=ra(ibmin)
+
+       !save 5 points around min b for curvature scattering
+       CurvaturePointsXyz_IIID(iLat,iLon,1,1) = xa(ibmin-2)
+       CurvaturePointsXyz_IIID(iLat,iLon,1,2) = ya(ibmin-2)
+       CurvaturePointsXyz_IIID(iLat,iLon,1,3) = za(ibmin-2)
+              
+       CurvaturePointsXyz_IIID(iLat,iLon,2,1) = xa(ibmin-1)
+       CurvaturePointsXyz_IIID(iLat,iLon,2,2) = ya(ibmin-1)
+       CurvaturePointsXyz_IIID(iLat,iLon,2,3) = za(ibmin-1)
+              
+       CurvaturePointsXyz_IIID(iLat,iLon,3,1) = xa(ibmin)
+       CurvaturePointsXyz_IIID(iLat,iLon,3,2) = ya(ibmin)
+       CurvaturePointsXyz_IIID(iLat,iLon,3,3) = za(ibmin)
+              
+       CurvaturePointsXyz_IIID(iLat,iLon,4,1) = xa(ibmin+1)
+       CurvaturePointsXyz_IIID(iLat,iLon,4,2) = ya(ibmin+1)
+       CurvaturePointsXyz_IIID(iLat,iLon,4,3) = za(ibmin+1)
+              
+       CurvaturePointsXyz_IIID(iLat,iLon,5,1) = xa(ibmin+2)
+       CurvaturePointsXyz_IIID(iLat,iLon,5,2) = ya(ibmin+2)
+       CurvaturePointsXyz_IIID(iLat,iLon,5,3) = za(ibmin+2)
+              
     endif
     !here we get xmlt1 at the bmin which is done exactly the same was as we
     ! did it before for the equator but now we use the bmin index. 

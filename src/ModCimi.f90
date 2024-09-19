@@ -8,6 +8,7 @@ Module ModCimi
   real    :: dt=1., dtmax=1. ! typical time step of cimi
   real    :: Time = 0.0
   logical :: UseMcLimiter = .false., UseStrongDiff = .false., UseDecay =.false.
+  logical :: UseFLC=.false.
   real    :: BetaLimiter = 1.5
 
   real    :: Pmin = 1e-6
@@ -30,9 +31,9 @@ Module ModCimi
   real, allocatable :: &
        preF(:,:,:,:), preP(:,:,:,:), Eje1(:,:,:) ! presipitation output
   integer, parameter :: &
-       nOperator = 8, OpDrift_ = 1, OpBfield_ = 2, OpChargeEx_ = 3, &
+       nOperator = 9, OpDrift_ = 1, OpBfield_ = 2, OpChargeEx_ = 3, &
        OpWaves_ = 4, OpStrongDiff_ = 5, OpDecay_ = 6, &
-       OpLossCone_ = 7, OpLossCone0_ = 8
+       OpLossCone_ = 7, OpFLC_ = 8, OpLossCone0_ = 9
 ! Note order and number of operators has been changed Waves are added
 ! and OpLossCone0_=8 is previous in time OpLossCone 
 

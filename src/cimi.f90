@@ -11,7 +11,7 @@ subroutine cimi_run(delta_t)
        PressurePar_IC, FAC_C, Bmin_C, &
        OpDrift_, OpBfield_, OpChargeEx_, &
        OpWaves_, OpStrongDiff_, OpLossCone_, &
-       OpDecay_, UseDecay, &
+       OpDecay_, OpFLC_, UseDecay, UseFLC, &
        rbsumLocal, rbsumGlobal, &
        rcsumLocal, rcsumGlobal, &
        driftin, driftout, IsStandAlone, &
@@ -65,6 +65,7 @@ subroutine cimi_run(delta_t)
        UseEnergyDiffusionTest, init_diag_diff
   use ModWaveDiff, ONLY:   &
        diffuse_aa, diffuse_EE, diffuse_aE
+  use ModCurvScatt, ONLY: calc_FLC_para,FLC_loss
   use ModUtilities, ONLY: CON_stop
   use GIMME_cimi_interface, ONLY: &
        UseGimme, init_gimme_from_cimi, gimme_potential_to_cimi
@@ -110,6 +111,16 @@ subroutine cimi_run(delta_t)
        IsRestart)
   call timing_stop('cimi_fieldpara')
 
+  if(UseFLC) then
+     call timing_start('cimi_calc_FLC_para')
+     do iLon =MinLonPar, MaxLonPar
+        do iLat = 1,iba(iLon)
+           call calc_FLC_para(iLat,iLon)
+        enddo
+     enddo
+     call timing_stop('cimi_calc_FLC_para')
+  endif
+  
   ! Checks to see if this is the first call of CIMI, so as to gather
   ! all the relevant information to initialize CIMI f2 as a function
   ! of L*.  Necessary variables are bo and bm in ModFieldTrace.
@@ -526,6 +537,14 @@ subroutine cimi_run(delta_t)
      call sume_cimi(OpLossCone_)
      call timing_stop('cimi_lossconeIM')
 
+     if (UseFLC) then
+        call timing_start('cimi_FLC_loss')
+        call FLC_loss(Dt)
+        call sume_cimi(OpFLC_)
+        call timing_stop('cimi_FLC_loss')
+     endif
+     
+     
      Time = Time+dt
      ! Update CurrentTime and iCurrentTime_I
      CurrentTime = StartTime+Time

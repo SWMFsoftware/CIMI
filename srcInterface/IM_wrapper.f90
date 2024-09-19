@@ -284,6 +284,10 @@ contains
     character(len=15), allocatable :: NameVarCouple_V(:)
     character(len=15) :: NameVar1
 
+    ! The offset of the Buffer_IIV defining how many variables are passed before
+    ! you get to densities and pressures
+    integer, parameter :: Offset_ = 20
+    
     logical :: DoTest, DoTestMe
     character(len=*), parameter:: NameSub = 'IM_put_from_gm_crcm'
     !--------------------------------------------------------------------------
@@ -371,53 +375,53 @@ contains
           call lower_case(NameVar1)
           select case(NameVar1)
           case('rho')
-             TotalRho_ = iVarBuffer + 5
+             TotalRho_ = iVarBuffer + Offset_
              UseTotalRhoGm = .true.
           case('p')
-             TotalP_ = iVarBuffer + 5
+             TotalP_ = iVarBuffer + Offset_
              UseTotalPGm = .true.
           case('ppar')
-             TotalPpar_ = iVarBuffer + 5
+             TotalPpar_ = iVarBuffer + Offset_
              UseTotalPparGm = .true.
           case('pe')
-             TotalPe_ = iVarBuffer + 5
+             TotalPe_ = iVarBuffer + Offset_
              UsePeGm = .true.
           case('hprho')
              ! write(*,*) 'HpRho=',iVarBuffer
              UseMultiRhoGm = .true.
-             iBufferRho_I(H_) = iVarBuffer+5
+             iBufferRho_I(H_) = iVarBuffer+Offset_
              iRho=iRho+1
           case('hpp')
              UseMultiPGm = .true.
-             iBufferP_I(H_) = iVarBuffer+5
+             iBufferP_I(H_) = iVarBuffer+Offset_
              iP = iP + 1
           case('hppar')
              UseMultiPparGm = .true.
-             iBufferPpar_I(H_) = iVarBuffer+5
+             iBufferPpar_I(H_) = iVarBuffer+Offset_
              iPpar = iPpar + 1
           case('oprho')
              UseMultiRhoGm = .true.
-             iBufferRho_I(O_) = iVarBuffer+5
+             iBufferRho_I(O_) = iVarBuffer+Offset_
              iRho = iRho + 1
           case('opp')
              UseMultiPGm = .true.
-             iBufferP_I(O_) = iVarBuffer+5
+             iBufferP_I(O_) = iVarBuffer+Offset_
              iP = iP + 1
           case('opppar')
              UseMultiPparGm = .true.
-             iBufferPpar_I(O_) = iVarBuffer+5
+             iBufferPpar_I(O_) = iVarBuffer+Offset_
              iPpar = iPpar + 1
           case('hpswrho')
              UseMultiRhoGm = .true.
-             iBufferRho_I(Sw_) = iVarBuffer+5
+             iBufferRho_I(Sw_) = iVarBuffer+Offset_
              iRho=iRho+1
           case('hpswp')
              UseMultiPGm = .true.
-             iBufferP_I(Sw_) = iVarBuffer+5
+             iBufferP_I(Sw_) = iVarBuffer+Offset_
              iP = iP + 1
           case('hpswppar')
              UseMultiPparGm = .true.
-             iBufferPpar_I(Sw_) = iVarBuffer+5
+             iBufferPpar_I(Sw_) = iVarBuffer+Offset_
              iPpar=iPpar+1
           case('hppsrho')
              DoFeedbackPs = .true.
@@ -474,12 +478,16 @@ contains
     ! convert unit of locations X and Y
     StateBmin_IIV(:,:,1:2) = StateBmin_IIV(:,:,1:2)/rEarth ! m --> Earth Radii
 
+    ! convert unit of points around bmin for curvature 
+    StateBmin_IIV(:,:,6:20) = StateBmin_IIV(:,:,6:20)/rEarth ! m --> Earth Radii
+    
+    
     nPoint    = nPointLine
     nVarBmin = nVarIn
     ! Convert Units
     StateLine_VI(2,:) = StateLine_VI(2,:) / rEarth ! m --> Earth Radii
     StateLine_VI(3,:) = StateLine_VI(3,:) / rEarth ! m --> Earth Radii
-
+    
     ! save the GM inner Boundary which is taken to be the
     ! lowest field trace point
     rBodyGM=minval(StateLine_VI(3,:))
