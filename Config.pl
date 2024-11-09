@@ -78,7 +78,7 @@ foreach (@Arguments){
 
 &set_grid   if $NewGrid and $NewGrid ne $Grid;
 
-&set_compiler  if $Install;
+# &set_compiler  if $Install; # SAMI3 is not present
 
 &show_settings if $Show; 
 
