@@ -1024,7 +1024,7 @@ Default values are shown.
 
 </command>
 
-<command name="WAVEDIFFUSION">
+<command name="WAVES">
   	<parameter name="UseWaveDiffusion" type="logical" default="F"/>
   	<parameter name="UseHiss" type="logical" />
 	<parameter name="UseChorus" type="logical" />
