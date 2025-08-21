@@ -992,25 +992,25 @@ contains
                  if (m.ge.m2) m2=m
 !(6) interpolate Dqq1, Dqq2 to y grids
                  do k=1,iq
-                    call lintp(cPA,hDqq1(ipc1,k,:),ipa,a0(m),Dqq1K(i,j,k,m),&
+                    call lintp(cPA,hDqq1(iph1,k,:),ipa,a0(m),Dqq1K(i,j,k,m),&
                                'interpol_D_coefK')
-                    if (Dqq1K(i,j,k,m).ne.Dqq1K(i,j,k,m).or.& 
+                    if (Dqq1K(i,j,k,m).ne.Dqq1K(i,j,k,m).or.&
                         Dqq1K(i,j,k,m).lt.0.) then
                        write(*,*) 'i,j,k,m =',i,j,k,m
                        write(*,*) 'Dqq1K =',Dqq1K(i,j,k,m)
                        call CON_stop('IM: CIMI dies in '//'interpol_D_coefK')
                     endif
-                    call lintp(cPA,hDqq2(ipc1,k,:),ipa,a0(m),Dqq2K(i,j,k,m),&
+                    call lintp(cPA,hDqq2(iph1,k,:),ipa,a0(m),Dqq2K(i,j,k,m),&
                                'interpol_D_coefK')
-                    if (Dqq2K(i,j,k,m).ne.Dqq2K(i,j,k,m).or.& 
+                    if (Dqq2K(i,j,k,m).ne.Dqq2K(i,j,k,m).or.&
                         Dqq2K(i,j,k,m).lt.0.) then
                        write(*,*) 'i,j,k,m =',i,j,k,m
                        write(*,*) 'Dqq2K =',Dqq2K(i,j,k,m)
                        call CON_stop('IM: CIMI dies in '//'interpol_D_coefK')
                     endif
-                    call lintp(cPA,E_Q2h(ipc1,k,:),ipa,a0(m),E_Q2K(i,j,k,m),&
+                    call lintp(cPA,E_Q2h(iph1,k,:),ipa,a0(m),E_Q2K(i,j,k,m),&
                                'interpol_D_coefK')
-                    if (E_Q2K(i,j,k,m).ne.E_Q2K(i,j,k,m).or.& 
+                    if (E_Q2K(i,j,k,m).ne.E_Q2K(i,j,k,m).or.&
                         E_Q2K(i,j,k,m).le.0.) then
                        write(*,*) 'i,j,k,m =',i,j,k,m
                        write(*,*) 'E_Q2K =',E_Q2K(i,j,k,m)
@@ -1018,8 +1018,8 @@ contains
                        write(*,'(10f8.3)') a0
                        write(*,*) 'cPA'
                        write(*,'(10f8.3)') cPA
-                       write(*,*) 'E_Q2h (ipc1,k,:)'
-                       write(*,'(1p9E13.5)') E_Q2h(ipc1,k,:)
+                       write(*,*) 'E_Q2h (iph1,k,:)'
+                       write(*,'(1p9E13.5)') E_Q2h(iph1,k,:)
                        write(*,*) 'E_Q2K (i,j,k,:)'
                        write(*,'(1p9E13.5)') E_Q2K(i,j,k,0:m)
                        call CON_stop('IM: CIMI dies in '//'interpol_D_coefK')
