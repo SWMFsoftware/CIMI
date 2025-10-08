@@ -230,8 +230,8 @@ contains
        !Set O+:H+ ratio
        O_H_ratio = get_OtoH_young(F107, Kp)
        dFactor_I(1) = 1.0/(O_H_ratio+1.0)        !H+
-       dFactor_I(1) = O_H_ratio/(O_H_ratio+1.0)  !O+
-       
+       dFactor_I(2) = O_H_ratio/(O_H_ratio+1.0)  !O+
+
     endif
     
     If (UseBoundaryEbihara) then
