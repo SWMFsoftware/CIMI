@@ -753,28 +753,28 @@ contains
     write(UnitTmp_,'(1es18.08E3)',ADVANCE='NO') &
          -0.5 * cMu / cPi / dipmom * &
          SUM( rbsumglobal ) * 1000. * cElectronCharge * 10 ** ( 9. )
-    
+
     ! write out the operator changes
     do iSpecies=1,nSpecies
        if (iSpecies < nSpecies) then
-          write(UnitTmp_,'(11es18.08E3)',ADVANCE='NO') & 
+          write(UnitTmp_,'(12es18.08E3)',ADVANCE='NO') &
                rbsumglobal(iSpecies), rcsumglobal(iSpecies), &
                eChangeGlobal(iSpecies,1:nOperator-1), &
                driftin(iSpecies), driftout(iSpecies)
        else
-          write(UnitTmp_,'(11es18.08E3)') & 
+          write(UnitTmp_,'(12es18.08E3)') &
                rbsumglobal(iSpecies), rcsumglobal(iSpecies), &
                eChangeGlobal(iSpecies,1:nOperator-1), &
                driftin(iSpecies), driftout(iSpecies)
        endif
     enddo
-    
+
     close(UnitTmp_)
-    
+
   end subroutine cimi_plot_log
-  
+
   subroutine cimi_plot_precip( n, time )
-    use ModDstOutput,		ONLY: DstOutput 
+    use ModDstOutput,		ONLY: DstOutput
     use ModIoUnit,		ONLY: UnitTmp_
     use ModCimi,		ONLY: energy
     use ModCimiGrid,		ONLY: &
