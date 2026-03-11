@@ -3164,7 +3164,7 @@ subroutine cimi_precip_calc(dsec)
                  preP(n,i,j,k)=-dplel                 ! number of particles
 
                  ! meanE for E>gride(je)
-                 if (k == neng+1) Eje1(n,i,j)=dlel/dplel
+                 if (k == neng+2) Eje1(n,i,j)=dlel/dplel
 
               endif
            enddo
