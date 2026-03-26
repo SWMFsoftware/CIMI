@@ -1329,6 +1329,7 @@ contains
     use ModCimiPlanet,ONLY: H_, O_, e_, He_, Sw_
     use ModCimiGrid,  ONLY: neng
     use CON_router,   ONLY: IndexPtrType, WeightPtrType
+    use ModCimiTrace, ONLY: iba
 
     integer,intent(in)            :: nPoint, iPointStart, nVar
     real,intent(out)              :: Buff_V(nVar)
@@ -1366,13 +1367,17 @@ contains
        ! Only worry about the northern hemisphere....  IE can fix the southern hemisphere.
        ! For now, southern hemisphere will be implemented soon
        if (iLat <= nLat .and. iLon <= nLon) then
-          if(nVar == 4) then
+          if(nVar >=4) then
               ! Put ions
               Buff_V(1) = Buff_V(1) + w * PreF(H_, iLat, iLon, neng+2)
               Buff_V(2) = Buff_V(2) + w * Eje1(H_, iLat, iLon)
               ! Put Electrons
               Buff_V(3) = Buff_V(3) + w * PreF(e_, iLat, iLon, neng+2)
               Buff_V(4) = Buff_V(4) + w * Eje1(e_, iLat, iLon)
+          end if
+          if(nVar == 5) then
+              ! Put boundary location
+              if(iLat <= iba(iLon)) Buff_V(5) = Buff_V(5) + w
           elseif(nVar==4*neng) then
               ! Put ions
               Buff_V(1:neng) = Buff_V(1:neng) + w * PreF(H_, iLat, iLon, 1:neng)
