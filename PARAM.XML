@@ -851,6 +851,12 @@ to linearly spaced. MinIonEnergy and MaxIonEnergy are the bounds for
 the energy array in keV; electron energies are multiplied by 10. The
 values displayed here result in CIMI's default energy grid regardless
 of #SETENERGYGRID being specified in PARAM.in.
+
+The M and K grid used for the simulation are set based on the minimum
+and maximum energies of the energy grid. Changing the minimum and
+maximum energies can affect the solution. Changing maximum energy
+to be smaller than the maximum energy of ring current ions is not 
+recommended.
 </command>
 
 <command name="RBSPENERGYGRID">
