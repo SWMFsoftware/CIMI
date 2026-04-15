@@ -784,6 +784,34 @@ Sets minimum pressure passed to GM.
 
 </command>
 
+<command name="ELECTRONTEMPERATURERATIO">
+  <parameter name="ElectronTempRatio" type="real" />
+
+#ELECTRONTEMPERATURERATIO
+1/7.8     ElectronTempRatio
+
+Sets the temperature factor for ions and electrons used when coupling with GM 
+by assuming electrons make up the set fraction of the total pressure. Default
+values are shown.
+</command>
+
+<command name="GMTEMPERATUREFACTORS">
+  <parameter name="tFactor for species 1" type="real" />
+  <parameter name="tFactor for species 2" type="real" />
+  <parameter name="tFactor for electrons" type="real" />
+
+#GMTEMPERATUREFACTORS
+1/(1 + 1/7.8)       tFactor for species 1
+1/(1 + 1/7.8)       tFactor for species 2
+1/7.8/(1 + 1/7.8)   tFactor for electrons
+
+Allows manual setting of the temperature factors used when coupling with GM, 
+similar to #ELECTRONTEMPERATURE ratio. The number of input values must be equal
+to the total number of species (number of ion species + 1 for electrons)
+
+Default values are shown. 
+</command>
+
 <command name="DTSATOUT">
   <parameter name="DtSatOut" type="real" />
 
