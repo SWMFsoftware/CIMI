@@ -916,9 +916,16 @@ contains
              end if
           enddo; enddo
        case('PePar')
-          ! This is not yet implemented ...
-          if(DoTestMe) write(*,*) &
-               NameSub,": WARNING working on PePar, iVarCimi=", iVarCimi
+          do i=1,iSize; do j=1,jSize
+             if( i<iLatMin .or.  i > iba(j) ) then
+                Buffer_IIV(i,j,iVarCimi) = -1.
+             else
+                ! make sure pressure passed to GM is not lower than Pmin [nPa]
+                ! to avoid too low GM pressure (only ion pressure)
+                Buffer_IIV(i,j,iVarCimi) = &
+                     max(PressurePar_IC(e_,i,j), Pmin)*1e-9
+             end if
+          enddo; enddo
        case default
           call CON_stop(NameSub//': unknown NameVar=' &
                //trim(NameVarCouple_V(iVarCimi)))
