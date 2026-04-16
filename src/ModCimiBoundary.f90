@@ -217,6 +217,7 @@ contains
     real :: O_H_ratio, F107, Kp
     !--------------------------------------------------------------------------
     
+    if(tFactor_I(1) < 1) tFactor_I = tFactor_I / tFactor_I(1)
     ! If using Young et al and nSpec=3 then overwrite dFactor_I
     if(UseYoungEtAl .and. nSpec==3) then
        !Get Inputs
