@@ -1319,14 +1319,21 @@ contains
     RETURN
   end subroutine IM_put_from_ie_complete
   !============================================================================
-  subroutine IM_get_info_for_ie(nEngIM)
+  subroutine IM_get_info_for_ie(nEngIM, EngIM)
       ! Tell IE how many energy bins are used in IM output
       use ModCimiGrid, ONLY: neng
+      use ModCimi, ONLY: energy
+      use ModCimiPlanet,ONLY: nspec
 
       integer, intent(out) :: nEngIM
+      real, intent(out), optional :: EngIM(:, :)
 
       !------------------------------------------------------------------------
       nEngIM = neng
+      if (present(EngIM)) then
+         EngIM(1, :) = energy(1, :) ! Hydrogen Energy Grid
+         EngIM(2, :) = energy(nspec, :) ! Electron Energy Grid
+      endif
 
   end subroutine IM_get_info_for_ie
   !============================================================================
