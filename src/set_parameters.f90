@@ -45,7 +45,6 @@ subroutine CIMI_set_parameters(NameAction)
   use ModInterFlux,      ONLY: UseHigherOrder, iOrderLat, iOrderLon
   use GIMME_cimi_interface, ONLY: DtGimmePlot, UseGimme
   use ModUtilities, ONLY: CON_stop
-  use ModGrid, ONLY: ElectronGridRatio
   
   implicit none
 
