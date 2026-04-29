@@ -885,7 +885,7 @@ subroutine cimi_init
 
      endif ! end UseLogEGrid if statement
 
-     energy_ele( 1 : neng ) = 10. * energy_ion( 1 : neng )
+     energy_ele( 1 : neng ) = ElectronGridRatio * energy_ion( 1 : neng )
 
   endif ! end UseRBSPGrid if statement
 

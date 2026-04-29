@@ -72,7 +72,7 @@ Module ModCimiGrid
   integer :: iProcMidnight, iLonMidnight
 
   ! Define parameters for specifying control over Energy grid
-  real :: MinIonEnergy=0.1, MaxIonEnergy=316.22777
+  real :: MinIonEnergy=0.1, MaxIonEnergy=316.22777, ElectronGridRatio=10.
   logical :: UseLogEGrid = .true.
 
   ! Define parameters for specifying Energy grid corresponding to RBSP
