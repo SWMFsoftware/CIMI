@@ -45,6 +45,7 @@ subroutine CIMI_set_parameters(NameAction)
   use ModInterFlux,      ONLY: UseHigherOrder, iOrderLat, iOrderLon
   use GIMME_cimi_interface, ONLY: DtGimmePlot, UseGimme
   use ModUtilities, ONLY: CON_stop
+  use ModGrid, ONLY: ElectronGridRatio
   
   implicit none
 
@@ -816,6 +817,9 @@ subroutine CIMI_set_parameters(NameAction)
      case('#RBSPENERGYGRID')
         call read_var('UseRBSPGrid', UseRBSPGrid)
         if (UseRBSPGrid) neng = nRBSPEnergy
+
+     case('#ELECTRONGRIDRATIO')
+        call read_var('ElectronGridRatio', ElectronGridRatio)
         
      case('#IMTIMESTEP')
         call read_var('IMDeltaT [s]',dt)

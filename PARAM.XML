@@ -900,6 +900,15 @@ ignored. Default shown.
 
 </command>
 
+<command name="ELECTRONGRIDRATIO">
+  <parameter name="ElectronGridRatio" type="real" default="10." />
+
+#ELECTRONGRIDRATIO
+10.			ElectronGridRatio
+
+Sets the ratio between the electron and ion energy grids.  Electron energies
+are set to be the ion energies multiplied by this ratio. Default shown.
+
 <command name="LATITUDINALGRID">
   <parameter name="DoDefineVarNpower" type="logical" default="F"/>
   <parameter name="varNpower" type="real" default="2." />
