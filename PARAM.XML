@@ -909,6 +909,8 @@ ignored. Default shown.
 Sets the ratio between the electron and ion energy grids.  Electron energies
 are set to be the ion energies multiplied by this ratio. Default shown.
 
+</command>
+
 <command name="LATITUDINALGRID">
   <parameter name="DoDefineVarNpower" type="logical" default="F"/>
   <parameter name="varNpower" type="real" default="2." />
