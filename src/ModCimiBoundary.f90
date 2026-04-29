@@ -40,6 +40,10 @@ contains
     integer :: ib1
     !---------------------------------------------------------------------------
 
+    ! If using separate GM electron pressure, all values should just be passed
+    ! without any temperature partitioning
+    if (UsePeGm) tFactor_I = 1.0
+    
     !set boundary density and temperature inside irm
     if (UseTotalRhoGm &
          .and. .not. UseMultiRhoGm &
