@@ -41,6 +41,7 @@ contains
     use ModGmCimi,  ONLY: UseGm
     use ModIeCimi,  ONLY: UseIE
     use ModCimiGrid, ONLY: iProc,nProc,iComm
+    use ModCimi,    ONLY: DtCalcPrecip
 
     character (len=*), intent(in)     :: TypeAction ! which action to perform
     type(CompInfoType), intent(inout) :: CompInfo   ! component information
@@ -72,6 +73,11 @@ contains
     case('READ')
        call CIMI_set_parameters('READ')
     case('CHECK')
+       if (Couple_CC(IM_, IE_) % Dothis) then
+         if (Couple_CC(IM_, IE_) % Dt < DtCalcPrecip) then
+            DtCalcPrecip = Couple_CC(IM_, IE_) % Dt
+         end if
+       end if
        ! We should check and correct parameters here
        ! if(iProc==0)then
        !   call IM_write_prefix;  write(iUnitOut,*)&
