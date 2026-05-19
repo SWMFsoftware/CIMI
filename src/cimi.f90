@@ -228,6 +228,8 @@ subroutine cimi_run(delta_t)
            AE_temp=AeGm
         else if(UseAeKyoto) then
            call interpolate_ae(CurrentTime, AE_temp)
+        else if (UseGm) then
+           AE_temp = 0.0
         else
            call CON_stop('IM error: Kp not used and no AE option.'//&
                 'One of the two is needed for waves.')
@@ -497,8 +499,10 @@ subroutine cimi_run(delta_t)
         if (.not.UseKpIndex) then
            if (UseGmAe) then
               AE_temp=AeGm
+           else if (UseAeKyoto) then
+              call interpolate_ae(CurrentTime, AE_temp)
            else
-             call interpolate_ae(CurrentTime, AE_temp)
+              AE_temp = 0.0
            end if
          end if
 
