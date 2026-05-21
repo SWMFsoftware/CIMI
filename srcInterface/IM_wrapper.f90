@@ -1399,14 +1399,18 @@ contains
               ! Put boundary location
               if(iLat <= iba(iLon)) Buff_V(5) = Buff_V(5) + w
           end if
-          if(nVar==(5 + 2 * neng)) then
+          if(nVar >= 6) then
+              ! Put FAC
+              Buff_V(6) = Buff_V(6) - w * FAC_C(iLat, iLon)/2.0
+          end if
+          if(nVar==(6 + 2 * neng)) then
               ! Put ions
               Buff_V(6:5+neng) = Buff_V(6:5+neng) + w * &
                       PreP(H_, iLat, iLon, 1:neng)
               ! Put Electrons
               Buff_V(6+neng:5+2*neng) = Buff_V(6+neng:5+2*neng) + w * &
                       PreP(e_, iLat, iLon, 1:neng)
-          else if(nVar == 4 .or. nVar == 5) then
+          else if(nVar >= 4 .and. nVar <= 6) then
             CYCLE
           else
               call CON_stop(NameSub//' CIMI coupling currently only uses '//&
