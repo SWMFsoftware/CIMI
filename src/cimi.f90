@@ -226,10 +226,8 @@ subroutine cimi_run(delta_t)
      else
         if (UseGmAe) then
            AE_temp=AeGm
-        else if(UseAeKyoto) then
+        elseif(UseAeKyoto) then
            call interpolate_ae(CurrentTime, AE_temp)
-        else if (UseGm) then
-           AE_temp = 0.0
         else
            call CON_stop('IM error: Kp not used and no AE option.'//&
                 'One of the two is needed for waves.')
@@ -497,14 +495,12 @@ subroutine cimi_run(delta_t)
         call timing_stop('cimi_WaveDiffusion')
 
         if (.not.UseKpIndex) then
-           if (UseGmAe) then
-              AE_temp=AeGm
-           else if (UseAeKyoto) then
-              call interpolate_ae(CurrentTime, AE_temp)
-           else
-              AE_temp = 0.0
-           end if
-         end if
+            if (UseGmAe) then
+                AE_temp=AeGm
+            else
+                call interpolate_ae(CurrentTime, AE_temp)
+            endif
+        endif
 
         if ( .not. DoCoupleSami .and. .not. UseCorePsModel) then
            if (UseGmKp) then
@@ -2203,7 +2199,9 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
                  driftout(n)=0.
               endif
            enddo          ! end of do nn=1,nrun
-           f2(n,1:np,1:nt,k,m)=f2d(1:np,1:nt)
+           !f2(n,1:np,1:nt,k,m)=f2d(1:np,1:nt)
+           where(f2d(1:np,1:nt).eq.0.0) f2(n,1:np,1:nt,k,m)=1e-50
+           where(f2d(1:np,1:nt).gt.0.0) f2(n,1:np,1:nt,k,m)=f2d(1:np,1:nt)
         enddo kloop
      enddo mloop
   enddo nloop
