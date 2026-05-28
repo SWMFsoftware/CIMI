@@ -18,7 +18,7 @@
 !*******************************************************************************
 
 module ModDiagDiff 
-  use ModCimiGrid, only: ir=>np,ip=>nt,ik=>nk
+  use ModCimiGrid, only: ir=>np,ip=>nt,iw=>nm,ik=>nk
   use ModUtilities, ONLY: CON_stop
 
   private !! except
@@ -73,7 +73,7 @@ module ModDiagDiff
   real VarQ(0:iq+1)
   real,allocatable,dimension(:,:,:) :: E_Q2c,E_Q2h,&
        cDqq1,cDqq2,hDqq1,hDqq2,cSign,hSign
-  real, allocatable, dimension(:,:,:,:) :: Dqq1K, Dqq2K, dQ2dEK, E_Q2K, PSD_Q
+  real, allocatable, dimension(:,:,:,:) :: Dqq1K, Dqq2K, dQ2dEK, E_Q2K, PSD_Q, PSDcopy, PSD_Qcopy
   real cLambda2D           ! 1 / analytic solution decay time scale
   real,allocatable :: PSD_CHTest(:),PSD_HITest(:)
   real rpp(ip)
@@ -92,7 +92,8 @@ contains
     if( allocated( PSD_Q ) ) RETURN
     allocate( PSD_Q(ir,ip,iq,ik), Dqq1K(ir,ip,iq,0:ik+1), &
          Dqq2K(ir,ip,iq,0:ik+1), dQ2dEK(ir,ip,iq,0:ik+1), &
-         E_Q2K(ir,ip,iq,0:ik+1), ipc0(ir,ip), iph0(ir,ip), iLpp(ip) )
+         E_Q2K(ir,ip,iq,0:ik+1), ipc0(ir,ip), iph0(ir,ip), iLpp(ip), &
+         PSDcopy(ir,ip,iw,ik), PSD_Qcopy(ir,ip,iq,ik) )
     
   end subroutine init_diag_diff
 
@@ -173,7 +174,7 @@ contains
 !(3) outside plasmasphere
            Po=(BLc0/bo(i,j))*CHpower(i,j)/Cpower0
            DoDiff=.True.
-        else if (UseHiss) then
+        else if (i.le.iLpp(j).and.UseHiss) then
 !(4) inside plasmasphere
            Po=(BLh0/bo(i,j))*HIpower(i,j)/Hpower0
            DoDiff=.True.
@@ -873,12 +874,13 @@ contains
 !*****************************************************************************
   subroutine interpol_D_coefK
   use ModNumConst, only: pi=>cPi
-  use ModCimiGrid, only: ir=>np,ip=>nt,ik=>nk
+  use ModCimiGrid, only: ir=>np,ip=>nt,ik=>nk,&
+                         MinLonPar,MaxLonPar
   use CIMI_waves, only: ipc,iwc,iph,iwh,ipa,&
                          UseChorus, UseHiss,&
                          cOmpe,cPA
   use ModCimiTrace, only: y=>sinA,iba,ro
-  use ModCimi,       ONLY: MinLonPar,MaxLonPar
+  !use ModCimiGrid,       ONLY: MinLonPar,MaxLonPar
   !!use diagDiffCoef, only: iq,cDqq1,cDqq2,hDqq1,hDqq2,Dqq1K,&
   !!                        Dqq2K,E_Q2c,E_Q2h,dQ2dEK,E_Q2K,VarQ,&
   !!                        ipc0,iph0,iLpp
@@ -979,7 +981,7 @@ contains
      enddo               ! end of i
   enddo                  ! end of j
   do j=MinLonPar,MaxLonPar
-!(5) interpolate begins when L>Lpp for hiss
+!(5) interpolate begins when L<Lpp for hiss
      do i=1,iLpp(j)
         if (UseHiss) then
            iph1=iph0(i,j)
@@ -994,7 +996,7 @@ contains
                  do k=1,iq
                     call lintp(cPA,hDqq1(iph1,k,:),ipa,a0(m),Dqq1K(i,j,k,m),&
                                'interpol_D_coefK')
-                    if (Dqq1K(i,j,k,m).ne.Dqq1K(i,j,k,m).or.&
+                    if (Dqq1K(i,j,k,m).ne.Dqq1K(i,j,k,m).or.& 
                         Dqq1K(i,j,k,m).lt.0.) then
                        write(*,*) 'i,j,k,m =',i,j,k,m
                        write(*,*) 'Dqq1K =',Dqq1K(i,j,k,m)
@@ -1002,7 +1004,7 @@ contains
                     endif
                     call lintp(cPA,hDqq2(iph1,k,:),ipa,a0(m),Dqq2K(i,j,k,m),&
                                'interpol_D_coefK')
-                    if (Dqq2K(i,j,k,m).ne.Dqq2K(i,j,k,m).or.&
+                    if (Dqq2K(i,j,k,m).ne.Dqq2K(i,j,k,m).or.& 
                         Dqq2K(i,j,k,m).lt.0.) then
                        write(*,*) 'i,j,k,m =',i,j,k,m
                        write(*,*) 'Dqq2K =',Dqq2K(i,j,k,m)
@@ -1010,7 +1012,7 @@ contains
                     endif
                     call lintp(cPA,E_Q2h(iph1,k,:),ipa,a0(m),E_Q2K(i,j,k,m),&
                                'interpol_D_coefK')
-                    if (E_Q2K(i,j,k,m).ne.E_Q2K(i,j,k,m).or.&
+                    if (E_Q2K(i,j,k,m).ne.E_Q2K(i,j,k,m).or.& 
                         E_Q2K(i,j,k,m).le.0.) then
                        write(*,*) 'i,j,k,m =',i,j,k,m
                        write(*,*) 'E_Q2K =',E_Q2K(i,j,k,m)
@@ -1060,13 +1062,14 @@ contains
   subroutine mapPSDtoQ
   use ModCimiPlanet, only: ijs=>nspec,&  ! ijs = ns
                            NameSpeciesExtension_I
-  use ModCimiGrid, only: ir=>np,ip=>nt,iw=>nm,ik=>nk
+  use ModCimiGrid, only: ir=>np,ip=>nt,iw=>nm,ik=>nk,&
+                         MinLonPar,MaxLonPar
   use ModCimiInitialize, only: xjac
   use CIMI_waves, only: UseChorus, UseHiss,&
                      CHpower,HIpower  
   use ModCimiTrace, only: iba,y=>sinA,ekev
   use ModCimi, only: f2
-  use ModCimi,       ONLY: MinLonPar,MaxLonPar
+  !use ModCimi,       ONLY: MinLonPar,MaxLonPar
   !!use diagDiffCoef, only: iq,E_Q2K,PSD_Q,iLpp
   implicit none
 
@@ -1075,10 +1078,21 @@ contains
   integer n,i,j,k,m,nel,k1,k2,kk
   logical DoMapping
 
-!(1) Find the "n" corresponds to electrons, nel 
+
+!(-1) Find the "n" corresponds to electrons, nel 
   nel=0
   do n=1,ijs
      if (NameSpeciesExtension_I(n).eq.'_e') nel=n
+  enddo
+
+!(0) snap a copy of the untransformed PSD to add the difference to later
+  !do j=1,ip
+  do j=MinLonPar,MaxLonPar
+     do i=1,iba(j)
+        do m=1,ik
+           PSDcopy(i,j,1:iw,m) = f2(nel,i,j,1:iw,m)/xjac(nel,i,1:iw)
+        enddo
+     enddo
   enddo
 
   do j=MinLonPar,MaxLonPar
@@ -1101,22 +1115,27 @@ contains
               psd0(:)=f2(nel,i,j,1:iw,m)/xjac(nel,i,1:iw)
               where(psd0(:).ge.1.e-50) logPSD(:)=log(psd0)
               where(psd0(:).lt.1.e-50) logPSD(:)=-50.
-!(1) find cubic spline interpolation coefficients.
-              call spline (logEkeV, logPSD, b, c, d, iw, 'mapPSDtoQ')
+! !(1) find cubic spline interpolation coefficients.
+!               call spline (logEkeV, logPSD, b, c, d, iw, 'mapPSDtoQ')
+!               call locate1(E_Q2K(i,j,:,m),iq,ekev0(1 ),k1,'mapPSDtoQ')
+!               call locate1(E_Q2K(i,j,:,m),iq,ekev0(iw),k2,'mapPSDtoQ')
+!               k1=k1+1
               call locate1(E_Q2K(i,j,:,m),iq,ekev0(1 ),k1,'mapPSDtoQ')
               call locate1(E_Q2K(i,j,:,m),iq,ekev0(iw),k2,'mapPSDtoQ')
               k1=k1+1
               do k=k1,k2
-!(2) map PSD to fixed Q2 grids
+! !(2) map PSD to fixed Q2 grids
                  EQ=E_Q2K(i,j,k,m)
                  logEQ=log(EQ)
-                 call locate1(logEkeV,iw,logEQ,kk,'mapPSDtoQ')
-                 dE=logEQ-logEkeV(kk)
-                 dE2=dE*dE
-                 logPSD1=logPSD(kk)+b(kk)*dE+c(kk)*dE2+d(kk)*dE2*dE
-                 if (logPSD1.lt.min(logPSD(kk),logPSD(kk+1)).or.&
-                     logPSD1.gt.max(logPSD(kk),logPSD(kk+1))) &
-                    call lintp(logEkeV,logPSD,iw,logEQ,logPSD1,&
+                 !call locate1(logEkeV,iw,logEQ,kk,'mapPSDtoQ')
+                 !dE=logEQ-logEkeV(kk)
+                 !dE2=dE*dE
+                 !logPSD1=logPSD(kk)+b(kk)*dE+c(kk)*dE2+d(kk)*dE2*dE
+                 !if (logPSD1.lt.min(logPSD(kk),logPSD(kk+1)).or.&
+                 !    logPSD1.gt.max(logPSD(kk),logPSD(kk+1))) &
+                 !   call lintp(logEkeV,logPSD,iw,logEQ,logPSD1,&
+                 !              'mapPSDtoQ')
+                 call lintp(logEkeV,logPSD,iw,logEQ,logPSD1,&
                                'mapPSDtoQ')
                  PSD_Q(i,j,k,m)=exp(logPSD1)
               enddo      ! end of k
@@ -1127,6 +1146,8 @@ contains
         endif            ! end of DoMapping
      enddo               ! end of i
   enddo                  ! end of j
+!(4) snap a copy of the transformed PSD to take a difference later
+  PSD_Qcopy(:,:,:,:) = PSD_Q(:,:,:,:)
 
   end subroutine mapPSDtoQ
 
@@ -1138,18 +1159,21 @@ contains
   subroutine mapPSDtoE
   use ModCimiPlanet, only: ijs=>nspec,&   ! ns=ijs
                            NameSpeciesExtension_I
-  use ModCimiGrid, only: ir=>np,ip=>nt,iw=>nm,ik=>nk
+  use ModCimiGrid, only: ir=>np,ip=>nt,iw=>nm,ik=>nk,&
+                         MinLonPar,MaxLonPar
   use ModCimiInitialize, only: xjac
   use CIMI_waves, only: UseChorus, UseHiss,&
                      CHpower,HIpower  
   use ModCimiTrace, only: iba,y=>sinA,ekev
   use ModCimi, only: f2
-  use ModCimi,       ONLY: MinLonPar,MaxLonPar
+  !use ModCimi,       ONLY: MinLonPar,MaxLonPar
   !!use diagDiffCoef, only: iq,E_Q2K,PSD_Q,iLpp
   implicit none
 
-  real logEkeV,logPSD1,ekev0,dE,dE2
-  real,dimension(iq) :: logPSD,EQ,logEQ,b,c,d
+  real ekev0,dPSD
+  !real,dimension(iq) :: logPSD,logPSD0,EQ,logEQ,b,c,d,dPSD_Q
+  !real,dimension(iq) :: logPSD,EQ,logEQ,b,c,d
+  real,dimension(iq) :: EQ,dPSD_Q
   integer n,i,j,k,m,nel,kk
   logical DoMapping
 
@@ -1174,35 +1198,84 @@ contains
         if (DoMapping) then
            do m=1,ik
 !(1) map PSD to fixed E grids for chorus L>Lpp
-              EQ(:)=E_Q2K(i,j,1:iq,m)
-              where(EQ(:).ge.1.e-50) logEQ(:)=log(EQ)
-              where(EQ(:).lt.1.e-50) logEQ(:)=-50.   
+              EQ(:)=E_Q2K(i,j,1:iq,m) ! Energy gridpoints in Q1Q2 space
+              ! where(EQ(:).ge.1.e-50) logEQ(:)=log(EQ)
+              ! where(EQ(:).lt.1.e-50) logEQ(:)=-50.   
               !logPSD(:)=log(PSD_Q(i,j,1:iq,m))
               !logPSD(:)=-50.
-              where(PSD_Q(i,j,:,m).ge.1.e-50)logPSD(:)=log(PSD_Q(i,j,1:iq,m))
-              where(PSD_Q(i,j,:,m).lt.1.e-50)logPSD(:)=-50.
-              call spline (logEQ, logPSD, b, c, d, iq, 'mapPSDtoE')
+              ! where(PSD_Q(i,j,:,m).ge.1.e-50)logPSD(:)=log(PSD_Q(i,j,1:iq,m))
+              ! where(PSD_Q(i,j,:,m).lt.1.e-50)logPSD(:)=-50.
+              !call spline (logEQ, logPSD, b, c, d, iq, 'mapPSDtoE')
+              !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            !Ratio
+              ! where(PSD_Qcopy(i,j,:,m).ge.1.e-50)logPSD0(:)=log(PSD_Qcopy(i,j,1:iq,m))
+              ! where(PSD_Qcopy(i,j,:,m).lt.1.e-50)logPSD0(:)=-50.
+              ! logPSD_Q_ratio(:) = logPSD(:)-logPSD0(:)
+              ! call spline (logEQ, logPSD_Q_ratio, b, c, d, iq, 'mapPSDtoE')
+              !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+              !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            !Difference
+              ! Compute the difference between the PSD since we did diffusion
+              dPSD_Q(:) = PSD_Q(i,j,1:iq,m)-PSD_Qcopy(i,j,1:iq,m)
+              !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
               do k=2,iw    ! keep PSD(k=1) unchanged during mapping
-                 ekev0=ekev(nel,i,j,k,m)
+                 ekev0=ekev(nel,i,j,k,m) ! Energy gridpoints in M K space
+                 ! If the M/K energy is within the Q1Q2 energy range
                  if (ekev0.ge.EQ(1).and.ekeV0.le.EQ(iq)) then
-                    logEkeV=log(ekev0)
-                    call locate1(EQ,iq,ekev0,kk,'mapPSDtoE')
-                    dE=logEkeV-logEQ(kk)
-                    dE2=dE*dE
-                    logPSD1=logPSD(kk)+b(kk)*dE+c(kk)*dE2+d(kk)*dE2*dE
-                    if (logPSD1.lt.min(logPSD(kk),logPSD(kk+1)).or.&
-                        logPSD1.gt.max(logPSD(kk),logPSD(kk+1))) &
-                       call lintp(logEq,logPSD,iq,logEkeV,logPSD1,&
-                                  'mapPSDtoE')
+                    ! logEkeV=log(ekev0)
+                    ! call locate1(EQ,iq,ekev0,kk,'mapPSDtoE')
+                    ! dE=logEkeV-logEQ(kk)
+                    ! dE2=dE*dE
+                    !logPSD1=logPSD(kk)+b(kk)*dE+c(kk)*dE2+d(kk)*dE2*dE
+                    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                  !Ratio
+                    ! logPSD_ratio1=logPSD_Q_ratio(kk)+b(kk)*dE+c(kk)*dE2+d(kk)*dE2*dE
+                    ! If the result would create a new extrema in the PSD curve
+                    ! if (logPSD_ratio1.lt.min(logPSD_Q_ratio(kk),logPSD_Q_ratio(kk+1)).or.&
+                    !     logPSD_ratio1.gt.max(logPSD_Q_ratio(kk),logPSD_Q_ratio(kk+1))) &
+                       ! Instead, linearly interpolate the point
+                    ! call lintp(EQ,PSD_Q(i,j,:,m)/PSD_Qcopy(i,j,:,m),iq,ekev0,PSD_ratio1,&
+                    !                'mapPSDtoE')
+                    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+                    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                  !Ddifference
+                    ! Interpolate the dPSD height in the M/K coordinates
+                    call lintp(EQ,dPSD_Q,iq,ekev0,dPSD,'mapPSDtoE')
+                    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+                    ! If the result would create a new extrema in the PSD curve
+                    ! if (logPSD1.lt.min(logPSD(kk),logPSD(kk+1)).or.&
+                    !     logPSD1.gt.max(logPSD(kk),logPSD(kk+1))) &
+                    !   ! Instead, linearly interpolate the point
+                    !    call lintp(logEQ,logPSD,iq,logEkeV,logPSD1,&
+                    !               'mapPSDtoE')
+
                     !!f2(nel,i,j,k,m)=exp(logPSD1)*xjac(nel,i,k,m)
-                    f2(nel,i,j,k,m)=exp(logPSD1)*xjac(nel,i,k) 
+                    !f2(nel,i,j,k,m)=exp(logPSD1)*xjac(nel,i,k) 
+!(1) use the PSD change difference to update f2
+                    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                  !Ratio
+                    ! f2(nel,i,j,k,m) = PSDcopy(i,j,k,m)*PSD_ratio1*xjac(nel,i,k)
+                    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+                    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                  !Difference
+                    if ((PSDcopy(i,j,k,m)+dPSD).lt.1.e-60) then
+                       f2(nel,i,j,k,m) = 1.e-60*xjac(nel,i,k)
+                    else
+                       f2(nel,i,j,k,m) = (PSDcopy(i,j,k,m)+dPSD)*xjac(nel,i,k)
+                    endif
+                    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
                  endif
               enddo      ! end of k
            enddo         ! end of m
         endif            ! end of DoMapping
      enddo            ! end of i
   enddo               ! end of j
-
+                    
   end subroutine mapPSDtoE
 
 
@@ -1221,7 +1294,7 @@ contains
    implicit none
    integer,intent(in) :: ny,nt
    real,intent(in) :: y0,dydt(ny,nt),dt(nt),y(ny),t(nt)
-   real,intent(out) :: y_out(nt)
+   real,intent(out) :: y_out(:)
    integer i,i_1
    real y1,dt1,dt2,k1,k2,k3,k4
 
@@ -1344,12 +1417,11 @@ contains
    implicit none
 
    integer,intent(in) :: n
-   real,intent(in) :: xx(n),yy(n),x
+   real,intent(in) :: xx(:),yy(:),x
    character(len=*),intent(in) :: NameCaller
    real,intent(out) :: y
    integer i,jl,ju,jm,j
-   real d   
-
+   real d,x1,minxx,maxxx  
 
 !  Make sure xx is increasing or decreasing monotonically
   do i=2,n
@@ -1367,6 +1439,18 @@ contains
       endif
   enddo
 
+!   Make sure x is inside xx range
+    minxx=minval(xx)
+    maxxx=maxval(xx)
+    x1=x
+    if (x1.lt.minxx)then
+        x1=minxx
+    endif
+    if (x1.gt.maxxx)then
+        x1=maxxx
+    endif
+
+
 ! initialize lower and upper values
 !
   jl=1
@@ -1379,7 +1463,7 @@ contains
 !
 !    now replace lower or upper limit
 !
-     if((xx(n).gt.xx(1)).eqv.(x.gt.xx(jm)))then
+     if((xx(n).gt.xx(1)).eqv.(x1.gt.xx(jm)))then
        jl=jm
      else
        ju=jm
@@ -1396,7 +1480,8 @@ contains
 !              if x.gt.xx(j).and.x.le.xx(j+1) then j=j
 !              if x.gt.xx(n) then j=n-1
    d=xx(j+1)-xx(j)
-   y=(yy(j)*(xx(j+1)-x)+yy(j+1)*(x-xx(j)))/d
+   y=0.5*(yy(j)+yy(j+1))
+   if(d.ne.0) y=(yy(j)*(xx(j+1)-x1)+yy(j+1)*(x1-xx(j)))/d
 
    end subroutine lintp
 
@@ -1451,7 +1536,7 @@ contains
    implicit none
 
    integer,intent(in) :: n
-   real,intent(in) :: xx(n),x
+   real,intent(in) :: xx(:),x
    character(len=*),intent(in) :: NameCaller
    integer,intent(out) :: j
 
