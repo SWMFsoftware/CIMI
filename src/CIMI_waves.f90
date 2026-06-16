@@ -232,7 +232,7 @@ contains
     integer,intent(in) :: iba(ip)
     real,   intent(in) :: t, AE, Kp,ro(ir,ip), density(ir,ip), Bo(ir,ip), &
          xmlto(ir,ip)
-    real :: ro1,xmlt1,r_hiss
+    real :: ro1,xmlt1,r_hiss, AE_chorus, AE_hiss
     integer :: iae,jae,i,j
     
     r_wave=2.0               ! lower boundary in RE of wave diffusion
@@ -243,14 +243,20 @@ contains
        if (Kp.lt.2.) then
           iae=1
           jae=1
+          AE_chorus = 0
+          AE_hiss = 0
        endif
        if (Kp.ge.2..and.Kp.lt.4.) then
           iae=2
           jae=2
+          AE_chorus = 100
+          AE_hiss = 100
        endif
        if (Kp.ge.4.) then
           iae=3
           jae=3
+          AE_chorus = 300
+          AE_hiss = 500
        endif
     else
        ! Determine AE level in chorus wave power data provided by Meredith
@@ -262,6 +268,8 @@ contains
        if (AE.lt.100.) jae=1
        if (AE.ge.100..and.AE.lt.500.) jae=2
        if (AE.ge.500.) jae=3
+       AE_chorus = AE
+       AE_hiss = AE
     endif
     
     ! Determine wave power (in pT^2), and ompe (fpe/fce)
@@ -280,9 +288,9 @@ contains
           xmlt1=xmlto(i,j)
           if (xmlt1.lt.0.) xmlt1=xmlt1+24.
           if (UseChorus .and.ro1.ge.r_wave) call ChorusBpower(ro1,xmlt1,iae, &
-               CHpower(i,j))
+               CHpower(i,j), AE_chorus)
           if (UseHiss.and.ro1.ge.r_wave.and.ro1.le.r_hiss) &
-               call HissBpower(ro1,xmlt1,jae,HIpower(i,j))
+               call HissBpower(ro1,xmlt1,jae,HIpower(i,j), AE_hiss)
        enddo
     enddo
     
@@ -290,17 +298,18 @@ contains
   
   
   !*****************************************************************************
-  subroutine ChorusBpower(ro,xmlt,iae,Bpower)
+  subroutine ChorusBpower(ro,xmlt,iae,Bpower, AE)
     ! Routine calculates the lower band Chorus power in (pT)^2 by Gaussian fits
     ! provided by Qiuhua.
     
     implicit none
 
-    real,    intent(in) :: ro,xmlt
+    real,    intent(in) :: ro,xmlt, AE
     integer, intent(in) :: iae
     real   , intent(out):: Bpower
     
-    real    :: xxbar,yybar,pi2,r12,sigx1,sigy1,qq
+    real    :: xxbar,yybar,pi2,r12,sigx1,sigy1,qq,amp_fit, r_xy, x_bar, y_bar,&
+               sig_x, sig_y
     real    :: Amp(3),xbar(3),sigx(3),ybar(3),sigy(3),rxy(3)
     !--------------------------------------------------------------------------
     data Amp/18951.,54237.,111104./  
@@ -309,17 +318,36 @@ contains
     data sigx/5.50,4.87,4.64/
     data sigy/1.30,1.68,1.77/
     data rxy/0.,-0.1,0./
+
+    if (AE < 300) then
+       amp_fit = 23245.615 * sqrt(0.249696 * AE + 55.73685) - 154594.057
+       r_xy = 0.000005 * (AE ** 2) - (0.0015 * AE)
+       x_bar = -0.0000556667 * (AE ** 2) + (0.00916667 * AE) + 7.46
+       y_bar = -0.00000883333 * (AE ** 2) + (0.000183333 * AE) + 6.44
+    else
+       amp_fit = 111104.
+       r_xy = 0.0
+       x_bar = 5.20
+       y_bar = 5.70
+    end if
+    if (AE < 1) then
+       sig_x = 5.50734
+       sig_y = 1.30006
+    else
+       sig_x = -0.14667 * log(AE) + 5.50734
+       sig_y = 0.0824351 * log(AE) + 1.30006
+    end if
     
     pi2=2.*cPi        
-    r12=1./sqrt(1.-rxy(iae)*rxy(iae))
-    sigx1=sigx(iae)
-    sigy1=sigy(iae)
+    r12=1./sqrt(1.-r_xy*r_xy)
+    sigx1=sig_x
+    sigy1=sig_y
     
-    xxbar=abs(xmlt-xbar(iae))
+    xxbar=abs(xmlt-x_bar)
     if (xxbar.gt.12.) xxbar=24.-xxbar
-    yybar=abs(ro-ybar(iae))
-    qq=xxbar**2/sigx1**2+yybar**2/sigy1**2-2.*rxy(iae)*xxbar*yybar/sigx1/sigy1
-    Bpower=Amp(iae)*r12/pi2/sigx1/sigy1/exp(0.5*r12*qq)
+    yybar=abs(ro-y_bar)
+    qq=xxbar**2/sigx1**2+yybar**2/sigy1**2-2.*r_xy*xxbar*yybar/sigx1/sigy1
+    Bpower=amp_fit*r12/pi2/sigx1/sigy1/exp(0.5*r12*qq)
 
     !kludge
     !Bpower=0.0
@@ -329,17 +357,18 @@ contains
 
   
   !*****************************************************************************
-  subroutine HissBpower(ro,xmlt,iae,Bpower)
+  subroutine HissBpower(ro,xmlt,iae,Bpower, AE)
     ! Routine calculates the CRRES hiss power in (pT)^2 by Gaussian fits
     ! provided by Qiuhua.
     
     implicit none
     
-    real,    intent(in) :: ro,xmlt
+    real,    intent(in) :: ro,xmlt, AE
     integer, intent(in) :: iae
     real   , intent(out):: Bpower
     
-    real xxbar,yybar,pi2,r12,sigx1,sigy1,qq
+    real xxbar,yybar,pi2,r12,sigx1,sigy1,qq, amp_fit,r_xy, x_bar, y_bar,&
+               sig_x, sig_y
     real Amp(3),xbar(3),sigx(3),ybar(3),sigy(3),rxy(3)
     
     data Amp/37964.,71459.,130742./          
@@ -348,17 +377,33 @@ contains
     data sigx/6.08,4.87,5.64/
     data sigy/0.81,1.31,1.32/
     data rxy/0.,0.,0./
+
+    if (AE < 500) then
+       amp_fit = 899.89849 * sqrt(30.45545 * AE + 497.35063) + 17895.0403
+       r_xy = 0.0
+       x_bar = 0.0000808 * (AE ** 2) - (0.04188 * AE) + 15.20
+       y_bar = 0.00793319 * sqrt(9.60314 * AE) + 3.00148
+       sig_x = 0.00002805 * (AE ** 2) - (0.014905 * AE) + 6.08
+       sig_y = -0.00000995 * (AE ** 2) + (0.005995 * AE) + 0.81
+    else
+       amp_fit = 130742.
+       r_xy = 0.0
+       x_bar = 14.46
+       sig_x = 5.64
+       sig_y = 1.32
+    end if
     
+
     pi2=2.*cPi          
-    r12=1./sqrt(1.-rxy(iae)*rxy(iae))
-    sigx1=sigx(iae)
-    sigy1=sigy(iae)
+    r12=1./sqrt(1.-r_xy*r_xy)
+    sigx1=sig_x
+    sigy1=sig_y
     
-    xxbar=abs(xmlt-xbar(iae))
+    xxbar=abs(xmlt-x_bar)
     if (xxbar.gt.12.) xxbar=24.-xxbar 
-    yybar=abs(ro-ybar(iae))
-    qq=xxbar**2/sigx1**2+yybar**2/sigy1**2-2.*rxy(iae)*xxbar*yybar/sigx1/sigy1
-    Bpower=Amp(iae)*r12/pi2/sigx1/sigy1/exp(0.5*r12*qq)
+    yybar=abs(ro-y_bar)
+    qq=xxbar**2/sigx1**2+yybar**2/sigy1**2-2.*r_xy*xxbar*yybar/sigx1/sigy1
+    Bpower=amp_fit*r12/pi2/sigx1/sigy1/exp(0.5*r12*qq)
 
 
     !kludge
