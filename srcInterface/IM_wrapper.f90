@@ -17,6 +17,7 @@ module IM_wrapper
   ! Coupling with IE
   public:: IM_get_info_for_ie
   public:: IM_get_for_ie
+  public:: IM_get_for_ie_mpi
   public:: IM_put_from_ie_mpi
   public:: IM_put_from_ie
   public:: IM_put_from_ie_complete
@@ -1435,6 +1436,19 @@ contains
     end do
 
   end subroutine IM_get_for_ie
+  !============================================================================
+  subroutine IM_get_for_ie_mpi(nTheta, nPhi, Buffer_IIV, &
+                                              nVarImIe, NameVarImIe_V)
+
+    integer, intent(in) :: nTheta, nPhi, nVarImIe
+    real, intent(out) :: Buffer_IIV(nTheta, nPhi, nVarImIe)
+    character(len=3), intent(out) :: NameVarImIe_V(nVarImIe)
+
+    character(len=*), parameter :: NameSub = 'IM_get_for_ie_mpi'
+    !-------------------------------------------------------------------------
+    call CON_stop(NameSub//' cannot be used by CIMI!')
+
+  end subroutine IM_get_for_ie_mpi
   !============================================================================
 end module IM_wrapper
 !==============================================================================
