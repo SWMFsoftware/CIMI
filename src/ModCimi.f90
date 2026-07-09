@@ -31,11 +31,11 @@ Module ModCimi
   real, allocatable :: &
        preF(:,:,:,:), preP(:,:,:,:), Eje1(:,:,:) ! presipitation output
   integer, parameter :: &
-       nOperator = 9, OpDrift_ = 1, OpBfield_ = 2, OpChargeEx_ = 3, &
+       nOperator = 10, OpDrift_ = 1, OpBfield_ = 2, OpChargeEx_ = 3, &
        OpWaves_ = 4, OpStrongDiff_ = 5, OpDecay_ = 6, &
-       OpLossCone_ = 7, OpFLC_ = 8, OpLossCone0_ = 9
+       OpLossCone_ = 7, OpFLC_ = 8, OpLossCone0_ = 9, OpFLC0_ = 10
 ! Note order and number of operators has been changed Waves are added
-! and OpLossCone0_=8 is previous in time OpLossCone
+! and OpLossCone0_=9 is previous in time OpLossCone, same for OpFLC0_=10
 
 ! Variables brought over from Module BoundaryCheck in
 ! ModCimiBoundary. neng can now have a variable size making it

@@ -3152,8 +3152,10 @@ subroutine cimi_precip_calc(dsec)
 
   implicit none
 
-  real:: dsec, dlel, dplel, area, area1, Asec
+  real:: dsec, dlel, dplel, dlel_lc, dplel_lc, dlel_flc, dplel_flc, area, &
+         area1, Asec
   integer:: n, i, j, k
+  logical :: useFlc, useLossCone
   !----------------------------------------------------------------------------
   preF(1:nspec,1:np,1:nt,1:neng+2)=0.
   preP(1:nspec,1:np,1:nt,1:neng+2)=0.
@@ -3167,9 +3169,21 @@ subroutine cimi_precip_calc(dsec)
            area=area1*cos(xlatr(i))*dlat(i)            ! area in m^2
            Asec=area*dsec
            do k=1,neng+2
-              dlel=xlel(n,i,j,k,OpLossCone_)-xlel(n,i,j,k,OpLossCone0_)
-              dplel=plel(n,i,j,k,OpLossCone_)-plel(n,i,j,k,OpLossCone0_)
-              if (dlel < 0..and.dplel < 0.) then
+              dlel_lc=xlel(n,i,j,k,OpLossCone_)-xlel(n,i,j,k,OpLossCone0_)
+              dplel_lc=plel(n,i,j,k,OpLossCone_)-plel(n,i,j,k,OpLossCone0_)
+              dlel_flc=xlel(n,i,j,k,OpFLC_)-xlel(n,i,j,k,OpFLC0_)
+              dplel_flc=plel(n,i,j,k,OpFLC_)-plel(n,i,j,k,OpFLC0_)
+              useFlc = (dlel_flc < 0. .and. dplel_flc < 0.)
+              useLossCone = (dlel < 0. .and. dplel < 0.)
+              dlel = 0
+              dplel = 0
+              if (useLossCone) then
+                   dlel = dlel + dlel_lc
+                   dplel = dplel + dplel_lc
+              if (useFlc) then
+                   dlel = dlel + dlel_flc
+                   dplel = dplel + dplel_flc
+              if (useLossCone .or. useFlc) then
                  preF(n,i,j,k)=-dlel*1.6e-13/Asec     ! E flux in mW/m2
                  preP(n,i,j,k)=-dplel/Asec            ! N flux in 1/m2/s
 
@@ -3185,6 +3199,9 @@ subroutine cimi_precip_calc(dsec)
   ! Overwrites the OpLossCone0_ array with the current time information.
   xlel(:,:,:,:,OpLossCone0_) = xlel(:,:,:,:,OpLossCone_)
   plel(:,:,:,:,OpLossCone0_) = plel(:,:,:,:,OpLossCone_)
+  ! Do same for OpFLC0_ array
+  xlel(:,:,:,:,OpFLC0_) = xlel(:,:,:,:,OpFLC_)
+  plel(:,:,:,:,OpFLC0_) = plel(:,:,:,:,OpFLC_)
 
 end subroutine cimi_precip_calc
 !==============================================================================
