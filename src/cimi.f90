@@ -1018,7 +1018,7 @@ subroutine cimi_init
   ! CIMI K grid, xk: Minimum value is 40 T^0.5 / m
   ! (~89 degrees at L = 1 R_E or ~87 degrees at L = 7.)
 
-  rsi = 1.47
+  rsi = 1.322
   xk( 0 ) = 40.
   rs1 = ( rsi - 1. ) / SQRT( rsi )
 
