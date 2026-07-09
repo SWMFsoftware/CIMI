@@ -2322,7 +2322,8 @@ subroutine CalcDecay_cimi(deltaT)
   !----------------------------------------------------------------------------
   DecayRate = EXP( -( deltaT / DecayTimescale ) )
 
-  f2(1:nspec-1,:,:,:,:) = f2(1:nspec-1,:,:,:,:) * DecayRate
+  f2(1:nspec-1,:,MinLonPar:MaxLonPar,:,:) = &
+         f2(1:nspec-1,:,MinLonPar:MaxLonPar,:,:) * DecayRate
 
 end subroutine CalcDecay_cimi
 !==============================================================================
