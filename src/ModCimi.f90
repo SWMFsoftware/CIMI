@@ -71,7 +71,8 @@ contains
          Pressure_IC(nspec,np,nt),    &
          PressurePar_IC(nspec,np,nt), &
          FAC_C(np,nt),                &
-         Bmin_C(np,nt))
+         Bmin_C(np,nt),              &
+         d4Element_C(nspec,np,nm,nk))
     ! minimum B field along each field line
     ! passed from GM to IM, now as an output of IM
 

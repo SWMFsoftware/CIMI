@@ -50,7 +50,7 @@ Module ModCimiGrid
 
   real :: xlatr(np), xmlt(nt), dlat(np1), sinAo(npit)
 
-  real :: d4Element_C(nspec,np,nm,nk) !4D element (dlat*dphi*dmm*dk)
+  real, allocatable :: d4Element_C(:,:,:,:) !4D element (dlat*dphi*dmm*dk)
 
   real :: varL(0:np+1)=0.,&
           dvarL=1.,&

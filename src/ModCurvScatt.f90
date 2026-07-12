@@ -11,11 +11,11 @@ module ModCurvScatt
   logical,public :: DoFlcLoss
   
   real,dimension(ir,ip) :: pc_flc,zeta1,zeta2
-  real, public :: tau_flc(nspec,ir,ip),&
-                  Daa_flc(nspec,ir,ip,iw,ik)
+  real, public, allocatable :: tau_flc(:,:,:), &
+                    Daa_flc(:,:,:,:,:)
 
   ! index of K, 2nd adiabatic invariant at the loss cone pitch-angle.
-  integer :: m_lc(ir,ip,ik) 
+  integer, allocatable :: m_lc(:,:,:) 
 
   ! number of points used in curvature calc. The "half" is really how many on
   ! each side of ibmin with the ibmin point in the middle
@@ -48,6 +48,10 @@ contains
     real Rc0,Rc1,Rc2,ds0,ds1,ds2,drC1,drC2,B0,dB1,dB2
     real :: eVtoKeV=1.e-3
     integer ::  is,is1,is2, iPoint
+
+    ! allocate needed variables
+    if(.not. allocated(tau_flc)) allocate(tau_flc(nspec,ir,ip),&
+                    Daa_flc(nspec,ir,ip,iw,ik),  m_lc(ir,ip,ik))
 
     !When r less than 4Re (or whatever value) just use the dipole
     !curvature scattering values

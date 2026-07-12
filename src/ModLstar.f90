@@ -54,8 +54,7 @@ Module ModLstar
   logical	:: &
        DoVerboseLstar = .false.
   
-  real	:: &
-       Lstar_C(np,nt), Lstar_max, Lstarm(np,nt,nk), Lstarm_max(nk)
+  real, allocatable :: Lstar_C(:,:), Lstar_max, Lstarm(:,:,:), Lstarm_max(:)
   
   public :: calc_Lstar1
   public :: calc_Lstar2

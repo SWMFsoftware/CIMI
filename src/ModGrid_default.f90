@@ -39,7 +39,7 @@ Module ModCimiGrid
           varNpower=1.5
   logical :: DoDefineVarNpower = .false.
 
-  real :: d4Element_C(nspec,np,nm,nk) !4D element (dlat*dphi*dmm*dk)
+  real, allocatable :: d4Element_C(:,:,:,:) !4D element (dlat*dphi*dmm*dk)
 
   ! Defines the outer boundary maximum distance.
   real	  :: rb = 10.0

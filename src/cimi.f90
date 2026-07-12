@@ -51,7 +51,7 @@ subroutine cimi_run(delta_t)
   use ModCoupleSami, ONLY:	DoCoupleSami
   use ModIndicesInterfaces
   use ModLstar,	ONLY:	&
-       Lstar_C, Lstarm, &
+       Lstar_C, Lstarm, Lstar_max, Lstarm_max, &
        calc_Lstar1, calc_Lstar2
   use ModPlasmasphere, ONLY:	&
        UseCorePsModel, PlasSpinUpTime, init_plasmasphere, &
@@ -76,11 +76,11 @@ subroutine cimi_run(delta_t)
   integer:: n, nstep
   integer, save :: ib0(nt)
   real:: delta_t
-  real:: flux(nspec,np,nt,neng,npit), psd(nspec,np,nt,nm,nk), &
-       vlEa(nspec,np,nt,neng,npit), vpEa(nspec,np,nt,neng,npit)
-  real:: achar(nspec,np,nt,nm,nk)
-  real:: vl(nspec,0:np,nt,nm,nk)=0.0, vp(nspec,0:np,nt,nm,nk)=0.0, &
-       fb(nspec,nt,nm,nk)
+  real, allocatable :: flux(:,:,:,:,:), psd(:,:,:,:,:), &
+        vlEa(:,:,:,:,:), vpEa(:,:,:,:,:)
+  real, allocatable :: achar(:,:,:,:,:)
+  real, allocatable :: vl(:,:,:,:,:), vp(:,:,:,:,:), &
+        fb(:,:,:,:)
   integer:: iLat, iLon, iSpecies, iSat, iOperator
   logical:: IsFirstCall =.true.
   real::  AE_temp = 0., Kp_temp = 0.
@@ -92,6 +92,13 @@ subroutine cimi_run(delta_t)
 
   integer:: tmp_I(6)
   !----------------------------------------------------------------------------
+   allocate(flux(nspec,np,nt,neng,npit), psd(nspec,np,nt,nm,nk), &
+        vlEa(nspec,np,nt,neng,npit), vpEa(nspec,np,nt,neng,npit))
+   allocate(vl(nspec,0:np,nt,nm,nk), vp(nspec,0:np,nt,nm,nk), &
+        fb(nspec,nt,nm,nk), achar(nspec,np,nt,nm,nk))
+   vl = 0.0
+   vp = 0.0
+  
   dt=dtmax
   if (dt==0) then
      nstep = 0
@@ -131,6 +138,10 @@ subroutine cimi_run(delta_t)
         call gather_field_trace
      endif
 
+     ! Allocate lstar variables on all processors
+     if(.not. allocated(Lstar_C)) allocate(Lstar_C(np,nt), Lstar_max, &
+          Lstarm(np,nt,nk), Lstarm_max(nk))
+
      ! Trace lstar variables for initial_f2.
      if ( iProc == 0 ) then
 
@@ -147,7 +158,7 @@ subroutine cimi_run(delta_t)
      ! Broadcast Lstar variable to all PEs
      if (nProc > 1 ) then
         call MPI_bcast(Lstar_C,np*nt,MPI_REAL,0,iComm,iError)
-        call MPI_bcast(Lstarm,np*nt*nm,MPI_REAL,0,iComm,iError)
+        call MPI_bcast(Lstarm,np*nt*nk,MPI_REAL,0,iComm,iError)
      endif
 
   endif
@@ -713,6 +724,9 @@ subroutine cimi_run(delta_t)
      endif
 
   endif
+
+  deallocate(flux, psd, vlEa, vpEa)
+  deallocate(vl, vp, fb, achar)
 
 end subroutine Cimi_run
 !==============================================================================
