@@ -3142,7 +3142,7 @@ subroutine cimi_precip_calc(dsec)
   use ModCimi,			ONLY:	&
        preF, preP, Eje1, &
        xlel => eChangeOperator_VICI, plel => pChangeOperator_VICI, &
-       OpLossCone_, OpLossCone0_
+       OpLossCone_, OpLossCone0_, OpFLC_, OpFLC0_
   use ModCimiTrace, 		ONLY:	iba
   use ModCimiGrid,		ONLY:	&
        nProc,iProc,iComm,MinLonPar,MaxLonPar,nt,np,neng,xlatr,xmlt,dlat
@@ -3180,9 +3180,11 @@ subroutine cimi_precip_calc(dsec)
               if (useLossCone) then
                    dlel = dlel + dlel_lc
                    dplel = dplel + dplel_lc
+              end if
               if (useFlc) then
                    dlel = dlel + dlel_flc
                    dplel = dplel + dplel_flc
+              end if
               if (useLossCone .or. useFlc) then
                  preF(n,i,j,k)=-dlel*1.6e-13/Asec     ! E flux in mW/m2
                  preP(n,i,j,k)=-dplel/Asec            ! N flux in 1/m2/s
