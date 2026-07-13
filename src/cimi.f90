@@ -1865,30 +1865,32 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
 
               if(nProc>1 ) then
 
-                 ! Prepare the buffer on each process to send
-                 buf2D_send( :, 1 : ( MaxLonPar - MinLonPar + 1 ) ) = &
-                      f2d( :, MinLonPar : MaxLonPar )
-                 ! Gather buffer from all processes
-                 call MPI_ALLGATHERV( buf2D_send, iSendCount, MPI_REAL, &
-                      buf2D_recv, iReceiveCount_P, iDisplacement_P, &
-                      MPI_REAL, iComm, iError )
-                 ! Store the entire buffer on each process
-                 f2d( :, : ) = buf2D_recv( :, : )
+                 if (nGhostLonLeft == 1 .and. nGhostLonRight == 2) then
+                    call MPI_Sendrecv( &
+                        f2d(1:np,MaxLonPar-nGhostLonLeft+1:MaxLonPar), &
+                        nGhostLonLeft*np, MPI_REAL, iProcRight, 3, &
+                        f2d(1:np,iLonLeft-nGhostLonLeft+1:iLonLeft),    &
+                        nGhostLonLeft*np, MPI_REAL, iProcLeft,  3, &
+                        iComm, iStatus_I, iError)
 
-                 ! Old MPI_Send and receive calls for ghost cells.
-!!$                 call MPI_send(f2d(1:np,MaxLonPar-nGhostLonLeft+1:MaxLonPar),&
-!!$                      nGhostLonLeft*np,&
-!!$                      MPI_REAL,iProcRight,3,iComm,iError)
-!!$                 call MPI_send(f2d(1:np,MinLonPar:MinLonPar+nGhostLonRight-1),&
-!!$                      nGhostLonRight*np,MPI_REAL,&
-!!$                      iProcLeft,4,iComm,iError)
-!!$                 !recieve f2d ghostcells from neigboring Procs
-!!$                 call MPI_recv(f2d(1:np,iLonLeft-nGhostLonLeft+1:iLonLeft),&
-!!$                      nGhostLonLeft*np,MPI_REAL,&
-!!$                      iProcLeft,3,iComm,iStatus_I,iError)
-!!$                 call MPI_recv(f2d(1:np,iLonRight:iLonRight+nGhostLonRight-1),&
-!!$                      nGhostLonRight*np,MPI_REAL,&
-!!$                      iProcRight,4,iComm,iStatus_I,iError)
+                    call MPI_Sendrecv( &
+                        f2d(1:np,MinLonPar:MinLonPar+nGhostLonRight-1), &
+                        nGhostLonRight*np, MPI_REAL, iProcLeft,  4, &
+                        f2d(1:np,iLonRight:iLonRight+nGhostLonRight-1), &
+                        nGhostLonRight*np, MPI_REAL, iProcRight, 4, &
+                        iComm, iStatus_I, iError)
+
+                 else
+                    ! Prepare the buffer on each process to send
+                    buf2D_send( :, 1 : ( MaxLonPar - MinLonPar + 1 ) ) = &
+                        f2d( :, MinLonPar : MaxLonPar )
+                    !! Gather buffer from all processes
+                    call MPI_ALLGATHERV( buf2D_send, iSendCount, MPI_REAL, &
+                        buf2D_recv, iReceiveCount_P, iDisplacement_P, &
+                        MPI_REAL, iComm, iError )
+                    !! Store the entire buffer on each process
+                    f2d( :, : ) = buf2D_recv( :, : )
+                 end if
             
                  !send fb0 ghostcells
                  call MPI_send(fb0(MinLonPar:MinLonPar+nGhostLonRight-1),&
