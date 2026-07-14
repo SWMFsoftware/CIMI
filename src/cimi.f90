@@ -1032,8 +1032,10 @@ subroutine cimi_init
   ! CIMI K grid, xk: Minimum value is 40 T^0.5 / m
   ! (~89 degrees at L = 1 R_E or ~87 degrees at L = 7.)
 
-  rsi = 1.322
+
   xk( 0 ) = 40.
+  xk(nk+1) = 4e6
+  rsi = (xk(nk+1)/xk(0))**(1/(real(nk)+1))
   rs1 = ( rsi - 1. ) / SQRT( rsi )
 
   ! In the following sutup:
@@ -1042,8 +1044,6 @@ subroutine cimi_init
      xk( i ) = xk( i - 1 ) * rsi
      dk( i ) = xk( i ) * rs1
   enddo
-
-  xk( nk + 1 ) = xk( nk ) * rsi
 
   ! Calculate Lfactor, which is used in subroutine driftV
   do i=0,np+1
