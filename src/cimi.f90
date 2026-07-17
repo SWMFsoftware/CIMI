@@ -3190,7 +3190,7 @@ subroutine cimi_precip_calc(dsec)
               dlel_flc=xlel(n,i,j,k,OpFLC_)-xlel(n,i,j,k,OpFLC0_)
               dplel_flc=plel(n,i,j,k,OpFLC_)-plel(n,i,j,k,OpFLC0_)
               useFlc = (dlel_flc < 0. .and. dplel_flc < 0.)
-              useLossCone = (dlel < 0. .and. dplel < 0.)
+              useLossCone = (dlel_lc < 0. .and. dplel_lc < 0.)
               dlel = 0
               dplel = 0
               if (useLossCone) then

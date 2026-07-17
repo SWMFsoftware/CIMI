@@ -755,16 +755,17 @@ contains
          SUM( rbsumglobal ) * 1000. * cElectronCharge * 10 ** ( 9. )
 
     ! write out the operator changes
+    ! don't write previous time step operators (OpLossCone0, OpFLC0)
     do iSpecies=1,nSpecies
        if (iSpecies < nSpecies) then
           write(UnitTmp_,'(12es18.08E3)',ADVANCE='NO') &
                rbsumglobal(iSpecies), rcsumglobal(iSpecies), &
-               eChangeGlobal(iSpecies,1:nOperator-1), &
+               eChangeGlobal(iSpecies,1:nOperator-2), &
                driftin(iSpecies), driftout(iSpecies)
        else
           write(UnitTmp_,'(12es18.08E3)') &
                rbsumglobal(iSpecies), rcsumglobal(iSpecies), &
-               eChangeGlobal(iSpecies,1:nOperator-1), &
+               eChangeGlobal(iSpecies,1:nOperator-2), &
                driftin(iSpecies), driftout(iSpecies)
        endif
     enddo
