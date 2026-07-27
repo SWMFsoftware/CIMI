@@ -18,7 +18,8 @@ contains
          Ppar_IC, Bmin_C, &
          eTimeAccumult_ICI, eChangeOperator_VICI, eChangeGlobal, &
          pTimeAccumult_ICI, pChangeOperator_VICI, &
-         driftin, driftout, rbsumGlobal, rcsumGlobal, nOperator
+         driftin, driftout, rbsumGlobal, rcsumGlobal, nOperator, &
+         PreF, PreP, Eje1
     use ModCimiTrace, ONLY: iba, iw2
     use ModGmCimi,    ONLY: Den_IC
     use ModIoUnit,    ONLY: UnitTmp_
@@ -55,6 +56,9 @@ contains
        read(UnitTmp_) driftin
        read(UnitTmp_) driftout
        read(UnitTmp_) iw2
+       read(UnitTmp_) PreF
+       read(UnitTmp_) PreP
+       read(UnitTmp_) Eje1
        call close_file
     end if
     
@@ -84,6 +88,9 @@ contains
        call MPI_bcast(driftin, nspec, MPI_REAL, 0, iComm, iError)
        call MPI_bcast(driftout, nspec, MPI_REAL, 0, iComm, iError)
        call MPI_bcast(iw2,nk*nspec,MPI_INTEGER,0,iComm,iError)
+       call MPI_bcast(PreF, nspec*np*nt*(neng+2), MPI_REAL, 0, iComm, iError)
+       call MPI_bcast(PreP, nspec*np*nt*(neng+2), MPI_REAL, 0, iComm, iError)
+       call MPI_bcast(Eje1, nspec*np*nt, MPI_REAL, 0, iComm, iError)
     endif
     
   end subroutine cimi_read_restart
@@ -96,7 +103,8 @@ contains
          FAC_C, Ppar_IC, Bmin_C, &
          eTimeAccumult_ICI, eChangeOperator_VICI, eChangeGlobal, &
          pTimeAccumult_ICI, pChangeOperator_VICI, &
-         driftin, driftout, rbsumGlobal, rcsumGlobal, nOperator
+         driftin, driftout, rbsumGlobal, rcsumGlobal, nOperator, &
+         PreF, PreP, Eje1
     use ModCimiTrace,ONLY: iba,iw2    
     use ModGmCimi,    ONLY: Den_IC
     use ModIoUnit,    ONLY: UnitTmp_
@@ -176,6 +184,13 @@ contains
                MPI_REAL, 0, iComm, iError)
           if (iProc==0) Ppar_IC(iSpecies,:,:)=BufferRecv_C(:,:)
 
+          ! Gather Average Energy
+          BufferSend_C(:,:)= Eje1(iSpecies,:,:)
+          call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
+               MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
+               MPI_REAL, 0, iComm, iError)
+          if (iProc==0) Eje1(iSpecies,:,:)=BufferRecv_C(:,:)
+
           do iEnergy = 1, neng + 2
                 
              !gather eTimeAccumult_ICI
@@ -195,6 +210,24 @@ contains
                   MPI_REAL, 0, iComm, iError)
              if (iProc==0) &
                   pTimeAccumult_ICI(iSpecies,:,:,iEnergy)=BufferRecv_C(:,:)
+
+             ! Gather Precipitation Energy Flux
+             BufferSend_C(:,:)=&
+                    PreF(iSpecies,:,:,iEnergy)
+             call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount,&
+                  MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
+                  MPI_REAL, 0, iComm, iError)
+             if (iProc==0) &
+                    PreF(iSpecies,:,:,iEnergy)=BufferRecv_C(:,:)
+
+             ! Gather Precipitation Number Flux
+             BufferSend_C(:,:)=&
+                    PreP(iSpecies,:,:,iEnergy)
+             call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount,&
+                  MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
+                  MPI_REAL, 0, iComm, iError)
+             if (iProc==0) &
+                    PreP(iSpecies,:,:,iEnergy)=BufferRecv_C(:,:)
 
              do iOperator = 1, nOperator
 
@@ -261,6 +294,9 @@ contains
        write(UnitTmp_) driftin
        write(UnitTmp_) driftout
        write(UnitTmp_) iw2
+       write(UnitTmp_) PreF
+       write(UnitTmp_) PreP
+       write(UnitTmp_) Eje1
        call close_file
 
        call open_file(file=trim(NameRestartOutDir)//'restart.H', &
