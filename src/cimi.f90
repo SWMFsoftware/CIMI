@@ -76,11 +76,6 @@ subroutine cimi_run(delta_t)
   integer:: n, nstep
   integer, save :: ib0(nt)
   real:: delta_t
-  real, allocatable :: flux(:,:,:,:,:), psd(:,:,:,:,:), &
-        vlEa(:,:,:,:,:), vpEa(:,:,:,:,:)
-  real, allocatable :: achar(:,:,:,:,:)
-  real, allocatable :: vl(:,:,:,:,:), vp(:,:,:,:,:), &
-        fb(:,:,:,:)
   integer:: iLat, iLon, iSpecies, iSat, iOperator
   logical:: IsFirstCall =.true.
   real::  AE_temp = 0., Kp_temp = 0.
@@ -92,13 +87,6 @@ subroutine cimi_run(delta_t)
 
   integer:: tmp_I(6)
   !----------------------------------------------------------------------------
-   allocate(flux(nspec,np,nt,neng,npit), psd(nspec,np,nt,nm,nk), &
-        vlEa(nspec,np,nt,neng,npit), vpEa(nspec,np,nt,neng,npit))
-   allocate(vl(nspec,0:np,nt,nm,nk), vp(nspec,0:np,nt,nm,nk), &
-        fb(nspec,nt,nm,nk), achar(nspec,np,nt,nm,nk))
-   vl = 0.0
-   vp = 0.0
-  
   dt=dtmax
   if (dt==0) then
      nstep = 0
@@ -724,9 +712,6 @@ subroutine cimi_run(delta_t)
      endif
 
   endif
-
-  deallocate(flux, psd, vlEa, vpEa)
-  deallocate(vl, vp, fb, achar)
 
 end subroutine Cimi_run
 !==============================================================================

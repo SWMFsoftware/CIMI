@@ -48,6 +48,14 @@ Module ModCimi
   real, allocatable :: &
        Part_phot(:,:,:,:), dif_q3(:,:,:)
 
+  ! Values brought over from cimi_run, need to be allocated to reduce
+  ! stack size
+  real, allocatable :: flux(:,:,:,:,:), psd(:,:,:,:,:), &
+        vlEa(:,:,:,:,:), vpEa(:,:,:,:,:)
+  real, allocatable :: achar(:,:,:,:,:)
+  real, allocatable :: vl(:,:,:,:,:), vp(:,:,:,:,:), &
+        fb(:,:,:,:)
+
 ! in CIMI: eChangeOperator=xle(ns,ir,ip,je+2) Here we create one array
 !   for all operators (plus one dimension)
 !   eTimeAccumulatv=esum(ns,ir,ip,je+2) No need for additional
@@ -92,6 +100,12 @@ contains
     preP = 0.0
     preF = 0.0
     Eje1 = 0.0
+    allocate(flux(nspec,np,nt,neng,npit), psd(nspec,np,nt,nm,nk), &
+        vlEa(nspec,np,nt,neng,npit), vpEa(nspec,np,nt,neng,npit))
+    allocate(vl(nspec,0:np,nt,nm,nk), vp(nspec,0:np,nt,nm,nk), &
+        fb(nspec,nt,nm,nk), achar(nspec,np,nt,nm,nk))
+    vl = 0.0
+    vp = 0.0
 
     allocate(energy(nspec,neng), Ebound(nspec,neng), delE(nspec,neng))
 
