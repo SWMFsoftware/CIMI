@@ -20,7 +20,8 @@ subroutine cimi_run(delta_t)
        eChangeOperator_VICI, nOperator, &
        eChangeLocal, eChangeGlobal, &
        DoCalcPrecip, DtCalcPrecip, &
-       vdr_q3, eng_q3, vexb, dif_q3, Part_phot
+       vdr_q3, eng_q3, vexb, dif_q3, Part_phot, &
+       achar, vl, vp, fb, vlEa, vpEa, flux, psd
   use ModCimiPlanet, ONLY: &
        re_m, dipmom, Hiono, rc, nspec, amu_I, dFactor_I, tFactor_I
   use ModCimiTrace, ONLY: &

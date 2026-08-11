@@ -9,7 +9,7 @@ Module ModCimiGrid
   
   ! define dimensions of CIMI grids
   integer,parameter :: np1=76,nt1=48,npit1=18!,nspec1=1  
-  integer,parameter :: nm=48,nk=40 ! dimension of CIMI magnetic moment and K
+  integer,parameter :: nm=48,nk=29 ! dimension of CIMI magnetic moment and K
 
   integer,parameter :: np=76    ! dimension of the CIMI latitude grid
   integer,parameter :: nt=48    ! dimension of the CIMI local-time grid
