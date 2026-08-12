@@ -988,10 +988,23 @@ exp(-(deltaT/DecayTimescale)) \end{verbatim} This ad hoc decay can
 improve agreement with observed recovery after magnetic storms.  The
 default DecayTimescale value of 10 hours as above seems to be close to
 optimal.  The decay term is NOT applied to the electron PSD since both
-ring current and radiation belt electrons are represented.  Rapid loss
-of electron PSD is controlled with the #STRONGDIFFUSION routine.
+ring current and radiation belt electrons are represented. This can be
+changed using the #ELECTRONDECAY command. Rapid loss of electron PSD is 
+controlled with the #STRONGDIFFUSION routine.
 
 The default is UseDecay false.
+
+</command>
+
+<command name="ELECTRONDECAY">
+  <parameter name="UseElectronDecay" type="logical" default="F"/>
+
+#ELECTRONDECAY
+F      UseElectronDecay
+
+If UseElectronDecay is true, adds exponential decay to electrons if 
+#DECAY is also used. This should not be used if the radiation belts are a 
+primary interest of the simulation. 
 
 </command>
 

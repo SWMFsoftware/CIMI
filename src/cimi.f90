@@ -2310,7 +2310,7 @@ subroutine CalcDecay_cimi(deltaT)
   ! Version History:
   ! 2018-02-20 CMK: Added and tested
 
-  use ModCimi,       	ONLY: f2, DecayTimescale
+  use ModCimi,       	ONLY: f2, DecayTimescale, UseElectronDecay
   use ModCimiGrid,   	ONLY: np, nt, nm, nk, MinLonPar, MaxLonPar
   use ModCimiPlanet, 	ONLY: nspec
   use ModCimiTrace, 	ONLY: iba
@@ -2319,13 +2319,16 @@ subroutine CalcDecay_cimi(deltaT)
 
   real, intent(in) :: deltaT
 
-  integer:: n,i,j,k,m
+  integer:: n,i,j,k,m, maxSpec
   real:: DecayRate
   !----------------------------------------------------------------------------
   DecayRate = EXP( -( deltaT / DecayTimescale ) )
+  
+  maxSpec = nspec - 1
+  if (UseElectronDecay) maxSpec = nspec
 
-  f2(1:nspec-1,:,MinLonPar:MaxLonPar,:,:) = &
-         f2(1:nspec-1,:,MinLonPar:MaxLonPar,:,:) * DecayRate
+  f2(1:maxSpec,:,MinLonPar:MaxLonPar,:,:) = &
+         f2(1:maxSpec,:,MinLonPar:MaxLonPar,:,:) * DecayRate
 
 end subroutine CalcDecay_cimi
 !==============================================================================

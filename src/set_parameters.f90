@@ -15,7 +15,7 @@ subroutine CIMI_set_parameters(NameAction)
   use ModCimi,		 ONLY: UseMcLimiter, BetaLimiter, time, Pmin, &
        IsStandAlone, UseStrongDiff, &
        dt, dtmax, DoCalcPrecip, DtCalcPrecip, IsStrictDrift,&
-       UseDecay, DecayTimescale, UseFLC
+       UseDecay, DecayTimescale, useElectronDecay, UseFLC
   use ModCimiRestart,	 ONLY: IsRestart, DtSaveRestart
   use ModCimiPlanet,	 ONLY: nspec, dFactor_I, tFactor_I
   use ModImTime,	 ONLY: iStartTime_I, TimeMax
@@ -758,6 +758,8 @@ subroutine CIMI_set_parameters(NameAction)
         call read_var('UseDecay',UseDecay)
         if ( UseDecay ) &
              call read_var('DecayTimescale in seconds', DecayTimescale)
+     case('#ELECTRONDECAY')
+        call read_var('UseElectronDecay', UseElectronDecay)
 
      case('#FLC')
         call read_var('UseFLC',UseFLC)

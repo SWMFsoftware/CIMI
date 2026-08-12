@@ -8,7 +8,7 @@ Module ModCimi
   real    :: dt=1., dtmax=1. ! typical time step of cimi
   real    :: Time = 0.0
   logical :: UseMcLimiter = .false., UseStrongDiff = .false., UseDecay =.false.
-  logical :: UseFLC=.false.
+  logical :: UseFLC=.false., useElectronDecay=.false.
   real    :: BetaLimiter = 1.5
 
   real    :: Pmin = 1e-6
