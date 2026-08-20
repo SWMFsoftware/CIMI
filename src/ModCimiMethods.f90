@@ -747,6 +747,8 @@ subroutine cimi_init
   use ModCimi, 		ONLY: energy, Ebound, dele
   use ModTimeConvert,	ONLY: time_int_to_real, time_real_to_int
   use ModMpi
+  use ModAurora, ONLY: init_mod_aurora
+
 
   implicit none
 
@@ -764,6 +766,8 @@ subroutine cimi_init
   real:: d2
 
   !----------------------------------------------------------------------------
+
+  call init_mod_aurora
 
   ! Set up proc distribution
 

@@ -774,6 +774,23 @@ Default values are shown.
 
 </command>
 
+<command name="PRECIPITATION">
+  <parameter name="UseAltitudePrecip" type=logical />
+
+#PRECIPITATION
+F      UseAltitudePrecip
+
+if true, CIMI will calculate precipitation fluxes based on an altitude profile
+of the thermosphere and the resulting ionization from the Fang et al. 2010 and
+2013 models. Currently the density profile is fixed, and was obtained from an
+8 hour average of densities at midnight during equinox using GITM. 
+
+If false, CIMI calculates precipitation for particles with a bounce point 
+below 120 km. 
+Default value is shown. 
+
+</command>
+
 <command name="MINIMUMPRESSURETOGM">
   <parameter name="MinimumPressureToGM" type="real" />
 
@@ -1005,6 +1022,7 @@ F      UseElectronDecay
 If UseElectronDecay is true, adds exponential decay to electrons if 
 #DECAY is also used. This should not be used if the radiation belts are a 
 primary interest of the simulation. 
+Default value is shown.
 
 </command>
 

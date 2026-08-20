@@ -11,7 +11,8 @@ subroutine CIMI_set_parameters(NameAction)
        DoLstarInitialization
   use ModCimiPlot
   use ModCimiTrace,	 ONLY: UseEllipse, UseSmooth, UseCorotation, &
-       UsePotential, SmoothWindow, imod, iLatTest, iLonTest, DeltaRMax,xmltlim
+       UsePotential, SmoothWindow, imod, iLatTest, iLonTest, DeltaRMax, &
+       xmltlim, UseAltitudePrecip
   use ModCimi,		 ONLY: UseMcLimiter, BetaLimiter, time, Pmin, &
        IsStandAlone, UseStrongDiff, &
        dt, dtmax, DoCalcPrecip, DtCalcPrecip, IsStrictDrift,&
@@ -842,13 +843,10 @@ subroutine CIMI_set_parameters(NameAction)
      case('#SETBOUNDARYPARAMS')
         call read_var('DeltaRMax', DeltaRMax)
         call read_var('DeltaMLTmax', xmltlim)
-!        
-!     case('#PRECIPITATION')
-!        call read_var('DoCalcPrecip',DoCalcPrecip)
-!        if (DoCalcPrecip) call read_var('DtCalcPrecip',DtCalcPrecip)
-!!!$        if (DoCalcPrecip) call read_var('PrecipOutput',PrecipOutput)
-!!!$        if (PrecipOutput) call read_var('DtPreOut',DtPreOut)
-!
+       
+    case('#PRECIPITATION')
+       call read_var('UseAltitudePrecip', UseAltitudePrecip)
+
      case('#STRICTDRIFT')
         call read_var('IsStrictDrift',IsStrictDrift) ! .T : STOP when f2 < 0
 

@@ -45,6 +45,10 @@ Module ModCimiTrace
   real    :: DeltaRMax = 2.0 !Re
   real    :: xmltlim = 2.0 ! limit of field line warping in hour
 
+  logical :: UseAltitudePrecip = .false.
+  ! About 510 km
+  real :: maxPrecipAlt = 1.08
+
   !save 5 points around min B when using Tsy model. Otherwise this is from GM in that module. Also save B values at points for both Tsy and MHD
   real, allocatable :: CurvaturePointsXyz_IIID(:,:,:,:)
   real, allocatable :: BCurvaturePoints_III(:,:,:)
@@ -82,6 +86,7 @@ Module ModCimiTrace
     use ModImTime,		ONLY: iCurrentTime_I
     use ModDstOutput,		ONLY: DstOutput
     use ModCimiUtil,    ONLY: locate1IM
+    use ModAurora, ONLY: calc_fang_loss
     
     ! uncomment when T04 Tracing fixed
     common/geopack/aa(10),sps,cps,bb(3),ps,cc(11),kk(2),dd(8)
@@ -483,8 +488,8 @@ Module ModCimiTrace
     !     loss cone particles
     do n=1,nspec
        xmass=1.673e-27*amu_I(n)
-       c2mo=c*c*xmass
-       c4mo2=c2mo*c2mo
+       c2mo=c*c*xmass ! rest mass
+       c4mo2=c2mo*c2mo ! rest mass squared
        do j=MinLonPar,MaxLonPar
           do i=1,irm(j)
              ro2=2.*ro(i,j)*re
@@ -494,7 +499,7 @@ Module ModCimiTrace
                 do k=1,iw
                    pijkm=pp1*sqrt(xmm(n,k))
                    pc=pijkm*c
-                   c2m=sqrt(pc*pc+c4mo2)
+                   c2m=sqrt(pc*pc+c4mo2) ! 
                    e=c2m-c2mo                 ! E in J
                    ekev(n,i,j,k,m)=e/1000./q    ! E in keV
                    gamma(i,j,k,m)=c2m/c2mo
@@ -503,11 +508,17 @@ Module ModCimiTrace
                    alscone(n,i,j,k,m)=1.
                    tcone2=tcone1/vel(n,i,j,k,m)      ! Tbounce/2
                    Tbounce(n,i,j,k,m)=tcone2
-                   if (rmir(i,j,m).le.rc) then
-                      x=dt/tcone2
-                      alscone(n,i,j,k,m)=0.
-                      if (x.le.80.) alscone(n,i,j,k,m)=exp(-x)
-                   endif
+                   x=dt/tcone2
+                   if(UseAltitudePrecip .and. rmir(i,j,m) < maxPrecipAlt) then
+                     alscone(n,i,j,k,m) = exp(-x)
+                     if (alscone(n,i,j,k,m) < 1) call calc_fang_loss( &
+                        alscone(n,i,j,k,m), ekev(n,i,j,k,m), rmir(i,j,m), n)
+                   else
+                     if (rmir(i,j,m).le.rc) then
+                        alscone(n,i,j,k,m)=0.
+                        if (x.le.80.) alscone(n,i,j,k,m)=exp(-x)
+                     endif
+                   end if
                 enddo
 
              enddo
