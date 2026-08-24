@@ -13,7 +13,7 @@ module ModAurora
   real, allocatable :: Fang_Ion_y(:)   ! nEnergies, nAlts
   real, allocatable :: Fang_Ion_Pij(:, :)
 
-  integer ::nAlts = 35
+  integer ::nAlts = 45
   real, allocatable :: ColumnIntegralRho_I(:), Rho_I(:), &
     altitude_I(:), deltaAltitude_I(:), scaleHeight_I(:)
 
@@ -68,8 +68,11 @@ contains
     allocate(ColumnIntegralRho_I(nAlts), &
       altitude_I(nAlts), Rho_I(nAlts), deltaAltitude_I(nAlts), &
       scaleHeight_I(nAlts))
-    ! Scale Heights and Densities from Aaron B, 8 hour average at equinox
-    altitude_I = [100.0, 101.7240235, 103.4846226, 105.3007575, &
+    ! Scale Heights and Densities from Aaron B, 8 hour average at equinox.
+    ! Altitudes < 100 obtained from MSIS, set to values to avoid discontinuity
+    ! at 100 km.
+    altitude_I = [60.0, 64.0, 68.0, 72.0, 76.0, 80.0, 84.0, 88.0, 92.0, &
+        96.0, 100.0, 101.7240235, 103.4846226, 105.3007575, &
         107.1999348, 109.2189645, 111.4045805, 113.8181562, &
         116.5402055, 119.6670887, 123.313472, 127.6169763, &
         132.7009225, 138.651505, 145.5410287, 153.4247201, &
@@ -78,14 +81,18 @@ contains
         267.6823795, 284.3707108, 301.6638769, 319.5135387, &
         337.8733968, 356.6993154, 375.9496133, 395.5854969, &
         415.5714235, 435.8754037, 456.4691579] * 1000
-    Rho_I = [5.04E-07, 3.83E-07, 2.80E-07, 1.94E-07, 1.27E-07, &
+    Rho_I = [2.71E-04, 1.57E-04, 8.89E-05, 4.89E-05, 2.66E-05, &
+        1.43E-05, 7.41E-06, 3.96E-06, 2.13E-06, 1.07E-06, &
+        5.04E-07, 3.83E-07, 2.80E-07, 1.94E-07, 1.27E-07, &
         7.86E-08, 4.76E-08, 2.91E-08, 1.82E-08, 1.17E-08, &
         7.64E-09, 5.05E-09, 3.36E-09, 2.26E-09, 1.53E-09, &
         1.04E-09, 7.18E-10, 4.98E-10, 3.49E-10, 2.47E-10, &
         1.76E-10, 1.27E-10, 9.20E-11, 6.74E-11, 4.98E-11, &
         3.70E-11, 2.77E-11, 2.09E-11, 1.58E-11, 1.21E-11, &
         9.22E-12, 7.07E-12, 5.45E-12, 4.21E-12, 3.26E-12]
-    scaleHeight_I = [6.436402158746115, 5.939530187, 5.276249753982746, &
+    scaleHeight_I = [8.396791582, 8.088556216, 7.833311192, 7.667150955, &
+        7.514936086, 7.340735656, 7.35343484, 7.131672744, 6.631237377, &
+        6.37906911, 6.436402158746115, 5.939530187, 5.276249753982746, &
         4.705934645830059, 4.3393623546203335, 4.277855753466067, &
         4.600686598, 5.303962948952029, 6.333275322813335, &
         7.667453774667858, 9.302456259013368, 11.256509480111763, &
@@ -128,7 +135,7 @@ contains
   real :: Fang_de = 0.035
   !---------------------------------------------------------------------------
 
-  rMirrorMeters = (rMirror - rc) * rPlanet_I(Earth_)
+  rMirrorMeters = (rMirror - 1) * rPlanet_I(Earth_)
   ! If < 100 km, just assume it precipitates for now, could theoretically
   ! include mesosphere altitudes
   if (rMirrorMeters < altitude_I(1) - deltaAltitude_I(1)/2) return
