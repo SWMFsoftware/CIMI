@@ -13,6 +13,7 @@ OBJECTS = \
 	ModImIndices.o\
 	ModInterFlux.o\
 	ModPlasmasphere.o\
+	ModLocalWave.o\
 	ModCimiPlot.o\
 	ModFieldTrace.o\
 	ModGmCIMI.o\
@@ -27,7 +28,8 @@ OBJECTS = \
 	ModTsyInput.o\
 	ModPrerunField.o\
 	simple_plasmasphere.o\
-	cimi.o\
+	ModCimiMethods.o\
+	ModCimiUtil.o\
 	set_parameters.o\
 	plot_fieldline.o\
 	trace_dipole.o\
@@ -139,6 +141,8 @@ distclean: clean
 ######## UNIT TEST TARGETS
 OBJ_PLASMASPHERE = \
         ModPlasmasphere.o
+OBJ_LOCALWAVE = \
+        ModLocalWave.o
 
 
 unit_test_plasmasphere_compile:
@@ -149,3 +153,83 @@ unit_test_plasmasphere_compile:
 		unit_test_plasmasphere.o \
 		-L${LIBDIR} -lSHARE ${LflagMpi}
 
+unit_test_localwave_compile:
+	@(make ModLocalWave.o)
+	@(make unit_test_localwave.o) 
+	${LINK.f90} -o ${BINDIR}/unit_test_localwave.exe \
+		${OBJ_LOCALWAVE} \
+		unit_test_localwave.o \
+		-L${LIBDIR} -lSHARE ${LflagMpi}
+
+######## INTEGRATION TEST TARGETS
+OBJ_INTEGRATION = \
+        ModPlanet.o\
+	ModCimi.o\
+	ModLocalWave.o\
+	ModFieldTrace.o\
+	ModGrid.o\
+	ModInitialize.o\
+	ModTsyInput.o\
+	simple_plasmasphere.o\
+	ModCimiMethods.o\
+	ModCimiUtil.o\
+	integration.o\
+	set_parameters.o\
+	trace_dipole.o\
+	geopack.o \
+	CIMI_waves.o\
+	ModDiagDiff.o\
+	ModWaveDiff.o\
+        ModLstar.o\
+	ModCurvScatt.o
+
+DEPEND_INTEGRATION:
+	@${SCRIPTDIR}/depend.pl ${SEARCHDIR} ${OBJ_INTEGRATION}
+
+MY_LIB_INTEGRATION = libINTEGRATION.a
+LIBGIMME  = ${LIBDIR}/libGIMME.a
+
+LIB_INTEGRATION: DEPEND_INTEGRATION
+	make ${MY_LIB_INTEGRATION}
+	@echo
+	@echo ${MY_LIB_INTEGRATION} has been brought up to date.
+	@echo
+
+${MY_LIB_INTEGRATION}: ${LIBGIMME} ${OBJ_INTEGRATION}
+	cp -f ${LIBGIMME} ${MY_LIB_INTEGRATION}
+	${AR} ${MY_LIB_INTEGRATION} ${OBJ_INTEGRATION} 
+
+# Object files not included into the library
+OBJ_INTEGRATION_EXE = integration_main.o
+
+# Libraries should be compiled first, because modules are used in main
+${OBJ_INTEGRATION_EXE}: ${LIBSHARE} ${LIBTIMING} ${MY_LIB_INTEGRATION}   
+
+INTEGRATION_EXE = ${BINDIR}/integration.exe
+
+INTEGRATION:
+	@echo ' '
+	@make ${INTEGRATION_EXE}
+	@echo "Program ${INTEGRATION_EXE} has been brought up to date."
+	@echo ' '
+
+${INTEGRATION_EXE}: ${OBJ_INTEGRATION_EXE}
+	rm -rf Tmp_; mkdir Tmp_
+	cd Tmp_; \
+		ar -x ../${MY_LIB_INTEGRATION}; \
+		ar -x ${LIBTIMING}; \
+		ar -x ${LIBSHARE}; \
+		ar -x ${LIBINDICES}; \
+		ar -x ${LIBEMPIRICALGM};\
+		ar -x ${LIBEMPIRICALIE};\
+		ar -x ${LIBGIMME};
+	${LINK.f90} -o ${INTEGRATION_EXE} ${OBJ_INTEGRATION_EXE} Tmp_/*.o \
+														  ${LBLAS} ${LflagMpi}
+	rm -rf Tmp_
+
+#integration_test_compile:
+#	@(make integration_main.o)
+#	${LINK.f90} -o ${BINDIR}/integration_test.exe \
+#		${OBJ_INTEGRATION} \
+#		integration_main.o \
+#		-L${LIBDIR} -lSHARE ${LflagMpi}

@@ -9,6 +9,7 @@
 !******************************************************************************
 
 program cimi
+  use ModCimiMethods, ONLY: cimi_init, cimi_run
   use ModCimiGrid,	ONLY: iProc,nProc,iComm
   use ModCIMI,		ONLY: IsStandalone
   use ModMpi

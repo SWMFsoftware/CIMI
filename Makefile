@@ -49,6 +49,11 @@ help:
 	@echo '    PLASMASPHERE                  (perform plasma sphere unit test)'
 	@echo '    PLASMASPHERE_compile          (compile plasma sphere test)'
 	@echo '    PLASMASPHERE_rundir           (create rundir plasma sphere test)'
+	@echo '    LOCALWAVE                     (perform local wave unit test)'
+	@echo '    LOCALWAVE_compile             (compile local wave test)'
+	@echo '    LOCALWAVE_rundir              (create rundir local wave test)'
+	@echo ' '
+	@echo '    INTEGRATION             		 (perform integration test)'
 
 
 
@@ -577,4 +582,29 @@ PLASMASPHERE_rundir:
 #                data/output/plasmasphere.out \
 #                > test_plasmasphere.diff)
 
+LOCALWAVE:
+	make LOCALWAVE_compile
+	make LOCALWAVE_rundir
+	@cd ${TESTDIR};   ./unit_test_localwave.exe
 
+LOCALWAVE_compile:
+	@cd ${SHAREDIR};        make LIB
+	@cd src;        make unit_test_localwave_compile
+
+LOCALWAVE_rundir:
+	rm -rf ${TESTDIR}
+	@make rundir RUNDIR=${TESTDIR}
+	@cd ${TESTDIR}; ln -s ${BINDIR}/unit_test_localwave.exe
+
+########## Integration Tests
+INTEGRATION:
+	rm -f ${BINDIR}/cimi.exe
+	@cd ${SHAREDIR};  	make LIB
+	@cd ${NOMPIDIR};	make LIB
+	@cd ${TIMINGDIR}; 	make LIB 
+	@cd ${EMPIRICALIEDIR};	make LIB
+	@cd ${EMPIRICALGMDIR};	make LIB
+	@cd ${DATAREADINDICESDIR};make LIB
+	@cd srcGIMME;	make LIB
+	@cd src;	make LIB_INTEGRATION
+	@cd src;	make INTEGRATION

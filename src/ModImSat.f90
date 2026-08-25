@@ -30,6 +30,7 @@ contains
                               AngleGrid_I=>sinAo
     use ModCimiTrace,  ONLY: BfieldEq_C => bo, iba
     use ModImTime,      ONLY: iCurrentTime_I
+    use ModCimiUtil,    ONLY: locate1IM
 
     implicit none
     

@@ -84,6 +84,7 @@ contains
     use ModPlasmasphere, ONLY:PlasDensity_C,PlasmaPauseDensity
     use ModMPI
     use ModCimiGrid,   ONLY: MinLonPar,MaxLonPar
+    use ModCimiUtil, ONLY: lintp3IM,tridagIM
     
     implicit none
     
@@ -329,6 +330,7 @@ contains
     use ModPlasmasphere, ONLY:PlasDensity_C,PlasmaPauseDensity
     use ModMPI
     use ModCimiGrid,   ONLY: MinLonPar,MaxLonPar
+    use ModCimiUtil,   ONLY: lintp3IM,tridagIM
     
     !  use constants
     !  use cimigrid_dim CHECK je and ig
@@ -541,6 +543,7 @@ contains
     use ModPlasmasphere, ONLY:PlasDensity_C,PlasmaPauseDensity
     use ModMPI
     use ModCimiGrid,   ONLY: MinLonPar,MaxLonPar
+    use ModCimiUtil,   ONLY: lintp3IM,tridagIM
     
     implicit none
     integer,parameter :: ie=80
