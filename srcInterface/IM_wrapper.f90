@@ -143,6 +143,7 @@ contains
     ! Initialize CIMI for this session
     ! GM info needed before initialization just set up latitude/longitude grid
 
+    use ModCimiMethods,   ONLY: cimi_init
     use ModCimi,          ONLY: init_mod_cimi, Time
     use ModCimiTrace,     ONLY: init_mod_field_trace
     use ModCimiPlanet,    ONLY: init_cimi_planet_const
@@ -176,8 +177,9 @@ contains
 
     ! Run CIMI2 for 2 time steps
 
-    use CON_time,   ONLY: DoTimeAccurate
-    use ModCimi,    ONLY: dt, dtmax
+    use CON_time, ONLY: DoTimeAccurate
+    use ModCimi, ONLY: dt, dtmax
+    use ModCimiMethods, ONLY: cimi_init, cimi_run
 
     real, intent(in):: TimeSimulationLimit ! simulation time not to be exceeded
     real, intent(inout):: TimeSimulation   ! current time of component
