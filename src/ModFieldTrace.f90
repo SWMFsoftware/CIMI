@@ -19,7 +19,7 @@ Module ModCimiTrace
        ekev(:,:,:,:,:), rmir(:,:,:), alscone(:,:,:,:,:),&
        tanA2(:,:,:), volume(:,:), bm(:,:,:), gamma(:,:,:,:),&
        xo(:,:), yo(:,:), tya(:,:,:), gridoc(:,:),phi2o(:,:),&
-       Tbounce(:,:,:,:,:)
+       Tbounce(:,:,:,:,:), ionization(:,:,:,:,:)
 
   real	  :: parmod(10)
 
@@ -45,7 +45,7 @@ Module ModCimiTrace
   real    :: DeltaRMax = 2.0 !Re
   real    :: xmltlim = 2.0 ! limit of field line warping in hour
 
-  logical :: UseAltitudePrecip = .false.
+  logical :: UseAltitudePrecip = .false., UsePrecipEnergyLoss = .false.
   ! About 510 km
   real :: maxPrecipAlt = 1.08
 
@@ -63,7 +63,7 @@ Module ModCimiTrace
     allocate( bo(ir,ip),ro(ir,ip),xmlto(ir,ip),sinA(ir,ip,0:ik+1) )
     allocate(Have(ir,ip,ik),pp(nspec,ir,ip,iw,ik),vel(nspec,ir,ip,iw,ik),&
          ekev(nspec,ir,ip,iw,ik),rmir(ir,ip,ik),alscone(nspec,ir,ip,iw,ik),&
-         Tbounce(nspec,ir,ip,iw,ik),&
+         Tbounce(nspec,ir,ip,iw,ik),ionization(nspec,ir,ip,iw,ik),&
          tanA2(ir,ip,0:ik+1),phi2o(ir,ip),&
          volume(ir,ip),bm(ir,ip,ik),gamma(ir,ip,iw,ik),&
          xo(ir,ip),yo(ir,ip),tya(ir,ip,0:ik+1),gridoc(ir,ip) )
@@ -75,7 +75,7 @@ Module ModCimiTrace
   ! Routine calculates kinetic energy, velocity, y, latitude and altitude
   ! at mirror point, etc, for given magnetic moment, K and position for a
   ! given magnetic field configuration.
-  ! Output: iba,irm,iw2,vel,ekev,pp,sinA,Have,alscone             
+  ! Output: iba,irm,iw2,vel,ekev,pp,sinA,Have,alscone,ionization         
   !***********************************************************************
   subroutine fieldpara(t,dt,c,q,xlati,xmlt,phi,si,IsRestart)
     use ModCimiPlanet,		ONLY: &
@@ -511,8 +511,11 @@ Module ModCimiTrace
                    x=dt/tcone2
                    if(UseAltitudePrecip .and. rmir(i,j,m) < maxPrecipAlt) then
                      alscone(n,i,j,k,m) = exp(-x)
-                     if (alscone(n,i,j,k,m) < 1) call calc_fang_loss( &
-                        alscone(n,i,j,k,m), ekev(n,i,j,k,m), rmir(i,j,m), n)
+                     call calc_fang_loss( &
+                        ionization(n,i,j,k,m), ekev(n,i,j,k,m), rmir(i,j,m), n)
+                     if(.not.UsePrecipEnergyLoss) &
+                        alscone = 1 - ionization(n,i,j,k,m) * &
+                           (1. - alscone(n,i,j,k,m))
                    else
                      if (rmir(i,j,m).le.rc) then
                         alscone(n,i,j,k,m)=0.

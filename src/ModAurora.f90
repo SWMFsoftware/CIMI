@@ -120,14 +120,14 @@ contains
 
   end subroutine init_mod_aurora
   !===========================================================================
-  subroutine calc_fang_loss(alscone, energy, rMirror, iSpec)
+  subroutine calc_fang_loss(ionization, energy, rMirror, iSpec)
   use ModCimiPlanet, ONLY: nspec, rc
   use ModPlanetConst,	ONLY: Earth_, rPlanet_I
                                  
 
   integer, intent(in) :: iSpec
   real, intent(in) :: energy, rMirror
-  real, intent(inout) :: alscone
+  real, intent(out) :: ionization
   real :: rMirrorMeters, partialAltitude
   real :: maxIonization, particleIonization
   integer :: i, j, iAlt
@@ -138,7 +138,10 @@ contains
   rMirrorMeters = (rMirror - 1) * rPlanet_I(Earth_)
   ! If < 100 km, just assume it precipitates for now, could theoretically
   ! include mesosphere altitudes
-  if (rMirrorMeters < altitude_I(1) - deltaAltitude_I(1)/2) return
+  if (rMirrorMeters < altitude_I(1) - deltaAltitude_I(1)/2) then
+    ionization = 1.0
+    return
+  end if
 
   if (iSpec == nspec) then
     ! Electrons
@@ -208,8 +211,7 @@ contains
 
   ! Chance of precipitating is ratio of ionization above mirror point to total
   ! ionization if mirror point were below the atmosphere. 
-  alscone = 1 - min(1., particleIonization / maxIonization) * (1 - alscone)
-
+  ionization = min(1., particleIonization / maxIonization)
 
   end subroutine calc_fang_loss
   !===========================================================================

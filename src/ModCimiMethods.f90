@@ -38,7 +38,7 @@ subroutine cimi_run(delta_t)
        fieldpara, &
        brad => ro, ftv => volume, xo, yo, rb, irm, &
        ekev, iba, bo, pp, Have, sinA, vel, alscone, iw2, xmlto, bm, phi2o, &
-       gather_field_trace, bcast_field_trace
+       gather_field_trace, bcast_field_trace, ionization
   use ModGmCimi, ONLY: Den_IC, UseGm, UseGmKp, KpGm, UseGmAe, AeGm
   use ModIeCimi, ONLY: UseWeimer, pot
   use ModCimiPlot
@@ -550,7 +550,7 @@ subroutine cimi_run(delta_t)
      endif
 
      call timing_start('cimi_lossconeIM')
-     call lossconeIM(np,nt,nm,nk,nspec,iba,alscone,f2)
+     call lossconeIM(iba,alscone,f2,ionization,ekev)
      call sume_cimi(OpLossCone_)
      call timing_stop('cimi_lossconeIM')
 
@@ -2319,31 +2319,136 @@ subroutine CalcDecay_cimi(deltaT)
 
 end subroutine CalcDecay_cimi
 !==============================================================================
-subroutine lossconeIM(np,nt,nm,nk,nspec,iba,alscone,f2)
+subroutine lossconeIM(iba,alscone,f2,ionization,ekev)
 
   ! Calculate the change of f2 due to lossconeIM loss
 
-  use ModCimi, ONLY: MinLonPar,MaxLonPar
+  use ModCimi, ONLY: MinLonPar,MaxLonPar, nspec, np, nt, nm, nk, neng, energy,&
+        precipEnergyLoss, precipNumberLoss
+  use ModCimiTrace, ONLY: UsePrecipEnergyLoss
+  use ModCimiGrid, ONLY: d4Element_C
 
   implicit none
 
-  integer, intent(in):: np,nt,nm,nk,nspec,iba(nt)
-  real, intent(in):: alscone(nspec,np,nt,nm,nk)
+  integer, intent(in):: iba(nt)
+  real, intent(in):: alscone(nspec,np,nt,nm,nk), &
+                     ionization(nspec,np,nt,nm,nk), ekev(nspec,np,nt,nm,nk)
   real, intent(inout):: f2(nspec,np,nt,nm,nk)
 
-  integer:: n, i, j, k, m
+  integer:: n, i, j, k, m, m2, iLow, iHigh
+  real :: newf2(nm), newEnergy, weightLow, weightHigh, egrid(nspec, neng+1)
   !----------------------------------------------------------------------------
-  do n=1,nspec
-     do j=MinLonPar,MaxLonPar
+  egrid(:,1:neng) = energy(:,1:neng)
+  egrid(:,neng+1) = 1e10
+  precipEnergyLoss(:,:,MinLonPar:MaxLonPar,:) = 0.0
+  precipNumberLoss(:,:,MinLonPar:MaxLonPar,:) = 0.0
+  if (UsePrecipEnergyLoss) then
+    do k=1,nk; do j = MinLonPar,MaxLonPar; do i=1,iba(j); do n=1,nspec
+      newf2 = 0
+      Minv: do m=1,nm
+        if (ionization(n,i,j,m,k) <= 0.0) then
+          newf2(m) = newf2(m) + f2(n,i,j,m,k)
+          cycle Minv
+        end if
+        ! new energy is fraction of original energy
+        newEnergy = ekev(n,i,j,m,k) * &
+            (1 - ionization(n,i,j,m,k))
+        ! reinterpolate f2 grid based on new energy grid assuming that
+        ! pitch angle does not change, meaning that only the 
+        ! m invariant grid is changing
+
+        ! This flux always stays put
+        ! Note that more flux will still get added to newf2(m) if ionization
+        ! is close to 0
+        newf2(m) = newf2(m) + f2(n,i,j,m,k) * alscone(n,i,j,m,k)
+        
+        if (newEnergy >= ekev(n,i,j,1,k)) then
+          mInvScan: do m2 = 1, nm-1
+            if (newEnergy >= ekev(n,i,j,m2,k) .and. &
+                newEnergy < ekev(n,i,j,m2+1,k)) then
+              iLow = m2; iHigh = m2 + 1
+              exit mInvScan
+            else if (m2 == nm-1) then
+              ! Handle edge case that should never happen just in case
+              iLow = nm - 1
+              iHigh = nm  
+            end if
+          end do mInvScan
+
+          weightLow  = (newEnergy - ekev(n,i,j,iLow,k)) / &
+                      (ekev(n,i,j,iHigh,k) - ekev(n,i,j,iLow,k))
+          weightHigh = 1. - weightLow
+          weightLow  = weightLow  * (1 - alscone(n,i,j,m,k))
+          weightHigh = weightHigh * (1 - alscone(n,i,j,m,k))
+
+          newf2(iLow)  = newf2(iLow)  + weightLow  * f2(n,i,j,m,k)
+          newf2(iHigh) = newf2(iHigh) + weightHigh * f2(n,i,j,m,k)
+        end if
+        
+        ! if below lowest energy bin, add precip losses to lowest bin
+        if (ekev(n,i,j,m,k) < energy(n,1)) then
+          precipEnergyLoss(n,i,j,1) = precipEnergyLoss(n,i,j,1) + &
+              f2(n,i,j,m,k) * (1 - alscone(n,i,j,m,k)) * &
+              (newEnergy - ekev(n,i,j,m,k)) * d4Element_C(n,i,k,m)
+          precipNumberLoss(n,i,j,1) = precipNumberLoss(n,i,j,1) - &
+              f2(n,i,j,m,k) * (1-alscone(n,i,j,m,k)) * &
+              ionization(n,i,j,m,k) * d4Element_C(n,i,k,m)
+        else
+          ! Otherwise, loop through energy bins to find where to add losses
+          SavePrecip: do m2 = 1, neng
+            if (ekev(n,i,j,m,k) >= energy(n,m2) .and. &
+                ekev(n,i,j,m,k) < energy(n,m2+1)) then
+              weightLow = (ekev(n,i,j,m,k) - energy(n,m2)) / &
+                  (energy(n,m2+1) - energy(n,m2))
+              weightHigh = 1. - weightLow
+              ! Add precip losses to energy bins that border current energy
+              ! Energy losses = f2 * (1-alscone) * (newEnergy-ekev) which is 
+              ! equivalent to f2 * (1-alscone) * ionization * ekev
+              ! Number losses = - f2 * (1-alscone) * ionization
+              ! Both values are negative
+              precipEnergyLoss(n,i,j,m2) = precipEnergyLoss(n,i,j,m2) + &
+                  f2(n,i,j,m,k) * (1-alscone(n,i,j,m,k)) * &
+                  (newEnergy - ekev(n,i,j,m,k)) * weightLow * &
+                  d4Element_C(n,i,k,m)
+              precipEnergyLoss(n,i,j,m2+1) = precipEnergyLoss(n,i,j,m2+1) + &
+                  f2(n,i,j,m,k) * (1-alscone(n,i,j,m,k)) * &
+                  (newEnergy - ekev(n,i,j,m,k)) * weightHigh * &
+                  d4Element_C(n,i,k,m)
+              precipNumberLoss(n,i,j,m2) = precipNumberLoss(n,i,j,m2) - &
+                  f2(n,i,j,m,k) * (1-alscone(n,i,j,m,k)) * &
+                  ionization(n,i,j,m,k) * weightLow * d4Element_C(n,i,k,m)
+              precipNumberLoss(n,i,j,m2+1) = precipNumberLoss(n,i,j,m2+1) - &
+                  f2(n,i,j,m,k) * (1-alscone(n,i,j,m,k)) * &
+                  ionization(n,i,j,m,k) * weightHigh * d4Element_C(n,i,k,m)
+              exit SavePrecip
+            end if
+          end do SavePrecip 
+        end if
+        ! Also add precip losses to summed value
+        precipEnergyLoss(n,i,j,neng+2) = precipEnergyLoss(n,i,j,neng+2) + &
+            f2(n,i,j,m,k) * (1-alscone(n,i,j,m,k)) * &
+            (newEnergy - ekev(n,i,j,m,k)) * d4Element_C(n,i,k,m)
+        precipNumberLoss(n,i,j,neng+2) = precipNumberLoss(n,i,j,neng+2) - &
+            f2(n,i,j,m,k) * (1-alscone(n,i,j,m,k)) * ionization(n,i,j,m,k) &
+            * d4Element_C(n,i,k,m)
+      end do Minv
+      f2(n,i,j,:,k) = newf2(:)
+    enddo; enddo; enddo; enddo;
+    return 
+
+  end if
+
+  do k=1,nk
+    do m=1,nm
+      do j=MinLonPar,MaxLonPar
         do i=1,iba(j)
-           do k=1,nm
-              do m=1,nk
-                 if (alscone(n,i,j,k,m) < 1.) &
-                      f2(n,i,j,k,m)=f2(n,i,j,k,m)*alscone(n,i,j,k,m)
-              enddo
-           enddo
+          do n=1,nspec
+            if (alscone(n,i,j,m,k) < 1.) &
+                f2(n,i,j,m,k)=f2(n,i,j,m,k)*alscone(n,i,j,m,k)
+          enddo
         enddo
-     enddo
+      enddo
+    enddo
   enddo
 
 end subroutine lossconeIM
@@ -3135,8 +3240,9 @@ subroutine cimi_precip_calc(dsec)
   use ModCimi,			ONLY:	&
        preF, preP, Eje1, &
        xlel => eChangeOperator_VICI, plel => pChangeOperator_VICI, &
-       OpLossCone_, OpLossCone0_, OpFLC_, OpFLC0_
-  use ModCimiTrace, 		ONLY:	iba
+       OpLossCone_, OpLossCone0_, OpFLC_, OpFLC0_, &
+       precipEnergyLoss, precipNumberLoss
+  use ModCimiTrace, 		ONLY:	iba, UsePrecipEnergyLoss
   use ModCimiGrid,		ONLY:	&
        nProc,iProc,iComm,MinLonPar,MaxLonPar,nt,np,neng,xlatr,xmlt,dlat
   use ModCimiPlanet,		ONLY: 	nspec, re_m, rc
@@ -3161,32 +3267,47 @@ subroutine cimi_precip_calc(dsec)
         do i=1,iba(j)
            area=area1*cos(xlatr(i))*dlat(i)            ! area in m^2
            Asec=area*dsec
-           do k=1,neng+2
-              dlel_lc=xlel(n,i,j,k,OpLossCone_)-xlel(n,i,j,k,OpLossCone0_)
-              dplel_lc=plel(n,i,j,k,OpLossCone_)-plel(n,i,j,k,OpLossCone0_)
-              dlel_flc=xlel(n,i,j,k,OpFLC_)-xlel(n,i,j,k,OpFLC0_)
-              dplel_flc=plel(n,i,j,k,OpFLC_)-plel(n,i,j,k,OpFLC0_)
-              useFlc = (dlel_flc < 0. .and. dplel_flc < 0.)
-              useLossCone = (dlel_lc < 0. .and. dplel_lc < 0.)
-              dlel = 0
-              dplel = 0
-              if (useLossCone) then
-                   dlel = dlel + dlel_lc
-                   dplel = dplel + dplel_lc
-              end if
-              if (useFlc) then
-                   dlel = dlel + dlel_flc
-                   dplel = dplel + dplel_flc
-              end if
-              if (useLossCone .or. useFlc) then
-                 preF(n,i,j,k)=-dlel*1.6e-13/Asec     ! E flux in mW/m2
-                 preP(n,i,j,k)=-dplel/Asec            ! N flux in 1/m2/s
+           Energy: do k=1,neng+2
+              if(UsePrecipEnergyLoss) then
+                if (precipEnergyLoss(n,i,j,k) >= 0. .or. &
+                    precipNumberLoss(n,i,j,k) >= 0.) then
+                  preF(n,i,j,k)=0.
+                  preP(n,i,j,k)=0.     
+                  if (k == neng+2) Eje1(n,i,j)=0.             
+                else
+                  preF(n,i,j,k)=-precipEnergyLoss(n,i,j,k)*1.6e-13/Asec
+                  preP(n,i,j,k)=-precipNumberLoss(n,i,j,k)/Asec
+                  ! meanE for E>gride(je)
+                  if (k == neng+2) Eje1(n,i,j)=precipEnergyLoss(n,i,j,k) &
+                                              /precipNumberLoss(n,i,j,k)
+                end if
+              else
+                dlel_lc=xlel(n,i,j,k,OpLossCone_)-xlel(n,i,j,k,OpLossCone0_)
+                dplel_lc=plel(n,i,j,k,OpLossCone_)-plel(n,i,j,k,OpLossCone0_)
+                dlel_flc=xlel(n,i,j,k,OpFLC_)-xlel(n,i,j,k,OpFLC0_)
+                dplel_flc=plel(n,i,j,k,OpFLC_)-plel(n,i,j,k,OpFLC0_)
+                useFlc = (dlel_flc < 0. .and. dplel_flc < 0.)
+                useLossCone = (dlel_lc < 0. .and. dplel_lc < 0.)
+                dlel = 0
+                dplel = 0
+                if (useLossCone) then
+                    dlel = dlel + dlel_lc
+                    dplel = dplel + dplel_lc
+                end if
+                if (useFlc) then
+                    dlel = dlel + dlel_flc
+                    dplel = dplel + dplel_flc
+                end if
+                if (useLossCone .or. useFlc) then
+                  preF(n,i,j,k)=-dlel*1.6e-13/Asec     ! E flux in mW/m2
+                  preP(n,i,j,k)=-dplel/Asec            ! N flux in 1/m2/s
 
-                 ! meanE for E>gride(je)
-                 if (k == neng+2) Eje1(n,i,j)=dlel/dplel
+                  ! meanE for E>gride(je)
+                  if (k == neng+2) Eje1(n,i,j)=dlel/dplel
+                end if
 
               endif
-           enddo
+           enddo Energy
         enddo
      enddo
   enddo

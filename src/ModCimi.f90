@@ -29,7 +29,9 @@ Module ModCimi
   real, allocatable :: eTimeAccumult_ICI(:,:,:,:), pTimeAccumult_ICI(:,:,:,:)
   real, allocatable :: energy(:,:), Ebound(:,:), delE(:,:)
   real, allocatable :: &
-       preF(:,:,:,:), preP(:,:,:,:), Eje1(:,:,:) ! presipitation output
+       preF(:,:,:,:), preP(:,:,:,:), Eje1(:,:,:) ! precipitation output
+  real, allocatable :: precipEnergyLoss(:,:,:,:), &
+                       precipNumberLoss(:,:,:,:)
   integer, parameter :: &
        nOperator = 10, OpDrift_ = 1, OpBfield_ = 2, OpChargeEx_ = 3, &
        OpWaves_ = 4, OpStrongDiff_ = 5, OpDecay_ = 6, &
@@ -96,7 +98,8 @@ contains
          pTimeAccumult_ICI(nspec,np,nt,neng+2))
 
     allocate(preP(nspec,np,nt,neng+2), preF(nspec,np,nt,neng+2), &
-         Eje1(nspec,np,nt))
+         Eje1(nspec,np,nt), precipEnergyLoss(nspec,np,nt,neng+2), &
+         precipNumberLoss(nspec,np,nt,neng+2))
     preP = 0.0
     preF = 0.0
     Eje1 = 0.0

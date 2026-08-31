@@ -775,15 +775,26 @@ Default values are shown.
 </command>
 
 <command name="PRECIPITATION">
-  <parameter name="UseAltitudePrecip" type=logical />
+  <parameter name="UseAltitudePrecip" type="logical" default="F"/>
+  <if expr="$UseAltitudePrecip">
+    <parameter name="UsePrecipEnergyLoss" type="logical" default="F"/>
+  </if>
 
 #PRECIPITATION
 F      UseAltitudePrecip
+F      UsePrecipEnergyLoss
 
 if true, CIMI will calculate precipitation fluxes based on an altitude profile
 of the thermosphere and the resulting ionization from the Fang et al. 2010 and
 2013 models. Currently the density profile is fixed, and was obtained from an
-8 hour average of densities at midnight during equinox using GITM. 
+8 hour average of densities at midnight during equinox using GITM for high
+altitudes and MSIS for lower altitudes. 
+
+If UseAltitudePrecip is True, UsePrecipEnergyLoss is read. If 
+UsePrecipEnergyLoss is true, instead of removing particles from the simulation 
+based on partial loss cones, particles that do not lose the entirety of their 
+energy to the atmosphere are maintained in the simulation and regridded to lower
+energies. Pitch angles remain unchanged through this process.
 
 If false, CIMI calculates precipitation for particles with a bounce point 
 below 120 km. 

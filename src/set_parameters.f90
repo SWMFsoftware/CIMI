@@ -12,7 +12,7 @@ subroutine CIMI_set_parameters(NameAction)
   use ModCimiPlot
   use ModCimiTrace,	 ONLY: UseEllipse, UseSmooth, UseCorotation, &
        UsePotential, SmoothWindow, imod, iLatTest, iLonTest, DeltaRMax, &
-       xmltlim, UseAltitudePrecip
+       xmltlim, UseAltitudePrecip, UsePrecipEnergyLoss
   use ModCimi,		 ONLY: UseMcLimiter, BetaLimiter, time, Pmin, &
        IsStandAlone, UseStrongDiff, &
        dt, dtmax, DoCalcPrecip, DtCalcPrecip, IsStrictDrift,&
@@ -846,6 +846,8 @@ subroutine CIMI_set_parameters(NameAction)
        
     case('#PRECIPITATION')
        call read_var('UseAltitudePrecip', UseAltitudePrecip)
+       if(UseAltitudePrecip) &
+          call read_var('UsePrecipEnergyLoss', UsePrecipEnergyLoss)
 
      case('#STRICTDRIFT')
         call read_var('IsStrictDrift',IsStrictDrift) ! .T : STOP when f2 < 0
