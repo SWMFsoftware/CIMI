@@ -747,7 +747,7 @@ subroutine cimi_init
   use ModCimi, 		ONLY: energy, Ebound, dele
   use ModTimeConvert,	ONLY: time_int_to_real, time_real_to_int
   use ModMpi
-  use ModAurora, ONLY: init_mod_aurora
+  use CIMI_aurora, ONLY: init_mod_aurora
 
 
   implicit none

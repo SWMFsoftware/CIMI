@@ -1,4 +1,4 @@
-module ModAurora
+module CIMI_aurora
   use ModCimiGrid
 
   real, allocatable :: Fang_Ci(:)  ! nEnergies, 8
@@ -215,4 +215,4 @@ contains
 
   end subroutine calc_fang_loss
   !===========================================================================
-end module ModAurora
+end module CIMI_aurora

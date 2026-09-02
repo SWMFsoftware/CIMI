@@ -15,7 +15,7 @@ OBJECTS = \
 	ModPlasmasphere.o\
 	ModLocalWave.o\
 	ModCimiPlot.o\
-	ModAurora.o\
+	CIMI_aurora.o\
 	ModFieldTrace.o\
 	ModGmCIMI.o\
 	ModGrid.o\

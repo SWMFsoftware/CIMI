@@ -86,7 +86,7 @@ Module ModCimiTrace
     use ModImTime,		ONLY: iCurrentTime_I
     use ModDstOutput,		ONLY: DstOutput
     use ModCimiUtil,    ONLY: locate1IM
-    use ModAurora, ONLY: calc_fang_loss
+    use CIMI_aurora, ONLY: calc_fang_loss
     
     ! uncomment when T04 Tracing fixed
     common/geopack/aa(10),sps,cps,bb(3),ps,cc(11),kk(2),dd(8)
