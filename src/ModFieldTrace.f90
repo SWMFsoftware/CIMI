@@ -25,7 +25,7 @@ Module ModCimiTrace
 
   integer :: irm(ip), irm0(ip), iba(ip)
 
-  integer :: iw2(nspec,ik)
+  integer :: iw2(ik,nspec)
 
   logical :: UseEllipse = .true.
   logical :: UseCorotation = .true.
@@ -61,9 +61,9 @@ Module ModCimiTrace
     
     if(allocated(bo)) RETURN
     allocate( bo(ir,ip),ro(ir,ip),xmlto(ir,ip),sinA(ir,ip,0:ik+1) )
-    allocate(Have(ir,ip,ik),pp(nspec,ir,ip,iw,ik),vel(nspec,ir,ip,iw,ik),&
-         ekev(nspec,ir,ip,iw,ik),rmir(ir,ip,ik),alscone(nspec,ir,ip,iw,ik),&
-         Tbounce(nspec,ir,ip,iw,ik),ionization(nspec,ir,ip,iw,ik),&
+    allocate(Have(ir,ip,ik),pp(ir,ip,iw,ik,nspec),vel(ir,ip,iw,ik,nspec),&
+         ekev(ir,ip,iw,ik,nspec),rmir(ir,ip,ik),alscone(ir,ip,iw,ik,nspec),&
+         Tbounce(ir,ip,iw,ik,nspec),ionization(ir,ip,iw,ik,nspec),&
          tanA2(ir,ip,0:ik+1),phi2o(ir,ip),&
          volume(ir,ip),bm(ir,ip,ik),gamma(ir,ip,iw,ik),&
          xo(ir,ip),yo(ir,ip),tya(ir,ip,0:ik+1),gridoc(ir,ip) )
@@ -497,29 +497,29 @@ Module ModCimiTrace
                 pp1=sqrt(2.*xmass*bm(i,j,m))
                 tcone1=ro2*tya(i,j,m) 
                 do k=1,iw
-                   pijkm=pp1*sqrt(xmm(n,k))
+                   pijkm=pp1*sqrt(xmm(k,n))
                    pc=pijkm*c
                    c2m=sqrt(pc*pc+c4mo2) ! 
                    e=c2m-c2mo                 ! E in J
-                   ekev(n,i,j,k,m)=e/1000./q    ! E in keV
+                   ekev(i,j,k,m,n)=e/1000./q    ! E in keV
                    gamma(i,j,k,m)=c2m/c2mo
-                   pp(n,i,j,k,m)=pijkm  
-                   vel(n,i,j,k,m)=pc*c/c2m
-                   alscone(n,i,j,k,m)=1.
-                   tcone2=tcone1/vel(n,i,j,k,m)      ! Tbounce/2
-                   Tbounce(n,i,j,k,m)=tcone2
+                   pp(i,j,k,m,n)=pijkm  
+                   vel(i,j,k,m,n)=pc*c/c2m
+                   alscone(i,j,k,m,n)=1.
+                   tcone2=tcone1/vel(i,j,k,m,n)      ! Tbounce/2
+                   Tbounce(i,j,k,m,n)=tcone2
                    x=dt/tcone2
                    if(UseAltitudePrecip .and. rmir(i,j,m) < maxPrecipAlt) then
-                     alscone(n,i,j,k,m) = exp(-x)
+                     alscone(i,j,k,m,n) = exp(-x)
                      call calc_fang_loss( &
-                        ionization(n,i,j,k,m), ekev(n,i,j,k,m), rmir(i,j,m), n)
+                        ionization(i,j,k,m,n), ekev(i,j,k,m,n), rmir(i,j,m), n)
                      if(.not.UsePrecipEnergyLoss) &
-                        alscone = 1 - ionization(n,i,j,k,m) * &
-                           (1. - alscone(n,i,j,k,m))
+                        alscone = 1 - ionization(i,j,k,m,n) * &
+                           (1. - alscone(i,j,k,m,n))
                    else
                      if (rmir(i,j,m).le.rc) then
-                        alscone(n,i,j,k,m)=0.
-                        if (x.le.80.) alscone(n,i,j,k,m)=exp(-x)
+                        alscone(i,j,k,m,n)=0.
+                        if (x.le.80.) alscone(i,j,k,m,n)=exp(-x)
                      endif
                    end if
                 enddo
@@ -636,11 +636,11 @@ Module ModCimiTrace
     if (iProc==iProcMidnight .and. IsFirstCall .and. .not.IsRestart) then
        do n=1,nspec
           do m=1,ik
-             iw2(n,m)=iw
+             iw2(m,n)=iw
              find_iw2: do k=1,iw
                 !if (ekev(irm(1),1,k,m).gt.energy(neng)) then
-                if (ekev(n,irm(iLonMidnight),iLonMidnight,k,m).gt.energy(n,neng)) then
-                   iw2(n,m)=k
+                if (ekev(irm(iLonMidnight),iLonMidnight,k,m,n).gt.energy(neng,n)) then
+                   iw2(m,n)=k
                    exit find_iw2
                 endif
              enddo find_iw2

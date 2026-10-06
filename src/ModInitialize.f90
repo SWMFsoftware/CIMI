@@ -4,8 +4,8 @@ Module ModCimiInitialize
   implicit none
   
   real		:: &
-       xmm(nspec,0:nm+1), xk(0:nk+1), dphi, dmm(nspec,nm), dk(nk),&
-       dmu(npit1), xjac(nspec,np1,nm)
+       xmm(0:nm+1,nspec), xk(0:nk+1), dphi, dmm(nm,nspec), dk(nk),&
+       dmu(npit1), xjac(np1,nm,nspec)
 
   logical	:: &
        IsEmptyInitial = .false., IsDataInitial = .false., &

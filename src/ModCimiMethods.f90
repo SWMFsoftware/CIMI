@@ -931,20 +931,20 @@ subroutine cimi_init
 
   ! setup energies:
   do n = 1, nspec - 1
-     energy( n, 1 : neng )  = energy_ion( 1 : neng )
-     delE( n, 1 : neng )    = 0.5243 * energy_ion( 1 : neng )
+     energy( 1 : neng, n )  = energy_ion( 1 : neng )
+     delE( 1 : neng, n )    = 0.5243 * energy_ion( 1 : neng )
   enddo
-  energy( nspec, 1 : neng ) = energy_ele( 1 : neng )
-  delE( nspec, 1 : neng )   = 0.5243 * energy_ele( 1 : neng )
+  energy( 1 : neng, nspec ) = energy_ele( 1 : neng )
+  delE( 1 : neng, nspec )   = 0.5243 * energy_ele( 1 : neng )
 
   ! From CIMI:
   ! Setup Ebound
   do n = 1, nspec
      do k = 1, neng - 1
-        Ebound( n, k ) = SQRT( energy( n, k ) * energy( n, k + 1 ) )
+        Ebound( k, n ) = SQRT( energy( k, n ) * energy( k + 1, n ) )
      enddo
-     Ebound( n, neng ) = energy( n, neng ) * energy( n, neng ) / &
-          Ebound( n, neng - 1 )
+     Ebound( neng, n ) = energy( neng, n ) * energy( neng, n ) / &
+          Ebound( neng - 1, n )
   enddo
 
   ! Initialization of the CIMI xmm (mu) grid.  Accounts for
@@ -965,33 +965,33 @@ subroutine cimi_init
      ! The minimum of the mu grid should fit the lowest energy
      ! particles at the Earth's surface.
 
-     xmm( n, 01 ) = &
-          energy( n, 1 ) * 1000. * cElectronCharge * &
-          ( energy( n, 1 ) + 2. * E0 ) / E0 / &
+     xmm( 1, n ) = &
+          energy( 1, n ) * 1000. * cElectronCharge * &
+          ( energy( 1, n ) + 2. * E0 ) / E0 / &
           ( 2 * dipmom / (  1.0 * re_m ) ** 3 )
 
      ! The maximum of mu grid should fit the highest energy particles
      ! at 45 R_E well beyond the extent of the simulation grid.
-     xmm( n, nm ) = &
-          energy( n, neng ) * 1000. * cElectronCharge * &
-          ( energy( n, neng ) + 2. * E0 ) / E0 / &
+     xmm( nm, n ) = &
+          energy( neng, n ) * 1000. * cElectronCharge * &
+          ( energy( neng, n ) + 2. * E0 ) / E0 / &
           ( 2 * dipmom / ( 45.0 * re_m ) ** 3 )
 
-     rw = ( xmm( n, nm ) / xmm( n, 01 ) ) ** ( 1. / FLOAT( nm ) )
+     rw = ( xmm( nm, n ) / xmm( 01, n ) ) ** ( 1. / FLOAT( nm ) )
 
      rw1 = ( rw - 1. ) / SQRT( rw )
-     xmm( n, 0 ) = xmm( n, 1 ) / rw
+     xmm( 0, n ) = xmm( 1, n ) / rw
 
      ! This setup makes:
      ! 		xmm( k + 0.5 ) = SQRT( xmm( k ) * xmm( k + 1 ) )
      do i = 1, nm
 
-        xmm( n, i ) = xmm( n, i - 1 ) * rw
-        dmm( n, i ) = xmm( n, i ) * rw1
+        xmm( i, n ) = xmm( i - 1, n ) * rw
+        dmm( i, n ) = xmm( i, n ) * rw1
 
      enddo
 
-     xmm( n, nm + 1 ) = xmm( n, nm ) * rw
+     xmm( nm + 1, n ) = xmm( nm, n ) * rw
 
   enddo
 
@@ -1074,7 +1074,7 @@ subroutine cimi_init
 
         do k=1,nm
 
-           xjac(n,i,k) = xjac1 * xjac2 * sqrt( xmm(n,k) ) * sqrtm
+           xjac(i,k,n) = xjac1 * xjac2 * sqrt( xmm(k,n) ) * sqrtm
 
         enddo
      enddo
@@ -1085,9 +1085,9 @@ subroutine cimi_init
   do n=1,nspec
      do i=1,np
         d2=dlat(i)*dphi
-        do k=1,nm
-           do m=1,nk
-              d4Element_C(n,i,k,m)=d2*dmm(n,k)*dk(m)
+        do k=1,nk
+           do m=1,nm
+              d4Element_C(i,m,k,n)=d2*dmm(m,n)*dk(k)
            enddo
         enddo
      enddo
@@ -1128,13 +1128,13 @@ subroutine initial_f2(nspec,np,nt,iba,amu_I,vel,xjac,ib0)
   implicit none
 
   integer, intent(in):: nspec,np,nt,iba(nt)
-  real, intent(in):: amu_I(nspec), vel(nspec,np,nt,nm,nk), xjac(nspec,np,nm)
+  real, intent(in):: amu_I(nspec), vel(np,nt,nm,nk,nspec), xjac(np,nm,nspec)
   integer, intent(out):: ib0(nt)
 
   integer:: n, j, i, k, m, iError
   real:: velperp2, velpar2
   real:: pi,xmass,chmass,f21,vtchm
-  real:: Tempperp_IC(nspec,np,nt)
+  real:: Tempperp_IC(np,nt,nspec)
   real:: xleb(nspec),xled(nspec),xlel(nspec),xlee(nspec),xles(nspec)
 
   ! Variables needed for data initialization
@@ -1157,24 +1157,24 @@ subroutine initial_f2(nspec,np,nt,iba,amu_I,vel,xjac,ib0)
         chmass=1.6e-19/xmass
         do j=MinLonPar,MaxLonPar
            do i=1,iba(j)
-              ! write(*,*) n,i,j,iba(j),Den_IC(n,i,j), Temppar_IC(n,i,j), Tempperp_IC(n,i,j)
-              f21=Den_IC(n,i,j)/(2.*pi*xmass*Temppar_IC(n,i,j)*1.6e-19)**0.5 &
-                   /(2.*pi*xmass*Tempperp_IC(n,i,j)*1.6e-19)
+              ! write(*,*) i,j,n,iba(j),Den_IC(i,j,n), Temppar_IC(i,j,n), Tempperp_IC(i,j,n)
+              f21=Den_IC(i,j,n)/(2.*pi*xmass*Temppar_IC(i,j,n)*1.6e-19)**0.5 &
+                   /(2.*pi*xmass*Tempperp_IC(i,j,n)*1.6e-19)
               ! following lines were for when we had isotropic option
               ! else
-              !   f21=Den_IC(n,i,j)/(2.*pi*xmass*Temp_IC(n,i,j)*1.6e-19)**1.5
+              !   f21=Den_IC(i,j,n)/(2.*pi*xmass*Temp_IC(i,j,n)*1.6e-19)**1.5
               ! end if
-              do k=1,nm
-                 do m=1,nk
-                    velperp2 = (vel(n,i,j,k,m)*sinA(i,j,m))**2
-                    velpar2 = vel(n,i,j,k,m)**2 - velperp2
-                    vtchm = -velpar2/(2*Temppar_IC(n,i,j)*chmass) &
-                         -velperp2/(2*Tempperp_IC(n,i,j)*chmass)
+              do k=1,nk
+                 do m=1,nm
+                    velperp2 = (vel(i,j,m,k,n)*sinA(i,j,k))**2
+                    velpar2 = vel(i,j,m,k,n)**2 - velperp2
+                    vtchm = -velpar2/(2*Temppar_IC(i,j,n)*chmass) &
+                         -velperp2/(2*Tempperp_IC(i,j,n)*chmass)
                     ! from when having an isotropic option
                     ! else
-                    !   vtchm = -vel(n,i,j,k,m)**2/(2*Temp_IC(n,i,j)*chmass)
+                    !   vtchm = -vel(i,j,m,k,n)**2/(2*Temp_IC(i,j,n)*chmass)
                     ! end if
-                    f2(n,i,j,k,m)=xjac(n,i,k)*f21*exp(vtchm)
+                    f2(i,j,m,k,n)=xjac(i,m,n)*f21*exp(vtchm)
                  end do
               end do
            end do
@@ -1208,14 +1208,14 @@ subroutine initial_f2(nspec,np,nt,iba,amu_I,vel,xjac,ib0)
         ! interpolate data from quiet.fin files to CIMI grid
         do j=MinLonPar,MaxLonPar
            do i=1,irm(j)
-              do m=1,nk
+              do k=1,nk
                  if ( DoLstarInitialization ) then
-                    roii=Lstarm(i,j,m)
+                    roii=Lstarm(i,j,k)
                  else
                     roii=ro(i,j)
                  endif
-                 do k=1,iw2(n,m)
-                    e1=log10(ekev(n,i,j,k,m))
+                 do m=1,iw2(k,n)
+                    e1=log10(ekev(i,j,m,k,n))
                     if (e1 <= ei(ie)) then
                        ! if (e1 >= ei(ie)) e1=ei(ie)    ! flat dist at high E
                        if (e1 < ei(1)) e1=ei(1)    ! flat dist. at low E
@@ -1223,12 +1223,12 @@ subroutine initial_f2(nspec,np,nt,iba,amu_I,vel,xjac,ib0)
                        if (roii > roi(il)) roii=roi(il) ! flat @ high L
                        call lintp2IM(roi,ei,fi,il,ie,roii,e1,x)
                        fluxi=10.**x          ! flux in (cm^2 s sr keV)^-1
-                       psd2=fluxi/(1.6e19*pp(n,i,j,k,m))/pp(n,i,j,k,m)
+                       psd2=fluxi/(1.6e19*pp(i,j,m,k,n))/pp(i,j,m,k,n)
                    
-                       f2(n,i,j,k,m)=psd2*xjac(n,i,k)*1.e20*1.e19
+                       f2(i,j,m,k,n)=psd2*xjac(i,m,n)*1.e20*1.e19
                        ! kludge
-                       ! if (j>0 .and. j<24) f2(n,i,j,k,m) = 0.0
-                       ! if (j>36) f2(n,i,j,k,m) = 10.0*f2(n,i,j,k,m)
+                       ! if (j>0 .and. j<24) f2(i,j,m,k,n) = 0.0
+                       ! if (j>36) f2(i,j,m,k,n) = 10.0*f2(i,j,m,k,n)
                     endif
                  enddo                            ! end of k loop
               enddo                               ! end of m loop
@@ -1253,21 +1253,21 @@ subroutine initial_extra
        SDtime, phot, Ppar_IC, Pressure_IC, PressurePar_IC, FAC_C, Bmin_C
   !----------------------------------------------------------------------------
   ! Initialize allocated variables in ModCimi to 0.
-  phot(1:nspec,1:np,1:nt) = 0.0
-  Ppar_IC(1:nspec,1:np,1:nt) = 0.0
-  Pressure_IC(1:nspec,1:np,1:nt) = 0.0
-  PressurePar_IC(1:nspec,1:np,1:nt) = 0.0
+  phot(1:np,1:nt,1:nspec) = 0.0
+  Ppar_IC(1:np,1:nt,1:nspec) = 0.0
+  Pressure_IC(1:np,1:nt,1:nspec) = 0.0
+  PressurePar_IC(1:np,1:nt,1:nspec) = 0.0
   FAC_C(1:np,1:nt) = 0.0
   Bmin_C(1:np,1:nt) = 0.0
 
   ! Setup variables for energy gain/loss from each process
-  eChangeOperator_VICI(1:nspec,1:np,1:nt,1:neng+2,1:nOperator)=0.0
-  pChangeOperator_VICI(1:nspec,1:np,1:nt,1:neng+2,1:nOperator)=0.0
-  eTimeAccumult_ICI(1:nspec,1:np,1:nt,1:neng+2) = 0.0
-  pTimeAccumult_ICI(1:nspec,1:np,1:nt,1:neng+2) = 0.0
+  eChangeOperator_VICI(1:np,1:nt,1:neng+2,1:nOperator,1:nspec)=0.0
+  pChangeOperator_VICI(1:np,1:nt,1:neng+2,1:nOperator,1:nspec)=0.0
+  eTimeAccumult_ICI(1:np,1:nt,1:neng+2,1:nspec) = 0.0
+  pTimeAccumult_ICI(1:np,1:nt,1:neng+2,1:nspec) = 0.0
 
-  eChangeLocal(1:nspec, 1:nOperator) = 0.
-  eChangeGlobal(1:nspec, 1:nOperator) = 0.
+  eChangeLocal(1:nOperator, 1:nspec) = 0.
+  eChangeGlobal(1:nOperator, 1:nspec) = 0.
 
   ! Total energy for the simulation domain
   rbsumLocal(1:nspec) = 0.
@@ -1304,16 +1304,16 @@ subroutine boundaryIM(nspec,neng,np,nt,nm,nk,iba,irm,amu_I,xjac,energy,vel,fb)
   implicit none
 
   integer, intent(in):: nspec,neng,np,nt,nm,nk,iba(nt),irm(nt)
-  real, intent(in):: amu_I(nspec), xjac(nspec,np,nm), energy(nspec,neng)
-  real, intent(in):: vel(nspec,np,nt,nm,nk)
-  real, intent(out):: fb(nspec,nt,nm,nk)
+  real, intent(in):: amu_I(nspec), xjac(np,nm,nspec), energy(neng,nspec)
+  real, intent(in):: vel(np,nt,nm,nk,nspec)
+  real, intent(out):: fb(nt,nm,nk,nspec)
 
   integer:: j,n,k,m,ib1,iLat
   real:: pi, xmass, chmass, fb1, fb_temp, vtchm
   real:: velperp2, velpar2,fbb,fbb1,parE1,perE1,den1,temp32,y2,x2,Psq,&
        Pper2,Ppar2
   real:: erpp,Vsq,Vper2,Vpar2
-  real:: BoundaryTempperp_IC(nspec,nt)
+  real:: BoundaryTempperp_IC(nt,nspec)
   real:: kappa,kappa_plus_one,kappa_minus_half,ln_gamma_diff,gamma_ratio
   real:: e_min
 
@@ -1334,21 +1334,21 @@ subroutine boundaryIM(nspec,neng,np,nt,nm,nk,iba,irm,amu_I,xjac,energy,vel,fb)
 
   do n=1,nspec
      do j=MinLonPar,MaxLonPar
-        BoundaryTempperp_IC(n,j) = &
-             (3*BoundaryTemp_IC(n,j) - BoundaryTempPar_IC(n,j))/2
+        BoundaryTempperp_IC(j,n) = &
+             (3*BoundaryTemp_IC(j,n) - BoundaryTempPar_IC(j,n))/2
      enddo
   enddo
 
-  fb(1:nspec,MinLonPar:MaxLonPar,1:nm,1:nk)=0.
+  fb(MinLonPar:MaxLonPar,1:nm,1:nk,1:nspec)=0.
   do n=1,nspec
      e_min=0.
-     if (n==nspec) e_min=0.5*energy(n,1)
+     if (n==nspec) e_min=0.5*energy(1,n)
      xmass=amu_I(n)*1.673e-27
      chmass=1.6e-19/xmass
      do j=MinLonPar,MaxLonPar
-        parE1=BoundaryTempPar_IC(n,j)/1000.      ! characteristic in keV
-        perE1=BoundaryTempPerp_IC(n,j)/1000.     ! characteristic in keV
-        den1 =BoundaryDens_IC(n,j)                     ! density in m-3
+        parE1=BoundaryTempPar_IC(j,n)/1000.      ! characteristic in keV
+        perE1=BoundaryTempPerp_IC(j,n)/1000.     ! characteristic in keV
+        den1 =BoundaryDens_IC(j,n)                     ! density in m-3
         temp32=sqrt(parE1)*perE1*1.6e-16**1.5
         ib1=iba(j)+1   ! difference bewteen cimi standalone where ib1=iba(j)
         if (ib1 > irm(j)) ib1=irm(j)
@@ -1359,39 +1359,39 @@ subroutine boundaryIM(nspec,neng,np,nt,nm,nk,iba,irm,amu_I,xjac,energy,vel,fb)
         endif
 
         !      do k=1,nm   ! magnetic moment
-        do m=1,nk   ! K invariant
-           y2=sinA(ib1,j,m)*sinA(ib1,j,m)
+        do k=1,nk   ! K invariant
+           y2=sinA(ib1,j,k)*sinA(ib1,j,k)
            x2=1.-y2
-           do k=1,iw2(n,m)   ! magnetic moment
+           do m=1,iw2(k,n)   ! magnetic moment
               fbb=0.
-              if ((ekev(n,ib1,j,k,m) > e_min) .and. &
-                   (BoundaryDens_IC(n,j) > 0.)) then
+              if ((ekev(ib1,j,m,k,n) > e_min) .and. &
+                   (BoundaryDens_IC(j,n) > 0.)) then
 
                  if (n == nspec) then   ! KAPPA FOR ELECTRONS
-                    Psq=pp(n,ib1,j,k,m)*pp(n,ib1,j,k,m)
+                    Psq=pp(ib1,j,m,k,n)*pp(ib1,j,m,k,n)
                     Ppar2=Psq*x2
                     Pper2=Psq*y2
                     erpp=(Ppar2/parE1+Pper2/perE1)/2./xmass/1.6e-16
                     fbb=fbb1/(1.+erpp/kappa)**kappa_plus_one
 
                  else ! MAXWELLIAN OTHERWISE:
-                    Vsq=vel(n,ib1,j,k,m)*vel(n,ib1,j,k,m)
+                    Vsq=vel(ib1,j,m,k,n)*vel(ib1,j,m,k,n)
                     Vpar2=Vsq*x2
                     Vper2=Vsq*y2
                     erpp=(Vpar2/parE1+Vper2/perE1)/2./1000./chmass
                     fbb=0.
                     if (erpp < 500.) fbb=fbb1/exp(erpp)
                  endif
-              endif      ! end of ekev(n,ib,j,k,m) > e_min.and.den1 > 0
+              endif      ! end of ekev(n,ib,j,m,k) > e_min.and.den1 > 0
 
-              fb(n,j,k,m)=fbb*xjac(n,ib1,k)
+              fb(j,m,k,n)=fbb*xjac(ib1,m,n)
 
               do iLat=ib1,np
-                 f2(n,iLat,j,k,m)=fbb*xjac(n,ib1,k) ! f2 beyond rb
+                 f2(iLat,j,m,k,n)=fbb*xjac(ib1,m,n) ! f2 beyond rb
               enddo
 
               !        if ((n == nspec).and.(j == 1).and.(m == 10)) write(*,*) fbb,xjac(n,ib1,k), &
-              !        ekev(n,ib1,j,k,m), vel(n,ib1,j,k,m),xmass,chmass, &
+              !        ekev(ib1,j,k,m,n), vel(ib1,j,k,m,n),xmass,chmass, &
               !        Psq,Ppar2,Vsq,Vpar2, 'f,jac,e,vel,m,chm,Psq,Ppar,Vsq,Vpar'   !   NB Jan 20 2017
            enddo                ! end of m loop
         enddo                   ! end of k loop
@@ -1414,9 +1414,9 @@ subroutine ceparaIM(nspec,np,nt,nm,nk,irm,dt,vel,ekev,Have,achar)
   implicit none
 
   integer, intent(in):: np, nt, nspec, nk, irm(nt), nm
-  real, intent(in):: vel(nspec,np,nt,nm,nk), ekev(nspec,np,nt,nm,nk), &
+  real, intent(in):: vel(np,nt,nm,nk,nspec), ekev(np,nt,nm,nk,nspec), &
        Have(np,nt,nk)
-  real, intent(out):: achar(nspec,np,nt,nm,nk)
+  real, intent(out):: achar(np,nt,nm,nk,nspec)
 
   integer:: i, j, k, m, n
   real:: dt, Havedt, x, d, sigma, alpha 
@@ -1424,15 +1424,15 @@ subroutine ceparaIM(nspec,np,nt,nm,nk,irm,dt,vel,ekev,Have,achar)
   do n=1,nspec-1
      do j=MinLonPar,MaxLonPar
         do i=1,irm(j)
-           do m=1,nk
-              Havedt=Have(i,j,m)*dt
-              do k=1,nm
-                 x=log10(ekev(n,i,j,k,m))
+           do k=1,nk
+              Havedt=Have(i,j,k)*dt
+              do m=1,nm
+                 x=log10(ekev(i,j,m,k,n))
                  if (x < -2.) x=-2.
                  d=a0_I(n)+a1_I(n)*x+a2_I(n)*x**2+a3_I(n)*x**3+a4_I(n)*x**4
                  sigma=10.**d      ! charge exchange cross section of H+ in m2
-                 alpha=vel(n,i,j,k,m)*sigma*Havedt
-                 achar(n,i,j,k,m)=exp(-alpha) ! charge. exchange decay rate
+                 alpha=vel(i,j,m,k,n)*sigma*Havedt
+                 achar(i,j,m,k,n)=exp(-alpha) ! charge. exchange decay rate
               enddo
            enddo
         enddo
@@ -1546,8 +1546,8 @@ subroutine driftV(nspec,np,nt,nm,nk,irm,re_m,Hiono,dipmom,dphi,xlat,dlat, &
   integer, intent(in):: nspec, np, nt, nm, nk
   integer, intent(out):: irm(nt)
   real, intent(in):: re_m, Hiono, dipmom, dphi
-  real, intent(in):: xlat(np),dlat(np),ekev(nspec,np,nt,nm,nk),pot(np,nt)
-  real, intent(out):: vl(nspec,0:np,nt,nm,nk), vp(nspec,0:np,nt,nm,nk)
+  real, intent(in):: xlat(np),dlat(np),ekev(np,nt,nm,nk,nspec),pot(np,nt)
+  real, intent(out):: vl(0:np,nt,nm,nk,nspec), vp(0:np,nt,nm,nk,nspec)
 
   integer:: n,i,ii,j,k,m,i0,i2,j0,j2,icharge
   real:: kfactor,ksai,ksai1,xlat1,sf0,sf2,dlat2,pi,dphi2,cor
@@ -1572,11 +1572,11 @@ subroutine driftV(nspec,np,nt,nm,nk,irm,re_m,Hiono,dipmom,dphi,xlat,dlat, &
         icharge=-1
      endif
 
-     mloop: do m=1,nk
-        kloop: do k=1,nm
+     kloop: do k=1,nk
+        mloop: do m=1,nm
 
            ! ham: Hamiltonian/q
-           ham(1:np,1:nt)=icharge*ekev(n,1:np,1:nt,k,m)*1000.+pot(1:np,1:nt)
+           ham(1:np,1:nt)=icharge*ekev(1:np,1:nt,m,k,n)*1000.+pot(1:np,1:nt)
 
            ! When nProc>1 exchange ghost cell info for ham and irm
            if (nProc >1) then
@@ -1625,9 +1625,9 @@ subroutine driftV(nspec,np,nt,nm,nk,irm,re_m,Hiono,dipmom,dphi,xlat,dlat, &
                  if (irm(j0) > i.and.irm(j2) > i) then
                     sf0=0.5*ham(ii,j0)+0.5*ham(i+1,j0)
                     sf2=0.5*ham(ii,j2)+0.5*ham(i+1,j2)
-                    vl(n,i,j,k,m)=-(sf2-sf0)/dphi2/ksai1   ! vl at (i+0.5,j)
+                    vl(i,j,m,k,n)=-(sf2-sf0)/dphi2/ksai1   ! vl at (i+0.5,j)
                  else
-                    vl(n,i,j,k,m)=vl(n,i-1,j,k,m)
+                    vl(i,j,m,k,n)=vl(i-1,j,m,k,n)
                  endif
 
                  ! calculate vp
@@ -1644,15 +1644,15 @@ subroutine driftV(nspec,np,nt,nm,nk,irm,re_m,Hiono,dipmom,dphi,xlat,dlat, &
                        endif
                        sf0=0.5*(ham(i0,j2)+ham(i0,j))
                        sf2=0.5*(ham(i2,j2)+ham(i2,j))
-                       vp(n,i,j,k,m)=cor+(sf2-sf0)/dlat2/ksai ! vp at (i,j+0.5)
+                       vp(i,j,m,k,n)=cor+(sf2-sf0)/dlat2/ksai ! vp at (i,j+0.5)
                     else
-                       vp(n,i,j,k,m)=vp(n,i-1,j,k,m)
+                       vp(i,j,m,k,n)=vp(i-1,j,m,k,n)
                     endif
                  endif
               enddo jloop
            enddo iloop
-        enddo kloop
-     enddo mloop
+        enddo mloop
+     enddo kloop
   enddo nloop
 
 end subroutine driftV
@@ -1682,12 +1682,12 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
 
   implicit none
 
-  integer, intent(in):: nk, nspec, np, nt, nm, iw2(nspec,nk)
+  integer, intent(in):: nk, nspec, np, nt, nm, iw2(nk,nspec)
   real, intent(in):: dt,dlat(np),dphi,brad(np,nt), rb
-  real, intent(in):: vl(nspec,0:np,nt,nm,nk),vp(nspec,0:np,nt,nm,nk)
-  real, intent(in):: fb(nspec,nt,nm,nk)
+  real, intent(in):: vl(0:np,nt,nm,nk,nspec),vp(0:np,nt,nm,nk,nspec)
+  real, intent(in):: fb(nt,nm,nk,nspec)
   integer, intent(out):: ib0(nt)
-  real, intent(inout):: f2(nspec,np,nt,nm,nk), driftin(nspec), driftout(nspec)
+  real, intent(inout):: f2(np,nt,nm,nk,nspec), driftin(nspec), driftout(nspec)
   
   integer:: n,i,j,k,m,j1,j_1,j_2,ibaj,ib,ibo,nrun,nn
 
@@ -1729,9 +1729,9 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
   endif
 
   nloop: do n=1,nspec
-     mloop: do m=1,nk
-        kloop: do k=1,iw2(n,m)
-           f2d(1:np,1:nt)=f2(n,1:np,1:nt,k,m)         ! initial f2
+     kloop: do k=1,nk
+        mloop: do m=1,iw2(k,n)
+           f2d(1:np,1:nt)=f2(1:np,1:nt,m,k,n)         ! initial f2
            ! find nrun and new dt (dt1)
            cmax=0.
            do j=MinLonPar,MaxLonPar
@@ -1740,11 +1740,11 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
               ibaj=max(iba(j),iba(j1))
               do i=1,ibaj
                  if (DoUseUniformLGrid) then
-                    cl1=dt/dvarL*vl(n,i,j,k,m)  ! Courant number in L, unitless
+                    cl1=dt/dvarL*vl(i,j,m,k,n)  ! Courant number in L, unitless
                  else
-                    cl1=dt/dlat(i)*vl(n,i,j,k,m)  ! Courant number in L
+                    cl1=dt/dlat(i)*vl(i,j,m,k,n)  ! Courant number in L
                  endif
-                 cp1=dt/dphi*vp(n,i,j,k,m)   ! Courant number in phi
+                 cp1=dt/dphi*vp(i,j,m,k,n)   ! Courant number in phi
                  cmx=max(abs(cl1),abs(cp1))
                  cmax=max(cmx,cmax)
               enddo
@@ -1769,7 +1769,7 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
               ib=iba(j)
               ibo=ib0(j)
               fb0(j)=f2d(1,j)                 ! f2 at inner boundary
-              fb1(j)=fb(n,j,k,m)              ! f2 at outer boundary
+              fb1(j)=fb(j,m,k,n)              ! f2 at outer boundary
               if (ib > ibo) then             ! during dipolarization
                  fo_log=-50.
                  if (f2d(ibo,j) > 1.e-50) fo_log=log10(f2d(ibo,j))
@@ -1784,11 +1784,11 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
               ! Recalculate Courant numbers
               do i=1,np
                  if (DoUseUniformLGrid) then
-                    cl(i,j)=dt1/dvarL*vl(n,i,j,k,m)
+                    cl(i,j)=dt1/dvarL*vl(i,j,m,k,n)
                  else
-                    cl(i,j)=dt1/dlat(i)*vl(n,i,j,k,m)
+                    cl(i,j)=dt1/dlat(i)*vl(i,j,m,k,n)
                  endif
-                 cp(i,j)=dt1/dphi*vp(n,i,j,k,m)
+                 cp(i,j)=dt1/dphi*vp(i,j,m,k,n)
               enddo
            enddo
 
@@ -2007,8 +2007,8 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
                     else
                        f2d(i,j) = f2d0(i,j) + &
                             dt1 / dlat(i) * &
-                            ( vl(n,i-1,j,k,m) * fal( i-1, j ) - &
-                            vl(n,  i,j,k,m)   * fal( i  , j ) ) + &
+                            ( vl(i-1,j,m,k,n) * fal( i-1, j ) - &
+                            vl(i,j,m,k,n)   * fal( i  , j ) ) + &
                             cp(i,j_1) * fap(i,j_1) - cp(i,j) * fap(i,j)
                     endif
                     if (f2d(i,j) < 0.) then
@@ -2017,7 +2017,7 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
                        else
                           if (.not.UseHigherOrder) then
                              write(*,*) 'IM WARNING1: ', &
-                                  'f2d<0 in drift at n,i,j,k,m,f2=', &
+                                  'f2d<0 in drift at i,j,m,k,n,f2=', &
                                   n, i , j, k, m, f2d(i,j)
                              if(UseUpwind) call CON_stop('CIMI ERROR1: f2d<0')
                              write(*,*)'IM WARNING: ', &
@@ -2038,7 +2038,7 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
                              if (f2d(i,j) < 0.) then
                                 write(*,*) &
                                      'IM WARNING2: f2d<0 in upwind drift',&
-                                     ' at n,i,j,k,m,f2d =',n,i,j,k,m,f2d(i,j)
+                                     ' at i,j,m,k,n,f2d =',i,j,m,k,n,f2d(i,j)
                                 write(*,*)'IM WARNING: '//&
                                      'upwind scheme failed, making iba(j)=i'
                                 write(*,*)'IM WARNING: '//&
@@ -2047,7 +2047,7 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
                                    write(*,'(a,i4)') 'iba =',iba(j)
                                    write(*,'(a,1p3E11.3)') &
                                         'IM: f2d(i,j),f2d0(i,j),f2=', &
-                                        f2d(i,j),f2d0(i,j),f2(n,i,j,k,m)
+                                        f2d(i,j),f2d0(i,j),f2(i,j,m,k,n)
                                    write(*,'(a,1p2E11.3)') &
                                         'IM: fupl(i-1,j),fupl(i,j)= ', &
                                         fupl(i-1,j),fupl(i,j)
@@ -2088,14 +2088,14 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
                  if ( DoUseUniformLGrid ) then
                     dPartLocal_C(j) = &
                          -cl( iba(j), j ) * fal( iba(j), j ) * &
-                         d4Element_C(n,iba(j),k,m)
+                         d4Element_C(iba(j),m,k,n)
                  else
                     dPartLocal_C(j) = &
                          -dt1 / dlat( iba(j) ) * &
-                         vl(n,iba(j),j,k,m) * fal( iba(j), j ) * &
-                         d4Element_C(n,iba(j),k,m)
+                         vl(iba(j),j,m,k,n) * fal( iba(j), j ) * &
+                         d4Element_C(iba(j),m,k,n)
                  endif
-                 dEnerLocal_C(j)=ekev(n,iba(j),j,k,m)*dPartLocal_C(j)
+                 dEnerLocal_C(j)=ekev(iba(j),j,m,k,n)*dPartLocal_C(j)
               enddo jloop
 
               ! When regular scheme fails, try again with upwind scheme before
@@ -2116,8 +2116,8 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
                           f2d(i,j) = &
                                f2d0(i,j) + &
                                dt1 / dlat(i) * &
-                               ( vl(n,i-1,j,k,m) * fupl(i-1,j) - &
-                               vl(n,i,j,k,m)   * fupl(i,j) ) + &
+                               ( vl(i-1,j,m,k,n) * fupl(i-1,j) - &
+                               vl(i,j,m,k,n)   * fupl(i,j) ) + &
                                cp(i,j_1) * fupp(i,j_1) - cp(i,j) * fupp(i,j)
                        endif
                        if (f2d(i,j) < 0.) then
@@ -2125,7 +2125,7 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
                              f2d(i,j)=0.
                           else
                              write(*,*)'IM WARNING3: f2d<0 in drift ', &
-                                  'n,i,j,k,m,f2=', n, i, j, k, m, f2d(i,j)
+                                  'i,j,m,k,n,f2=', i,j,m,k,n, f2d(i,j)
                              write(*,*)'IM WARNING: '//&
                                   'upwind scheme failed, making iba(j)=i'
                              write(*,*)'IM WARNING: '//&
@@ -2133,7 +2133,7 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
                              if ( IsStrictDrift ) then
                                 write(*,'(a,1p3E11.3)') &
                                      'IM: f2d(i,j),f2d0(i,j),f2=', &
-                                     f2d(i,j),f2d0(i,j),f2(n,i,j,k,m)
+                                     f2d(i,j),f2d0(i,j),f2(i,j,m,k,n)
                                 write(*,'(a,1p2E11.3)') &
                                      'IM: fupl(i-1,j),fupl(i,j)= ', &
                                      fupl(i-1,j),fupl(i,j)
@@ -2159,14 +2159,14 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
                     if ( DoUseUniformLGrid ) then
                        dPartLocal_C(j) = &
                             -cl(iba(j),j) * fupl(iba(j),j) * &
-                            d4Element_C(n,iba(j),k,m)
+                            d4Element_C(iba(j),m,k,n)
                     else
                        dPartLocal_C(j) = &
                             -dt1 / dlat(iba(j)) * &
-                            vl(n,iba(j),j,k,m) * fupl(iba(j),j) * &
-                            d4Element_C(n,iba(j),k,m)
+                            vl(iba(j),j,m,k,n) * fupl(iba(j),j) * &
+                            d4Element_C(iba(j),m,k,n)
                     endif
-                    dEnerLocal_C(j)=ekev(n,iba(j),j,k,m)*dPartLocal_C(j)
+                    dEnerLocal_C(j)=ekev(iba(j),j,m,k,n)*dPartLocal_C(j)
                  enddo
               endif
               ! sum all dEner to root proc
@@ -2188,11 +2188,11 @@ subroutine driftIM(iw2,nspec,np,nt,nm,nk,dt,dlat,dphi,brad,rb,vl,vp, &
                  driftout(n)=0.
               endif
            enddo          ! end of do nn=1,nrun
-           !f2(n,1:np,1:nt,k,m)=f2d(1:np,1:nt)
-           where(f2d(1:np,1:nt).eq.0.0) f2(n,1:np,1:nt,k,m)=1e-50
-           where(f2d(1:np,1:nt).gt.0.0) f2(n,1:np,1:nt,k,m)=f2d(1:np,1:nt)
-        enddo kloop
-     enddo mloop
+           !f2(1:np,1:nt,k,m,n)=f2d(1:np,1:nt)
+           where(f2d(1:np,1:nt).eq.0.0) f2(1:np,1:nt,m,k,n)=1e-50
+           where(f2d(1:np,1:nt).gt.0.0) f2(1:np,1:nt,m,k,n)=f2d(1:np,1:nt)
+        enddo mloop
+     enddo kloop
   enddo nloop
 
   ! Update ib0
@@ -2209,15 +2209,15 @@ subroutine charexchangeIM(np,nt,nm,nk,nspec,iba,achar,f2)
   implicit none
 
   integer, intent(in):: np, nt, nm, nk, nspec, iba(nt)
-  real, intent(in):: achar(nspec,np,nt,nm,nk)
-  real, intent(inout):: f2(nspec,np,nt,nm,nk)
+  real, intent(in):: achar(np,nt,nm,nk,nspec)
+  real, intent(inout):: f2(np,nt,nm,nk,nspec)
 
   integer:: n, i, j
   !----------------------------------------------------------------------------
   do n=1,nspec-1
      do j=MinLonPar,MaxLonPar
         do i=1,iba(j)
-           f2(n,i,j,1:nm,1:nk)=f2(n,i,j,1:nm,1:nk)*achar(n,i,j,1:nm,1:nk)
+           f2(i,j,1:nm,1:nk,n)=f2(i,j,1:nm,1:nk,n)*achar(i,j,1:nm,1:nk,n)
         enddo
      enddo
   enddo
@@ -2234,7 +2234,7 @@ subroutine StDiTime(dt,vel,volume,iba)
 
   implicit none
   
-  real:: vel(nspec,np,nt,nm,nk), volume(np,nt)
+  real:: vel(np,nt,nm,nk,nspec), volume(np,nt)
   real:: eb, xmer3, sinlat2, bi, vBe, sdtime1, dt
   integer:: i, j, k, m, iba(nt)
   !----------------------------------------------------------------------------
@@ -2249,10 +2249,10 @@ subroutine StDiTime(dt,vel,volume,iba)
         Bi=xmer3*sqrt(3.*sinlat2+1.)      ! magnetic field at ionosphere
 
         vBe=2.*volume(i,j)*Bi/(1.-eb)
-        do k=1,nm
-           do m=1,nk
-              SDtime1=vBe/vel(nspec,i,j,k,m) ! strong diff T,(gamma*mo/p = 1/v)
-              SDtime(i,j,k,m)=exp(-dt/SDtime1)
+        do k=1,nk
+           do m=1,nm
+              SDtime1=vBe/vel(i,j,m,k,nspec) ! strong diff T,(gamma*mo/p = 1/v)
+              SDtime(i,j,m,k)=exp(-dt/SDtime1)
            enddo
         enddo
      enddo
@@ -2272,14 +2272,14 @@ subroutine StrongDiff(iba)
 
   integer:: iba(nt),i,j,k,m
   !----------------------------------------------------------------------------
-  do j=MinLonPar,MaxLonPar
-     do i=2,iba(j)
-        do m=1,nk
-           do k=1,nm
-              f2(nspec,i,j,k,m)=f2(nspec,i,j,k,m)*SDtime(i,j,k,m)
-           enddo
+  do k=1,nk
+    do m=1,nm
+      do j=MinLonPar,MaxLonPar
+        do i=2,iba(j)
+              f2(i,j,m,k,nspec)=f2(i,j,m,k,nspec)*SDtime(i,j,m,k)
         enddo
-     enddo
+      enddo
+    enddo
   enddo
 
 end subroutine StrongDiff
@@ -2306,7 +2306,7 @@ subroutine CalcDecay_cimi(deltaT)
 
   real, intent(in) :: deltaT
 
-  integer:: n,i,j,k,m, maxSpec
+  integer:: i,j,m,k,n, maxSpec
   real:: DecayRate
   !----------------------------------------------------------------------------
   DecayRate = EXP( -( deltaT / DecayTimescale ) )
@@ -2314,8 +2314,8 @@ subroutine CalcDecay_cimi(deltaT)
   maxSpec = nspec - 1
   if (UseElectronDecay) maxSpec = nspec
 
-  f2(1:maxSpec,:,MinLonPar:MaxLonPar,:,:) = &
-         f2(1:maxSpec,:,MinLonPar:MaxLonPar,:,:) * DecayRate
+  f2(:,MinLonPar:MaxLonPar,:,:,1:maxSpec) = &
+         f2(:,MinLonPar:MaxLonPar,:,:,1:maxSpec) * DecayRate
 
 end subroutine CalcDecay_cimi
 !==============================================================================
@@ -2331,28 +2331,28 @@ subroutine lossconeIM(iba,alscone,f2,ionization,ekev)
   implicit none
 
   integer, intent(in):: iba(nt)
-  real, intent(in):: alscone(nspec,np,nt,nm,nk), &
-                     ionization(nspec,np,nt,nm,nk), ekev(nspec,np,nt,nm,nk)
-  real, intent(inout):: f2(nspec,np,nt,nm,nk)
+  real, intent(in):: alscone(np,nt,nm,nk,nspec), &
+                     ionization(np,nt,nm,nk,nspec), ekev(np,nt,nm,nk,nspec)
+  real, intent(inout):: f2(np,nt,nm,nk,nspec)
 
   integer:: n, i, j, k, m, m2, iLow, iHigh
-  real :: newf2(nm), newEnergy, weightLow, weightHigh, egrid(nspec, neng+1)
+  real :: newf2(nm), newEnergy, weightLow, weightHigh, egrid(neng+1, nspec)
   !----------------------------------------------------------------------------
-  egrid(:,1:neng) = energy(:,1:neng)
-  egrid(:,neng+1) = 1e10
-  precipEnergyLoss(:,:,MinLonPar:MaxLonPar,:) = 0.0
-  precipNumberLoss(:,:,MinLonPar:MaxLonPar,:) = 0.0
+  egrid(1:neng,:) = energy(1:neng,:)
+  egrid(neng+1,:) = 1e10
+  precipEnergyLoss(:,MinLonPar:MaxLonpar,:,:) = 0.0
+  precipNumberLoss(:,MinLonPar:MaxLonpar,:,:) = 0.0
   if (UsePrecipEnergyLoss) then
     do k=1,nk; do j = MinLonPar,MaxLonPar; do i=1,iba(j); do n=1,nspec
       newf2 = 0
       Minv: do m=1,nm
-        if (ionization(n,i,j,m,k) <= 0.0) then
-          newf2(m) = newf2(m) + f2(n,i,j,m,k)
+        if (ionization(i,j,m,k,n) <= 0.0) then
+          newf2(m) = newf2(m) + f2(i,j,m,k,n)
           cycle Minv
         end if
         ! new energy is fraction of original energy
-        newEnergy = ekev(n,i,j,m,k) * &
-            (1 - ionization(n,i,j,m,k))
+        newEnergy = ekev(i,j,m,k,n) * &
+            (1 - ionization(i,j,m,k,n))
         ! reinterpolate f2 grid based on new energy grid assuming that
         ! pitch angle does not change, meaning that only the 
         ! m invariant grid is changing
@@ -2360,12 +2360,12 @@ subroutine lossconeIM(iba,alscone,f2,ionization,ekev)
         ! This flux always stays put
         ! Note that more flux will still get added to newf2(m) if ionization
         ! is close to 0
-        newf2(m) = newf2(m) + f2(n,i,j,m,k) * alscone(n,i,j,m,k)
+        newf2(m) = newf2(m) + f2(i,j,m,k,n) * alscone(i,j,m,k,n)
         
-        if (newEnergy >= ekev(n,i,j,1,k)) then
+        if (newEnergy >= ekev(i,j,1,k,n)) then
           mInvScan: do m2 = 1, nm-1
-            if (newEnergy >= ekev(n,i,j,m2,k) .and. &
-                newEnergy < ekev(n,i,j,m2+1,k)) then
+            if (newEnergy >= ekev(i,j,m2,k,n) .and. &
+                newEnergy < ekev(i,j,m2+1,k,n)) then
               iLow = m2; iHigh = m2 + 1
               exit mInvScan
             else if (m2 == nm-1) then
@@ -2375,76 +2375,76 @@ subroutine lossconeIM(iba,alscone,f2,ionization,ekev)
             end if
           end do mInvScan
 
-          weightLow  = (newEnergy - ekev(n,i,j,iLow,k)) / &
-                      (ekev(n,i,j,iHigh,k) - ekev(n,i,j,iLow,k))
+          weightLow  = (newEnergy - ekev(i,j,iLow,k,n)) / &
+                      (ekev(i,j,iHigh,k,n) - ekev(i,j,iLow,k,n))
           weightHigh = 1. - weightLow
-          weightLow  = weightLow  * (1 - alscone(n,i,j,m,k))
-          weightHigh = weightHigh * (1 - alscone(n,i,j,m,k))
+          weightLow  = weightLow  * (1 - alscone(i,j,m,k,n))
+          weightHigh = weightHigh * (1 - alscone(i,j,m,k,n))
 
-          newf2(iLow)  = newf2(iLow)  + weightLow  * f2(n,i,j,m,k)
-          newf2(iHigh) = newf2(iHigh) + weightHigh * f2(n,i,j,m,k)
+          newf2(iLow)  = newf2(iLow)  + weightLow  * f2(i,j,m,k,n)
+          newf2(iHigh) = newf2(iHigh) + weightHigh * f2(i,j,m,k,n)
         end if
         
         ! if below lowest energy bin, add precip losses to lowest bin
-        if (ekev(n,i,j,m,k) < energy(n,1)) then
-          precipEnergyLoss(n,i,j,1) = precipEnergyLoss(n,i,j,1) + &
-              f2(n,i,j,m,k) * (1 - alscone(n,i,j,m,k)) * &
-              (newEnergy - ekev(n,i,j,m,k)) * d4Element_C(n,i,k,m)
-          precipNumberLoss(n,i,j,1) = precipNumberLoss(n,i,j,1) - &
-              f2(n,i,j,m,k) * (1-alscone(n,i,j,m,k)) * &
-              ionization(n,i,j,m,k) * d4Element_C(n,i,k,m)
+        if (ekev(i,j,m,k,n) < energy(1,n)) then
+          precipEnergyLoss(i,j,1,n) = precipEnergyLoss(i,j,1,n) + &
+              f2(i,j,m,k,n) * (1 - alscone(i,j,m,k,n)) * &
+              (newEnergy - ekev(i,j,m,k,n)) * d4Element_C(i,m,k,n)
+          precipNumberLoss(i,j,1,n) = precipNumberLoss(i,j,1,n) - &
+              f2(i,j,m,k,n) * (1-alscone(i,j,m,k,n)) * &
+              ionization(i,j,m,k,n) * d4Element_C(i,m,k,n)
         else
           ! Otherwise, loop through energy bins to find where to add losses
           SavePrecip: do m2 = 1, neng
-            if (ekev(n,i,j,m,k) >= energy(n,m2) .and. &
-                ekev(n,i,j,m,k) < energy(n,m2+1)) then
-              weightLow = (ekev(n,i,j,m,k) - energy(n,m2)) / &
-                  (energy(n,m2+1) - energy(n,m2))
+            if (ekev(i,j,m,k,n) >= energy(m2,n) .and. &
+                ekev(i,j,m,k,n) < energy(m2+1,n)) then
+              weightLow = (ekev(i,j,m,k,n) - energy(m2,n)) / &
+                  (energy(m2+1,n) - energy(m2,n))
               weightHigh = 1. - weightLow
               ! Add precip losses to energy bins that border current energy
               ! Energy losses = f2 * (1-alscone) * (newEnergy-ekev) which is 
               ! equivalent to f2 * (1-alscone) * ionization * ekev
               ! Number losses = - f2 * (1-alscone) * ionization
               ! Both values are negative
-              precipEnergyLoss(n,i,j,m2) = precipEnergyLoss(n,i,j,m2) + &
-                  f2(n,i,j,m,k) * (1-alscone(n,i,j,m,k)) * &
-                  (newEnergy - ekev(n,i,j,m,k)) * weightLow * &
-                  d4Element_C(n,i,k,m)
-              precipEnergyLoss(n,i,j,m2+1) = precipEnergyLoss(n,i,j,m2+1) + &
-                  f2(n,i,j,m,k) * (1-alscone(n,i,j,m,k)) * &
-                  (newEnergy - ekev(n,i,j,m,k)) * weightHigh * &
-                  d4Element_C(n,i,k,m)
-              precipNumberLoss(n,i,j,m2) = precipNumberLoss(n,i,j,m2) - &
-                  f2(n,i,j,m,k) * (1-alscone(n,i,j,m,k)) * &
-                  ionization(n,i,j,m,k) * weightLow * d4Element_C(n,i,k,m)
-              precipNumberLoss(n,i,j,m2+1) = precipNumberLoss(n,i,j,m2+1) - &
-                  f2(n,i,j,m,k) * (1-alscone(n,i,j,m,k)) * &
-                  ionization(n,i,j,m,k) * weightHigh * d4Element_C(n,i,k,m)
+              precipEnergyLoss(i,j,m2,n) = precipEnergyLoss(i,j,m2,n) + &
+                  f2(i,j,m,k,n) * (1-alscone(i,j,m,k,n)) * &
+                  (newEnergy - ekev(i,j,m,k,n)) * weightLow * &
+                  d4Element_C(i,m,k,n)
+              precipEnergyLoss(i,j,m2+1,n) = precipEnergyLoss(i,j,m2+1,n) + &
+                  f2(i,j,m,k,n) * (1-alscone(i,j,m,k,n)) * &
+                  (newEnergy - ekev(i,j,m,k,n)) * weightHigh * &
+                  d4Element_C(i,m,k,n)
+              precipNumberLoss(i,j,m2,n) = precipNumberLoss(i,j,m2,n) - &
+                  f2(i,j,m,k,n) * (1-alscone(i,j,m,k,n)) * &
+                  ionization(i,j,m,k,n) * weightLow * d4Element_C(i,m,k,n)
+              precipNumberLoss(i,j,m2+1,n) = precipNumberLoss(i,j,m2+1,n) - &
+                  f2(i,j,m,k,n) * (1-alscone(i,j,m,k,n)) * &
+                  ionization(i,j,m,k,n) * weightHigh * d4Element_C(i,m,k,n)
               exit SavePrecip
             end if
           end do SavePrecip 
         end if
         ! Also add precip losses to summed value
-        precipEnergyLoss(n,i,j,neng+2) = precipEnergyLoss(n,i,j,neng+2) + &
-            f2(n,i,j,m,k) * (1-alscone(n,i,j,m,k)) * &
-            (newEnergy - ekev(n,i,j,m,k)) * d4Element_C(n,i,k,m)
-        precipNumberLoss(n,i,j,neng+2) = precipNumberLoss(n,i,j,neng+2) - &
-            f2(n,i,j,m,k) * (1-alscone(n,i,j,m,k)) * ionization(n,i,j,m,k) &
-            * d4Element_C(n,i,k,m)
+        precipEnergyLoss(i,j,neng+2,n) = precipEnergyLoss(i,j,neng+2,n) + &
+            f2(i,j,m,k,n) * (1-alscone(i,j,m,k,n)) * &
+            (newEnergy - ekev(i,j,m,k,n)) * d4Element_C(i,m,k,n)
+        precipNumberLoss(i,j,neng+2,n) = precipNumberLoss(i,j,neng+2,n) - &
+            f2(i,j,m,k,n) * (1-alscone(i,j,m,k,n)) * ionization(i,j,m,k,n) &
+            * d4Element_C(i,m,k,n)
       end do Minv
-      f2(n,i,j,:,k) = newf2(:)
+      f2(i,j,:,k,n) = newf2(:)
     enddo; enddo; enddo; enddo;
     return 
 
   end if
 
-  do k=1,nk
-    do m=1,nm
-      do j=MinLonPar,MaxLonPar
-        do i=1,iba(j)
-          do n=1,nspec
-            if (alscone(n,i,j,m,k) < 1.) &
-                f2(n,i,j,m,k)=f2(n,i,j,m,k)*alscone(n,i,j,m,k)
+  do n=1,nspec
+    do k=1,nk
+      do m=1,nm
+        do j=MinLonPar,MaxLonPar
+          do i=1,iba(j)
+            if (alscone(i,j,m,k,n) < 1.) &
+                f2(i,j,m,k,n)=f2(i,j,m,k,n)*alscone(i,j,m,k,n)
           enddo
         enddo
       enddo
@@ -2470,7 +2470,7 @@ subroutine sume(xle)
 
   real, intent(inout):: xle(nspec)
 
-  integer:: n,i,j,k,m,iError
+  integer:: i,j,m,k,n,iError
   real:: rbsumLocal0,xleChange,xleChangeLocal
   !----------------------------------------------------------------------------
   do n=1,nspec
@@ -2506,16 +2506,17 @@ subroutine calc_rbsumlocal(iSpecies)
   integer:: i,j,k,m
   !----------------------------------------------------------------------------
   rbsumLocal(iSpecies)=0.
-  do j=MinLonPar,MaxLonPar
-     do i=1,iba(j)
-        do k=1,nm
-           do m=1,nk
-              weight=f2(iSpecies,i,j,k,m)*d4Element_C(iSpecies,i,k,m) &
-                   *ekev(iSpecies,i,j,k,m)
-              rbsumLocal(iSpecies)=rbsumLocal(iSpecies)+weight  ! rbsum in keV
-           enddo
+  
+  do k=1,nk
+    do m=1,nm
+      do j=MinLonPar,MaxLonPar
+        do i=1,iba(j)
+          weight=f2(i,j,m,k,iSpecies)*d4Element_C(i,m,k,iSpecies) &
+                *ekev(i,j,m,k,iSpecies)
+          rbsumLocal(iSpecies)=rbsumLocal(iSpecies)+weight  ! rbsum in keV
         enddo
-     enddo
+      enddo
+    enddo
   enddo
 
 end subroutine calc_rbsumlocal
@@ -2563,31 +2564,31 @@ subroutine sume_cimi(OperatorName)
   do n=1,nspec
      rbsum(n)=0.
      rcsum(n)=0.
-     eChangeLocal(n, OperatorName) = 0.
+     eChangeLocal(OperatorName, n) = 0.
      e0(1:ip,MinLonPar:MaxLonPar,1:je+2)=&
-          esum(n,1:ip,MinLonPar:MaxLonPar,1:je+2)
+          esum(1:ip,MinLonPar:MaxLonPar,1:je+2,n)
      p0(1:ip,MinLonPar:MaxLonPar,1:je+2)=&
-          psum(n,1:ip,MinLonPar:MaxLonPar,1:je+2)
-     esum(n,1:ip,MinLonPar:MaxLonPar,1:je+2)=0.
-     psum(n,1:ip,MinLonPar:MaxLonPar,1:je+2)=0.
-     gride1(1:je)=Ebound(n,1:je)
+          psum(1:ip,MinLonPar:MaxLonPar,1:je+2,n)
+     esum(1:ip,MinLonPar:MaxLonPar,1:je+2,n)=0.
+     psum(1:ip,MinLonPar:MaxLonPar,1:je+2,n)=0.
+     gride1(1:je)=Ebound(1:je,n)
 
      do j=MinLonPar,MaxLonPar
         do i=1,iba(j)
-           do m=1,ik
-              do k=1,iw2(n,m)
-                 ekev1=ekev(n,i,j,k,m)
-                 weight=d4Element_C(n,i,k,m)*f2(n,i,j,k,m)
+           do k=1,ik
+              do m=1,iw2(k,n)
+                 ekev1=ekev(i,j,m,k,n)
+                 weight=d4Element_C(i,m,k,n)*f2(i,j,m,k,n)
                  weighte=ekev1*weight
-                 psum(n,i,j,je+2)=psum(n,i,j,je+2)+weight
-                 esum(n,i,j,je+2)=esum(n,i,j,je+2)+weighte
+                 psum(i,j,je+2,n)=psum(i,j,je+2,n)+weight
+                 esum(i,j,je+2,n)=esum(i,j,je+2,n)+weighte
                  rbsum(n)=rbsum(n)+weighte
                  if (ro(i,j) <= 6.6) rcsum(n)=rcsum(n)+weighte
                  kkloop: do kk=1,je+1
                     if ( ekev1 > gride1(kk-1) .and. &
                          ekev1 <= gride1(kk) ) then
-                       psum(n,i,j,kk)=psum(n,i,j,kk)+weight
-                       esum(n,i,j,kk)=esum(n,i,j,kk)+weighte
+                       psum(i,j,kk,n)=psum(i,j,kk,n)+weight
+                       esum(i,j,kk,n)=esum(i,j,kk,n)+weighte
                        EXIT kkloop
                     endif
                  enddo kkloop
@@ -2595,17 +2596,17 @@ subroutine sume_cimi(OperatorName)
            enddo
 
            do kk=1,je+2
-              dee = esum(n,i,j,kk) - e0(i,j,kk)
-              xle(n,i,j,kk,OperatorName) = &
-                   xle(n,i,j,kk,OperatorName) + dee
-              dpe=psum(n,i,j,kk)-p0(i,j,kk)
-              ple(n,i,j,kk,OperatorName) = &
-                   ple(n,i,j,kk,OperatorName) + dpe
+              dee = esum(i,j,kk,n) - e0(i,j,kk)
+              xle(i,j,kk,OperatorName,n) = &
+                   xle(i,j,kk,OperatorName,n) + dee
+              dpe=psum(i,j,kk,n)-p0(i,j,kk)
+              ple(i,j,kk,OperatorName,n) = &
+                   ple(i,j,kk,OperatorName,n) + dpe
            enddo
 
-           eChangeLocal(n, OperatorName) = &
-                eChangeLocal(n, OperatorName) + &
-                xle(n,i,j,je+2,OperatorName)
+           eChangeLocal(OperatorName, n) = &
+                eChangeLocal(OperatorName, n) + &
+                xle(i,j,je+2,OperatorName,n)
 
         enddo                ! end of do i=1,iba(j)
      enddo                   ! end of do j=MinLonPar,MaxLonPar
@@ -2619,16 +2620,16 @@ subroutine sume_cimi(OperatorName)
              rcsum(n), rcsumGlobal(n), 1, &
              MPI_REAL, MPI_SUM, 0, iComm, iError)
         call MPI_REDUCE(&
-             eChangeLocal(n, OperatorName), &
-             eChangeGlobal(n, OperatorName), 1, &
+             eChangeLocal(OperatorName, n), &
+             eChangeGlobal(OperatorName, n), 1, &
              MPI_REAL, MPI_SUM, 0, iComm, iError)
 
      else
 
         rbsumGlobal(n) = rbsum(n)
         rcsumGlobal(n) = rcsum(n)
-        eChangeGlobal(n,OperatorName) = &
-             eChangeLocal(n,OperatorName)
+        eChangeGlobal(OperatorName, n) = &
+             eChangeLocal(OperatorName, n)
 
      endif
 
@@ -2664,28 +2665,28 @@ subroutine cimi_output( &
 
   integer, intent(in):: np, nt, nm, nk, nspec, neng, npit, iba(nt)
   real, intent(in):: &
-       ftv(np,nt), f2(nspec,np,nt,nm,nk), sinA(np,nt,nk), &
-       energy(nspec,neng), sinAo(npit), xjac(nspec,np,nm), &
-       delE(nspec,neng), dmu(npit), amu_I(nspec), pp(nspec,np,nt,nm,nk), &
-       xmm(nspec,0:nm+1),dmm(nspec,nm), dk(nk), xlat(np),dphi, re_m, Hiono, &
-       vl(nspec,0:np,nt,nm,nk), vp(nspec,0:np,nt,nm,nk),&
+       ftv(np,nt), f2(np,nt,nm,nk,nspec), sinA(np,nt,nk), &
+       energy(neng,nspec), sinAo(npit), xjac(np,nm,nspec), &
+       delE(neng,nspec), dmu(npit), amu_I(nspec), pp(np,nt,nm,nk,nspec), &
+       xmm(0:nm+1,nspec),dmm(nm,nspec), dk(nk), xlat(np),dphi, re_m, Hiono, &
+       vl(0:np,nt,nm,nk,nspec), vp(0:np,nt,nm,nk,nspec),&
        ro(np,nt),xmlto(np,nt)
 
   real, intent(inout):: &
-       flux(nspec,np,nt,neng,npit), fac(np,nt), phot(nspec,np,nt), &
-       Ppar_IC(nspec,np,nt), Pressure_IC(nspec,np,nt), &
-       PressurePar_IC(nspec,np,nt), &
-       vlEa(nspec,np,nt,neng,npit), vpEa(nspec,np,nt,neng,npit), &
-       psd(nspec,np,nt,nm,nk)
+       flux(np,nt,neng,npit,nspec), fac(np,nt), phot(np,nt,nspec), &
+       Ppar_IC(np,nt,nspec), Pressure_IC(np,nt,nspec), &
+       PressurePar_IC(np,nt,nspec), &
+       vlEa(np,nt,neng,npit,nspec), vpEa(np,nt,neng,npit,nspec), &
+       psd(np,nt,nm,nk,nspec)
 
-  real:: ftv1, aloge(nspec,neng), rion, ekev(nspec,np,nt,nm,nk)
+  real:: ftv1, aloge(neng,nspec), rion, ekev(np,nt,nm,nk,nspec)
   real:: flux2D(nm,nk), vl2D(nm,nk), vp2D(nm,nk)
   real:: sinA1D(nk),cosA2(nk),flx,ekev2D(nm,nk),flx_lo,pf(nspec), &
-       delEE(nspec,neng),cosAo2(npit)
+       delEE(neng,nspec),cosAo2(npit)
   real:: vl_lo,vp_lo
   real:: sina1,sina0,dcosa
-  real:: amu1,psd1,fave(nspec,np,nt,neng)
-  real:: xlatr(np),eta(nspec,np,nt,nm,nk)
+  real:: amu1,psd1,fave(np,nt,neng,nspec)
+  real:: xlatr(np),eta(np,nt,nm,nk,nspec)
   real:: detadi,detadj,dwkdi,dwkdj
   real:: Pressure0, Pressure1, PressurePar1, Coeff
   integer:: iStatus_I(MPI_STATUS_SIZE), iError
@@ -2714,8 +2715,8 @@ subroutine cimi_output( &
   do n=1,nspec
      ! phot(nPa)
      pf(n)=4*cPi*1e4/3*sqrt(2*cProtonMass*amu_I(n))*sqrt(1.6e-16)*1e9
-     delEE(n,1:neng) = delE(n,1:neng) * sqrt(energy(n,1:neng))
-     aloge(n,1:neng) = log10(energy(n,1:neng))
+     delEE(1:neng,n) = delE(1:neng,n) * sqrt(energy(1:neng,n))
+     aloge(1:neng,n) = log10(energy(1:neng,n))
   enddo
   !  delEE=delE*sqrt(energy)
   xlatr=xlat*cDegToRad
@@ -2732,39 +2733,39 @@ subroutine cimi_output( &
            Pressure0=0.0
            Pressure1=0.0
            PressurePar1=0.0
-           Den_IC(n,i,j)=0.0
+           Den_IC(i,j,n)=0.0
            amu1=amu_I(n)**1.5
 !!!! Calculate Den_IC, and 2D flux, fl2D(log), ekev2D(log) and sinA1D
-           do m=1,nk
-              sinA1D(m) = sinA(i,j,m)
-              cosA2(m) = 1 - sinA1D(m)**2
+           do k=1,nk
+              sinA1D(k) = sinA(i,j,k)
+              cosA2(k) = 1 - sinA1D(k)**2
            end do
-           do m=1,nk
-              if (m == 1) sina0=1.
-              if (m > 1) sina0=0.5*(sinA1D(m)+sinA1D(m-1))
-              if (m == nk) sina1=0.
-              if (m < nk) sina1=0.5*(sinA1D(m)+sinA1D(m+1))
+           do k=1,nk
+              if (k == 1) sina0=1.
+              if (k > 1) sina0=0.5*(sinA1D(k)+sinA1D(k-1))
+              if (k == nk) sina1=0.
+              if (k < nk) sina1=0.5*(sinA1D(k)+sinA1D(k+1))
               dcosa=sqrt(1.-sina1*sina1)-sqrt(1.-sina0*sina0)
-              do k=1,nm
-                 ! write(*,*) 'n,i,k,xjac(n,i,k)',n,i,k,xjac(n,i,k)
-                 psd1=f2(n,i,j,k,m)/1.e20/1.e19/xjac(n,i,k)  ! mug^-3cm^-6s^3
-                 flx=psd1*(1.6e19*pp(n,i,j,k,m))*pp(n,i,j,k,m)
-                 flux2D(k,m)=-50.
-                 if (flx > 1.e-50) flux2D(k,m)=log10(flx)
-                 ekev2D(k,m)=log10(ekev(n,i,j,k,m))
-                 eta(n,i,j,k,m)=amu1*1.209*psd1*sqrt(xmm(n,k))*dmm(n,k)*dk(m)
-                 psd(n,i,j,k,m)=psd1
+              do m=1,nm
+                 ! write(*,*) 'i,k,n,xjac(i,k,n)',i,k,n,xjac(i,k,n)
+                 psd1=f2(i,j,m,k,n)/1.e20/1.e19/xjac(i,m,n)  ! mug^-3cm^-6s^3
+                 flx=psd1*(1.6e19*pp(i,j,m,k,n))*pp(i,j,m,k,n)
+                 flux2D(m,k)=-50.
+                 if (flx > 1.e-50) flux2D(m,k)=log10(flx)
+                 ekev2D(m,k)=log10(ekev(i,j,m,k,n))
+                 eta(i,j,m,k,n)=amu1*1.209*psd1*sqrt(xmm(m,n))*dmm(m,n)*dk(k)
+                 psd(i,j,m,k,n)=psd1
 
                  ! Stores drift velocities in (m,k)
                  ! NOTE:: vl is calculated at dlambda/dt [rad/s] in
                  ! ionosphere.  This variable still needs to be
                  ! converted to radial velocities [km/s].
-                 vl2D(k,m)=vl(n,i,j,k,m)
-                 vp2D(k,m)=vp(n,i,j,k,m)
+                 vl2D(m,k)=vl(i,j,m,k,n)
+                 vp2D(m,k)=vp(i,j,m,k,n)
 
                  ! The old rho and p calculation based on RCM method:
-                 !   Den_IC(n,i,j) = Den_IC(n,i,j)+eta(n,i,j,k,m)/ftv1
-                 !   Pressure0     = eta(n,i,j,k,m)*ekev(i,j,k,m)/ftv1
+                 !   Den_IC(n,i,j) = Den_IC(n,i,j)+eta(i,j,m,k,n)/ftv1
+                 !   Pressure0     = eta(i,j,m,k,n)*ekev(i,j,k,m)/ftv1
                  ! might be incorrect, giving different results from the
                  ! following calculation based on integration of flux.
 
@@ -2777,47 +2778,47 @@ subroutine cimi_output( &
                  !   P    = 4*pi/3*int(E*flx*p/M*dcosAdM)
                  !   Ppar = 4*pi*int(E*flx*p/M*(cosA)^2*dcosAdM)
 
-                 Den_IC(n,i,j) = Den_IC(n,i,j) &
-                      + flx*pp(n,i,j,k,m)/xmm(n,k)*dmm(n,k)*dcosa
-                 Pressure0 = ekev(n,i,j,k,m)*flx*pp(n,i,j,k,m)/xmm(n,k) &
-                      *dmm(n,k)*dcosa
+                 Den_IC(i,j,n) = Den_IC(i,j,n) &
+                      + flx*pp(i,j,m,k,n)/xmm(m,n)*dmm(m,n)*dcosa
+                 Pressure0 = ekev(i,j,m,k,n)*flx*pp(i,j,m,k,n)/xmm(m,n) &
+                      *dmm(m,n)*dcosa
                  Pressure1 = Pressure1 + Pressure0
-                 PressurePar1 = PressurePar1 + 3.*Pressure0*cosA2(m)
+                 PressurePar1 = PressurePar1 + 3.*Pressure0*cosA2(k)
               enddo
            enddo
 
-           Den_IC(n,i,j) = Den_IC(n,i,j)*2.0*cPi/1.6e-20   ! density in m^-3
+           Den_IC(i,j,n) = Den_IC(i,j,n)*2.0*cPi/1.6e-20   ! density in m^-3
            ! Coeff = 1.6e-16*2./3.*1.e9                   ! for the old p
            Coeff = 4.*cPi/3.*1.e4*1.e9
-           Pressure_IC(n,i,j) = Pressure1*Coeff          ! pressure in nPa
-           PressurePar_IC(n,i,j) = PressurePar1*Coeff
+           Pressure_IC(i,j,n) = Pressure1*Coeff          ! pressure in nPa
+           PressurePar_IC(i,j,n) = PressurePar1*Coeff
 
 !!!! Map flux to fixed energy and pitch-angle grids (energy, sinAo)
            do k=1,neng
               do m=1,npit
-!!$                 if ( aloge(n,k) < minval(ekev2D) &
-!!$                      .or. aloge(n,k) > maxval(ekev2D) &
+!!$                 if ( aloge(k,n) < minval(ekev2D) &
+!!$                      .or. aloge(k,n) > maxval(ekev2D) &
 !!$                      .or. sinAo(m) < minval(sinA1D) &
 !!$                      .or. sinAo(m) > maxval(sinA1D) ) then
 !!$                    flx_lo=-50.0
 !!$                    vl_lo=0.0
 !!$                    vp_lo=0.0
 !!$                 else
-                 call lintp2aIM(ekev2D,sinA1D,flux2D,nm,nk,aloge(n,k),&
+                 call lintp2aIM(ekev2D,sinA1D,flux2D,nm,nk,aloge(k,n),&
                       sinAo(m),flx_lo)
 
 !!!! Map radial drift to fixed energy and pitch-angle grids (energy, sinAo)
-                 call lintp2aIM(ekev2D,sinA1D,vl2D,nm,nk,aloge(n,k),&
+                 call lintp2aIM(ekev2D,sinA1D,vl2D,nm,nk,aloge(k,n),&
                       sinAo(m),vl_lo)
 
 !!!! Map poloidal drift to fixed energy and pitch-angle grids (energy, sinAo)
-                 call lintp2aIM(ekev2D,sinA1D,vp2D,nm,nk,aloge(n,k),&
+                 call lintp2aIM(ekev2D,sinA1D,vp2D,nm,nk,aloge(k,n),&
                       sinAo(m),vp_lo)
 
-                 flux(n,i,j,k,m)=10.**flx_lo
-                 vlEa(n,i,j,k,m)=&
+                 flux(i,j,k,m,n)=10.**flx_lo
+                 vlEa(i,j,k,m,n)=&
                       vl_lo*re_m   ! bounce-averaged vl  PROJECTED to ionosphere 
-                 vpEa(n,i,j,k,m)= &
+                 vpEa(i,j,k,m,n)= &
                       vp_lo*re_m*cos(xlatr(i))    !  bounce averaged vp PROJECTED to ionosphere
 
               enddo
@@ -2834,29 +2835,29 @@ subroutine cimi_output( &
 !!!! calculate pitch-angle averaged flux
         do n=1,nspec
            do k=1,neng
-              fave(n,i,j,k)=0.
+              fave(i,j,k,n)=0.
               do m=1,npit
-                 fave(n,i,j,k)=fave(n,i,j,k)+flux(n,i,j,k,m)*dmu(m)
+                 fave(i,j,k,n)=fave(i,j,k,n)+flux(i,j,k,m,n)*dmu(m)
               enddo
            enddo
         enddo
 !!!! calculate pressure and temperature
         do n=1,nspec
            do k=1,neng
-              phot(n,i,j)=phot(n,i,j)+fave(n,i,j,k)*delEE(n,k)*pf(n) ! phot in nPa
-              if (CIMIboundary) Part_phot(n,i,j,k) = fave(n,i,j,k)*delEE(n,k)*pf(n) 
+              phot(i,j,n)=phot(i,j,n)+fave(i,j,k,n)*delEE(k,n)*pf(n) ! phot in nPa
+              if (CIMIboundary) Part_phot(i,j,k,n) = fave(i,j,k,n)*delEE(k,n)*pf(n) 
            enddo
-           Temp_IC(n,i,j)=0.
-           if (Den_IC(n,i,j) > 0.) &
-                Temp_IC(n,i,j)=phot(n,i,j)*1.e-9/Den_IC(n,i,j)/1.6e-19   ! eV
+           Temp_IC(i,j,n)=0.
+           if (Den_IC(i,j,n) > 0.) &
+                Temp_IC(i,j,n)=phot(i,j,n)*1.e-9/Den_IC(i,j,n)/1.6e-19   ! eV
         enddo
 !!!! calculate parallel pressure
         cosAo2(1:npit) = 1-sinAo(1:npit)**2  ! store 1-sinAo^2
         do n=1,nspec
            do k=1,neng
               do m=1,npit
-                 Ppar_IC(n,i,j) = Ppar_IC(n,i,j) + flux(n,i,j,k,m) &
-                      *cosAo2(m)*dmu(m)*delEE(n,k)*pf(n)*3.
+                 Ppar_IC(i,j,n) = Ppar_IC(i,j,n) + flux(i,j,k,m,n) &
+                      *cosAo2(m)*dmu(m)*delEE(k,n)*pf(n)*3.
               enddo
            enddo
         enddo
@@ -2865,45 +2866,45 @@ subroutine cimi_output( &
            do n=1,nspec
               p_min = 0.
               p_max = 0.
-              p_q1 = Phot(n,i,j) * 0.25
-              p_q3 = Phot(n,i,j) * 0.75
+              p_q1 = Phot(i,j,n) * 0.25
+              p_q3 = Phot(i,j,n) * 0.75
               do k=1,neng
                  if (p_min < p_q1) then
-                    p_min = Part_phot(n,i,j,k) + p_min
-                    eng_q1(n,i,j)=energy(n,k)   ! in kev(?) - check
+                    p_min = Part_phot(i,j,k,n) + p_min
+                    eng_q1(i,j,n)=energy(k,n)   ! in kev(?) - check
                     k_q1=k
                  endif
                  if (p_max < p_q3) then
-                    p_max = Part_phot(n,i,j,k) + p_max
-                    eng_q3(n,i,j)=energy(n,k)
+                    p_max = Part_phot(i,j,k,n) + p_max
+                    eng_q3(i,j,n)=energy(k,n)
                     k_q3=k
                  endif
               enddo
            enddo
            
-           vexb(1,i,j) = vpEa(1,i,j,1,1)*vpEa(1,i,j,1,1)
-           vexb(1,i,j) = sqrt(vlEa(1,i,j,1,1)*vlEa(1,i,j,1,1) + vexb(1,i,j))
+           vexb(i,j,1) = vpEa(i,j,1,1,1)*vpEa(i,j,1,1,1)
+           vexb(i,j,1) = sqrt(vlEa(i,j,1,1,1)*vlEa(i,j,1,1,1) + vexb(i,j,1))
            
-           vdr_q1(1,i,j) = sqrt(vlEa(1,i,j,k_q1,1)*vlEa(1,i,j,k_q1,1)&
-                +vpEa(1,i,j,k_q1,1)*vpEa(1,i,j,k_q1,1))
-           vdr_q3(1,i,j) = sqrt(vlEa(1,i,j,k_q3,1)*vlEa(1,i,j,k_q3,1)&
-                +vpEa(1,i,j,k_q3,1)*vpEa(1,i,j,k_q3,1))
-           vgyr_q1(1,i,j) = 440. *sqrt(energy(1,k_q1))
-           vgyr_q3(1,i,j) = 440. *sqrt(energy(1,k_q3))
-           vexb(1,i,j) = sqrt(vlEa(1,i,j,1,1)*vlEa(1,i,j,1,1)&
-                +vpEa(1,i,j,1,1)*vpEa(1,i,j,1,1))
+           vdr_q1(i,j,1) = sqrt(vlEa(i,j,k_q1,1,1)*vlEa(i,j,k_q1,1,1)&
+                +vpEa(i,j,k_q1,1,1)*vpEa(i,j,k_q1,1,1))
+           vdr_q3(i,j,1) = sqrt(vlEa(i,j,k_q3,1,1)*vlEa(i,j,k_q3,1,1)&
+                +vpEa(i,j,k_q3,1,1)*vpEa(i,j,k_q3,1,1))
+           vgyr_q1(i,j,1) = 440. *sqrt(energy(k_q1,1))
+           vgyr_q3(i,j,1) = 440. *sqrt(energy(k_q3,1))
+           vexb(i,j,1) = sqrt(vlEa(i,j,1,1,1)*vlEa(i,j,1,1,1)&
+                +vpEa(i,j,1,1,1)*vpEa(i,j,1,1,1))
            
-           dif_q1(1,i,j) = (vlEa(1,i,j,k_q1,1)-vlEa(1,i,j,1,1))&
-                *(vlEa(1,i,j,k_q1,1)-vlEa(1,i,j,1,1))
-           dif_q1(1,i,j) = dif_q1(1,i,j)+(vpEa(1,i,j,k_q1,1)&
-                -vpEa(1,i,j,1,1))*(vpEa(1,i,j,k_q1,1)-vpEa(1,i,j,1,1))
-           dif_q1(1,i,j)  = sqrt(dif_q1(1,i,j))/vexb(1,i,j)   ! relative difference between vdr and vExB, q1
+           dif_q1(i,j,1) = (vlEa(i,j,k_q1,1,1)-vlEa(i,j,1,1,1))&
+                *(vlEa(i,j,k_q1,1,1)-vlEa(i,j,1,1,1))
+           dif_q1(i,j,1) = dif_q1(i,j,1)+(vpEa(i,j,k_q1,1,1)&
+                -vpEa(i,j,1,1,1))*(vpEa(i,j,k_q1,1,1)-vpEa(i,j,1,1,1))
+           dif_q1(i,j,1)  = sqrt(dif_q1(i,j,1))/vexb(i,j,1)   ! relative difference between vdr and vExB, q1
            
-           dif_q3(1,i,j) = (vlEa(1,i,j,k_q3,1)-vlEa(1,i,j,1,1))&
-                *(vlEa(1,i,j,k_q3,1)-vlEa(1,i,j,1,1))
-           dif_q3(1,i,j) = dif_q3(1,i,j)+(vpEa(1,i,j,k_q3,1)&
-                -vpEa(1,i,j,1,1))*(vpEa(1,i,j,k_q3,1)-vpEa(1,i,j,1,1))
-           dif_q3(1,i,j)  = sqrt(dif_q3(1,i,j))/vexb(1,i,j)   ! relative difference between vdr and vExB, q3
+           dif_q3(i,j,1) = (vlEa(i,j,k_q3,1,1)-vlEa(i,j,1,1,1))&
+                *(vlEa(i,j,k_q3,1,1)-vlEa(i,j,1,1,1))
+           dif_q3(i,j,1) = dif_q3(i,j,1)+(vpEa(i,j,k_q3,1,1)&
+                -vpEa(i,j,1,1,1))*(vpEa(i,j,k_q3,1,1)-vpEa(i,j,1,1,1))
+           dif_q3(i,j,1)  = sqrt(dif_q3(i,j,1))/vexb(i,j,1)   ! relative difference between vdr and vExB, q3
         endif
      enddo iloop2
   enddo jloop2
@@ -2913,8 +2914,8 @@ subroutine cimi_output( &
      ! First get ghost cell info for eta and ekev when nProc>1
      if (nProc>1) then
         ! send ekev ghostcells
-        do k=1,nm
-           do m=1,nk
+        do k=1,nk
+           do m=1,nm
               ! call MPI_send(ekev(:,MaxLonPar,k,m),np,MPI_REAL,iProcRight,&
               !      1,iComm,iError)
               ! call MPI_send(ekev(:,MinLonPar,k,m),np,MPI_REAL,iProcLeft,&
@@ -2925,24 +2926,24 @@ subroutine cimi_output( &
               ! call MPI_recv(ekev(:,iLonRight,k,m),np,MPI_REAL,iProcRight,&
               !      2,iComm,iStatus_I,iError)
               do n=1,nspec
-                 call MPI_send(ekev(n,:,MaxLonPar,k,m),np,MPI_REAL,iProcRight,&
+                 call MPI_send(ekev(:,MaxLonPar,m,k,n),np,MPI_REAL,iProcRight,&
                       1,iComm,iError)
-                 call MPI_send(ekev(n,:,MinLonPar,k,m),np,MPI_REAL,iProcLeft,&
+                 call MPI_send(ekev(:,MinLonPar,m,k,n),np,MPI_REAL,iProcLeft,&
                       2,iComm,iError)
                  ! recieve ekev from neigboring Procs
-                 call MPI_recv(ekev(n,:,iLonLeft,k,m),np,MPI_REAL,iProcLeft,&
+                 call MPI_recv(ekev(:,iLonLeft,m,k,n),np,MPI_REAL,iProcLeft,&
                       1,iComm,iStatus_I,iError)
-                 call MPI_recv(ekev(n,:,iLonRight,k,m),np,MPI_REAL,iProcRight,&
+                 call MPI_recv(ekev(:,iLonRight,m,k,n),np,MPI_REAL,iProcRight,&
                       2,iComm,iStatus_I,iError)
                  ! send eta ghostcells
-                 call MPI_send(eta(n,:,MaxLonPar,k,m),np,MPI_REAL,iProcRight,&
+                 call MPI_send(eta(:,MaxLonPar,m,k,n),np,MPI_REAL,iProcRight,&
                       1,iComm,iError)
-                 call MPI_send(eta(n,:,MinLonPar,k,m),np,MPI_REAL,iProcLeft,&
+                 call MPI_send(eta(:,MinLonPar,m,k,n),np,MPI_REAL,iProcLeft,&
                       2,iComm,iError)
                  ! recieve eta from neigboring Procs
-                 call MPI_recv(eta(n,:,iLonLeft,k,m),np,MPI_REAL,iProcLeft,&
+                 call MPI_recv(eta(:,iLonLeft,m,k,n),np,MPI_REAL,iProcLeft,&
                       1,iComm,iStatus_I,iError)
-                 call MPI_recv(eta(n,:,iLonRight,k,m),np,MPI_REAL,iProcRight,&
+                 call MPI_recv(eta(:,iLonRight,m,k,n),np,MPI_REAL,iProcRight,&
                       2,iComm,iStatus_I,iError)
               enddo
            enddo
@@ -2954,15 +2955,15 @@ subroutine cimi_output( &
         if (j1 > nt) j1=j1-nt          !! periodic boundary condition
         if (j_1 < 1) j_1=j_1+nt        !!
         iloop3: do i=2,iba(j)-1
-           do k=1,nm
-              do m=1,nk
+           do k=1,nk
+              do m=1,nm
                  do n=1,nspec
-                    dwkdi= ( ekev(n,i+1,j,k,m) &
-                           - ekev(n,i-1,j,k,m))/(xlatr(i+1)-xlatr(i-1))
-                    dwkdj=(ekev(n,i,j1,k,m)-ekev(n,i,j_1,k,m))/(2.*dphi)
-                    detadi=(eta(n,i+1,j,k,m) &
-                         -  eta(n,i-1,j,k,m))/(xlatr(i+1)-xlatr(i-1))
-                    detadj=(eta(n,i,j1,k,m)-eta(n,i,j_1,k,m))/(2.*dphi)
+                    dwkdi= ( ekev(i+1,j,m,k,n) &
+                           - ekev(i-1,j,m,k,n))/(xlatr(i+1)-xlatr(i-1))
+                    dwkdj=(ekev(i,j1,m,k,n)-ekev(i,j_1,m,k,n))/(2.*dphi)
+                    detadi=(eta(i+1,j,m,k,n) &
+                         -  eta(i-1,j,m,k,n))/(xlatr(i+1)-xlatr(i-1))
+                    detadj=(eta(i,j1,m,k,n)-eta(i,j_1,m,k,n))/(2.*dphi)
                     fac(i,j)=fac(i,j)+(detadi*dwkdj-detadj*dwkdi)
                  enddo
               enddo
@@ -2999,8 +3000,8 @@ subroutine cimi_gather( delta_t, psd, flux, vlea, vpea )
   implicit none
   
   real, intent(in) :: delta_t
-  real:: flux( nspec, np, nt, neng, npit ), psd( nspec, np, nt, nm, nk ), &
-       vlEa( nspec, np, nt, neng, npit ), vpEa (nspec, np, nt, neng, npit )
+  real:: flux( np, nt, neng, npit, nspec ), psd( np, nt, nm, nk, nspec ), &
+       vlEa( np, nt, neng, npit, nspec ), vpEa (np, nt, neng, npit, nspec )
 
   ! Vars for mpi passing
   integer, allocatable :: iBufferSend_I(:), iBufferRecv_I(:)
@@ -3025,35 +3026,35 @@ subroutine cimi_gather( delta_t, psd, flux, vlea, vpea )
   if (iProc==0) FAC_C(:,:)=BufferRecv_C(:,:)
 
   do iSpecies=1,nspec
-     BufferSend_C(:,:)=Pressure_IC(iSpecies,:,:)
+     BufferSend_C(:,:)=Pressure_IC(:,:,iSpecies)
      call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
           MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
           MPI_REAL, 0, iComm, iError)
-     if (iProc==0) Pressure_IC(iSpecies,:,:)=BufferRecv_C(:,:)
+     if (iProc==0) Pressure_IC(:,:,iSpecies)=BufferRecv_C(:,:)
 
-     BufferSend_C(:,:)=PressurePar_IC(iSpecies,:,:)
+     BufferSend_C(:,:)=PressurePar_IC(:,:,iSpecies)
      call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
           MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
           MPI_REAL, 0, iComm, iError)
-     if (iProc==0) PressurePar_IC(iSpecies,:,:)=BufferRecv_C(:,:)
+     if (iProc==0) PressurePar_IC(:,:,iSpecies)=BufferRecv_C(:,:)
 
-     BufferSend_C(:,:)=phot(iSpecies,:,:)
+     BufferSend_C(:,:)=phot(:,:,iSpecies)
      call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
           MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
           MPI_REAL, 0, iComm, iError)
-     if (iProc==0) phot(iSpecies,:,:)=BufferRecv_C(:,:)
+     if (iProc==0) phot(:,:,iSpecies)=BufferRecv_C(:,:)
 
-     BufferSend_C(:,:)=Ppar_IC(iSpecies,:,:)
+     BufferSend_C(:,:)=Ppar_IC(:,:,iSpecies)
      call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
           MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
           MPI_REAL, 0, iComm, iError)
-     if (iProc==0) Ppar_IC(iSpecies,:,:)=BufferRecv_C(:,:)
+     if (iProc==0) Ppar_IC(:,:,iSpecies)=BufferRecv_C(:,:)
 
-     BufferSend_C(:,:)=Den_IC(iSpecies,:,:)
+     BufferSend_C(:,:)=Den_IC(:,:,iSpecies)
      call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
           MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
           MPI_REAL, 0, iComm, iError)
-     if (iProc==0) Den_IC(iSpecies,:,:)=BufferRecv_C(:,:)
+     if (iProc==0) Den_IC(:,:,iSpecies)=BufferRecv_C(:,:)
 
   enddo
 
@@ -3071,11 +3072,11 @@ subroutine cimi_gather( delta_t, psd, flux, vlea, vpea )
 
         do iK = 1, nk
 
-           BufferSend_C(:,:)=psd(iSpecies,:,:,im,iK)
+           BufferSend_C(:,:)=psd(:,:,iM,iK,iSpecies)
            call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
                 MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
                 MPI_REAL, 0, iComm, iError)
-           if (iProc==0) psd(iSpecies,:,:,im,ik)=BufferRecv_C(:,:)
+           if (iProc==0) psd(:,:,iM,iK,iSpecies)=BufferRecv_C(:,:)
 
         end do
 
@@ -3084,23 +3085,23 @@ subroutine cimi_gather( delta_t, psd, flux, vlea, vpea )
      do iEnergy = 1, neng
         do iPit = 1, nPit
 
-           BufferSend_C(:,:)=flux(iSpecies,:,:,iEnergy,iPit)
+           BufferSend_C(:,:)=flux(:,:,iEnergy,iPit,iSpecies)
            call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
                 MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
                 MPI_REAL, 0, iComm, iError)
-           if (iProc==0) flux(iSpecies,:,:,iEnergy,iPit)=BufferRecv_C(:,:)
+           if (iProc==0) flux(:,:,iEnergy,iPit,iSpecies)=BufferRecv_C(:,:)
 
-           BufferSend_C(:,:)=vlEa(iSpecies,:,:,iEnergy,iPit)
+           BufferSend_C(:,:)=vlEa(:,:,iEnergy,iPit,iSpecies)
            call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
                 MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
                 MPI_REAL, 0, iComm, iError)
-           if (iProc==0) vlEa(iSpecies,:,:,iEnergy,iPit)=BufferRecv_C(:,:)
+           if (iProc==0) vlEa(:,:,iEnergy,iPit,iSpecies)=BufferRecv_C(:,:)
 
-           BufferSend_C(:,:)=vpEa(iSpecies,:,:,iEnergy,iPit)
+           BufferSend_C(:,:)=vpEa(:,:,iEnergy,iPit,iSpecies)
            call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
                 MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
                 MPI_REAL, 0, iComm, iError)
-           if (iProc==0) vpEa(iSpecies,:,:,iEnergy,iPit)=BufferRecv_C(:,:)
+           if (iProc==0) vpEa(:,:,iEnergy,iPit,iSpecies)=BufferRecv_C(:,:)
 
         enddo
      enddo
@@ -3110,25 +3111,25 @@ subroutine cimi_gather( delta_t, psd, flux, vlea, vpea )
 
      do iEnergy = 1, neng + 2
 
-        BufferSend_C(:,:)=preP(iSpecies,:,:,iEnergy)
+        BufferSend_C(:,:)=preP(:,:,iEnergy,iSpecies)
         call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
              MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
              MPI_REAL, 0, iComm, iError)
-        if (iProc==0) preP(iSpecies,:,:,iEnergy)=BufferRecv_C(:,:)
+        if (iProc==0) preP(:,:,iEnergy,iSpecies)=BufferRecv_C(:,:)
 
-        BufferSend_C(:,:)=preF(iSpecies,:,:,iEnergy)
+        BufferSend_C(:,:)=preF(:,:,iEnergy,iSpecies)
         call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
              MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
              MPI_REAL, 0, iComm, iError)
-        if (iProc==0) preF(iSpecies,:,:,iEnergy)=BufferRecv_C(:,:)
+        if (iProc==0) preF(:,:,iEnergy,iSpecies)=BufferRecv_C(:,:)
 
      enddo ! Do loop over iEnergy
 
-     BufferSend_C(:,:)=Eje1(iSpecies,:,:)
+     BufferSend_C(:,:)=Eje1(:,:,iSpecies)
      call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
           MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
           MPI_REAL, 0, iComm, iError)
-     if (iProc==0) Eje1(iSpecies,:,:)=BufferRecv_C(:,:)
+     if (iProc==0) Eje1(:,:,iSpecies)=BufferRecv_C(:,:)
 
   enddo ! Do loop over Species
 
@@ -3139,38 +3140,38 @@ subroutine cimi_gather( delta_t, psd, flux, vlea, vpea )
 
         do iEnergy=1,neng
 
-           BufferSend_C(:,:) = Part_phot(iSpecies,:,:,iEnergy)
+           BufferSend_C(:,:) = Part_phot(:,:,iEnergy,iSpecies)
            call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
                 MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
                 MPI_REAL, 0, iComm, iError)
            if (iProc==0) &
-                Part_phot(iSpecies,:,:,iEnergy)=BufferRecv_C(:,:)
+                Part_phot(:,:,iEnergy,iSpecies)=BufferRecv_C(:,:)
 
         enddo ! Do loop over iEnergy
 
-        BufferSend_C(:,:)=eng_q3(iSpecies,:,:)
+        BufferSend_C(:,:)=eng_q3(:,:,iSpecies)
         call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
              MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
              MPI_REAL, 0, iComm, iError)
-        if (iProc==0) eng_q3(iSpecies,:,:)=BufferRecv_C(:,:)
+        if (iProc==0) eng_q3(:,:,iSpecies)=BufferRecv_C(:,:)
 
-        BufferSend_C(:,:)=vexb(iSpecies,:,:)
+        BufferSend_C(:,:)=vexb(:,:,iSpecies)
         call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
              MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
              MPI_REAL, 0, iComm, iError)
-        if (iProc==0) vexb(iSpecies,:,:)=BufferRecv_C(:,:)
+        if (iProc==0) vexb(:,:,iSpecies)=BufferRecv_C(:,:)
 
-        BufferSend_C(:,:)=vdr_q3(iSpecies,:,:)
+        BufferSend_C(:,:)=vdr_q3(:,:,iSpecies)
         call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
              MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
              MPI_REAL, 0, iComm, iError)
-        if (iProc==0) vdr_q3(iSpecies,:,:)=BufferRecv_C(:,:)
+        if (iProc==0) vdr_q3(:,:,iSpecies)=BufferRecv_C(:,:)
 
-        BufferSend_C(:,:)=dif_q3(iSpecies,:,:)
+        BufferSend_C(:,:)=dif_q3(:,:,iSpecies)
         call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
              MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
              MPI_REAL, 0, iComm, iError)
-        if (iProc==0) dif_q3(iSpecies,:,:)=BufferRecv_C(:,:)
+        if (iProc==0) dif_q3(:,:,iSpecies)=BufferRecv_C(:,:)
 
      enddo
 
@@ -3256,9 +3257,9 @@ subroutine cimi_precip_calc(dsec)
   integer:: n, i, j, k
   logical :: useFlc, useLossCone
   !----------------------------------------------------------------------------
-  preF(1:nspec,1:np,1:nt,1:neng+2)=0.
-  preP(1:nspec,1:np,1:nt,1:neng+2)=0.
-  Eje1(1:nspec,1:np,1:nt)=0.
+  preF(1:np,1:nt,1:neng+2,1:nspec)=0.
+  preP(1:np,1:nt,1:neng+2,1:nspec)=0.
+  Eje1(1:np,1:nt,1:nspec)=0.
 
   area1=rc*rc*re_m*re_m*dphi
 
@@ -3269,23 +3270,23 @@ subroutine cimi_precip_calc(dsec)
            Asec=area*dsec
            Energy: do k=1,neng+2
               if(UsePrecipEnergyLoss) then
-                if (precipEnergyLoss(n,i,j,k) >= 0. .or. &
-                    precipNumberLoss(n,i,j,k) >= 0.) then
-                  preF(n,i,j,k)=0.
-                  preP(n,i,j,k)=0.     
-                  if (k == neng+2) Eje1(n,i,j)=0.             
+                if (precipEnergyLoss(i,j,k,n) >= 0. .or. &
+                    precipNumberLoss(i,j,k,n) >= 0.) then
+                  preF(i,j,k,n)=0.
+                  preP(i,j,k,n)=0.     
+                  if (k == neng+2) Eje1(i,j,n)=0.             
                 else
-                  preF(n,i,j,k)=-precipEnergyLoss(n,i,j,k)*1.6e-13/Asec
-                  preP(n,i,j,k)=-precipNumberLoss(n,i,j,k)/Asec
+                  preF(i,j,k,n)=-precipEnergyLoss(i,j,k,n)*1.6e-13/Asec
+                  preP(i,j,k,n)=-precipNumberLoss(i,j,k,n)/Asec
                   ! meanE for E>gride(je)
-                  if (k == neng+2) Eje1(n,i,j)=precipEnergyLoss(n,i,j,k) &
-                                              /precipNumberLoss(n,i,j,k)
+                  if (k == neng+2) Eje1(i,j,n)=precipEnergyLoss(i,j,k,n) &
+                                              /precipNumberLoss(i,j,k,n)
                 end if
               else
-                dlel_lc=xlel(n,i,j,k,OpLossCone_)-xlel(n,i,j,k,OpLossCone0_)
-                dplel_lc=plel(n,i,j,k,OpLossCone_)-plel(n,i,j,k,OpLossCone0_)
-                dlel_flc=xlel(n,i,j,k,OpFLC_)-xlel(n,i,j,k,OpFLC0_)
-                dplel_flc=plel(n,i,j,k,OpFLC_)-plel(n,i,j,k,OpFLC0_)
+                dlel_lc=xlel(i,j,k,OpLossCone_,n)-xlel(i,j,k,OpLossCone0_,n)
+                dplel_lc=plel(i,j,k,OpLossCone_,n)-plel(i,j,k,OpLossCone0_,n)
+                dlel_flc=xlel(i,j,k,OpFLC_,n)-xlel(i,j,k,OpFLC0_,n)
+                dplel_flc=plel(i,j,k,OpFLC_,n)-plel(i,j,k,OpFLC0_,n)
                 useFlc = (dlel_flc < 0. .and. dplel_flc < 0.)
                 useLossCone = (dlel_lc < 0. .and. dplel_lc < 0.)
                 dlel = 0
@@ -3299,11 +3300,11 @@ subroutine cimi_precip_calc(dsec)
                     dplel = dplel + dplel_flc
                 end if
                 if (useLossCone .or. useFlc) then
-                  preF(n,i,j,k)=-dlel*1.6e-13/Asec     ! E flux in mW/m2
-                  preP(n,i,j,k)=-dplel/Asec            ! N flux in 1/m2/s
+                  preF(i,j,k,n)=-dlel*1.6e-13/Asec     ! E flux in mW/m2
+                  preP(i,j,k,n)=-dplel/Asec            ! N flux in 1/m2/s
 
                   ! meanE for E>gride(je)
-                  if (k == neng+2) Eje1(n,i,j)=dlel/dplel
+                  if (k == neng+2) Eje1(i,j,n)=dlel/dplel
                 end if
 
               endif
@@ -3313,11 +3314,11 @@ subroutine cimi_precip_calc(dsec)
   enddo
 
   ! Overwrites the OpLossCone0_ array with the current time information.
-  xlel(:,:,:,:,OpLossCone0_) = xlel(:,:,:,:,OpLossCone_)
-  plel(:,:,:,:,OpLossCone0_) = plel(:,:,:,:,OpLossCone_)
+  xlel(:,:,:,OpLossCone0_,:) = xlel(:,:,:,OpLossCone_,:)
+  plel(:,:,:,OpLossCone0_,:) = plel(:,:,:,OpLossCone_,:)
   ! Do same for OpFLC0_ array
-  xlel(:,:,:,:,OpFLC0_) = xlel(:,:,:,:,OpFLC_)
-  plel(:,:,:,:,OpFLC0_) = plel(:,:,:,:,OpFLC_)
+  xlel(:,:,:,OpFLC0_,:) = xlel(:,:,:,OpFLC_,:)
+  plel(:,:,:,OpFLC0_,:) = plel(:,:,:,OpFLC_,:)
 
 end subroutine cimi_precip_calc
 !==============================================================================

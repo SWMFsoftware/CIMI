@@ -94,13 +94,13 @@ contains
     
     integer, intent(in) :: nLat, nLon
     real,    intent(in) :: X_C(nLat,nLon), Y_C(nLat,nLon), Time, Dt
-    real,    intent(in) :: Pressure_IC(nspec,nLat,nLon), &
-                           PressurePar_IC(nspec,nLat,nLon), &
-                           Den_IC(nspec,nLat,nLon), & 
+    real,    intent(in) :: Pressure_IC(nLat,nLon,nspec), &
+                           PressurePar_IC(nLat,nLon,nspec), &
+                           Den_IC(nLat,nLon,nspec), & 
                            Beq_C(nLat,nLon),Volume_C(nLat,nLon),   &
                            Potential_C(nLat,nLon), &
-                           PressureHot_IC(nspec,nLat,nLon), &
-                           PparHot_IC(nspec,nLat,nLon), &
+                           PressureHot_IC(nLat,nLon,nspec), &
+                           PparHot_IC(nLat,nLon,nspec), &
                            FAC_C(nLat,nLon)
     real, allocatable   :: Coord_DII(:,:,:), PlotState_IIV(:,:,:)
     integer             :: iLat,iLon,iSpecies, nprint
@@ -135,30 +135,30 @@ contains
     do iSpecies = 1, nspec
        do iLon = 1, nLon
        PlotState_IIV( 1 : iba( iLon ), iLon, iPplot_I( iSpecies + 1 ) ) = &
-            Pressure_IC( iSpecies, 1 : iba( iLon ), iLon ) 
+            Pressure_IC( 1:iba(iLon),iLon,iSpecies ) 
        PlotState_IIV( 1 : iba( iLon ), iLon, iPparplot_I( iSpecies + 1 ) ) = &
-            PressurePar_IC( iSpecies, 1 : iba( iLon ), iLon ) 
+            PressurePar_IC( 1:iba(iLon),iLon,iSpecies ) 
        PlotState_IIV( 1 : iba( iLon ), iLon, iPhotplot_I( iSpecies + 1 ) ) = &
-            PressureHot_IC( iSpecies, 1 : iba( iLon ), iLon )
+            PressureHot_IC( 1:iba(iLon),iLon,iSpecies )
        PlotState_IIV( 1 : iba( iLon ), iLon, iPparhotplot_I( iSpecies + 1 ) ) = &
-            PparHot_IC( iSpecies, 1 : iba( iLon ), iLon )
+            PparHot_IC( 1:iba(iLon),iLon,iSpecies )
        PlotState_IIV( 1 : iba( iLon ),iLon, iNplot_I( iSpecies + 1 ) ) = &
-            Den_IC( iSpecies, 1 : iba( iLon ), iLon )  
+            Den_IC( 1:iba(iLon),iLon,iSpecies )  
        PlotState_IIV( 1 : iba( iLon ), iLon, iPplot_I( 1 ) ) = &
             PlotState_IIV( 1 : iba( iLon ),iLon, iPplot_I( 1 ) ) + &
-            Pressure_IC( iSpecies, 1 : iba( iLon ), iLon ) 
+            Pressure_IC( 1:iba(iLon),iLon,iSpecies ) 
        PlotState_IIV( 1 : iba( iLon ), iLon, iPparplot_I( 1 ) ) = &
             PlotState_IIV(1:iba( iLon ), iLon, iPparplot_I( 1 ) ) + &
-            PressurePar_IC( iSpecies, 1 : iba( iLon ), iLon ) 
+            PressurePar_IC( 1:iba(iLon),iLon,iSpecies ) 
        PlotState_IIV( 1 : iba( iLon ), iLon, iPhotplot_I( 1 ) ) = &
             PlotState_IIV(1:iba( iLon ), iLon, iPhotplot_I( 1 ) ) + &
-            PressureHot_IC( iSpecies, 1 : iba( iLon ), iLon )
+            PressureHot_IC( 1:iba(iLon),iLon,iSpecies )
        PlotState_IIV( 1 : iba( iLon ),iLon, iPparhotplot_I( 1 ) ) = &
             PlotState_IIV( 1 : iba( iLon ), iLon, iPparhotplot_I( 1 ) ) + &
-            PparHot_IC( iSpecies, 1 : iba( iLon ), iLon )
+            PparHot_IC( 1:iba(iLon),iLon,iSpecies )
        PlotState_IIV( 1 : iba( iLon ), iLon, iNplot_I( 1 ) ) = &
             PlotState_IIV( 1 : iba( iLon ), iLon, iNplot_I( 1 ) ) + &
-            Den_IC( iSpecies, 1 : iba( iLon ), iLon ) 
+            Den_IC( 1:iba(iLon),iLon,iSpecies ) 
     end do
  end do
     do iLon=1,nLon
@@ -238,13 +238,13 @@ contains
     
     integer, intent(in) :: nLat, nLon
     real,    intent(in) :: X_C(nLat,nLon), Y_C(nLat,nLon), Time, Dt
-    real,    intent(in) :: Pressure_IC(nspec,nLat,nLon), &
-                           PressurePar_IC(nspec,nLat,nLon), &
-                           Den_IC(nspec,nLat,nLon), & 
+    real,    intent(in) :: Pressure_IC(nLat,nLon,nspec), &
+                           PressurePar_IC(nLat,nLon,nspec), &
+                           Den_IC(nLat,nLon,nspec), & 
                            Beq_C(nLat,nLon),Volume_C(nLat,nLon),   &
                            Potential_C(nLat,nLon), &
-                           PressureHot_IC(nspec,nLat,nLon), &
-                           PparHot_IC(nspec,nLat,nLon), &
+                           PressureHot_IC(nLat,nLon,nspec), &
+                           PparHot_IC(nLat,nLon,nspec), &
                            FAC_C(nLat,nLon)
     real, allocatable   :: CoordIono_DII(:,:,:), PlotState_IIV(:,:,:)
     integer             :: iLat,iLon,iSpecies, nprint
@@ -285,30 +285,30 @@ contains
     do iSpecies = 1, nspec
        do iLon = 1, nLon
        PlotState_IIV( 1 : iba( iLon ), iLon, iPplot_I( iSpecies + 1 ) ) = &
-            Pressure_IC( iSpecies, 1 : iba( iLon ), iLon ) 
+            Pressure_IC( 1:iba(iLon),iLon,iSpecies ) 
        PlotState_IIV( 1 : iba( iLon ), iLon, iPparplot_I( iSpecies + 1 ) ) = &
-            PressurePar_IC( iSpecies, 1 : iba( iLon ), iLon ) 
+            PressurePar_IC( 1:iba(iLon),iLon,iSpecies ) 
        PlotState_IIV( 1 : iba( iLon ), iLon, iPhotplot_I( iSpecies + 1 ) ) = &
-            PressureHot_IC( iSpecies, 1 : iba( iLon ), iLon )
+            PressureHot_IC( 1:iba(iLon),iLon,iSpecies )
        PlotState_IIV( 1 : iba( iLon ), iLon, iPparhotplot_I( iSpecies + 1 ) ) = &
-            PparHot_IC( iSpecies, 1 : iba( iLon ), iLon )
+            PparHot_IC( 1:iba(iLon),iLon,iSpecies )
        PlotState_IIV( 1 : iba( iLon ),iLon, iNplot_I( iSpecies + 1 ) ) = &
-            Den_IC( iSpecies, 1 : iba( iLon ), iLon )  
+            Den_IC( 1:iba(iLon),iLon,iSpecies )  
        PlotState_IIV( 1 : iba( iLon ), iLon, iPplot_I( 1 ) ) = &
             PlotState_IIV( 1 : iba( iLon ),iLon, iPplot_I( 1 ) ) + &
-            Pressure_IC( iSpecies, 1 : iba( iLon ), iLon ) 
+            Pressure_IC( 1:iba(iLon),iLon,iSpecies ) 
        PlotState_IIV( 1 : iba( iLon ), iLon, iPparplot_I( 1 ) ) = &
             PlotState_IIV(1:iba( iLon ), iLon, iPparplot_I( 1 ) ) + &
-            PressurePar_IC( iSpecies, 1 : iba( iLon ), iLon ) 
+            PressurePar_IC( 1:iba(iLon),iLon,iSpecies ) 
        PlotState_IIV( 1 : iba( iLon ), iLon, iPhotplot_I( 1 ) ) = &
             PlotState_IIV(1:iba( iLon ), iLon, iPhotplot_I( 1 ) ) + &
-            PressureHot_IC( iSpecies, 1 : iba( iLon ), iLon )
+            PressureHot_IC( 1:iba(iLon),iLon,iSpecies )
        PlotState_IIV( 1 : iba( iLon ),iLon, iPparhotplot_I( 1 ) ) = &
             PlotState_IIV( 1 : iba( iLon ), iLon, iPparhotplot_I( 1 ) ) + &
-            PparHot_IC( iSpecies, 1 : iba( iLon ), iLon )
+            PparHot_IC( 1:iba(iLon),iLon,iSpecies )
        PlotState_IIV( 1 : iba( iLon ), iLon, iNplot_I( 1 ) ) = &
             PlotState_IIV( 1 : iba( iLon ), iLon, iNplot_I( 1 ) ) + &
-            Den_IC( iSpecies, 1 : iba( iLon ), iLon ) 
+            Den_IC( 1:iba(iLon),iLon,iSpecies ) 
     end do
  end do
     do iLon=1,nLon
@@ -466,7 +466,7 @@ contains
     use ModConst,		ONLY:	cElectronCharge, cLightSpeed
     use ModLstar,		ONLY:	Lstarm
     
-    real, intent(in) :: psd( nLat, nLon, nm, nk), xmm(nSpecies,0:nm+1),&
+    real, intent(in) :: psd( nLat, nLon, nm, nk), xmm(0:nm+1,nSpecies),&
          xk(nk),time
     
     real          :: parmod(1:10)=0.0,lat,ro1,xmlt1,bo1
@@ -491,7 +491,7 @@ contains
             ( xk( k ) * SQRT( 1.e9 ) / re_m, k = 1, nk, 2 )
        ! Convert xmm grid from [ J / T ] to [ keV / nT ]
        write(UnitTmp_,'(1p,7e11.3)') &
-            ( xmm( n, m ) / 1e3 / cElectronCharge / 1e9, m = 1, nm, 2 )
+            ( xmm( m, n ) / 1e3 / cElectronCharge / 1e9, m = 1, nm, 2 )
        write(UnitTmp_,'(10f8.3)') (xlat(i),i=2,nLat)
     else
        if (IsFirstCall(n)) then
@@ -506,7 +506,7 @@ contains
                ( xk( k ) * SQRT( 1.e9 ) / re_m, k = 1, nk, 2 )
           ! Convert xmm grid from [ J / T ] to [ keV / nT ]
           write(UnitTmp_,'(1p,7e11.3)') &
-               ( xmm( n, m ) / 1e3 / cElectronCharge / 1e9, m = 1, nm, 2 )
+               ( xmm( m, n ) / 1e3 / cElectronCharge / 1e9, m = 1, nm, 2 )
           write(UnitTmp_,'(10f8.3)') (xlat(i),i=2,nLat)
        else
           open(unit=UnitTmp_, file = TRIM( NamePlotPSD( n ) ), &
@@ -760,12 +760,12 @@ contains
        if (iSpecies < nSpecies) then
           write(UnitTmp_,'(12es18.08E3)',ADVANCE='NO') &
                rbsumglobal(iSpecies), rcsumglobal(iSpecies), &
-               eChangeGlobal(iSpecies,1:nOperator-2), &
+               eChangeGlobal(1:nOperator-2,iSpecies), &
                driftin(iSpecies), driftout(iSpecies)
        else
           write(UnitTmp_,'(12es18.08E3)') &
                rbsumglobal(iSpecies), rcsumglobal(iSpecies), &
-               eChangeGlobal(iSpecies,1:nOperator-2), &
+               eChangeGlobal(1:nOperator-2,iSpecies), &
                driftin(iSpecies), driftout(iSpecies)
        endif
     enddo
@@ -803,7 +803,7 @@ contains
          iCurrentTime_I(4),iCurrentTime_I(5),iCurrentTime_I(6)
     
 !   area1=rc*rc*re_m*re_m*dphi
-    energy_temp(1:nEnergy) = energy(n,1:nEnergy)
+    energy_temp(1:nEnergy) = energy(1:nEnergy,n)
     if (DoSaveSeparatePreciFiles(n)) then
        open(unit=UnitTmp_,&
             file='IM/plots/'//outnameSep//NameSpeciesExtension_I(n)//'.preci',&
@@ -837,10 +837,10 @@ contains
     do iLat=1,nLat             ! Write precipitation @ fixed E grid
        do iLon=1,nLon
           write(UnitTmp_,'(f8.3,f8.2,1pE12.4,a)') &
-               xlat(iLat),xmlt(iLon),Eje1(n,iLat,iLon),&
+               xlat(iLat),xmlt(iLon),Eje1(iLat,iLon,n),&
                '  ! mlat(deg), mlt(hr), Eflux (mW/m2), particles'
-          write(UnitTmp_,'(1p,6e12.4)') PreF(n,iLat,iLon,1:nEnergy+2)  
-          write(UnitTmp_,'(1p,6e12.4)') PreP(n,iLat,iLon,1:nEnergy+2)
+          write(UnitTmp_,'(1p,6e12.4)') PreF(iLat,iLon,1:nEnergy+2,n)  
+          write(UnitTmp_,'(1p,6e12.4)') PreP(iLat,iLon,1:nEnergy+2,n)
        enddo
     enddo
     close(UnitTmp_)
@@ -958,26 +958,26 @@ contains
           xmlt1=xmlto(iLat,iLon)
           if (iLat.gt.irm(iLon)) xmlt1=0.0
           
-          eng1=eng_q3(1,iLat,iLon)
+          eng1=eng_q3(iLat,iLon,1)
           if (iLat.gt.irm(iLon)) eng1=0.0
           
-          vexb1=vexb(1,iLat,iLon)
+          vexb1=vexb(iLat,iLon,1)
           if (iLat.gt.irm(iLon)) vexb1=0.0
           
-          vdr1=vdr_q3(1,iLat,iLon)
+          vdr1=vdr_q3(iLat,iLon,1)
           if (iLat.gt.irm(iLon)) vdr1=0.0
           
-          dif1=dif_q3(1,iLat,iLon)        
+          dif1=dif_q3(iLat,iLon,1)        
           if (iLat.gt.irm(iLon)) dif1=0.0
           
-          phot1 = Phot(1,iLat,iLon)
-          press1 = Pressure_IC(1,Ilat,iLon)
-          den1 = Den_IC(1,iLat,iLon)/1.e6
-          temp1 = Temp_IC(1,iLat,iLon)/1000. ! in keV
+          phot1 = Phot(iLat,iLon,1)
+          press1 = Pressure_IC(iLat,iLon,1)
+          den1 = Den_IC(iLat,iLon,1)/1.e6
+          temp1 = Temp_IC(iLat,iLon,1)/1000. ! in keV
           
           write(UnitTmp_,'(2i10,2f8.3,1p,8e11.3)') &
                iLon,iLat,xmlt1,ro1,phot1,press1,temp1,den1,eng1,vexb1,vdr1,dif1
-          write(UnitTmp_,'(1p,6e12.4)') Part_phot(1,iLat,iLon,1:neng)
+          write(UnitTmp_,'(1p,6e12.4)') Part_phot(iLat,iLon,1,1:neng)
        enddo
     enddo
     close(UnitTmp_)

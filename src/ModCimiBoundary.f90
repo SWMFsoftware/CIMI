@@ -20,8 +20,8 @@ module ModCimiBoundary
   logical,public :: Outputboundary = .false.
   
   !boundary density in m^-3 and temperature in eV
-  real, public :: BoundaryDens_IC(nSpec,nt)
-  real, public :: BoundaryTemp_IC(nSpec,nt),BoundaryTempPar_IC(nSpec,nt)
+  real, public :: BoundaryDens_IC(nt,nSpec)
+  real, public :: BoundaryTemp_IC(nt,nSpec),BoundaryTempPar_IC(nt,nSpec)
 
 contains
   !============================================================================
@@ -65,22 +65,22 @@ contains
               jLat = max(iLat, iLatMin)
 
               !write(*,*)StateBmin_IIV(jLat,iLon,TotalRho_)
-              Den_IC(iSpecies,iLat,iLon) = dFactor_I(iSpecies) * &
+              Den_IC(iLat,iLon,iSpecies) = dFactor_I(iSpecies) * &
                    StateBmin_IIV(jLat,iLon,TotalRho_)&
                    /(cProtonMass * FactorTotalDens)
-              Temp_IC(iSpecies,iLat,iLon) = tFactor_I(iSpecies) * &
+              Temp_IC(iLat,iLon,iSpecies) = tFactor_I(iSpecies) * &
                    StateBmin_IIV(jLat,iLon,TotalP_) &
                    * cProtonMass * FactorTotalDens &
                    / StateBmin_IIV(jLat,iLon,TotalRho_) &
                    * cJouleToEv
               if(UseTotalPparGm) then
-                 Temppar_IC(iSpecies,iLat,iLon) = tFactor_I(iSpecies) * &
+                 Temppar_IC(iLat,iLon,iSpecies) = tFactor_I(iSpecies) * &
                       StateBmin_IIV(jLat,iLon,TotalPpar_) &
                       * cProtonMass * FactorTotalDens &
                       / StateBmin_IIV(jLat,iLon,TotalRho_) &
                       * cJouleToEv
               else
-                 Temppar_IC(iSpecies,iLat,iLon) = Temp_IC(iSpecies,iLat,iLon)
+                 Temppar_IC(iLat,iLon,iSpecies) = Temp_IC(iLat,iLon,iSpecies)
               endif
            end do
         end do
@@ -98,7 +98,7 @@ contains
            ! Use boundary values for iLat>iLatMin
            jLat = max(iLat, iLatMin)
            do iSpecies = 1, nSpec-1
-              Den_IC(iSpecies,iLat,iLon) = &
+              Den_IC(iLat,iLon,iSpecies) = &
                    StateBmin_IIV(jLat,iLon,iBufferRho_I(iSpecies))&
                    / (cProtonMass*amu_I(iSpecies))
            enddo
@@ -134,22 +134,22 @@ contains
            jLat = max(iLat, iLatMin)
 
            do iSpecies = 1, nSpec-1
-              Den_IC(iSpecies,iLat,iLon) = &
+              Den_IC(iLat,iLon,iSpecies) = &
                    StateBmin_IIV(jLat,iLon,iBufferRho_I(iSpecies))&
                    / (cProtonMass*amu_I(iSpecies))
               
               !set temperatures
-              Temp_IC(iSpecies,iLat,iLon) = &
+              Temp_IC(iLat,iLon,iSpecies) = &
                    StateBmin_IIV(jLat,iLon,iBufferP_I(iSpecies))  &
-                   /(Den_IC(iSpecies,iLat,iLon)) &
+                   /(Den_IC(iLat,iLon,iSpecies)) &
                    * cJouleToEv
               if(UseMultiPparGm) then
-                 Temppar_IC(iSpecies,iLat,iLon) = &
+                 Temppar_IC(iLat,iLon,iSpecies) = &
                       StateBmin_IIV(jLat,iLon,iBufferPpar_I(iSpecies)) &
-                      / (Den_IC(iSpecies,iLat,iLon)) &
+                      / (Den_IC(iLat,iLon,iSpecies)) &
                       * cJouleToEv
               else
-                 Temppar_IC(iSpecies,iLat,iLon) = Temp_IC(iSpecies,iLat,iLon)
+                 Temppar_IC(iLat,iLon,iSpecies) = Temp_IC(iLat,iLon,iSpecies)
               endif
            enddo
 
@@ -188,12 +188,12 @@ contains
         ! Fill boundary arrays
         ib1=min(iba(iLon)+1,irm(iLon))
         !write(*,*) iSpecies, ib1,iLon,Temp_IC (iSpecies,ib1,iLon) 
-        BoundaryDens_IC(iSpecies,iLon) = &
-             Den_IC (iSpecies,ib1,iLon)
-        BoundaryTemp_IC(iSpecies,iLon) = &
-             Temp_IC(iSpecies,ib1,iLon)
-        BoundaryTempPar_IC(iSpecies,iLon) = &
-             Temppar_IC(iSpecies,ib1,iLon)
+        BoundaryDens_IC(iLon,iSpecies) = &
+             Den_IC (ib1,iLon,iSpecies)
+        BoundaryTemp_IC(iLon,iSpecies) = &
+             Temp_IC(ib1,iLon,iSpecies)
+        BoundaryTempPar_IC(iLon,iSpecies) = &
+             Temppar_IC(ib1,iLon,iSpecies)
         
      end do BOUNDARY_FILL
   enddo
@@ -270,9 +270,9 @@ contains
 
     ! Fill boundary arrays for all species
     do iSpecies = 1, nSpec
-       BoundaryDens_IC(iSpecies,1:nt) = dFactor_I(iSpecies)*xn1(1:nt)
-       BoundaryTemp_IC(iSpecies,1:nt) = tFactor_I(iSpecies)*xkt1(1:nt)
-       BoundaryTempPar_IC(iSpecies,1:nt) = BoundaryTemp_IC(iSpecies,1:nt)
+       BoundaryDens_IC(1:nt,iSpecies) = dFactor_I(iSpecies)*xn1(1:nt)
+       BoundaryTemp_IC(1:nt,iSpecies) = tFactor_I(iSpecies)*xkt1(1:nt)
+       BoundaryTempPar_IC(1:nt,iSpecies) = BoundaryTemp_IC(1:nt,iSpecies)
     end do
  
  end subroutine cimi_set_boundary_empirical

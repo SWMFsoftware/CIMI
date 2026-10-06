@@ -29,8 +29,8 @@ Module ModGmCimi
   real :: KpGm=-1.0, AeGm=-1.0
   logical :: UseGmKp=.false.,UseGmAe=.false.
   
-  real :: Den_IC(nspec,nLat,nLon) = 0.0, Temp_IC(nspec,nLat,nLon) = 0.0, &
-       Temppar_IC(nspec,nLat,nLon) = 0.0
+  real :: Den_IC(nLat,nLon,nspec) = 0.0, Temp_IC(nLat,nLon,nspec) = 0.0, &
+       Temppar_IC(nLat,nLon,nspec) = 0.0
   integer :: iLatMin=22 !Minimum latitude in MHD boundary
   
   logical :: UseGm                  = .false.

@@ -1090,7 +1090,7 @@ contains
   do j=MinLonPar,MaxLonPar
      do i=1,iba(j)
         do m=1,ik
-           PSDcopy(i,j,1:iw,m) = f2(nel,i,j,1:iw,m)/xjac(nel,i,1:iw)
+           PSDcopy(i,j,1:iw,m) = f2(i,j,1:iw,m,nel)/xjac(i,1:iw,nel)
         enddo
      enddo
   enddo
@@ -1109,10 +1109,10 @@ contains
         endif
         if (DoMapping) then
            do m=1,ik
-              ekev0(:)=ekev(nel,i,j,1:iw,m)
+              ekev0(:)=ekev(i,j,1:iw,m,nel)
               logEkeV(:)=log(ekev0)
-              !!psd0(:)=f2(nel,i,j,1:iw,m)/xjac(nel,i,1:iw,m)
-              psd0(:)=f2(nel,i,j,1:iw,m)/xjac(nel,i,1:iw)
+              !!psd0(:)=f2(i,j,1:iw,m,nel)/xjac(i,1:iw,m,nel)
+              psd0(:)=f2(i,j,1:iw,m,nel)/xjac(i,1:iw,nel)
               where(psd0(:).ge.1.e-50) logPSD(:)=log(psd0)
               where(psd0(:).lt.1.e-50) logPSD(:)=-50.
 ! !(1) find cubic spline interpolation coefficients.
@@ -1220,7 +1220,7 @@ contains
               dPSD_Q(:) = PSD_Q(i,j,1:iq,m)-PSD_Qcopy(i,j,1:iq,m)
               !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
               do k=2,iw    ! keep PSD(k=1) unchanged during mapping
-                 ekev0=ekev(nel,i,j,k,m) ! Energy gridpoints in M K space
+                 ekev0=ekev(i,j,k,m,nel) ! Energy gridpoints in M K space
                  ! If the M/K energy is within the Q1Q2 energy range
                  if (ekev0.ge.EQ(1).and.ekeV0.le.EQ(iq)) then
                     ! logEkeV=log(ekev0)
@@ -1252,20 +1252,20 @@ contains
                     !    call lintp(logEQ,logPSD,iq,logEkeV,logPSD1,&
                     !               'mapPSDtoE')
 
-                    !!f2(nel,i,j,k,m)=exp(logPSD1)*xjac(nel,i,k,m)
-                    !f2(nel,i,j,k,m)=exp(logPSD1)*xjac(nel,i,k) 
+                    !!f2(i,j,k,m,nel)=exp(logPSD1)*xjac(i,k,m,nel)
+                    !f2(i,j,k,m,nel)=exp(logPSD1)*xjac(i,k,nel) 
 !(1) use the PSD change difference to update f2
                     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                   !Ratio
-                    ! f2(nel,i,j,k,m) = PSDcopy(i,j,k,m)*PSD_ratio1*xjac(nel,i,k)
+                    ! f2(i,j,k,m,nel) = PSDcopy(i,j,k,m)*PSD_ratio1*xjac(i,k,nel)
                     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
                     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                   !Difference
                     if ((PSDcopy(i,j,k,m)+dPSD).lt.1.e-60) then
-                       f2(nel,i,j,k,m) = 1.e-60*xjac(nel,i,k)
+                       f2(i,j,k,m,nel) = 1.e-60*xjac(i,k,nel)
                     else
-                       f2(nel,i,j,k,m) = (PSDcopy(i,j,k,m)+dPSD)*xjac(nel,i,k)
+                       f2(i,j,k,m,nel) = (PSDcopy(i,j,k,m)+dPSD)*xjac(i,k,nel)
                     endif
                     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 

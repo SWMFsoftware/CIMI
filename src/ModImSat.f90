@@ -37,7 +37,7 @@ contains
     ! Arguments
     integer, intent(in) :: iSatIn
     integer,intent(in) :: nLat,nLon,nEnergy,nAngle
-    real,   intent(in) :: Flux_C(nSpecies,nLat,nLon,nEnergy,nAngle)
+    real,   intent(in) :: Flux_C(nLat,nLon,nEnergy,nAngle,nSpecies)
     
     ! Name of subroutine
     character(len=*), parameter :: NameSubSub = 'write_im_sat'
@@ -59,12 +59,12 @@ contains
     ! Allocate array for satellite flux
 
     if (.not. allocated(IsFirstWrite)) then
-       allocate( IsFirstWrite(nSpecies,nImSats) )
+       allocate( IsFirstWrite(nImSats,nSpecies) )
        IsFirstWrite = .true.
     end if
     
     if(.not. allocated(SatFlux_3I))  &
-         allocate(SatFlux_3I(nSpecies,nEnergy,nAngle))
+         allocate(SatFlux_3I(nEnergy,nAngle,nSpecies))
     if(.not. allocated(BfieldEq2_G)) &
        allocate(BfieldEq2_G(nLat,0:nLon+1))
     
@@ -77,15 +77,15 @@ contains
     endif
     
     if(.not. allocated(Flux_G)) &
-         allocate(Flux_G(nSpecies,nLat,0:nLon+1,nEnergy,nAngle))
+         allocate(Flux_G(nLat,0:nLon+1,nEnergy,nAngle,nSpecies))
     if(iSatIn == 1) then
-       Flux_G(nSpecies,:,:,:,:)=0.0
-       Flux_G(1:nSpecies,1:nLat,1:nLon,1:nEnergy,1:nAngle) = &
-            Flux_C(1:nSpecies,1:nLat,1:nLon,1:nEnergy,1:nAngle)
-       Flux_G(1:nSpecies,1:nLat,nLon+1,1:nEnergy,1:nAngle) = &
-            Flux_G(1:nSpecies,1:nLat,1,1:nEnergy,1:nAngle)
-       Flux_G(1:nSpecies,1:nLat,0,1:nEnergy,1:nAngle) = &
-            Flux_G(1:nSpecies,1:nLat,nLon,1:nEnergy,1:nAngle)
+       Flux_G(:,:,:,:,nSpecies)=0.0
+       Flux_G(1:nLat,1:nLon,1:nEnergy,1:nAngle,1:nSpecies) = &
+            Flux_C(1:nLat,1:nLon,1:nEnergy,1:nAngle,1:nSpecies)
+       Flux_G(1:nLat,nLon+1,1:nEnergy,1:nAngle,1:nSpecies) = &
+            Flux_G(1:nLat,1,1:nEnergy,1:nAngle,1:nSpecies)
+       Flux_G(1:nLat,0,1:nEnergy,1:nAngle,1:nSpecies) = &
+            Flux_G(1:nLat,nLon,1:nEnergy,1:nAngle,1:nSpecies)
     endif
 
     ! Set BfieldEq^2 on first sat call
@@ -135,7 +135,7 @@ contains
              !treat as open
              LatSatGen=-1.0
              LonSatGen=-1.0
-             SatFlux_3I(iSpecies,:,:) = 0.0
+             SatFlux_3I(:,:,iSpecies) = 0.0
              SatLoc_3I(3,2,iSatIn) = -1
           else
              !Interpolate solution to sat location
@@ -154,8 +154,8 @@ contains
                         / (AngleGrid_I(iSatAng+1)-AngleGrid_I(iSatAng))
                 endif
                 do iEnergy=1,nEnergy
-                   SatFlux_3I(iSpecies,iEnergy,iAngle) = &
-                        trilinear( Flux_G(iSpecies,:,:,iEnergy,:), &
+                   SatFlux_3I(iEnergy,iAngle,iSpecies) = &
+                        trilinear( Flux_G(:,:,iEnergy,:,iSpecies), &
                         1,nLat,0,nLon+1,1,nAngle, &
                         (/ LatSatGen, LonSatGen, AngSatGen/) )
                 enddo
@@ -166,7 +166,7 @@ contains
           ! set flux to zero
           LatSatGen=-1.0
           LonSatGen=-1.0
-          SatFlux_3I(iSpecies,:,:) = 0.0
+          SatFlux_3I(:,:,iSpecies) = 0.0
           EqB2 =0.0
           SatB2=0.0
 
@@ -175,7 +175,7 @@ contains
        ! Write satellite output
        
        ! Build file name; 
-       if (IsFirstWrite(iSpecies,iSatIn)) iStartTime = int(t)
+       if (IsFirstWrite(iSatIn,iSpecies)) iStartTime = int(t)
               
        write(NameSatFile, '(a, i6.6, a)')                    &
             'IM/plots/'//'sat_'//trim(NameSat_I(iSatIn))// &
@@ -184,8 +184,8 @@ contains
        ! Open file in appropriate mode.  Write header if necessary.
        inquire(file=NameSatFile, exist=IsExist)
        
-       if ( (.not.IsExist) .or. IsFirstWrite(iSpecies,iSatIn) ) then
-          IsFirstWrite(iSpecies,iSatIn) = .false.
+       if ( (.not.IsExist) .or. IsFirstWrite(iSatIn,iSpecies) ) then
+          IsFirstWrite(iSatIn,iSpecies) = .false.
           HeadVar = 'it year mo dy hr mn sc msc X Y Z Beq[nT] Bsat[nT]'
           open(unit=UnitTmp_, file=trim(NameSatFile), &
                status='replace', iostat=iError)
@@ -221,7 +221,7 @@ contains
             SQRT( EqB2 ) * 1.e9, SQRT( SatB2 ) * 1.e9
        write(numChannels,'(I4)') nEnergy*nAngle
        write(UnitTmp_,'('//numChannels//'es13.5)') &
-            SatFlux_3I(iSpecies,:,:)!SatVar_I
+            SatFlux_3I(:,:,iSpecies)!SatVar_I
        
        close(UnitTmp_)
        

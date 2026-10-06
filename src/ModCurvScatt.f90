@@ -50,8 +50,8 @@ contains
     integer ::  is,is1,is2, iPoint
 
     ! allocate needed variables
-    if(.not. allocated(tau_flc)) allocate(tau_flc(nspec,ir,ip),&
-                    Daa_flc(nspec,ir,ip,iw,ik),  m_lc(ir,ip,ik))
+    if(.not. allocated(tau_flc)) allocate(tau_flc(ir,ip,nspec),&
+                    Daa_flc(ir,ip,iw,ik,nspec),  m_lc(ir,ip,ik))
 
     !When r less than 4Re (or whatever value) just use the dipole
     !curvature scattering values
@@ -282,10 +282,10 @@ contains
   !find largest PA inside loss cone
   !set default as ik since ik is the smallest PA.
   m_lc(i,j,:)=ik
-  LOSS_CONE:do m=1,ik
-     if (alscone(1,i,j,1,m) < 1.) then
-        sinaL=sinA(i,j,m)
-        m_lc(i,j,m)=m                ! index at loss cone
+  LOSS_CONE:do k=1,ik
+     if (alscone(i,j,1,k,1) < 1.) then
+        sinaL=sinA(i,j,k)
+        m_lc(i,j,k)=k                ! index at loss cone
         exit LOSS_CONE
      endif
   end do LOSS_CONE
@@ -294,20 +294,20 @@ contains
   aLsq=aL**2
 
   ! calculate a0 and cosa
-  do m=1,ik
-     a0(m)=asin(sinA(i,j,m))
-     cosa(m)=cos(a0(m))
-     a0sq(m)=a0(m)**2
-     sinacosa(m)=sinA(i,j,m)*cosa(m)
+  do k=1,ik
+     a0(k)=asin(sinA(i,j,k))
+     cosa(k)=cos(a0(k))
+     a0sq(k)=a0(k)**2
+     sinacosa(k)=sinA(i,j,k)*cosa(k)
   enddo
 
 
   do n=1,nspec
 
   ! calculate coefficients for Daa 
-     do k=1,iw
-        do m=1,ik
-           ekev0=ekev(n,i,j,k,m)
+     do k=1,ik
+        do m=1,iw
+           ekev0=ekev(i,j,m,k,n)
            pc=sqrt(ekev0*(ekev0+E02(n)))  ! momentum * c in keV
            ! coefficients as in Young et al. 2002; 2008
            e=pc/pc_flc(i,j)       ! epsilon
@@ -323,39 +323,39 @@ contains
               a2= 0.23156321+0.15561211/e-0.001860433/e2    
               b0=-0.51057275+0.93651781/e-0.0031690066/e2    
               De=-0.49667826-0.00819418/e+0.0013621659/e2  ! D(epsilon)
-              Amax(k,m)=exp(c)*(zeta1(i,j)**a1*zeta2(i,j)**a2+De)
-              Aa0(k,m)=sin(w0*a0(m))*cosa(m)**b0
+              Amax(m,k)=exp(c)*(zeta1(i,j)**a1*zeta2(i,j)**a2+De)
+              Aa0(m,k)=sin(w0*a0(k))*cosa(k)**b0
            else 
-              Amax(k,m)=0.
-              Aa0(k,m)=0.
+              Amax(m,k)=0.
+              Aa0(m,k)=0.
            endif
         enddo
      enddo
    
-     do k=1,iw
-        m_bar=maxloc(abs(Aa0(k,:)),dim=1)
+     do m=1,iw
+        m_bar=maxloc(abs(Aa0(m,:)),dim=1)
         cosa_bar=cosa(m_bar)
-        do m=1,ik
-           Amx0=Amax(k,m)
+        do k=1,ik
+           Amx0=Amax(m,k)
            if (Amx0.ne.0.) then
-              tb=Tbounce(n,i,j,k,m)
-              N2=1./Aa0(k,m_bar)/Aa0(k,m_bar)
+              tb=Tbounce(i,j,m,k,n)
+              N2=1./Aa0(m,m_bar)/Aa0(m,m_bar)
               if (tb>1e-5) then
                  D0=0.5*Amx0*Amx0/tb
               else
                  D0=0.
               endif
               !Dmax=4.9348/tb    ! da0=0.5pi during 0.5*tb
-              if (m<m_lc(i,j,m)) then
-                 Dmax=2.*a0sq(m)/tb ! da0=a0 during 0.5*tb
+              if (m<m_lc(i,j,k)) then
+                 Dmax=2.*a0sq(k)/tb ! da0=a0 during 0.5*tb
               else
                  Dmax=2.*aLsq/tb    ! da0=aL during 0.5*tb
               endif
-              Daa_flc(n,i,j,k,m)=&
-                D0*N2*(Aa0(k,m)/sinacosa(m))**2
-              if (Daa_flc(n,i,j,k,m).gt.Dmax) Daa_flc(n,i,j,k,m)=Dmax
+              Daa_flc(i,j,m,k,n)=&
+                D0*N2*(Aa0(m,k)/sinacosa(k))**2
+              if (Daa_flc(i,j,m,k,n).gt.Dmax) Daa_flc(i,j,m,k,n)=Dmax
            else
-              Daa_flc(n,i,j,k,m)=0.
+              Daa_flc(i,j,m,k,n)=0.
            endif
         enddo
      enddo
@@ -389,24 +389,25 @@ contains
     real :: tau_flc1,tau_flc2
     integer ::  n,i,j,k,m,m_L,m_loc
         
-    do j=MinLonPar, MaxLonPar
-       do i=1,iba(j)
-          do n=1,nspec
-             do k=1,iw
-                do m=1,ik
+    
+   do n=1,nspec
+      do m=1,ik
+         do k=1,iw
+            do j=MinLonPar, MaxLonPar
+               do i=1,iba(j)
                    m_L=m_lc(i,j,m)
-                   if (Daa_flc(n,i,j,k,m_L)/=0.) then
+                   if (Daa_flc(i,j,k,m_L,n)/=0.) then
                       m_loc=m_L
-                      if (m<m_L) m_loc=minloc(Daa_flc(n,i,j,k,m:m_L),1)
-                      if (Daa_flc(n,i,j,k,m_loc)/=0.) then
+                      if (m<m_L) m_loc=minloc(Daa_flc(i,j,k,m:m_L,n),1)
+                      if (Daa_flc(i,j,k,m_loc,n)/=0.) then
                          tau_flc2=0.5*abs(1.-sinA(i,j,m_loc-1)/sinA(i,j,m_loc)) &
-                                  /Daa_flc(n,i,j,k,m_loc) ! loss timescale at Daa max
-                         !write(*,*) tau_flc2, Daa_flc(n,i,j,k,m_loc)
-                         !write(*,*) sinA(i,j,m_L),Daa_flc(n,i,j,k,m_L),tau_flc2,Tbounce(n,i,j,k,m) 
-                         tau_flc1=0.5*abs(1.-log(sinA(i,j,m_L)))/Daa_flc(n,i,j,k,m_L) & 
+                                  /Daa_flc(i,j,k,m_loc,n) ! loss timescale at Daa max
+                         !write(*,*) tau_flc2, Daa_flc(i,j,k,m_loc,n)
+                         !write(*,*) sinA(i,j,m_L),Daa_flc(i,j,k,m_L,n),tau_flc2,Tbounce(i,j,k,m) 
+                         tau_flc1=0.5*abs(1.-log(sinA(i,j,m_L)))/Daa_flc(i,j,k,m_L,n) & 
                               ! timescale from 90deg to loss cone + half bounce time
-                              +tau_flc2 + 0.5*Tbounce(n,i,j,k,m)
-                         f2(n,i,j,k,m)=f2(n,i,j,k,m)*exp(-Dt/tau_flc1)
+                              +tau_flc2 + 0.5*Tbounce(i,j,k,m,n)
+                         f2(i,j,k,m,n)=f2(i,j,k,m,n)*exp(-Dt/tau_flc1)
                       endif  
 !\
 ! \
@@ -421,10 +422,10 @@ contains
  endif
  if (j==24 .and. n==1 .and. k==nm/2 .and. m==1) &
     write(*,'(f7.2,1p5E11.3)') &
-     ro(i,j),ekev(n,i,j,k,m),tau_flc1,tau_flc2,Tbounce(n,i,j,k,m)*0.5,Daa_flc(n,i,j,k,m_L)
+     ro(i,j),ekev(i,j,k,m,n),tau_flc1,tau_flc2,Tbounce(i,j,k,m,n)*0.5,Daa_flc(i,j,k,m_L,n)
  if (j==24 .and. n==nspec .and. k==nm/2 .and. m==1) &
     write(*,'(f7.2,1p5E11.3)') &
-     ro(i,j),ekev(n,i,j,k,m),tau_flc1,tau_flc2,Tbounce(n,i,j,k,m)*0.5,Daa_flc(n,i,j,k,m_L)
+     ro(i,j),ekev(i,j,k,m,n),tau_flc1,tau_flc2,Tbounce(i,j,k,m,n)*0.5,Daa_flc(i,j,k,m_L,n)
 ! /
 !/
                    endif

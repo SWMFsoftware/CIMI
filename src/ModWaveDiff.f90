@@ -90,8 +90,8 @@ contains
     
     integer,parameter :: ie=40 ! diffusion subroutine has its own energy grid
     integer i,j,m,k,irun,n,nn,ier
-    integer iba(ip),iw2(nspec,ik)
-    real f2(nspec,ir,ip,iw,ik),xjac(nspec,ir,iw),dt  ! xjac has different dimension from CIMI !
+    integer iba(ip),iw2(ik,nspec)
+    real f2(ir,ip,iw,ik,nspec),xjac(ir,iw,nspec),dt  ! xjac has different dimension from CIMI !
     
     
     real ein_log(ie),einlog, &
@@ -143,8 +143,8 @@ contains
           
           if (ompe1.ge.cOmpe(1).and.ompe1.le.cOmpe(ipc).and.ro1.ge.r_wave) then
              ! Set up the energy grid, ein
-             emin=minval(ekev(n,i,j,1,1:ik))
-             emax=maxval(ekev(n,i,j,iw,1:ik))
+             emin=minval(ekev(i,j,1,1:ik,n))
+             emax=maxval(ekev(i,j,iw,1:ik,n))
              ein(1)=emin
              ein(ie)=emax
              ein_log(1)=log10(emin)
@@ -162,11 +162,11 @@ contains
              do m=1,ik
                 do k=1,iw
                    f1d(k)=-50.                      ! f1d is log(psd)
-                   if(f2(n,i,j,k,m).gt.0.)&
-                        f1d(k)=log10(f2(n,i,j,k,m)/xjac(n,i,k))
+                   if(f2(i,j,k,m,n).gt.0.)&
+                        f1d(k)=log10(f2(i,j,k,m,n)/xjac(i,k,n))
                    
-                   if (k.gt.iw2(n,m)) f1d(k)=f1d(iw2(n,m))
-                   ekevlog(k,m)=log10(ekev(n,i,j,k,m))
+                   if (k.gt.iw2(m,n)) f1d(k)=f1d(iw2(m,n))
+                   ekevlog(k,m)=log10(ekev(i,j,k,m,n))
                    e1d(k)=ekevlog(k,m)              ! e1d is log(ekev)
                 enddo
                 
@@ -307,10 +307,10 @@ contains
                 do k=1,ie
                    df1(k)=df(k,m)
                 enddo
-                do k=1,iw2(n,m)
+                do k=1,iw2(m,n)
                    call lintpIM_diff(ein_log,df1,ie,ekevlog(k,m),dpsd,tchar)
-                   f2(n,i,j,k,m)=f2(n,i,j,k,m)+xjac(n,i,k)*dpsd
-                   if (f2(n,i,j,k,m).lt.0.) f2(n,i,j,k,m)=0.
+                   f2(i,j,k,m,n)=f2(i,j,k,m,n)+xjac(i,k,n)*dpsd
+                   if (f2(i,j,k,m,n).lt.0.) f2(i,j,k,m,n)=0.
                 enddo
              enddo
           endif    ! end of if (ompe1.ge.cOmpe(1).and.ompe1.le.cOmpe(ipc).and...
@@ -336,9 +336,9 @@ contains
     !  use cimigrid_dim CHECK je and ig
     implicit none
     integer i,j,k,m,k1,k2,iww,irun,nrun,ier,n
-    real xjac(nspec,ir,iw),xmm(nspec,0:iw+1)  ! xjac and xmm have different dimension from CIMI !
-    integer iba(ip),iw2(nspec,ik)
-    real dt,Eo,f2(nspec,ir,ip,iw,ik),fl(iw), &
+    real xjac(ir,iw,nspec),xmm(0:iw+1,nspec)  ! xjac and xmm have different dimension from CIMI !
+    integer iba(ip),iw2(ik,nspec)
+    real dt,Eo,f2(ir,ip,iw,ik,nspec),fl(iw), &
          xlam,alam,um(iw),up(iw),ompe1,ro1,PA1, &
          fr(iw),a1d(iw),b1d(iw),c1d(iw),&
          factor_1, &
@@ -383,14 +383,14 @@ contains
                 if (PA1.lt.cPA(1)) PA1=cPA(1)
                 if (PA1.gt.cPA(ipa)) PA1=cPA(ipa)
                 do k=1,iw
-                   Enor(k)=ekev(n,i,j,k,m)/Eo
+                   Enor(k)=ekev(i,j,k,m,n)/Eo
                    gjac(k)=(Enor(k)+1.)*sqrt(Enor(k)*(Enor(k)+2.))
                 enddo
                 
                 ! determine k1 and k2, corresponding to edmin and edmax
-                k1=iw2(n,m)
-                findk1: do k=2,iw2(n,m)
-                   if (edmin.le.ekev(n,i,j,k,m)) then
+                k1=iw2(m,n)
+                findk1: do k=2,iw2(m,n)
+                   if (edmin.le.ekev(i,j,k,m,n)) then
                       k1=k
                       if (k1.eq.1) k1=2
                       exit findk1
@@ -398,8 +398,8 @@ contains
                 enddo findk1
 
                 k2=1
-                findk2: do k=iw2(n,m)-1,1,-1
-                   if (edmax.ge.ekev(n,i,j,k,m)) then
+                findk2: do k=iw2(m,n)-1,1,-1
+                   if (edmax.ge.ekev(i,j,k,m,n)) then
                       k2=k
                       exit findk2
                    endif
@@ -413,7 +413,7 @@ contains
                 ! find DEE/E^2 and dEn
                 Wo=Eo*1.6e-16/bm(i,j,m)   ! normalization factor of mag moment
                 do k=k1-1,k2
-                   WM1=sqrt(xmm(n,k)*xmm(n,k+1))
+                   WM1=sqrt(xmm(k,n)*xmm(k+1,n))
                    E1(k)=sqrt(2.*WM1/Wo+1.)-1.    ! normalized kinetic energy
                    Ep=E1(k)*Eo                    ! Ep in keV
                    Ep_log=log10(Ep)
@@ -480,8 +480,8 @@ contains
                 enddo
                 ! Start diffusion in E
                 do k=k1-1,k2+1
-                   fl(k)=f2(n,i,j,k,m)/xjac(n,i,k)   ! fl is psd
-                   if (xjac(n,i,k).eq.0) &
+                   fl(k)=f2(i,j,k,m,n)/xjac(i,k,n)   ! fl is psd
+                   if (xjac(i,k,n).eq.0) &
                         write(*,*) 'WARNING in CIMI: diffuse_EE: '//&
                         'xjac:Null in denominator!!!'  
                 enddo
@@ -517,7 +517,7 @@ contains
                 do k=k1+1,k2-1 ! change made by NB to avoid two 'ghost cells'. Originally was do k=k1,k2
                    ! do k=k1,k2
                    if (fl(k).lt.0.) fl(k)=0.
-                   f2(n,i,j,k,m)=fl(k)*xjac(n,i,k)
+                   f2(i,j,k,m,n)=fl(k)*xjac(i,k,n)
                 enddo
                 
              enddo       ! end of m=1,ik
@@ -548,8 +548,8 @@ contains
     implicit none
     integer,parameter :: ie=80
     integer i,j,m,k,k1,k2,nrun,n,ier,iww,nn
-    integer iba(ip),iw2(nspec,ik),nrun2
-    real f2(nspec,ir,ip,iw,ik),xjac(nspec,ir,iw),einlog, &
+    integer iba(ip),iw2(ik,nspec),nrun2
+    real f2(ir,ip,iw,ik,nspec),xjac(ir,iw,nspec),einlog, &
          ein_log(ie),&
          fl(0:ie+1),f1d(iw),ein(ie),ao(0:ik+1),dao(ik),ao1, &
          a1d(ie),b1d(ie),c1d(ie),e1d(iw),u_mx,u_mx1,u_mx2,dpsd,dt, &
@@ -598,8 +598,8 @@ contains
           if (testDiff_aE) ompe1=cOmpe(1)
           if (ompe1.ge.cOmpe(1).and.ompe1.le.cOmpe(ipc).and.ro1.ge.r_wave) then
              ! Set up the energy grid, ein
-             emin=minval(ekev(n,i,j,1,1:ik))
-             emax=maxval(ekev(n,i,j,iw,1:ik))
+             emin=minval(ekev(i,j,1,1:ik,n))
+             emax=maxval(ekev(i,j,iw,1:ik,n))
              
              ein(1)=emin
              ein(ie)=emax
@@ -619,9 +619,9 @@ contains
              do m=1,ik
                 do k=1,iw
                    f1d(k)=-50.                      ! f1d is log(psd)
-                   if(f2(n,i,j,k,m).gt.0.)f1d(k)=log10(f2(n,i,j,k,m)/xjac(n,i,k))
-                   if (k.gt.iw2(n,m)) f1d(k)=f1d(iw2(n,m))
-                   ekevlog(k,m)=log10(ekev(n,i,j,k,m))
+                   if(f2(i,j,k,m,n).gt.0.)f1d(k)=log10(f2(i,j,k,m,n)/xjac(i,k,n))
+                   if (k.gt.iw2(m,n)) f1d(k)=f1d(iw2(m,n))
+                   ekevlog(k,m)=log10(ekev(i,j,k,m,n))
                    e1d(k)=ekevlog(k,m)              ! e1d is log(ekev)
                 enddo
                 
@@ -897,11 +897,11 @@ contains
                 do k=1,ie
                    df1(k)=f2d(k,m)-f2d0(k,m)
                 enddo
-                do k=1,iw2(n,m)
+                do k=1,iw2(m,n)
                    call lintpIM_diff(ein_log,df1,ie,ekevlog(k,m),dpsd,tchar)
                    !if (i.eq.30 .and. j.eq.5 .and. m.eq.ik) write(*,*) m,k,' m,k;',df1(k),dpsd,'df1,dpsd'
-                   f2(n,i,j,k,m)=f2(n,i,j,k,m)+xjac(n,i,k)*dpsd
-                   if (f2(n,i,j,k,m).lt.0.) f2(n,i,j,k,m)=0.
+                   f2(i,j,k,m,n)=f2(i,j,k,m,n)+xjac(i,k,n)*dpsd
+                   if (f2(i,j,k,m,n).lt.0.) f2(i,j,k,m,n)=0.
                 enddo
              enddo
              

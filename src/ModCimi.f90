@@ -74,49 +74,49 @@ contains
     if(allocated(f2)) RETURN
 
     allocate(                         &
-         f2(nspec,np1,nt1,nm,nk),     &
+         f2(np1,nt1,nm,nk,nspec),     &
          SDtime(np,nt,nm,nk),         &
-         phot(nspec,np,nt),           &
-         Ppar_IC(nspec,np,nt),        &
-         Pressure_IC(nspec,np,nt),    &
-         PressurePar_IC(nspec,np,nt), &
+         phot(np,nt,nspec),           &
+         Ppar_IC(np,nt,nspec),        &
+         Pressure_IC(np,nt,nspec),    &
+         PressurePar_IC(np,nt,nspec), &
          FAC_C(np,nt),                &
          Bmin_C(np,nt),              &
-         d4Element_C(nspec,np,nm,nk))
+         d4Element_C(np,nm,nk,nspec))
     ! minimum B field along each field line
     ! passed from GM to IM, now as an output of IM
 
     ! now allocate arrays for energy tracking
-    allocate(eChangeOperator_VICI(nspec,np,nt,neng+2,nOperator), &
+    allocate(eChangeOperator_VICI(np,nt,neng+2,nOperator,nspec), &
          driftin(nspec), driftout(nspec), &
          rbsumLocal(nspec),rbsumGlobal(nspec), &
          rcsumLocal(nspec),rcsumGlobal(nspec))
 
-    allocate(pChangeOperator_VICI(nspec,np,nt,neng+2,nOperator), &
-         eChangeLocal(nspec,nOperator),eChangeGlobal(nspec,nOperator), &
-         eTimeAccumult_ICI(nspec,np,nt,neng+2), &
-         pTimeAccumult_ICI(nspec,np,nt,neng+2))
+    allocate(pChangeOperator_VICI(np,nt,neng+2,nOperator,nspec), &
+         eChangeLocal(nOperator,nspec),eChangeGlobal(nOperator,nspec), &
+         eTimeAccumult_ICI(np,nt,neng+2,nspec), &
+         pTimeAccumult_ICI(np,nt,neng+2,nspec))
 
-    allocate(preP(nspec,np,nt,neng+2), preF(nspec,np,nt,neng+2), &
-         Eje1(nspec,np,nt), precipEnergyLoss(nspec,np,nt,neng+2), &
-         precipNumberLoss(nspec,np,nt,neng+2))
+    allocate(preP(np,nt,neng+2,nspec), preF(np,nt,neng+2,nspec), &
+         Eje1(np,nt,nspec), precipEnergyLoss(np,nt,neng+2,nspec), &
+         precipNumberLoss(np,nt,neng+2,nspec))
     preP = 0.0
     preF = 0.0
     Eje1 = 0.0
-    allocate(flux(nspec,np,nt,neng,npit), psd(nspec,np,nt,nm,nk), &
-        vlEa(nspec,np,nt,neng,npit), vpEa(nspec,np,nt,neng,npit))
-    allocate(vl(nspec,0:np,nt,nm,nk), vp(nspec,0:np,nt,nm,nk), &
-        fb(nspec,nt,nm,nk), achar(nspec,np,nt,nm,nk))
+    allocate(flux(np,nt,neng,npit,nspec), psd(np,nt,nm,nk,nspec), &
+        vlEa(np,nt,neng,npit,nspec), vpEa(np,nt,neng,npit,nspec))
+    allocate(vl(0:np,nt,nm,nk,nspec), vp(0:np,nt,nm,nk,nspec), &
+        fb(nt,nm,nk,nspec), achar(0:np,nt,nm,nk,nspec))
     vl = 0.0
     vp = 0.0
 
-    allocate(energy(nspec,neng), Ebound(nspec,neng), delE(nspec,neng))
+    allocate(energy(neng,nspec), Ebound(neng,nspec), delE(neng,nspec))
 
-    allocate( vdr_q1( nspec, np, nt ), vdr_q3( nspec, np, nt ), &
-         vgyr_q1( nspec, np, nt ), vgyr_q3( nspec, np, nt ) )
-    allocate( eng_q1( nspec, np, nt ), eng_q3( nspec, np, nt ), &
-         vexb( nspec, np, nt ), dif_q1( nspec, np, nt ) )
-    allocate( Part_phot( nspec, np, nt, neng ), dif_q3( nspec, np, nt ) )
+    allocate( vdr_q1( np, nt, nspec ), vdr_q3( np, nt, nspec ), &
+         vgyr_q1( np, nt, nspec ), vgyr_q3( np, nt, nspec ) )
+    allocate( eng_q1( np, nt, nspec ), eng_q3( np, nt, nspec ), &
+         vexb( np, nt, nspec ), dif_q1( np, nt, nspec ) )
+    allocate( Part_phot( np, nt, neng, nspec ), dif_q3( np, nt, nspec ) )
 
   end subroutine init_mod_cimi
 
