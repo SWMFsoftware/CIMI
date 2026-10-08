@@ -102,7 +102,6 @@ contains
          FAC_C(np,minLon:maxLon),                &
          Bmin_C(np,minLon:maxLon),              &
          d4Element_C(np,nm,nk,nspec))
-    f2 = -912392.0
     ! minimum B field along each field line
     ! passed from GM to IM, now as an output of IM
 

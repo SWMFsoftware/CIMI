@@ -493,8 +493,6 @@ Module ModCimiTrace
 
     !.....Calculate p, E, v, et (mc^2) at grid boundaries, and lifetime for
     !     loss cone particles
-        write(*,*) 'ro2, pp1, tcone1', iProc, sum(ro(:,MinLonPar:MaxLonPar)), sum(bm(:,MinLonPar:MaxLonPar,:)), sum(tya(:,MinLonPar:MaxLonPar,:))
-
     do n=1,nspec
        xmass=1.673e-27*amu_I(n)
        c2mo=c*c*xmass ! rest mass

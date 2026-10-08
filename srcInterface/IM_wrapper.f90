@@ -708,10 +708,10 @@ contains
 
     ! use CON_time, ONLY : get_time
     use ModCimiGrid,  ONLY: iSize=>np, jSize=>nt
-    use ModCimi,      ONLY: Pressure_IC, PressurePar_IC, Bmin_C, Pmin
-    use ModGmCimi,    ONLY: Den_IC, iLatMin!, DoMultiFluidGMCoupling, &
+    use ModCimi,      ONLY: PressureGlobal_IC, PressureParGlobal_IC, DenGlobal_IC, BminGlobal_C, Pmin
+    use ModGmCimi,    ONLY: iLatMin!, DoMultiFluidGMCoupling, &
     ! DoAnisoPressureGMCoupling
-    use ModCimiTrace, ONLY: iba
+    use ModCimiTrace, ONLY: ibaGlobal
     use ModCimiPlanet, ONLY: &
          nspec, amu_I, NameVarCouple, nVarImToGm, Sw_, H_, O_, e_
     use ModConst,     ONLY: cProtonMass, cBoltzmann
@@ -766,146 +766,157 @@ contains
        select case(NameVarCouple_V(iVarCimi))
        case('Rho')
           do i=1,iSize; do j=1,jSize
-             if( i<iLatMin .or.  i > iba(j) ) then
+             if( i<iLatMin .or.  i > ibaGlobal(j) ) then
                 Buffer_IIV(i,j,iVarCimi) = -1.
              else
                 Buffer_IIV(i,j,iVarCimi) = &
-                     sum(Den_IC (1:nspec-1,i,j)*cProtonMass*amu_I(1:nspec-1))
+                     sum(DenGlobal_IC (i,j,1:nspec-1)*cProtonMass*amu_I(1:nspec-1))
              end if
           enddo; enddo
        case('p')
           do i = 1, iSize; do j = 1, jSize
-             if( i < iLatMin .or.  i > iba(j) ) then
+             if( i < iLatMin .or.  i > ibaGlobal(j) ) then
                 Buffer_IIV(i,j,iVarCimi) = -1.
              else
                 ! make sure pressure passed to GM is not lower than Pmin [nPa]
                 ! to avoid too low GM pressure (only ion pressure)
                 Buffer_IIV(i,j,iVarCimi) = &
-                     max(sum(Pressure_IC(1:nspec-1,i,j)), Pmin)*1e-9
+                     max(sum(PressureGlobal_IC(i,j,1:nspec-1)), Pmin)*1e-9
              end if
           enddo; enddo
           ! write(*,*) 'IM max min p', &
           ! maxval(Buffer_IIV(:,:,iVarCimi)),minval(Buffer_IIV(:,:,iVarCimi))
        case('Ppar')
           do i=1,iSize; do j=1,jSize
-             if( i<iLatMin .or.  i > iba(j) ) then
+             if( i<iLatMin .or.  i > ibaGlobal(j) ) then
                 Buffer_IIV(i,j,iVarCimi) = -1.
              else
                 ! make sure pressure passed to GM is not lower than Pmin [nPa]
                 ! to avoid too low GM pressure
                 Buffer_IIV(i,j,iVarCimi) = &
-                     max(sum(PressurePar_IC(1:nspec-1,i,j)), Pmin)*1e-9
+                     max(sum(PressureParGlobal_IC(i,j,1:nspec-1)), Pmin)*1e-9
              end if
           enddo; enddo
           ! write(*,*) 'IM max min ppar', &
           ! maxval(Buffer_IIV(:,:,iVarCimi)),minval(Buffer_IIV(:,:,iVarCimi))
        case('Pe')
           do i=1,iSize; do j=1,jSize
-             if( i<iLatMin .or.  i > iba(j) ) then
+             if( i<iLatMin .or.  i > ibaGlobal(j) ) then
                 Buffer_IIV(i,j,iVarCimi) = -1.
              else
                 ! make sure pressure passed to GM is not lower than Pmin [nPa]
                 ! to avoid too low GM pressure (only ion pressure)
                 Buffer_IIV(i,j,iVarCimi) = &
-                     max(Pressure_IC(e_,i,j), Pmin)*1e-9
+                     max(PressureGlobal_IC(i,j,e_), Pmin)*1e-9
+             end if
+          enddo; enddo
+       case('PePar')
+          do i=1,iSize; do j=1,jSize
+             if( i<iLatMin .or.  i > ibaGlobal(j) ) then
+                Buffer_IIV(i,j,iVarCimi) = -1.
+             else
+                ! make sure pressure passed to GM is not lower than Pmin [nPa]
+                ! to avoid too low GM pressure (only ion pressure)
+                Buffer_IIV(i,j,iVarCimi) = &
+                     max(PressureParGlobal_IC(i,j,e_), Pmin)*1e-9
              end if
           enddo; enddo
        case('HpRho')
           do i=1,iSize; do j=1,jSize
-             if( i<iLatMin .or.  i > iba(j) ) then
+             if( i<iLatMin .or.  i > ibaGlobal(j) ) then
                 Buffer_IIV(i,j,iVarCimi) = -1.
              else
                 Buffer_IIV(i,j,iVarCimi) = &
-                     Den_IC (H_,i,j)*cProtonMass*amu_I(H_)
+                     DenGlobal_IC (i,j,H_)*cProtonMass*amu_I(H_)
              end if
           enddo; enddo
        case('HpP')
           do i=1,iSize; do j=1,jSize
-             if( i<iLatMin .or.  i > iba(j) ) then
+             if( i<iLatMin .or.  i > ibaGlobal(j) ) then
                 Buffer_IIV(i,j,iVarCimi) = -1.
              else
                 ! make sure pressure passed to GM is not lower than Pmin [nPa]
                 ! to avoid too low GM pressure (only ion pressure)
                 Buffer_IIV(i,j,iVarCimi) = &
-                     max(Pressure_IC(H_,i,j), Pmin)*1e-9
+                     max(PressureGlobal_IC(i,j,H_), Pmin)*1e-9
              end if
           enddo; enddo
        case('HpPpar')
           do i=1,iSize; do j=1,jSize
-             if( i<iLatMin .or.  i > iba(j) ) then
+             if( i<iLatMin .or.  i > ibaGlobal(j) ) then
                 Buffer_IIV(i,j,iVarCimi) = -1.
              else
                 ! make sure pressure passed to GM is not lower than Pmin [nPa]
                 ! to avoid too low GM pressure
                 Buffer_IIV(i,j,iVarCimi) = &
-                     max(PressurePar_IC(H_,i,j), Pmin)*1e-9
+                     max(PressureParGlobal_IC(i,j,H_), Pmin)*1e-9
              end if
           enddo; enddo
        case('OpRho')
           do i=1,iSize; do j=1,jSize
-             if( i<iLatMin .or.  i > iba(j) ) then
+             if( i<iLatMin .or.  i > ibaGlobal(j) ) then
                 Buffer_IIV(i,j,iVarCimi) = -1.
              else
                 Buffer_IIV(i,j,iVarCimi) = &
-                     Den_IC (O_,i,j)*cProtonMass*amu_I(O_)
+                     DenGlobal_IC (i,j,O_)*cProtonMass*amu_I(O_)
              end if
           enddo; enddo
        case('OpP')
           do i=1,iSize; do j=1,jSize
-             if( i<iLatMin .or.  i > iba(j) ) then
+             if( i<iLatMin .or.  i > ibaGlobal(j) ) then
                 Buffer_IIV(i,j,iVarCimi) = -1.
              else
                 ! make sure pressure passed to GM is not lower than Pmin [nPa]
                 ! to avoid too low GM pressure (only ion pressure)
                 Buffer_IIV(i,j,iVarCimi) = &
-                     max(Pressure_IC(O_,i,j), Pmin)*1e-9
+                     max(PressureGlobal_IC(i,j,O_), Pmin)*1e-9
              end if
           enddo; enddo
        case('OpPpar')
           do i=1,iSize; do j=1,jSize
-             if( i<iLatMin .or.  i > iba(j) ) then
+             if( i<iLatMin .or.  i > ibaGlobal(j) ) then
                 Buffer_IIV(i,j,iVarCimi) = -1.
              else
                 ! make sure pressure passed to GM is not lower than Pmin [nPa]
                 ! to avoid too low GM pressure
                 Buffer_IIV(i,j,iVarCimi) = &
-                     max(PressurePar_IC(O_,i,j), Pmin)*1e-9
+                     max(PressureParGlobal_IC(i,j,O_), Pmin)*1e-9
              end if
           enddo; enddo
        case('HpSwRho')
           do i=1,iSize; do j=1,jSize
-             if( i<iLatMin .or.  i > iba(j) ) then
+             if( i<iLatMin .or.  i > ibaGlobal(j) ) then
                 Buffer_IIV(i,j,iVarCimi) = -1.
              else
                 Buffer_IIV(i,j,iVarCimi) = &
-                     Den_IC(Sw_,i,j)*cProtonMass*amu_I(Sw_)
+                     DenGlobal_IC(i,j,Sw_)*cProtonMass*amu_I(Sw_)
              end if
           enddo; enddo
        case('HpSwP')
           do i=1,iSize; do j=1,jSize
-             if( i<iLatMin .or.  i > iba(j) ) then
+             if( i<iLatMin .or.  i > ibaGlobal(j) ) then
                 Buffer_IIV(i,j,iVarCimi) = -1.
              else
                 ! make sure pressure passed to GM is not lower than Pmin [nPa]
                 ! to avoid too low GM pressure (only ion pressure)
                 Buffer_IIV(i,j,iVarCimi) = &
-                     max(Pressure_IC(Sw_,i,j), Pmin)*1e-9
+                     max(PressureGlobal_IC(i,j,Sw_), Pmin)*1e-9
              end if
           enddo; enddo
        case('HpSwPpar')
           do i=1,iSize; do j=1,jSize
-             if( i<iLatMin .or.  i > iba(j) ) then
+             if( i<iLatMin .or.  i > ibaGlobal(j) ) then
                 Buffer_IIV(i,j,iVarCimi) = -1.
              else
                 ! make sure pressure passed to GM is not lower than Pmin [nPa]
                 ! to avoid too low GM pressure
                 Buffer_IIV(i,j,iVarCimi) = &
-                     max(PressurePar_IC(Sw_,i,j), Pmin)*1e-9
+                     max(PressureParGlobal_IC(i,j,Sw_), Pmin)*1e-9
              end if
           enddo; enddo
        case('HpPsRho')
           do i=1,iSize; do j=1,jSize
-             if( i<iLatMin .or.  i > iba(j) &
+             if( i<iLatMin .or.  i > ibaGlobal(j) &
                   .or. .not.allocated(PlasDensity_C)) then
                 Buffer_IIV(i,j,iVarCimi) = -1.
              else
@@ -915,24 +926,13 @@ contains
           enddo; enddo
        case('HpPsP')
           do i=1,iSize; do j=1,jSize
-             if( i<iLatMin .or.  i > iba(j) &
+             if( i<iLatMin .or.  i > ibaGlobal(j) &
                   .or. .not.allocated(PlasDensity_C)) then
                 Buffer_IIV(i,j,iVarCimi) = -1.
              else
                 Buffer_IIV(i,j,iVarCimi) = &
                      PlasDensity_C(i,j) * Tplas * cBoltzmann * 1e-9
                 ! PlasDensity_C (i,j) * Tplas * cBoltzmann * 1e-9
-             end if
-          enddo; enddo
-       case('PePar')
-          do i=1,iSize; do j=1,jSize
-             if( i<iLatMin .or.  i > iba(j) ) then
-                Buffer_IIV(i,j,iVarCimi) = -1.
-             else
-                ! make sure pressure passed to GM is not lower than Pmin [nPa]
-                ! to avoid too low GM pressure (only ion pressure)
-                Buffer_IIV(i,j,iVarCimi) = &
-                     max(PressurePar_IC(e_,i,j), Pmin)*1e-9
              end if
           enddo; enddo
        case default
@@ -944,11 +944,11 @@ contains
     end do
 
     do i = 1, iSize; do j = 1, jSize
-       if( i < iLatMin .or.  i > iba(j) ) then
+       if( i < iLatMin .or.  i > ibaGlobal(j) ) then
           Buffer_IIV(i,j,nVarImToGm+1) = -1.
        else
           ! After cimi vars add the bmin which is needed for the coupling
-          Buffer_IIV(i,j,nVarImToGm+1) = Bmin_C(i,j)
+          Buffer_IIV(i,j,nVarImToGm+1) = BminGlobal_C(i,j)
        end if
     enddo; enddo
     if(DoTestMe) write(*,*) NameSub,' min,max Buffer(Bmin)=', &
@@ -1056,10 +1056,10 @@ contains
 
     ! use CON_time, ONLY : get_time
     use ModCimiGrid,  ONLY: iSize=>np, jSize=>nt, iProc
-    use ModCimi,      ONLY: Pressure_IC, PressurePar_IC, Bmin_C, Time, Pmin
+    use ModCimi,      ONLY: Pressure_IC, PressurePar_IC, Bmin _C, Time, Pmin
     use ModGmCimi,    ONLY: Den_IC, iLatMin!, DoMultiFluidGMCoupling, &
     ! DoAnisoPressureGMCoupling
-    use ModCimiTrace, ONLY: iba
+    use ModCimiTrace, ONLY: ibaGlobal
     use ModCimiPlanet, ONLY: nspec,amu_I
     use ModConst,     ONLY: cProtonMass
     use ModIoUnit, ONLY: UnitTmp_
@@ -1111,7 +1111,7 @@ contains
 
     ! Fill pressure and density
     do i=1,iSize; do j=1,jSize
-       if( i<iLatMin .or.  i > iba(j) ) then
+       if( i<iLatMin .or.  i > ibaGlobal(j) ) then
           Buffer_IIV(i,j,pres_) = -1.
           Buffer_IIV(i,j,dens_) = -1.
           if(DoAnisoPressureGMCoupling)then
@@ -1334,8 +1334,8 @@ contains
       !------------------------------------------------------------------------
       nEngIM = neng
       if (present(EngIM)) then
-         EngIM(1, :) = energy(1, :) ! Hydrogen Energy Grid
-         EngIM(2, :) = energy(nspec, :) ! Electron Energy Grid
+         EngIM(1, :) = energy(:, 1) ! Hydrogen Energy Grid
+         EngIM(2, :) = energy(:, nspec) ! Electron Energy Grid
       endif
 
   end subroutine IM_get_info_for_ie
@@ -1348,11 +1348,11 @@ contains
     ! indexes stored in Index and weights stored in Weight
     ! The variables should be put into Buff_V
 
-    use ModCimi,      ONLY: FAC_C, nLat=>np, nLon=>nt, Eje1, preP, preF
+    use ModCimi,      ONLY: FACGlobal_C, nLat=>np, nLon=>nt, Eje1Global, prePGlobal, preFGlobal
     use ModCimiPlanet,ONLY: H_, O_, e_, He_, Sw_
-    use ModCimiGrid,  ONLY: neng
+    use ModCimiGrid,  ONLY: neng, iproc
     use CON_router,   ONLY: IndexPtrType, WeightPtrType
-    use ModCimiTrace, ONLY: iba
+    use ModCimiTrace, ONLY: ibaGlobal
 
     integer,intent(in)            :: nPoint, iPointStart, nVar
     real,intent(out)              :: Buff_V(nVar)
@@ -1392,27 +1392,27 @@ contains
        if (iLat <= nLat .and. iLon <= nLon) then
           if(nVar >= 4) then
               ! Put ions
-              Buff_V(1) = Buff_V(1) + w * PreF(H_, iLat, iLon, neng+2)
-              Buff_V(2) = Buff_V(2) + w * Eje1(H_, iLat, iLon)
+              Buff_V(1) = Buff_V(1) + w * PreFGlobal(iLat, iLon, neng+2, H_)
+              Buff_V(2) = Buff_V(2) + w * Eje1Global(iLat, iLon, H_)
               ! Put Electrons
-              Buff_V(3) = Buff_V(3) + w * PreF(e_, iLat, iLon, neng+2)
-              Buff_V(4) = Buff_V(4) + w * Eje1(e_, iLat, iLon)
+              Buff_V(3) = Buff_V(3) + w * PreFGlobal(iLat, iLon, neng+2, e_)
+              Buff_V(4) = Buff_V(4) + w * Eje1Global(iLat, iLon, e_)
           end if
           if(nVar >= 5) then
               ! Put boundary location
-              if(iLat <= iba(iLon)) Buff_V(5) = Buff_V(5) + w
+              if(iLat <= ibaGlobal(iLon)) Buff_V(5) = Buff_V(5) + w
           end if
           if(nVar >= 6) then
               ! Put FAC
-              Buff_V(6) = Buff_V(6) - w * FAC_C(iLat, iLon)/2.0
+              Buff_V(6) = Buff_V(6) - w * FACGlobal_C(iLat, iLon)/2.0
           end if
           if(nVar==(6 + 2 * neng)) then
               ! Put ions
               Buff_V(6:5+neng) = Buff_V(6:5+neng) + w * &
-                      PreP(H_, iLat, iLon, 1:neng)
+                      PrePGlobal(iLat, iLon, 1:neng, H_)
               ! Put Electrons
               Buff_V(6+neng:5+2*neng) = Buff_V(6+neng:5+2*neng) + w * &
-                      PreP(e_, iLat, iLon, 1:neng)
+                      PrePGlobal(iLat, iLon, 1:neng, e_)
           else if(nVar >= 4 .and. nVar <= 6) then
             CYCLE
           else
