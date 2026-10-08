@@ -35,7 +35,7 @@ contains
     !When nProc>1, proc0 reads and then bcasts restart infor
     !when only 1 proc is used then just read restart info
     
-     write(iProcStr,'(I4)') iProc
+     write(iProcStr,'(I4.4)') iProc
 
      call open_file(file=trim(NameRestartInDir)//'data.restart'//trim(iProcStr),&
           status='old',form='unformatted', NameCaller=NameSub)
@@ -96,7 +96,7 @@ contains
     character(len=*), parameter:: NameSub = 'cimi_write_restart'
     !--------------------------------------------------------------------------
 
-     write(iProcStr,'(I4)') iProc
+     write(iProcStr,'(I4.4)') iProc
      call open_file(file=trim(NameRestartOutDir)//'data.restart'//trim(iProcStr), &
           form='unformatted', NameCaller=NameSub)
      write(UnitTmp_) f2
