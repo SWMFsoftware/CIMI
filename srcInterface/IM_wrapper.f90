@@ -94,7 +94,7 @@ contains
   !============================================================================
   subroutine IM_set_grid
 
-    use ModCimiGrid,      ONLY: np, nt, xlat, phi
+    use ModCimiGrid,      ONLY: np, nt, xlat, phiGlobal
     use ModCimiPlanet,    ONLY: NameVarCouple, nVarImToGm
     use ModNumConst,      ONLY: cDegToRad
     use CON_coupler,      ONLY: set_grid_descriptor, IM_
@@ -115,9 +115,9 @@ contains
 
     if(DoTest)then
        write(*,*)NameSub,' ir,ip=',np,nt
-       write(*,*)NameSub,' size(xlat)=',size(xlat),' size(phi)=',size(phi)
+       write(*,*)NameSub,' size(xlat)=',size(xlat),' size(phi)=',size(phiGlobal)
        write(*,*)NameSub,' xlat      =',xlat
-       write(*,*)NameSub,' phi       =',phi
+       write(*,*)NameSub,' phi       =',phiGlobal
        write(*,*)NameSub,' rIono     =',Radius_I(1)
     end if
 
@@ -130,7 +130,7 @@ contains
          XyzMax_D=[np+0.5, nt+0.5],              & ! max gen.coords for cells
          TypeCoord='SMG',                          & ! solar magnetic coord
          Coord1_I=(90.0-xlat(1:np))*cDegToRad,     & ! colatitude in radians
-         Coord2_I=phi,                             & ! longitude in radians
+         Coord2_I=phiGlobal,                          & ! longitude in radians
          Coord3_I=Radius_I,                        & ! radial size in meters
          IsPeriodic_D=[.false.,.true.],          & ! periodic in longitude
          nVar = nVarImToGm,                        & ! number of "fluid" vars

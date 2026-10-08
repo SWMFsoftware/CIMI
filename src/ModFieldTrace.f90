@@ -4,7 +4,7 @@ EndModule ModDstOutput
 
 
 Module ModCimiTrace
-  use ModCimi, ONLY: energy
+  use ModCimi, ONLY: energy, minLon, maxLon
   use ModCimiGrid,ONLY: ir=>np, ip=>nt, iw=>nm , ik=>nk, neng, &
        MinLonPar,MaxLonPar,iProc,iComm,iProcMidnight,nProc,&
        iLonMidnight,nLonPar,nLonPar_P,nLonBefore_P, rb
@@ -19,11 +19,15 @@ Module ModCimiTrace
        ekev(:,:,:,:,:), rmir(:,:,:), alscone(:,:,:,:,:),&
        tanA2(:,:,:), volume(:,:), bm(:,:,:), gamma(:,:,:,:),&
        xo(:,:), yo(:,:), tya(:,:,:), gridoc(:,:),phi2o(:,:),&
-       Tbounce(:,:,:,:,:), ionization(:,:,:,:,:)
+       Tbounce(:,:,:,:,:), ionization(:,:,:,:,:), &
+       roGlobal(:,:), xmltoGlobal(:,:), bmGlobal(:,:,:), boGlobal(:,:), xoGlobal(:,:), &
+       yoGlobal(:,:), volumeGlobal(:,:), phi2oGlobal(:,:)
+
 
   real	  :: parmod(10)
 
-  integer :: irm(ip), irm0(ip), iba(ip)
+  integer, allocatable :: irm(:), irm0(:), iba(:), ib0(:), irmGlobal(:), ibaGlobal(:)
+
 
   integer :: iw2(ik,nspec)
 
@@ -54,19 +58,21 @@ Module ModCimiTrace
   real, allocatable :: BCurvaturePoints_III(:,:,:)
   
   public :: gather_field_trace
-  public :: bcast_field_trace
   contains
   
   subroutine init_mod_field_trace
     
     if(allocated(bo)) RETURN
-    allocate( bo(ir,ip),ro(ir,ip),xmlto(ir,ip),sinA(ir,ip,0:ik+1) )
-    allocate(Have(ir,ip,ik),pp(ir,ip,iw,ik,nspec),vel(ir,ip,iw,ik,nspec),&
-         ekev(ir,ip,iw,ik,nspec),rmir(ir,ip,ik),alscone(ir,ip,iw,ik,nspec),&
-         Tbounce(ir,ip,iw,ik,nspec),ionization(ir,ip,iw,ik,nspec),&
-         tanA2(ir,ip,0:ik+1),phi2o(ir,ip),&
-         volume(ir,ip),bm(ir,ip,ik),gamma(ir,ip,iw,ik),&
-         xo(ir,ip),yo(ir,ip),tya(ir,ip,0:ik+1),gridoc(ir,ip) )
+    allocate( bo(ir,minLon:maxLon),ro(ir,minLon:maxLon),xmlto(ir,minLon:maxLon),sinA(ir,minLon:maxLon,0:ik+1), &
+          irm(minLon:maxLon), irm0(minLon:maxLon), iba(minLon:maxLon), ib0(minLon:maxLon))
+    allocate(Have(ir,minLon:maxLon,ik),pp(ir,minLon:maxLon,iw,ik,nspec),vel(ir,minLon:maxLon,iw,ik,nspec),&
+         ekev(ir,minLon:maxLon,iw,ik,nspec),rmir(ir,minLon:maxLon,ik),alscone(ir,minLon:maxLon,iw,ik,nspec),&
+         Tbounce(ir,minLon:maxLon,iw,ik,nspec),ionization(ir,minLon:maxLon,iw,ik,nspec),&
+         tanA2(ir,minLon:maxLon,0:ik+1),phi2o(ir,minLon:maxLon),&
+         volume(ir,minLon:maxLon),bm(ir,minLon:maxLon,ik),gamma(ir,minLon:maxLon,iw,ik),&
+         xo(ir,minLon:maxLon),yo(ir,minLon:maxLon),tya(ir,minLon:maxLon,0:ik+1),gridoc(ir,minLon:maxLon))
+    if(iProc==0) allocate(roGlobal(ir,ip), xmltoGlobal(ir,ip), bmGlobal(ir,ip,ik), boGlobal(ir,ip), xoGlobal(ir,ip), &
+       yoGlobal(ir,ip), volumeGlobal(ir,ip), irmGlobal(ip), ibaGlobal(ip), phi2oGlobal(ir,ip)) 
     
   end subroutine init_mod_field_trace
 
@@ -80,6 +86,7 @@ Module ModCimiTrace
   subroutine fieldpara(t,dt,c,q,xlati,xmlt,phi,si,IsRestart)
     use ModCimiPlanet,		ONLY: &
          nspec, re => re_m, rc, xme => dipmom
+    use ModCimi, ONLY: minLon, maxLon, energy, Ebound, dele
     use ModNumConst,		ONLY: pi => cPi, cDegToRad
     use ModCimiInitialize,	ONLY: xmm
     use ModMpi
@@ -99,10 +106,10 @@ Module ModCimiTrace
 
     integer, parameter :: np=10000,nd=3
     real :: t, dt, c
-    real :: xlati(ir),phi(ip),si(0:ik+1),&
+    real :: xlati(ir),phi(minLon:maxLon),si(0:ik+1),&
          si3(np),bm1(np),rm(np),rs(np),dss(np),&
          h3(np),bs(np),bba(np),&
-         x1(ir),xmlt(ip),xli(0:ir),&
+         x1(ir),xmlt(minLon:maxLon),xli(0:ir),&
          ra(np),dssa(np),tya3(np)
     integer :: n,i,j,k,m,mir,npf,npf1,im,im1,im2,igood,ii,iTaylor, j1
     real    :: rNeighborMax
@@ -122,8 +129,8 @@ Module ModCimiTrace
             bsi           ! =bs, averaged magnetic field strength btwn 2 points
 
     integer :: imax
-    integer :: iBufferSend_I(ip)
-    real :: R_12,R_24,xmltr,xBoundary(ip),BufferSend_I(ip),MajorAxis,MinorAxis,&
+    integer :: iBufferSend_I(minLon:maxLon)
+    real :: R_12,R_24,xmltr,xBoundary(minLon:maxLon),BufferSend_I(minLon:maxLon),MajorAxis,MinorAxis,&
          MajorAxis2,MinorAxis2,sin2,Req2,xo1,xc,xCenter,rell2, bmin
     real, parameter :: LengthMax = 50.0
     integer :: iError
@@ -151,7 +158,7 @@ Module ModCimiTrace
     NonMonoLengthThresh = 1. 
 
     ! Save irm0
-    irm0(1:ip)=irm(1:ip)
+    irm0(minLon:maxLon)=irm(minLon:maxLon)
 
     ! uncomment when T04 Tracing fixed
     if (imod <= 2) then
@@ -486,6 +493,8 @@ Module ModCimiTrace
 
     !.....Calculate p, E, v, et (mc^2) at grid boundaries, and lifetime for
     !     loss cone particles
+        write(*,*) 'ro2, pp1, tcone1', iProc, sum(ro(:,MinLonPar:MaxLonPar)), sum(bm(:,MinLonPar:MaxLonPar,:)), sum(tya(:,MinLonPar:MaxLonPar,:))
+
     do n=1,nspec
        xmass=1.673e-27*amu_I(n)
        c2mo=c*c*xmass ! rest mass
@@ -1358,7 +1367,8 @@ Module ModCimiTrace
     use ModCimiGrid,	ONLY:	&
          iProc, nProc, iComm, nLonPar, nLonPar_P, nLonBefore_P, &
          MinLonPar, MaxLonPar, nt, np, neng, npit, nm, nk, dlat, &
-         phi, sinao, xlat, xmlt
+         phi, sinao, xlat, xmlt, nGhostCell
+    use ModCimi, ONLY: MinLonGlobal, MaxLonGlobal
     use ModMPI
     
     !Vars for mpi passing
@@ -1370,100 +1380,76 @@ Module ModCimiTrace
          BufferSend_I(:), BufferRecv_I(:)
     integer :: iSendCount, iK, iError, iStatus_I( MPI_STATUS_SIZE )
 
-    allocate( BufferSend_C( np, nt ), BufferRecv_C( np, nt ), &
+    allocate( BufferSend_C( np, MinLonGlobal:MaxLonGlobal ), BufferRecv_C( np, nt ), &
          iReceiveCount_P( nProc ), iDisplacement_P( nProc ), &
-         BufferSend_I( nt ), BufferRecv_I( nt ) )
+         BufferSend_I( MinLonGlobal:MaxLonGlobal ), BufferRecv_I( nt ) )
 
     ! Gather to root
     iSendCount = np * nLonPar
     iReceiveCount_P = np * nLonPar_P
     iDisplacement_P = np * nLonBefore_P
 
-    BufferSend_I(:)=irm(:)
-    call MPI_GATHERV(BufferSend_I(MinLonPar:MaxLonPar), nLonPar, &
+    BufferSend_I(MinLonGlobal:MaxLonGlobal)=irm(minLonPar:maxLonPar)
+    call MPI_GATHERV(BufferSend_I(:), nLonPar, &
          MPI_INTEGER, BufferRecv_I, nLonPar_P, nLonBefore_P, &
          MPI_INTEGER, 0, iComm, iError)
-    if (iProc==0) irm(:)=BufferRecv_I(:)
+    if (iProc==0) irmGlobal(:)=BufferRecv_I(:)
     
-    BufferSend_I(:) = iba(:)
-    call MPI_GATHERV(BufferSend_I(MinLonPar:MaxLonPar), nLonPar, &
+    BufferSend_I(MinLonGlobal:MaxLonGlobal) = iba(minLonPar:maxLonPar)
+    call MPI_GATHERV(BufferSend_I(:), nLonPar, &
          MPI_INTEGER, BufferRecv_I, nLonPar_P, nLonBefore_P, &
          MPI_INTEGER, 0, iComm, iError)
-    if (iProc==0) iba(:)=BufferRecv_I(:)
+    if (iProc==0) ibaGlobal(:)=BufferRecv_I(:)
     
-    BufferSend_C(:,:)=volume(:,:)
-    call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
+    buffersend_C(:,MinLonGlobal:MaxLonGlobal)=volume(:,minLonPar:maxLonPar)
+    call MPI_GATHERV(BufferSend_C(:,:), iSendCount, &
          MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
          MPI_REAL, 0, iComm, iError)
-    if (iProc==0) volume(:,:)=BufferRecv_C(:,:)
+    if (iProc==0) volumeGlobal(:,:)=bufferrecv_C(:,:)
     
-    BufferSend_C(:,:)=xo(:,:)
-    call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
+    buffersend_C(:,MinLonGlobal:MaxLonGlobal)=xo(:,minLonPar:maxLonPar)
+    call MPI_GATHERV(BufferSend_C(:,:), iSendCount, &
          MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
          MPI_REAL, 0, iComm, iError)
-    if (iProc==0) xo(:,:)=BufferRecv_C(:,:)
+    if (iProc==0) xoGlobal(:,:)=BufferRecv_C(:,:)
     
-    BufferSend_C(:,:)=yo(:,:)
-    call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
+    buffersend_C(:,MinLonGlobal:MaxLonGlobal)=yo(:,minLonPar:maxLonPar)
+    call MPI_GATHERV(BufferSend_C(:,:), iSendCount, &
          MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
          MPI_REAL, 0, iComm, iError)
-    if (iProc==0) yo(:,:)=BufferRecv_C(:,:)
+    if (iProc==0) yoGlobal(:,:)=BufferRecv_C(:,:)
     
-    BufferSend_C(:,:)=bo(:,:)
-    call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
+    buffersend_C(:,MinLonGlobal:MaxLonGlobal)=bo(:,minLonPar:maxLonPar)
+    call MPI_GATHERV(BufferSend_C(:,:), iSendCount, &
          MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
          MPI_REAL, 0, iComm, iError)
-    if (iProc==0) bo(:,:) = BufferRecv_C(:,:)
+    if (iProc==0) boGlobal(:,:) = BufferRecv_C(:,:)
     
     do iK = 1, nk
        
-       BufferSend_C(:,:)=bm(:,:,iK)
-       call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar),iSendCount, &
+       buffersend_C(:,MinLonGlobal:MaxLonGlobal)=bm(:,minLonPar:maxLonPar,iK)
+       call MPI_GATHERV(BufferSend_C(:,:),iSendCount, &
             MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
             MPI_REAL, 0, iComm, iError)
-       if (iProc==0) bm(:,:,iK)=BufferRecv_C(:,:)
+       if (iProc==0) bmGlobal(:,:,iK)=BufferRecv_C(:,:)
        
     end do
     
-    BufferSend_C(:,:)=xmlto(:,:)
-    call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
+    buffersend_C(:,MinLonGlobal:MaxLonGlobal)=xmlto(:,minLonPar:maxLonPar)
+    call MPI_GATHERV(BufferSend_C(:,:), iSendCount, &
          MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
          MPI_REAL, 0, iComm, iError)
-    if (iProc==0) xmlto(:,:)=BufferRecv_C(:,:)
+    if (iProc==0) xmltoGlobal(:,:)=BufferRecv_C(:,:)
     
-    BufferSend_C(:,:)=ro(:,:)
-    call MPI_GATHERV(BufferSend_C(:,MinLonPar:MaxLonPar), iSendCount, &
+    buffersend_C(:,MinLonGlobal:MaxLonGlobal)=ro(:,minLonPar:maxLonPar)
+    call MPI_GATHERV(BufferSend_C(:,:), iSendCount, &
          MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
          MPI_REAL, 0, iComm, iError)
-    if (iProc==0) ro(:,:)=BufferRecv_C(:,:)
+    if (iProc==0) roGlobal(:,:)=BufferRecv_C(:,:)
 
     deallocate( iReceiveCount_P, iDisplacement_P, &
          BufferSend_C, BufferRecv_C, BufferSend_I, BufferRecv_I )
     
   end subroutine gather_field_trace
-  
-
-  subroutine bcast_field_trace
-
-    use ModCimiGrid,	ONLY:	&
-         iProc, nProc, iComm, nLonPar, nLonPar_P, nLonBefore_P, &
-         MinLonPar, MaxLonPar, nt, np, neng, npit, nm, nk, dlat, &
-         phi, sinao, xlat, xmlt
-    use ModMPI
-
-    integer 			:: iError
-
-    
-    call MPI_bcast( irm, nt, MPI_LOGICAL, 0, iComm, iError)
-    call MPI_bcast( iba, nt, MPI_LOGICAL, 0, iComm, iError)
-    call MPI_bcast( volume, np * nt * nk, MPI_LOGICAL, 0, iComm, iError)
-    call MPI_bcast( xo, np * nt, MPI_LOGICAL, 0, iComm, iError)
-    call MPI_bcast( yo, np * nt, MPI_LOGICAL, 0, iComm, iError)
-    call MPI_bcast( bo, np * nt, MPI_LOGICAL, 0, iComm, iError)
-    call MPI_bcast( bm, np * nt * nk, MPI_LOGICAL, 0, iComm, iError)
-    call MPI_bcast( xmlto, np * nt, MPI_LOGICAL, 0, iComm, iError)
-    call MPI_bcast( ro, np * nt, MPI_LOGICAL, 0, iComm, iError)
-    
-  end subroutine bcast_field_trace
   
 end Module ModCimiTrace

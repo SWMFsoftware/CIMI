@@ -65,7 +65,7 @@ contains
     
   use ModNumConst, 	ONLY: pi => cPi
   use ModCimiPlanet,	ONLY: re_m, xme => dipmom, rc
-  use ModCimiTrace,	ONLY: bo, ro, iba, rb
+  use ModCimiTrace,	ONLY: boGlobal, roGlobal, ibaGlobal, rb
   use ModCimiGrid,	ONLY: xlati => xlatr, ir => np, ip => nt, xmlt
   implicit none
 
@@ -90,12 +90,12 @@ contains
   B_island(1:ir,1:ip)=0    ! 0=normal, 1=island
   do j=1,ip
      ii=1000
-     do i=iba(j)-1,1,-1
+     do i=ibaGlobal(j)-1,1,-1
         if (ii.lt.i) go to 20 
-        if (bo(i,j).lt.bo(i+1,j)) then
+        if (boGlobal(i,j).lt.boGlobal(i+1,j)) then
            B_island(i,j)=1          
            ii=i
-           do while ( bo(ii-1,j).lt.bo(i+1,j) .and. ii.gt.1)
+           do while ( boGlobal(ii-1,j).lt.boGlobal(i+1,j) .and. ii.gt.1)
              ii=ii-1
              B_island(ii,j)=1
            enddo
@@ -108,35 +108,35 @@ contains
    
 ! Caculates L* at each grid
   Bflux=0.  ! Initialize magnetic fluxes
-  Lstar_C(1:ib0-1,1:ip)=ro(1:ib0-1,1:ip)  ! set L*=ro at i<ib0
+  Lstar_C(1:ib0-1,1:ip)=roGlobal(1:ib0-1,1:ip)  ! set L*=ro at i<ib0
   do j0=1,ip                     ! MLT grid
-     do i=ib0,iba(j0)
+     do i=ib0,ibaGlobal(j0)
         Bflux(i,j0)=0.             ! initialization of magnetic flux  
         if (B_island(i,j0).eq.1) then 
            lstar_C(i,j0)=-1.*rb      
            go to 40                ! skipping magnetic island
         endif
-        logBo=log10(bo(i,j0))
+        logBo=log10(boGlobal(i,j0))
         do j=1,ip
-           logBo_i(1:iba(j))=log10(bo(1:iba(j),j))
+           logBo_i(1:ibaGlobal(j))=log10(boGlobal(1:ibaGlobal(j),j))
            ! Find the MLAT index for the same bo
            IF ( ( j .NE. j0 ) .AND. &
                 ( logBo .LT. logBo_i( 1 ) ) .AND. &
-                ( logBo .GE. logBo_i( iba( j ) ) ) ) &
-                CALL locateB( logBo_i( 1 : iba( j ) ), iba( j ), logBo, ii )
+                ( logBo .GE. logBo_i( ibaGlobal( j ) ) ) ) &
+                CALL locateB( logBo_i( 1 : ibaGlobal( j ) ), ibaGlobal( j ), logBo, ii )
            if (logBo.ge.logBo_i(1)) ii=1
-           if (logBo.lt.logBo_i(iba(j))) ii=iba(j)
+           if (logBo.lt.logBo_i(ibaGlobal(j))) ii=ibaGlobal(j)
            if (j.eq.j0) ii=i
-           if (ii.lt.iba(j)) then
+           if (ii.lt.ibaGlobal(j)) then
               ii1=ii+1
-              do while (ii1.lt.iba(j) .and. B_island(ii1,j).eq.1 ) 
+              do while (ii1.lt.ibaGlobal(j) .and. B_island(ii1,j).eq.1 ) 
                  ii1=ii1+1
               enddo
               b2=logBo_i(ii1)-logBo
               b1=logBo-logBo_i(ii)
               xlat_i=(xlati(ii)*b2+xlati(ii1)*b1)/(b2+b1) ! interpolates xlati
            else
-              xlat_i=xlati(iba(j))                   
+              xlat_i=xlati(ibaGlobal(j))                   
            endif
            dBdlat_i=dBdMLAT(BE,rc,xlat_i)
            Bflux(i,j0)=Bflux(i,j0)+dBdlat_i*dmlt(j)*pi/12. ! analytic intergration of magnetic flux
@@ -144,13 +144,13 @@ contains
         lstar_C(i,j0)=2.*pi*BE/Bflux(i,j0)
 40      continue
      enddo             ! end of i
-     if (iba(j0).lt.ir) lstar_C(iba(j0)+1:ir,j0)=rb     ! arbitrary big L* 
+     if (ibaGlobal(j0).lt.ir) lstar_C(ibaGlobal(j0)+1:ir,j0)=rb     ! arbitrary big L* 
   enddo                ! end of j0
 
   ! Determines L* max
-  Lstar_max=Lstar_C(iba(jnoon),jnoon) ! L* at noon magnetopause
+  Lstar_max=Lstar_C(ibaGlobal(jnoon),jnoon) ! L* at noon magnetopause
   do j=jdawn,jdusk                  ! find L* max from dawn to dusk
-     if (Lstar_max.gt.Lstar_C(iba(j),j)) Lstar_max = Lstar_C(iba(j),j)
+     if (Lstar_max.gt.Lstar_C(ibaGlobal(j),j)) Lstar_max = Lstar_C(ibaGlobal(j),j)
   enddo
 
   if ( DoVerboseLstar ) then
@@ -170,7 +170,7 @@ contains
 
   use ModNumConst,	ONLY: pi=>cPi
   use ModCimiPlanet,	ONLY: re_m, xme => dipmom, rc
-  use ModCimiTrace,	ONLY: bm, ro, iba, rb
+  use ModCimiTrace,	ONLY: bmGlobal, roGlobal, ibaGlobal, rb
   use ModCimiGrid, 	ONLY: xlati=>xlatr, ir=>np, ip=>nt, xmlt, ik=>nk
   implicit none
 
@@ -194,12 +194,12 @@ contains
      B_island(1:ir,1:ip)=0    ! 0=normal, 1=island
      do j=1,ip
         ii=1000
-        do i=iba(j)-1,1,-1
+        do i=ibaGlobal(j)-1,1,-1
            if (ii.lt.i) go to 20 
-           if (bm(i,j,m).lt.bm(i+1,j,m)) then
+           if (bmGlobal(i,j,m).lt.bmGlobal(i+1,j,m)) then
               B_island(i,j)=1          
               ii=i
-10            if(bm(ii-1,j,m).lt.bm(i+1,j,m)) then
+10            if(bmGlobal(ii-1,j,m).lt.bmGlobal(i+1,j,m)) then
                 ii=ii-1
                 B_island(ii,j)=1
               go to 10
@@ -213,23 +213,23 @@ contains
    
 ! Caculates L* at each grid
      Bflux=0.  ! Initialize magnetic fluxes
-     Lstarm(1:ib0-1,1:ip,m)=ro(1:ib0-1,1:ip)  ! set L*=ro at i<ib0
+     Lstarm(1:ib0-1,1:ip,m)=roGlobal(1:ib0-1,1:ip)  ! set L*=ro at i<ib0
      do j0=1,ip                     ! MLT grid
-        do i=ib0,iba(j0)
+        do i=ib0,ibaGlobal(j0)
            Bflux(i,j0)=0.             ! initialization of magnetic flux  
            if (B_island(i,j0).eq.1) then 
               lstarm(i,j0,m)=-1.*rb      
               go to 40                ! skipping magnetic island
            endif
-           logBm=log10(bm(i,j0,m))
+           logBm=log10(bmGlobal(i,j0,m))
            do j=1,ip
-              logbm_i(1:iba(j))=log10(bm(1:iba(j),j,m))            ! Drift path is estimated with bm 
-              if (j.ne.j0.and.logBm.lt.logbm_i(1).and.logBm.ge.logbm_i(iba(j))) &
-              call locateB(logbm_i(1:iba(j)),iba(j),logBm,ii) ! Find the MLAT index for the same bo
+              logbm_i(1:ibaGlobal(j))=log10(bmGlobal(1:ibaGlobal(j),j,m))            ! Drift path is estimated with bm 
+              if (j.ne.j0.and.logBm.lt.logbm_i(1).and.logBm.ge.logbm_i(ibaGlobal(j))) &
+              call locateB(logbm_i(1:ibaGlobal(j)),ibaGlobal(j),logBm,ii) ! Find the MLAT index for the same bo
               if (logBm.ge.logbm_i(1)) ii=1
-              if (logBm.lt.logbm_i(iba(j))) ii=iba(j)
+              if (logBm.lt.logbm_i(ibaGlobal(j))) ii=ibaGlobal(j)
               if (j.eq.j0) ii=i
-              if (ii.lt.iba(j)) then
+              if (ii.lt.ibaGlobal(j)) then
                  ii1=ii
 30               ii1=ii1+1
                  if(B_island(ii1,j).eq.1) go to 30
@@ -237,7 +237,7 @@ contains
                  b1=logBm-logbm_i(ii)
                  xlat_i=(xlati(ii)*b2+xlati(ii1)*b1)/(b2+b1) ! interpolates xlati
               else
-                 xlat_i=xlati(iba(j))                   
+                 xlat_i=xlati(ibaGlobal(j))                   
               endif
               dBdlat_i=dBdMLAT(BE,rc,xlat_i)
               Bflux(i,j0)=Bflux(i,j0)+dBdlat_i*dmlt(j)*pi/12. ! analytic intergration of magnetic flux
@@ -245,13 +245,13 @@ contains
            lstarm(i,j0,m)=2.*pi*BE/Bflux(i,j0)
 40         continue
         enddo    ! end of i
-        if (iba(j0).lt.ir) lstarm(iba(j0)+1:ir,j0,m)=rb     ! arbitrary big L* 
+        if (ibaGlobal(j0).lt.ir) lstarm(ibaGlobal(j0)+1:ir,j0,m)=rb     ! arbitrary big L* 
      enddo       ! end of j0
 
   ! Determines L* max
-     Lstarm_max(m)=Lstarm(iba(jnoon),jnoon,m) ! L* at noon magnetopause
+     Lstarm_max(m)=Lstarm(ibaGlobal(jnoon),jnoon,m) ! L* at noon magnetopause
      do j=jdusk,jdawn                  ! find L* max from dawn to dusk
-        if (Lstarm_max(m).gt.Lstarm(iba(j),j,m)) Lstarm_max(m)=Lstarm(iba(j),j,m)
+        if (Lstarm_max(m).gt.Lstarm(ibaGlobal(j),j,m)) Lstarm_max(m)=Lstarm(ibaGlobal(j),j,m)
      enddo
   enddo          ! end of k
 

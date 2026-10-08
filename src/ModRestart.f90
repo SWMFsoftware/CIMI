@@ -19,7 +19,7 @@ contains
          eTimeAccumult_ICI, eChangeOperator_VICI, eChangeGlobal, &
          pTimeAccumult_ICI, pChangeOperator_VICI, &
          driftin, driftout, rbsumGlobal, rcsumGlobal, nOperator, &
-         PreF, PreP, Eje1
+         PreF, PreP, Eje1, nTotalCell
     use ModCimiTrace, ONLY: iba, iw2
     use ModGmCimi,    ONLY: Den_IC
     use ModIoUnit,    ONLY: UnitTmp_

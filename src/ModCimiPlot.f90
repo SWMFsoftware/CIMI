@@ -89,7 +89,7 @@ contains
     use ModLstar, 		ONLY:	Lstar_C
     use ModCimiGrid,		ONLY:	&
          PhiIono_C => phi, LatIono_C => xlatr
-    use ModCimiTrace,		ONLY:	iba
+    use ModCimiTrace,		ONLY:	iba => ibaGlobal
     use ModPlasmasphere,	ONLY:   UseCorePsModel, PlasDensity_C
     
     integer, intent(in) :: nLat, nLon
@@ -231,7 +231,7 @@ contains
          iPplot_I, iPparplot_I, iPhotplot_I, iPparhotplot_I, iNplot_I, &
          Beq_, Vol_, Pot_, FAC_, Lstar_, Plas_, nVar
     use ModCimiGrid,		ONLY: 	PhiIono_C => phi, LatIono_C => xlatr
-    use ModCimiTrace,		ONLY:	iba
+    use ModCimiTrace,		ONLY:	iba => ibaGlobal
     
     use ModPlasmasphere,	ONLY:	UseCorePsModel, PlasDensity_C
     use ModLstar,		ONLY:	Lstar_C
@@ -787,7 +787,7 @@ contains
     ! for separate files only do need right now
     use ModImTime,		ONLY: iCurrentTime_I   
     use ModCimiInitialize, 	ONLY: dphi
-    use ModCimi,		ONLY: Eje1, preP, preF
+    use ModCimi,		ONLY: Eje1Global, prePGlobal, preFGlobal
     
     implicit none
     
@@ -837,10 +837,10 @@ contains
     do iLat=1,nLat             ! Write precipitation @ fixed E grid
        do iLon=1,nLon
           write(UnitTmp_,'(f8.3,f8.2,1pE12.4,a)') &
-               xlat(iLat),xmlt(iLon),Eje1(iLat,iLon,n),&
+               xlat(iLat),xmlt(iLon),Eje1Global(iLat,iLon,n),&
                '  ! mlat(deg), mlt(hr), Eflux (mW/m2), particles'
-          write(UnitTmp_,'(1p,6e12.4)') PreF(iLat,iLon,1:nEnergy+2,n)  
-          write(UnitTmp_,'(1p,6e12.4)') PreP(iLat,iLon,1:nEnergy+2,n)
+          write(UnitTmp_,'(1p,6e12.4)') PreFGlobal(iLat,iLon,1:nEnergy+2,n)  
+          write(UnitTmp_,'(1p,6e12.4)') PrePGlobal(iLat,iLon,1:nEnergy+2,n)
        enddo
     enddo
     close(UnitTmp_)

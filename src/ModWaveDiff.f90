@@ -24,6 +24,7 @@
 module ModWaveDiff
   
   use ModCimiGrid,	ONLY:	ir => np, ip => nt, iw => nm, ik => nk  
+  use ModCimi, ONLY: MinLon, MaxLon
   use ModCimiPlanet,	ONLY:	nspec
   use ModCimiTrace,	ONLY: 	&
        ekev, tya, y => sinA, Bo, ro, xmlto, lintpIM, bm
@@ -85,13 +86,14 @@ contains
     use ModMPI
     use ModCimiGrid,   ONLY: MinLonPar,MaxLonPar
     use ModCimiUtil, ONLY: lintp3IM,tridagIM
+    use ModCimi, ONLY: MinLon, MaxLon
     
     implicit none
     
     integer,parameter :: ie=40 ! diffusion subroutine has its own energy grid
     integer i,j,m,k,irun,n,nn,ier
-    integer iba(ip),iw2(ik,nspec)
-    real f2(ir,ip,iw,ik,nspec),xjac(ir,iw,nspec),dt  ! xjac has different dimension from CIMI !
+    integer iba(MinLon:MaxLon),iw2(ik,nspec)
+    real f2(ir,MinLon:MaxLon,iw,ik,nspec),xjac(ir,iw,nspec),dt  ! xjac has different dimension from CIMI !
     
     
     real ein_log(ie),einlog, &
@@ -337,8 +339,8 @@ contains
     implicit none
     integer i,j,k,m,k1,k2,iww,irun,nrun,ier,n
     real xjac(ir,iw,nspec),xmm(0:iw+1,nspec)  ! xjac and xmm have different dimension from CIMI !
-    integer iba(ip),iw2(ik,nspec)
-    real dt,Eo,f2(ir,ip,iw,ik,nspec),fl(iw), &
+    integer iba(MinLon:MaxLon),iw2(ik,nspec)
+    real dt,Eo,f2(ir,MinLon:MaxLon,iw,ik,nspec),fl(iw), &
          xlam,alam,um(iw),up(iw),ompe1,ro1,PA1, &
          fr(iw),a1d(iw),b1d(iw),c1d(iw),&
          factor_1, &
@@ -548,8 +550,8 @@ contains
     implicit none
     integer,parameter :: ie=80
     integer i,j,m,k,k1,k2,nrun,n,ier,iww,nn
-    integer iba(ip),iw2(ik,nspec),nrun2
-    real f2(ir,ip,iw,ik,nspec),xjac(ir,iw,nspec),einlog, &
+    integer iba(MinLonPar:MaxLonPar),iw2(ik,nspec),nrun2
+    real f2(ir,MinLonPar:MaxLonPar,iw,ik,nspec),xjac(ir,iw,nspec),einlog, &
          ein_log(ie),&
          fl(0:ie+1),f1d(iw),ein(ie),ao(0:ik+1),dao(ik),ao1, &
          a1d(ie),b1d(ie),c1d(ie),e1d(iw),u_mx,u_mx1,u_mx2,dpsd,dt, &

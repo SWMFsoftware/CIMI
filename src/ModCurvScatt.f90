@@ -5,14 +5,14 @@
 module ModCurvScatt
   !!use ModCimiGrid  ,ONLY: ir=>np,ip=>nt, nspec
   use ModCimiGrid  ,ONLY: ir=>np,ip=>nt,iw=>nm,ik=>nk, nspec
+  use ModCimi, ONLY: MinLon, MaxLon
 
   private
   
   logical,public :: DoFlcLoss
   
-  real,dimension(ir,ip) :: pc_flc,zeta1,zeta2
   real, public, allocatable :: tau_flc(:,:,:), &
-                    Daa_flc(:,:,:,:,:)
+                    Daa_flc(:,:,:,:,:), pc_flc(:,:),zeta1(:,:),zeta2(:,:)
 
   ! index of K, 2nd adiabatic invariant at the loss cone pitch-angle.
   integer, allocatable :: m_lc(:,:,:) 
@@ -50,8 +50,9 @@ contains
     integer ::  is,is1,is2, iPoint
 
     ! allocate needed variables
-    if(.not. allocated(tau_flc)) allocate(tau_flc(ir,ip,nspec),&
-                    Daa_flc(ir,ip,iw,ik,nspec),  m_lc(ir,ip,ik))
+    if(.not. allocated(tau_flc)) allocate(tau_flc(ir,MinLon:MaxLon,nspec),&
+         Daa_flc(ir,MinLon:MaxLon,iw,ik,nspec),  m_lc(ir,MinLon:MaxLon,ik), &
+         pc_flc(ir,MinLon:MaxLon),zeta1(ir,MinLon:MaxLon),zeta2(ir,MinLon:MaxLon))
 
     !When r less than 4Re (or whatever value) just use the dipole
     !curvature scattering values
