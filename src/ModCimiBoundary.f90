@@ -30,11 +30,12 @@ contains
          TotalP_,TotalPpar_,TotalRho_, iBufferRho_I,iBufferP_I,&
          iBufferPpar_I, iLatMin,&
          UseTotalRhoGm, UseTotalPGm, UseTotalPparGm, UseMultiRhoGm , &
-         UseMultiPGm, UseMultiPparGm, DoFeedbackPs, UsePeGm, TotalPe_      
+         UseMultiPGm, UseMultiPparGm, DoFeedbackPs, UsePeGm, TotalPe_
+    use ModCimiGrid, ONLY: MinLonGlobal 
     
     use ModCimiTrace,  ONLY: irm, iba
     use ModConst, ONLY: cProtonMass
-    integer :: iSpecies, iLon, iLat, jLat
+    integer :: iSpecies, iLon, iLat, jLat, iLonGlobal
     real, parameter :: cJouleToEv=6.2415e18  
     real :: FactorTotalDens
     integer :: ib1
@@ -58,6 +59,7 @@ contains
      FactorTotalDens = sum(dFactor_I(1:nSpec-1)*amu_I(1:nSpec-1))
      do iSpecies = 1, nSpec
         do iLon=MinLonPar,MaxLonPar
+           iLonGlobal = MinLonGlobal + iLon - 1
            ! Set boundary index consistant with boundaryIM
            ib1=min(iba(iLon)+1,irm(iLon))
            do iLat=1,irm(iLon)
@@ -66,18 +68,18 @@ contains
 
               !write(*,*)StateBmin_IIV(jLat,iLon,TotalRho_)
               Den_IC(iLat,iLon,iSpecies) = dFactor_I(iSpecies) * &
-                   StateBmin_IIV(jLat,iLon,TotalRho_)&
+                   StateBmin_IIV(jLat,iLonGlobal,TotalRho_)&
                    /(cProtonMass * FactorTotalDens)
               Temp_IC(iLat,iLon,iSpecies) = tFactor_I(iSpecies) * &
-                   StateBmin_IIV(jLat,iLon,TotalP_) &
+                   StateBmin_IIV(jLat,iLonGlobal,TotalP_) &
                    * cProtonMass * FactorTotalDens &
-                   / StateBmin_IIV(jLat,iLon,TotalRho_) &
+                   / StateBmin_IIV(jLat,iLonGlobal,TotalRho_) &
                    * cJouleToEv
               if(UseTotalPparGm) then
                  Temppar_IC(iLat,iLon,iSpecies) = tFactor_I(iSpecies) * &
-                      StateBmin_IIV(jLat,iLon,TotalPpar_) &
+                      StateBmin_IIV(jLat,iLonGlobal,TotalPpar_) &
                       * cProtonMass * FactorTotalDens &
-                      / StateBmin_IIV(jLat,iLon,TotalRho_) &
+                      / StateBmin_IIV(jLat,iLonGlobal,TotalRho_) &
                       * cJouleToEv
               else
                  Temppar_IC(iLat,iLon,iSpecies) = Temp_IC(iLat,iLon,iSpecies)
@@ -92,6 +94,7 @@ contains
      ! Multispecies Case
      
      do iLon=MinLonPar,MaxLonPar
+        iLonGlobal = MinLonGlobal + iLon - 1
         ! Set boundary index consistant with boundaryIM
         ib1=min(iba(iLon)+1,irm(iLon))
         do iLat=1,irm(iLon) 
@@ -99,7 +102,7 @@ contains
            jLat = max(iLat, iLatMin)
            do iSpecies = 1, nSpec-1
               Den_IC(iLat,iLon,iSpecies) = &
-                   StateBmin_IIV(jLat,iLon,iBufferRho_I(iSpecies))&
+                   StateBmin_IIV(jLat,iLonGlobal,iBufferRho_I(iSpecies))&
                    / (cProtonMass*amu_I(iSpecies))
            enddo
            ! set electron density
@@ -107,12 +110,12 @@ contains
            
            ! set temperatures
            Temp_IC(1:nSpec,iLat,iLon) = tFactor_I(1:nSpec) * &
-                StateBmin_IIV(jLat,iLon,TotalP_)  &
+                StateBmin_IIV(jLat,iLonGlobal,TotalP_)  &
                 /(Den_IC(nSpec,iLat,iLon)) &
                 * cJouleToEv
            if(UseTotalPparGm) then
               Temppar_IC(1:nSpec,iLat,iLon) = tFactor_I(iSpecies) * &
-                   StateBmin_IIV(jLat,iLon,TotalPpar_) &
+                   StateBmin_IIV(jLat,iLonGlobal,TotalPpar_) &
                    / (Den_IC(nSpec,iLat,iLon)) &
                    * cJouleToEv
            else
@@ -127,6 +130,7 @@ contains
      !Multifluid Case
 
      do iLon=MinLonPar,MaxLonPar
+        iLonGlobal = MinLonGlobal + iLon - 1
         ! Set boundary index consistant with boundaryIM
         ib1=min(iba(iLon)+1,irm(iLon))
         do iLat=1,irm(iLon) 
@@ -135,17 +139,17 @@ contains
 
            do iSpecies = 1, nSpec-1
               Den_IC(iLat,iLon,iSpecies) = &
-                   StateBmin_IIV(jLat,iLon,iBufferRho_I(iSpecies))&
+                   StateBmin_IIV(jLat,iLonGlobal,iBufferRho_I(iSpecies))&
                    / (cProtonMass*amu_I(iSpecies))
               
               !set temperatures
               Temp_IC(iLat,iLon,iSpecies) = &
-                   StateBmin_IIV(jLat,iLon,iBufferP_I(iSpecies))  &
+                   StateBmin_IIV(jLat,iLonGlobal,iBufferP_I(iSpecies))  &
                    /(Den_IC(iLat,iLon,iSpecies)) &
                    * cJouleToEv
               if(UseMultiPparGm) then
                  Temppar_IC(iLat,iLon,iSpecies) = &
-                      StateBmin_IIV(jLat,iLon,iBufferPpar_I(iSpecies)) &
+                      StateBmin_IIV(jLat,iLonGlobal,iBufferPpar_I(iSpecies)) &
                       / (Den_IC(iLat,iLon,iSpecies)) &
                       * cJouleToEv
               else
@@ -158,7 +162,7 @@ contains
            
            ! set electron temperatures
            Temp_IC(nSpec,iLat,iLon) = &
-                sum(StateBmin_IIV(jLat,iLon,iBufferP_I(1:nSpec-1)))  &
+                sum(StateBmin_IIV(jLat,iLonGlobal,iBufferP_I(1:nSpec-1)))  &
                 /(Den_IC(nSpec,iLat,iLon)) &
                 * cJouleToEv
            Temppar_IC(nSpec,iLat,iLon) = Temp_IC(nSpec,iLat,iLon)
@@ -171,11 +175,12 @@ contains
   !Overwrite e temperature if solving for Pe in GM
   if (UsePeGm) then
      do iLon=MinLonPar,MaxLonPar
+     iLonGlobal = MinLonGlobal + iLon - 1
         ! Set boundary index consistant with boundaryIM
         ib1=min(iba(iLon)+1,irm(iLon))
         do iLat=1,irm(iLon)
            jLat = max(iLat, iLatMin)
-           Temp_IC(nSpec,iLat,iLon) = StateBmin_IIV(jLat,iLon,TotalPe_)&
+           Temp_IC(nSpec,iLat,iLon) = StateBmin_IIV(jLat,iLonGlobal,TotalPe_)&
                 / Den_IC(nSpec,iLat,iLon)* cJouleToEv
            Temppar_IC(nSpec,iLat,iLon) = Temp_IC(nSpec,iLat,iLon)
         end do

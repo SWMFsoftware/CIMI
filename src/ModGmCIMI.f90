@@ -1,6 +1,6 @@
 Module ModGmCimi
 
-  use ModCimiGrid,  ONLY: nLat => np, nLon => nt
+  use ModCimiGrid,  ONLY: nLat => np, nLon => nt, MinLonPar, MaxLonPar
   use ModCimiPlanet,ONLY: nspec
 
   implicit none
@@ -29,22 +29,23 @@ Module ModGmCimi
   real :: KpGm=-1.0, AeGm=-1.0
   logical :: UseGmKp=.false.,UseGmAe=.false.
   
-  real :: Den_IC(nLat,nLon,nspec) = 0.0, Temp_IC(nLat,nLon,nspec) = 0.0, &
-       Temppar_IC(nLat,nLon,nspec) = 0.0
+  real, allocatable :: Den_IC(:,:,:), Temp_IC(:,:,:), &
+       Temppar_IC(:,:,:)
   integer :: iLatMin=22 !Minimum latitude in MHD boundary
   
   logical :: UseGm                  = .false.
   logical :: DoneGmCoupling         = .false.
 
-!  public :: init_gm_cimi
-!contains
-!  subroutine init_gm_cimi
-!    integer :: iSpecies
-!    !----------------------------------------------------------------------
-!    do iSpecies =1,nspec-1
-!       AveDen_I(iSpecies) = 6+iSpecies
-!       AveP_I(iSpecies)=6+nspec-1+iSpecies
-!    enddo
-!  end subroutine init_gm_cimi
+ public :: init_cimi_gm
+contains
+ subroutine init_cimi_gm
+   integer :: iSpecies
+   !----------------------------------------------------------------------
+   if(allocated(Den_IC)) RETURN
+
+   allocate(Den_IC(nLat,MinLonPar:MaxLonPar,nspec), &
+            Temp_IC(nLat,MinLonPar:MaxLonPar,nspec), &
+            Temppar_IC(nLat,MinLonPar:MaxLonPar,nspec))
+ end subroutine init_cimi_gm
   
 end Module ModGmCimi

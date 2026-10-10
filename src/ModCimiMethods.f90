@@ -124,8 +124,6 @@ subroutine cimi_run(delta_t)
        IsRestart)
   call timing_stop('cimi_fieldpara')
 
-  do n=1,nspec; do k=1,nk; write(*,*) n, k, iw2(k,n); enddo; enddo
-
   if(UseFLC) then
      call timing_start('cimi_calc_FLC_para')
      do iLon =MinLonPar, MaxLonPar
@@ -754,6 +752,7 @@ subroutine cimi_init
   use ModMpi
   use CIMI_aurora, ONLY: init_mod_aurora
   use ModIeCimi, ONLY: init_mod_iecimi
+  use ModGmCimi, ONLY: init_cimi_gm
   use ModUtilities, ONLY: CON_stop
 
 
@@ -1097,7 +1096,7 @@ subroutine cimi_init
   enddo
 
   call init_mod_iecimi
-
+  call init_cimi_gm
 
   if(IsRestart) then
      ! set initial state when restarting
@@ -1140,7 +1139,7 @@ subroutine initial_f2(nspec,np,nt,amu_I,xjac,ib0)
   integer:: n, j, i, k, m, iError, jGlobal
   real:: velperp2, velpar2
   real:: pi,xmass,chmass,f21,vtchm
-  real:: Tempperp_IC(np,nt,nspec)
+  real:: Tempperp_IC(np,MinLonpar:MaxLonPar,nspec)
   real:: xleb(nspec),xled(nspec),xlel(nspec),xlee(nspec),xles(nspec)
 
   ! Variables needed for data initialization
@@ -1161,17 +1160,16 @@ subroutine initial_f2(nspec,np,nt,amu_I,xjac,ib0)
       xmass=amu_I(n)*1.673e-27
       chmass=1.6e-19/xmass
       do j=MinLonPar,MaxLonPar
-         jGlobal = MinLonGlobal + j - 1
          do i=1,iba(j)
-            f21 = Den_IC(i,jGlobal,n) &
-                 /(2.*pi*xmass*Temppar_IC(i,jGlobal,n)*1.6e-19)**0.5 &
-                 /(2.*pi*xmass*Tempperp_IC(i,jGlobal,n)*1.6e-19)
+            f21 = Den_IC(i,j,n) &
+                 /(2.*pi*xmass*Temppar_IC(i,j,n)*1.6e-19)**0.5 &
+                 /(2.*pi*xmass*Tempperp_IC(i,j,n)*1.6e-19)
             do k=1,nk
                do m=1,nm
                   velperp2 = (vel(i,j,m,k,n)*sinA(i,j,k))**2
                   velpar2  = vel(i,j,m,k,n)**2 - velperp2
-                  vtchm = -velpar2/(2*Temppar_IC(i,jGlobal,n)*chmass) &
-                          -velperp2/(2*Tempperp_IC(i,jGlobal,n)*chmass)
+                  vtchm = -velpar2/(2*Temppar_IC(i,j,n)*chmass) &
+                          -velperp2/(2*Tempperp_IC(i,j,n)*chmass)
                   f2(i,j,m,k,n) = xjac(i,m,n)*f21*exp(vtchm)
                end do
             end do
@@ -1684,7 +1682,7 @@ subroutine driftIM(iw2,nspec,np,nt,minLon,maxLon,nm,nk,dt,dlat,dphi,rb,driftin,d
   integer:: n,i,j,k,m,j1,j_1,j_2,ibaj,ib,ibo,nrun,nn
 
   real:: f2d(np,minLon:maxLon),f2d0(np,minLon:maxLon),cmax,cl1,cp1,cmx,dt1,fb0(minLon:maxLon), &
-       fb1(minLon:maxLon),fo_log,fb_log,f_log
+       fb1(minLon:maxLon),fo_log,fb_log,f_log, cmaxAll
   real:: slope,cl(np,minLon:maxLon),cp(np,minLon:maxLon),fal(0:np,minLon:maxLon),fap(np,minLon:maxLon),&
        fupl(0:np,minLon:maxLon),fupp(np,minLon:maxLon)
   real:: dEner, dPart, dEnerLocal_C(minLonPar:maxLonPar), dPartLocal_C(minLonPar:maxLonPar)
@@ -1694,7 +1692,6 @@ subroutine driftIM(iw2,nspec,np,nt,minLon,maxLon,nm,nk,dt,dlat,dphi,rb,driftin,d
   ! MPI status variable
   integer:: iStatus_I(MPI_STATUS_SIZE), iSendCount
   integer:: iError, iReceiveCount_P( nProc ), iDisplacement_P( nProc )
-  real, allocatable :: cmax_P(:)
 
   real:: buf2D_send( np , MinLonPar:MaxLonPar )
   real:: buf2D_recv( np, minLon:maxLon ), buf2D_send_1( np, 2 ), buf2D_recv_1( np, 2 )
@@ -1750,9 +1747,8 @@ subroutine driftIM(iw2,nspec,np,nt,minLon,maxLon,nm,nk,dt,dlat,dphi,rb,driftin,d
 
            ! get same cmax on all procs !!! MPI_allreduce !!!
            if (nProc > 1) then
-              call MPI_allgather( &
-                   cmax, 1, MPI_REAL, cmax_P, 1, MPI_REAL, iComm, iError)
-              cmax = maxval(cmax_P)
+              call MPI_ALLREDUCE(cmax, cmaxAll, 1, MPI_REAL, MPI_MAX, iComm, iError)
+              cmax = cmaxAll
            endif
 
            ! NOTE: if Courant number > 1, drift speed in a time step is greater
@@ -2646,14 +2642,13 @@ subroutine cimi_output( &
 
   ! aloge=log10(energy)
   jloop1: do j=MinLonPar,MaxLonPar
-     jG = MinLonGlobal + j - 1
      iloop1: do i=1,iba(j)
         ftv1=ftv(i,j)     ! ftv1: flux tube volume in m^3/Wb
         nloop: do n=1,nspec
            Pressure0=0.0
            Pressure1=0.0
            PressurePar1=0.0
-           Den_IC(i,jG,n)=0.0
+           Den_IC(i,j,n)=0.0
            amu1=amu_I(n)**1.5
 !!!! Calculate Den_IC, and 2D flux, fl2D(log), ekev2D(log) and sinA1D
            do k=1,nk
@@ -2698,7 +2693,7 @@ subroutine cimi_output( &
                  !   P    = 4*pi/3*int(E*flx*p/M*dcosAdM)
                  !   Ppar = 4*pi*int(E*flx*p/M*(cosA)^2*dcosAdM)
 
-                 Den_IC(i,jG,n) = Den_IC(i,jG,n) &
+                 Den_IC(i,j,n) = Den_IC(i,j,n) &
                       + flx*pp(i,j,m,k,n)/xmm(m,n)*dmm(m,n)*dcosa
                  Pressure0 = ekev(i,j,m,k,n)*flx*pp(i,j,m,k,n)/xmm(m,n) &
                       *dmm(m,n)*dcosa
@@ -2707,7 +2702,7 @@ subroutine cimi_output( &
               enddo
            enddo
 
-           Den_IC(i,jG,n) = Den_IC(i,jG,n)*2.0*cPi/1.6e-20   ! density in m^-3
+           Den_IC(i,j,n) = Den_IC(i,j,n)*2.0*cPi/1.6e-20   ! density in m^-3
            ! Coeff = 1.6e-16*2./3.*1.e9                   ! for the old p
            Coeff = 4.*cPi/3.*1.e4*1.e9
            Pressure_IC(i,j,n) = Pressure1*Coeff          ! pressure in nPa
@@ -2751,7 +2746,6 @@ subroutine cimi_output( &
 
   ! Calculate pressure of the 'hot' ring current phot, and temperature Temp_IC
   jloop2: do j=MinLonPar,MaxLonPar
-     jG = MinLonGlobal + j - 1
      iloop2: do i=1,iba(j)
 !!!! calculate pitch-angle averaged flux
         do n=1,nspec
@@ -2768,9 +2762,9 @@ subroutine cimi_output( &
               phot(i,j,n)=phot(i,j,n)+fave(i,j,k,n)*delEE(k,n)*pf(n) ! phot in nPa
               if (CIMIboundary) Part_phot(i,j,k,n) = fave(i,j,k,n)*delEE(k,n)*pf(n) 
            enddo
-           Temp_IC(i,jG,n)=0.
-           if (Den_IC(i,jG,n) > 0.) &
-                Temp_IC(i,jG,n)=phot(i,j,n)*1.e-9/Den_IC(i,jG,n)/1.6e-19   ! eV
+           Temp_IC(i,j,n)=0.
+           if (Den_IC(i,j,n) > 0.) &
+                Temp_IC(i,j,n)=phot(i,j,n)*1.e-9/Den_IC(i,j,n)/1.6e-19   ! eV
         enddo
 !!!! calculate parallel pressure
         cosAo2(1:npit) = 1-sinAo(1:npit)**2  ! store 1-sinAo^2
@@ -2951,7 +2945,7 @@ subroutine cimi_gather( delta_t)
     FACGlobal_C(:,:) = FAC_C(:,MinLonPar:MaxLonPar)
     PressureGlobal_IC(:,:,:) = Pressure_IC(:,MinLonPar:MaxLonPar,:)
     PressureParGlobal_IC(:,:,:) = PressurePar_IC(:,MinLonPar:MaxLonPar,:)
-    DenGlobal_IC(:,:,:) = Den_IC(:,MinLonGlobal:MaxLonGlobal,:)
+    DenGlobal_IC(:,:,:) = Den_IC(:,MinLonPar:MaxLonPar,:)
     BminGlobal_C(:,:) = Bmin_C(:,MinLonPar:MaxLonPar)
     photGlobal(:,:,:) = phot(:,MinLonPar:MaxLonPar,:)
     PparGlobal_IC(:,:,:) = Ppar_IC(:,MinLonPar:MaxLonPar,:)
@@ -3015,7 +3009,7 @@ subroutine cimi_gather( delta_t)
           MPI_REAL, 0, iComm, iError)
      if (iProc==0) PparGlobal_IC(:,:,iSpecies)=BufferRecv_C(:,:)
 
-     BufferSend_C(:,MinLonGlobal:MaxLonGlobal)=Den_IC(:,MinLonGlobal:MaxLonGlobal,iSpecies)
+     BufferSend_C(:,MinLonGlobal:MaxLonGlobal)=Den_IC(:,MinLonPar:MaxLonPar,iSpecies)
      call MPI_GATHERV(BufferSend_C(:,MinLonGlobal:MaxLonGlobal), iSendCount, &
           MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
           MPI_REAL, 0, iComm, iError)

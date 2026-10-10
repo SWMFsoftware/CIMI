@@ -1261,7 +1261,7 @@ contains
 
     use ModCimiGrid,  ONLY: np, nt
     use CON_router,   ONLY: IndexPtrType, WeightPtrType
-    use ModIeCimi,    ONLY: Pot!, birk_mhd, iSize, jSize, sigmaH_mhd,sigmaP_mhd
+    use ModIeCimi,    ONLY: PotGlobal!, birk_mhd, iSize, jSize, sigmaH_mhd,sigmaP_mhd
 
     integer,intent(in)            :: nPoint, iPointStart, nVar
     real, intent(in)              :: Buff_V(nVar)
@@ -1291,12 +1291,12 @@ contains
     end if
 
     if(DoAdd)then
-       Pot(i,j)        = pot(i,j)        + Buff_V(1)
+       PotGlobal(i,j)        = PotGlobal(i,j)        + Buff_V(1)
        !     birk_mhd(i,j) = birk_mhd(i,j) + Buff_V(2)
        !     sigmaH_mhd(i,j) = sigmaH_mhd(i,j) + Buff_V(3)
        !     sigmaP_mhd(i,j) = sigmaP_mhd(i,j) + Buff_V(4)
     else
-       pot(i,j)        = Buff_V(1)
+       PotGlobal(i,j)        = Buff_V(1)
        !     birk_mhd(i,j) = Buff_V(2)
        !     sigmaH_mhd(i,j) = Buff_V(3)
        !     sigmaP_mhd(i,j) = Buff_V(4)
@@ -1306,8 +1306,8 @@ contains
   !============================================================================
   subroutine IM_put_from_ie_complete
 
-    use ModCimiGrid,  ONLY: np,nt,iComm, iProc
-    use ModIeCimi,    ONLY: Pot
+    use ModCimiGrid,  ONLY: np,nt,iComm, iProc, MinLonGlobal, MaxLonGlobal
+    use ModIeCimi,    ONLY: Pot, PotGlobal
     use ModPrerunField, ONLY: DoWritePrerun, save_prerun_IE
     use ModCimi,    ONLY: Time
 
@@ -1316,7 +1316,8 @@ contains
     !--------------------------------------------------------------------------
     ! Bcast  potential to all procs
     nsize=np*nt
-    call MPI_bcast(pot,nsize,MPI_REAL,0,iComm,iError)
+    call MPI_bcast(PotGlobal,nsize,MPI_REAL,0,iComm,iError)
+    pot = potGlobal(1:np,MinLonGlobal:MaxLonGlobal)
 
     if (iProc == 0 .and. DoWritePrerun) call save_prerun_IE(Time)
     RETURN
