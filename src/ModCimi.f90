@@ -17,7 +17,7 @@ Module ModCimi
   real    :: DecayTimescale = 36000. ! Seconds
   real, allocatable:: SDtime(:,:,:,:), f2(:,:,:,:,:)
   real, allocatable:: phot(:,:,:), Ppar_IC(:,:,:), &
-       Pressure_IC(:,:,:), PressurePar_IC(:,:,:), PressureOut_IC(:,:,:)
+       Pressure_IC(:,:,:), PressurePar_IC(:,:,:)
   real, allocatable:: FAC_C(:,:)
   real, allocatable:: Bmin_C(:,:)
 
@@ -141,7 +141,7 @@ contains
       allocate( FACGlobal_C(np,nt), PressureGlobal_IC(np,nt,nspec), PressureParGlobal_IC(np,nt,nspec), &
            BminGlobal_C(np,nt), photGlobal(np,nt,nspec), PparGlobal_IC(np,nt,nspec), DenGlobal_IC(np,nt,nspec), &
            prePGlobal(np,nt,neng+2,nspec), preFGlobal(np,nt,neng+2,nspec), Eje1Global(np,nt,nspec), &
-           vdr_q3Global(np,nt,nspec), eng_q3Global(np,nt,nspec), part_photGlobal(np,nt,neng+2,nspec), &
+           vdr_q3Global(np,nt,nspec), eng_q3Global(np,nt,nspec), part_photGlobal(np,nt,neng,nspec), &
            vexbGlobal(np,nt,nspec), dif_q3Global(np,nt,nspec), &
            fluxGlobal(np,nt,neng,npit,nspec), psdGlobal(np,nt,nm,nk,nspec), &
            vlEaGlobal(np,nt,neng,npit,nspec), vpEaGlobal(np,nt,neng,npit,nspec))

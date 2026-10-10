@@ -1056,7 +1056,7 @@ contains
 
     ! use CON_time, ONLY : get_time
     use ModCimiGrid,  ONLY: iSize=>np, jSize=>nt, iProc
-    use ModCimi,      ONLY: Pressure_IC, PressurePar_IC, Bmin _C, Time, Pmin
+    use ModCimi,      ONLY: Pressure_IC, PressurePar_IC, Bmin_C, Time, Pmin
     use ModGmCimi,    ONLY: Den_IC, iLatMin!, DoMultiFluidGMCoupling, &
     ! DoAnisoPressureGMCoupling
     use ModCimiTrace, ONLY: ibaGlobal

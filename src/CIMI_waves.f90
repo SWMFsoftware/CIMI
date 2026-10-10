@@ -223,15 +223,15 @@ contains
       
   
   !****************************************************************************
-  subroutine WavePower(ir,ip,t,density,AE,Kp,Bo,ro,xmlto,iba,MinLonPar,MaxLonPar)
+  subroutine WavePower(ir,t,density,AE,Kp,Bo,ro,xmlto,iba,MinLon,MaxLon,MinLonPar,MaxLonPar)
     ! Routine determines Chorus and hiss wave power (pT)^2 and fpe/fce as a
     ! function of location
     
     implicit none
-    integer, intent(in)::ir,ip,MinLonPar, MaxLonPar
-    integer,intent(in) :: iba(ip)
-    real,   intent(in) :: t, AE, Kp,ro(ir,ip), density(ir,ip), Bo(ir,ip), &
-         xmlto(ir,ip)
+    integer, intent(in)::ir,MinLonPar, MaxLonPar, MinLon, MaxLon
+    integer,intent(in) :: iba(MinLon:MaxLon)
+    real,   intent(in) :: t, AE, Kp,ro(ir,MinLon:MaxLon), density(ir,MinLon:MaxLon), Bo(ir,MinLon:MaxLon), &
+         xmlto(ir,MinLon:MaxLon)
     real :: ro1,xmlt1,r_hiss, AE_chorus, AE_hiss
     integer :: iae,jae,i,j
     

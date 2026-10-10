@@ -377,10 +377,10 @@ contains
     use ModCimi,		ONLY: 	energy, ebound
     use ModCimiGrid,		ONLY:	&
          nLat=>np, nLon=>nt, nEnergy=>neng, nPitchAng=>npit, &
-         sinAo, xlat, xmlt
+         sinAo, xlat, xmlt => xmltGlobal
     use ModCimiPlanet,		ONLY:	&
          nSpecies => nspec, NameSpeciesExtension_I, rc, Lstar_
-    use ModCimiTrace,		ONLY:	ro, bo, xmlto, irm
+    use ModCimiTrace,		ONLY:	ro => roGlobal, bo => boGlobal, xmlto => xmltoGlobal, irm => irmGlobal
     use ModCimiRestart,		ONLY: 	IsRestart
     use ModImTime,		ONLY: 	iCurrentTime_I
     use ModLstar,		ONLY:	Lstar_C, Lstar_max
@@ -457,10 +457,10 @@ contains
     use ModIoUnit,		ONLY: 	UnitTmp_
     use ModCimi, 		ONLY: 	energy, ebound
     use ModCimiGrid,		ONLY: 	&
-         nLat => np, nLon => nt, nm, nk, xlat, xmlt
+         nLat => np, nLon => nt, nm, nk, xlat, xmlt => xmltGlobal
     use ModCimiPlanet,		ONLY: 	&
          nSpecies => nspec, re_m, NameSpeciesExtension_I, rc
-    use ModCimiTrace,		ONLY:	ro, bo, xmlto, irm
+    use ModCimiTrace,		ONLY:	ro => roGlobal, bo => boGlobal, xmlto => xmltoGlobal, irm => irmGlobal
     use ModCimiRestart,		ONLY:	IsRestart
     use ModImTime,		ONLY: 	iCurrentTime_I
     use ModConst,		ONLY:	cElectronCharge, cLightSpeed
@@ -544,10 +544,10 @@ contains
     use ModCimi,	ONLY: 	energy, ebound
     use ModCimiGrid,	ONLY:	&
          nLat => np, nLon => nt, nEnergy => neng, &
-         nPitchAng => npit, sinAo, xlat, xmlt
+         nPitchAng => npit, sinAo, xlat, xmlt => xmltGlobal
     use ModCimiPlanet, 	ONLY:	&
          nSpecies => nspec,NameSpeciesExtension_I, rc
-    use ModCimiTrace,	ONLY:	ro, bo, xmlto, irm
+    use ModCimiTrace,	ONLY:	ro => roGlobal, bo => boGlobal, xmlto => xmltoGlobal, irm => irmGlobal
     use ModCimiRestart,	ONLY: 	IsRestart
     use ModImTime,	ONLY:	iCurrentTime_I
     
@@ -623,10 +623,10 @@ contains
     use ModCimi,		ONLY:	energy, ebound
     use ModCimiGrid,		ONLY:	&
          nLat => np, nLon => nt, nEnergy => neng, nPitchAng => npit,&
-         sinAo, xlat, xmlt
+         sinAo, xlat, xmlt => xmltGlobal
     use ModCimiPlanet,		ONLY:	&
          nSpecies => nspec, NameSpeciesExtension_I, rc
-    use ModCimiTrace,		ONLY:	ro, bo, xmlto, irm
+    use ModCimiTrace,		ONLY:	ro => roGlobal, bo => boGlobal, xmlto => xmltoGlobal, irm => irmGlobal
     use ModCimiRestart,		ONLY:	IsRestart
     use ModImTime,		ONLY:	iCurrentTime_I
 
@@ -643,7 +643,7 @@ contains
          iCurrentTime_I(1),iCurrentTime_I(2),iCurrentTime_I(3),'_',&
          iCurrentTime_I(4),iCurrentTime_I(5),iCurrentTime_I(6)
 
-    energy_temp( 1 : nEnergy ) = energy( n, 1 :nEnergy )
+    energy_temp( 1 : nEnergy ) = energy( 1 :nEnergy, n )
     if (DoSaveSeparateVPDriftFiles(n)) then
        open(unit=UnitTmp_,&
             file='IM/plots/'//outnameSep//NameSpeciesExtension_I(n)//'.vp',&
@@ -779,10 +779,10 @@ contains
     use ModIoUnit,		ONLY: UnitTmp_
     use ModCimi,		ONLY: energy
     use ModCimiGrid,		ONLY: &
-         nLat => np, nLon => nt, nEnergy => neng, xlat, xmlt
+         nLat => np, nLon => nt, nEnergy => neng, xlat, xmlt => xmltGlobal
     use ModCimiPlanet,		ONLY: &
          nSpecies=>nspec, re_m, NameSpeciesExtension_I, rc
-    use ModCimiTrace,		ONLY: ro, bo, xmlto, irm
+    use ModCimiTrace,		ONLY: ro => roGlobal, bo => boGlobal, xmlto => xmltoGlobal, irm => irmGlobal
     use ModCimiRestart,		ONLY: IsRestart
     ! for separate files only do need right now
     use ModImTime,		ONLY: iCurrentTime_I   

@@ -130,7 +130,7 @@ Module ModCimiTrace
 
     integer :: imax
     integer :: iBufferSend_I(minLon:maxLon)
-    real :: R_12,R_24,xmltr,xBoundary(minLon:maxLon),BufferSend_I(minLon:maxLon),MajorAxis,MinorAxis,&
+    real :: R_12,R_24,xmltr,xBoundary(minLon:maxLon),BufferSend_I(minLon:maxLon),MajorAxis,MinorAxis, xbMaxLocal, xBMax, &
          MajorAxis2,MinorAxis2,sin2,Req2,xo1,xc,xCenter,rell2, bmin
     real, parameter :: LengthMax = 50.0
     integer :: iError
@@ -552,14 +552,13 @@ Module ModCimiTrace
        enddo
 
        !When nProc>1 gather xBoundary to all procs
-       if (nProc>1)then
-          BufferSend_I(:) = xBoundary(:)
-          call MPI_ALLGATHERV(BufferSend_I(MinLonPar:MaxLonPar), nLonPar, &
-               MPI_REAL, xBoundary, nLonPar_P, nLonBefore_P, MPI_REAL, iComm, &
-               iError)
+       xBMaxLocal = maxval(xBoundary(MinLonPar:MaxLonPar))
+       if (nProc>1) then
+          call MPI_ALLREDUCE(xBMaxLocal, xBMax, 1, MPI_REAL, MPI_MAX, iComm, iError)
+       else
+          xBMax = xBMaxLocal
        end if
-
-       R_12=0.95*maxval(xBoundary)    ! boundary distance at noon
+       R_12=0.95*xBMax
        MajorAxis=0.5*(R_12+R_24)      ! major axis
        MinorAxis=min(R_12,R_24)       ! minor axis
        xCenter=0.5*(R_12-R_24)        ! center on x-axis
@@ -1378,6 +1377,19 @@ Module ModCimiTrace
          BufferSend_I(:), BufferRecv_I(:)
     integer :: iSendCount, iK, iError, iStatus_I( MPI_STATUS_SIZE )
 
+    if(nProc == 1) then
+      irmGlobal(:) = irm(MinLonPar:MaxLonPar)
+      ibaGlobal(:) = iba(MinLonPar:MaxLonPar)
+      volumeGlobal(:,:) = volume(:,MinLonPar:MaxLonPar)
+      xoGlobal(:,:) = xo(:,MinLonPar:MaxLonPar)
+      yoGlobal(:,:) = yo(:,MinLonPar:MaxLonPar)
+      boGlobal(:,:) = bo(:,MinLonPar:MaxLonPar)
+      bmGlobal(:,:,:) = bm(:,MinLonPar:MaxLonPar,:)
+      xmltoGlobal(:,:) = xmlto(:,MinLonPar:MaxLonPar)
+      roGlobal(:,:) = ro(:,MinLonPar:MaxLonPar)
+
+      return
+    end if
     allocate( BufferSend_C( np, MinLonGlobal:MaxLonGlobal ), BufferRecv_C( np, nt ), &
          iReceiveCount_P( nProc ), iDisplacement_P( nProc ), &
          BufferSend_I( MinLonGlobal:MaxLonGlobal ), BufferRecv_I( nt ) )

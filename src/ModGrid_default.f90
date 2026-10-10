@@ -28,7 +28,7 @@ Module ModCimiGrid
        61.671,62.170,62.666,63.159,63.649,64.137,64.624,65.109,65.593, &
        66.077,66.560,67.043,67.526,68.009,68.492,68.975,69.458/)
 
-  real :: xlatr(np), dlat(np1), sinAo(npit)
+  real :: xlatr(np), dlat(np1), sinAo(npit), xmltGlobal(nt)
   real, allocatable :: phi(:), xmlt(:)
 
   real :: varL(0:np+1)=0.,&

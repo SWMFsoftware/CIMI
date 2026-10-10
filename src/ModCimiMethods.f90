@@ -47,7 +47,7 @@ subroutine cimi_run(delta_t)
        bradGlobal => roGlobal, phi2oGlobal, ftvGlobal => volumeGlobal, &
        boGlobal, bmGlobal, xoGlobal, yoGlobal
   use ModGmCimi, ONLY: Den_IC, UseGm, UseGmKp, KpGm, UseGmAe, AeGm
-  use ModIeCimi, ONLY: UseWeimer, pot
+  use ModIeCimi, ONLY: UseWeimer, pot, potGlobal
   use ModCimiPlot
   use ModCimiRestart, ONLY: IsRestart
   use ModImTime
@@ -97,6 +97,7 @@ subroutine cimi_run(delta_t)
   logical:: IsFirstCall =.true.
   real::  AE_temp = 0., Kp_temp = 0.
   integer:: iError
+  integer :: k
 
   real, allocatable:: ekevSEND_IIII(:,:,:,:),ekevRECV_IIII(:,:,:,:)
   real, allocatable:: sinaSEND_III(:,:,:),sinaRECV_III(:,:,:)
@@ -123,6 +124,8 @@ subroutine cimi_run(delta_t)
        IsRestart)
   call timing_stop('cimi_fieldpara')
 
+  do n=1,nspec; do k=1,nk; write(*,*) n, k, iw2(k,n); enddo; enddo
+
   if(UseFLC) then
      call timing_start('cimi_calc_FLC_para')
      do iLon =MinLonPar, MaxLonPar
@@ -139,9 +142,8 @@ subroutine cimi_run(delta_t)
   if ( IsFirstCall ) then
 
      ! Gather Field Trace variables to root for calculating Lstar
-     if (nProc > 1 ) then
-        call gather_field_trace
-     endif
+     call gather_field_trace
+     
 
      ! Allocate lstar variables on all processors
      if(.not. allocated(Lstar_C)) allocate(Lstar_C(np,nt), Lstar_max, &
@@ -162,8 +164,8 @@ subroutine cimi_run(delta_t)
 
      ! Broadcast Lstar variable to all PEs
      if (nProc > 1 ) then
-        call MPI_bcast(Lstar_C,np*nTotalCell,MPI_REAL,0,iComm,iError)
-        call MPI_bcast(Lstarm,np*nTotalCell*nk,MPI_REAL,0,iComm,iError)
+        call MPI_bcast(Lstar_C,np*nt,MPI_REAL,0,iComm,iError)
+        call MPI_bcast(Lstarm,np*nt*nk,MPI_REAL,0,iComm,iError)
      endif
 
   endif
@@ -184,7 +186,7 @@ subroutine cimi_run(delta_t)
      if (iProc==0)then
         ! initial the 2d core plasmasphere model
         call init_plasmasphere(np,nt,xlatr,phiGlobal,ibaGlobal,&
-             bradGlobal,phi2oGlobal,ftvGlobal,pot,IsRestart)
+             bradGlobal,phi2oGlobal,ftvGlobal,potGlobal,IsRestart)
         write(*,*) 'CIMI: IsRestart',IsRestart
         if (.not.IsRestart) then
            ! spin up the core plasmasphere model by running for one day
@@ -269,8 +271,8 @@ subroutine cimi_run(delta_t)
      !  read wave diffcoef 
      if (IsFirstCall) call ReadDiffCoef(np,nt)
      
-     call WavePower(np,nTotalCell,Time,PlasDensity_C,AE_temp,Kp_Temp, &
-          Bo,brad,xmlto,iba,MinLonPar,MaxLonPar)
+     call WavePower(np,Time,PlasDensity_C,AE_temp,Kp_Temp, &
+          Bo,brad,xmlto,iba,MinLon,MaxLon,MinLonPar,MaxLonPar)
 
      if (IsFirstCall .and. UseDiagDiffusion) then
         call init_diag_diff
@@ -286,6 +288,8 @@ subroutine cimi_run(delta_t)
      if(iProc==0) call init_gimme_from_cimi(iStartTime_I, np, nt, xlatr, phi)
   endif
 
+ 
+  
   ! setup initial distribution
   if (IsFirstCall .and. .not.IsRestart) then
      ! set initial state when no restarting
@@ -314,6 +318,7 @@ subroutine cimi_run(delta_t)
           call gimme_potential_to_cimi(Time, np, nt, pot, FAC_C, iba,delta_t)
      if (nProc>1 .and. UseGimme) &
           call MPI_bcast(pot,np*nt,MPI_REAL,0,iComm,iError)
+     if(UseGimme) call CON_stop('GIMME coupling is currently broken')
 
   endif
 
@@ -343,7 +348,7 @@ subroutine cimi_run(delta_t)
           dk, xlat, dphi, re_m, Hiono)
      call timing_stop('cimi_output')
 
-     if ( nProc > 1 ) call cimi_gather( delta_t)
+     call cimi_gather( delta_t)
 
      if ( iProc == 0 ) then
 
@@ -352,7 +357,7 @@ subroutine cimi_run(delta_t)
            call timing_start('cimi_plot_eq')
            call Cimi_plot_eq( np, nt, xoGlobal, yoGlobal, &
                 PressureGlobal_IC, PressureParGlobal_IC, photGlobal, PparGlobal_IC, DenGlobal_IC,&
-                boGlobal, ftvGlobal, pot, FACGlobal_C, Time, dt )
+                boGlobal, ftvGlobal, potGlobal, FACGlobal_C, Time, dt )
            call timing_stop('cimi_plot_eq')
 
         endif
@@ -362,7 +367,7 @@ subroutine cimi_run(delta_t)
            call timing_start('cimi_plot_iono')
            call Cimi_plot_iono( np, nt, xoGlobal, yoGlobal, &
                 PressureGlobal_IC, PressureParGlobal_IC, photGlobal, PparGlobal_IC, DenGlobal_IC,&
-                boGlobal, ftvGlobal, pot, FACGlobal_C, Time, dt )
+                boGlobal, ftvGlobal, potGlobal, FACGlobal_C, Time, dt )
            call timing_stop('cimi_plot_iono')
 
         endif
@@ -388,16 +393,16 @@ subroutine cimi_run(delta_t)
         do iSpecies = 1, nspec
 
            if ( DoSaveFlux( iSpecies ) ) &
-                call Cimi_plot_fls( fluxGlobal( iSpecies, :, :, :, : ), &
+                call Cimi_plot_fls( fluxGlobal( :, :, :, :, iSpecies ), &
                 iSpecies, time )
            if ( DoSavePSD( iSpecies ) ) &
-                call Cimi_plot_psd( psdGlobal( iSpecies, :, :, :, : ), &
+                call Cimi_plot_psd( psdGlobal( :, :, :, :, iSpecies ), &
                 iSpecies, time, xmm, xk )
            if ( DoSaveVLDrift( iSpecies ) ) &
-                call Cimi_plot_vl( vlEaGlobal( iSpecies, :, :, :, : ), &
+                call Cimi_plot_vl( vlEaGlobal( :, :, :, :, iSpecies ), &
                 iSpecies, time)
            if ( DoSaveVPDrift( iSpecies ) ) &
-                call Cimi_plot_vp( vpEaGlobal( iSpecies, :, :, :, : ), &
+                call Cimi_plot_vp( vpEaGlobal( :, :, :, :, iSpecies ), &
                 iSpecies, time)
 
         enddo
@@ -417,7 +422,7 @@ subroutine cimi_run(delta_t)
         if (iProc==0) then
            ! update cimi values in the plasmasphere module
            call cimi_put_to_plasmasphere(np,nt,bradGlobal,phi2oGlobal,ftvGlobal,&
-                pot,ibaGlobal)
+                potGlobal,ibaGlobal)
 
            ! advance plasmasphere by dt
            call advance_plasmasphere(dt)
@@ -529,8 +534,8 @@ subroutine cimi_run(delta_t)
            call timing_stop('simple_plasmasphere')
         end if
         
-        call WavePower(np,nTotalCell,Time,PlasDensity_C,AE_temp,Kp_Temp, &
-          Bo,Brad,xmlto,iba,MinLonPar,MaxLonPar)
+        call WavePower(np,Time,PlasDensity_C,AE_temp,Kp_Temp, &
+          Bo,Brad,xmlto,iba,MinLon,MaxLon,MinLonPar,MaxLonPar)
      endif
 
      if ( UseStrongDiff ) then
@@ -587,7 +592,7 @@ subroutine cimi_run(delta_t)
   call timing_stop('cimi_output')
 
   ! When nProc >1 gather all relevant output variables.
-  if ( nProc > 1 ) call cimi_gather( delta_t)
+  call cimi_gather( delta_t)
 
   if ( iProc == 0 ) then
 
@@ -604,7 +609,7 @@ subroutine cimi_run(delta_t)
         call timing_start('cimi_plot_eq')
         call Cimi_plot_eq( np, nt, xoGlobal, yoGlobal, &
              PressureGlobal_IC, PressureParGlobal_IC, photGlobal, PparGlobal_IC, &
-             DenGlobal_IC, boGlobal, ftvGlobal, pot, FACGlobal_C, Time, dt )
+             DenGlobal_IC, boGlobal, ftvGlobal, potGlobal, FACGlobal_C, Time, dt )
         call timing_stop('cimi_plot_eq')
 
      endif
@@ -618,7 +623,7 @@ subroutine cimi_run(delta_t)
         call timing_start('cimi_plot_iono')
         call Cimi_plot_iono( np, nt, xoGlobal, yoGlobal, &
              PressureGlobal_IC, PressureParGlobal_IC, photGlobal, PparGlobal_IC, &
-             DenGlobal_IC, boGlobal, ftvGlobal, pot, FACGlobal_C, Time, dt )
+             DenGlobal_IC, boGlobal, ftvGlobal, potGlobal, FACGlobal_C, Time, dt )
         call timing_stop('cimi_plot_iono')
 
      endif
@@ -649,7 +654,7 @@ subroutine cimi_run(delta_t)
              floor( ( Time + 1.0e-5 - delta_t ) / &
              DtFluxOutput( iSpecies ) ) ) ) then
            !write(*,*) iSpecies,DoSaveFlux(iSpecies),DtFluxOutput(iSpecies),iProc,time
-           call Cimi_plot_fls( fluxGlobal( iSpecies, :, :, :, : ), &
+           call Cimi_plot_fls( fluxGlobal( :, :, :, :, iSpecies ), &
              	iSpecies, time )
         endif
         
@@ -659,7 +664,7 @@ subroutine cimi_run(delta_t)
              DtPSDOutput( iSpecies ) ) /= &
              floor( ( Time + 1.0e-5 - delta_t ) / &
              DtPSDOutput( iSpecies ) ) ) ) &
-             call Cimi_plot_psd( psdGlobal( iSpecies, :, :, :, : ), &
+             call Cimi_plot_psd( psdGlobal( :, :, :, :, iSpecies ), &
              iSpecies, time, xmm, xk )
 
         ! Output Species' radial drift
@@ -668,7 +673,7 @@ subroutine cimi_run(delta_t)
              DtVLDriftOutput( iSpecies ) ) /= &
              floor( ( Time + 1.0e-5 - delta_t ) / &
              DtVLDriftOutput( iSpecies ) ) ) ) &
-             call Cimi_plot_vl( vlEaGlobal( iSpecies, :, :, :, : ), &
+             call Cimi_plot_vl( vlEaGlobal( :, :, :, :, iSpecies ), &
              iSpecies, time )
 
         ! Output Species' poloidal drift
@@ -677,7 +682,7 @@ subroutine cimi_run(delta_t)
              DtVPDriftOutput( iSpecies ) ) /= &
              floor( ( Time + 1.0e-5 - delta_t ) / &
              DtVPDriftOutput( iSpecies ) ) ) ) &
-             call Cimi_plot_vp( vpEaGlobal( iSpecies, :, :, :, : ), &
+             call Cimi_plot_vp( vpEaGlobal( :, :, :, :, iSpecies ), &
              iSpecies, time )
 
         ! Write precipitation file
@@ -748,6 +753,7 @@ subroutine cimi_init
   use ModTimeConvert,	ONLY: time_int_to_real, time_real_to_int
   use ModMpi
   use CIMI_aurora, ONLY: init_mod_aurora
+  use ModIeCimi, ONLY: init_mod_iecimi
   use ModUtilities, ONLY: CON_stop
 
 
@@ -820,6 +826,7 @@ subroutine cimi_init
   dphi=2.*cPi/nt
   do i=1,nt
      phiGlobal(i)=(i-1)*dphi
+     xmltGlobal(i)=mod(phiGlobal(i)*12.0/cPi + 12.0,24.0)
   enddo
   
   iMidnightLocal = -1
@@ -1089,6 +1096,9 @@ subroutine cimi_init
      enddo
   enddo
 
+  call init_mod_iecimi
+
+
   if(IsRestart) then
      ! set initial state when restarting
      call cimi_read_restart
@@ -1111,7 +1121,7 @@ subroutine initial_f2(nspec,np,nt,amu_I,xjac,ib0)
        IsGmInitial, IsInitialElectrons, DoLstarInitialization, &
        NameFinFile, FinFilePrefix
   use ModCimiGrid, ONLY: nm,nk,MinLonPar,MaxLonPar,iProc,nProc,iComm, &
-       d4Element_C,neng
+       d4Element_C,neng,MinLonGlobal
   use ModCimiPlanet,		ONLY: 	NameSpeciesExtension_I
   use ModCimiTrace, ONLY: sinA,ro, ekev,pp,iw2,irm,iba,vel
   use ModCimiUtil, ONLY: lintp2IM
@@ -1127,7 +1137,7 @@ subroutine initial_f2(nspec,np,nt,amu_I,xjac,ib0)
   real, intent(in):: amu_I(nspec), xjac(np,nm,nspec)
   integer, intent(out):: ib0(MinLon:MaxLon)
 
-  integer:: n, j, i, k, m, iError
+  integer:: n, j, i, k, m, iError, jGlobal
   real:: velperp2, velpar2
   real:: pi,xmass,chmass,f21,vtchm
   real:: Tempperp_IC(np,nt,nspec)
@@ -1145,37 +1155,29 @@ subroutine initial_f2(nspec,np,nt,amu_I,xjac,ib0)
   ! default
   f2(:,:,:,:,:)=1.0e-40
 
-  if(IsGmInitial) then
-     ! Set initial f2 based on Maxwellian or bi-Maxwellian
-     Tempperp_IC(:,:,:) = (3*Temp_IC(:,:,:) - Temppar_IC(:,:,:))/2.
-     do n=1,nspec
-        xmass=amu_I(n)*1.673e-27
-        chmass=1.6e-19/xmass
-        do j=MinLonPar,MaxLonPar
-           do i=1,iba(j)
-              ! write(*,*) i,j,n,iba(j),Den_IC(i,j,n), Temppar_IC(i,j,n), Tempperp_IC(i,j,n)
-              f21=Den_IC(i,j,n)/(2.*pi*xmass*Temppar_IC(i,j,n)*1.6e-19)**0.5 &
-                   /(2.*pi*xmass*Tempperp_IC(i,j,n)*1.6e-19)
-              ! following lines were for when we had isotropic option
-              ! else
-              !   f21=Den_IC(i,j,n)/(2.*pi*xmass*Temp_IC(i,j,n)*1.6e-19)**1.5
-              ! end if
-              do k=1,nk
-                 do m=1,nm
-                    velperp2 = (vel(i,j,m,k,n)*sinA(i,j,k))**2
-                    velpar2 = vel(i,j,m,k,n)**2 - velperp2
-                    vtchm = -velpar2/(2*Temppar_IC(i,j,n)*chmass) &
-                         -velperp2/(2*Tempperp_IC(i,j,n)*chmass)
-                    ! from when having an isotropic option
-                    ! else
-                    !   vtchm = -vel(i,j,m,k,n)**2/(2*Temp_IC(i,j,n)*chmass)
-                    ! end if
-                    f2(i,j,m,k,n)=xjac(i,m,n)*f21*exp(vtchm)
-                 end do
-              end do
-           end do
-        end do
-     end do
+  if (IsGmInitial) then
+   Tempperp_IC(:,:,:) = (3*Temp_IC(:,:,:) - Temppar_IC(:,:,:))/2.
+   do n=1,nspec
+      xmass=amu_I(n)*1.673e-27
+      chmass=1.6e-19/xmass
+      do j=MinLonPar,MaxLonPar
+         jGlobal = MinLonGlobal + j - 1
+         do i=1,iba(j)
+            f21 = Den_IC(i,jGlobal,n) &
+                 /(2.*pi*xmass*Temppar_IC(i,jGlobal,n)*1.6e-19)**0.5 &
+                 /(2.*pi*xmass*Tempperp_IC(i,jGlobal,n)*1.6e-19)
+            do k=1,nk
+               do m=1,nm
+                  velperp2 = (vel(i,j,m,k,n)*sinA(i,j,k))**2
+                  velpar2  = vel(i,j,m,k,n)**2 - velperp2
+                  vtchm = -velpar2/(2*Temppar_IC(i,jGlobal,n)*chmass) &
+                          -velperp2/(2*Tempperp_IC(i,jGlobal,n)*chmass)
+                  f2(i,j,m,k,n) = xjac(i,m,n)*f21*exp(vtchm)
+               end do
+            end do
+         end do
+      end do
+   end do
   elseif(IsDataInitial) then
      do n=1,nspec
         if (IsRBSPData) then
@@ -1206,7 +1208,7 @@ subroutine initial_f2(nspec,np,nt,amu_I,xjac,ib0)
            do i=1,irm(j)
               do k=1,nk
                  if ( DoLstarInitialization ) then
-                    roii=Lstarm(i,j,k)
+                    roii=Lstarm(i,MinLonGlobal+j-1,k)
                  else
                     roii=ro(i,j)
                  endif
@@ -1542,12 +1544,10 @@ subroutine driftV(nspec,np,nt,nm,nk,re_m,Hiono,dipmom,dphi,xlat,dlat)
 
   integer:: n,i,ii,j,k,m,i0,i2,j0,j2,icharge
   real:: kfactor,ksai,ksai1,xlat1,sf0,sf2,dlat2,pi,dphi2,cor
-  real:: xlatr(np)
-  real, allocatable :: ham(:,:)
+  real:: xlatr(np), ham(np,MinLon:maxLon)
   ! MPI status variable
   integer:: iStatus_I(MPI_STATUS_SIZE), iError
   !----------------------------------------------------------------------------
-  if (.not. allocated(ham)) allocate(ham(np,minLon:maxLon))
   pi=acos(-1.)
   dphi2=dphi*2.
   kfactor = dipmom / ( re_m + Hiono * 1000. )
@@ -1591,7 +1591,12 @@ subroutine driftV(nspec,np,nt,nm,nk,re_m,Hiono,dipmom,dphi,xlat,dlat)
               call MPI_recv(irm(iLonRight),1,MPI_INTEGER,iProcRight,&
                    4,iComm,iStatus_I,iError)
 
-           endif
+           else
+            ham(1:np,iLonLeft)=ham(1:np,MaxLonPar)
+            ham(1:np,iLonRight)=ham(1:np,MinLonPar)
+            irm(iLonLeft)=irm(MaxLonPar)
+            irm(iLonRight)=irm(MinLonPar)
+           end if
 
            ! calculate drift velocities vl and vp
            iloop: do i=0,np
@@ -1682,7 +1687,7 @@ subroutine driftIM(iw2,nspec,np,nt,minLon,maxLon,nm,nk,dt,dlat,dphi,rb,driftin,d
        fb1(minLon:maxLon),fo_log,fb_log,f_log
   real:: slope,cl(np,minLon:maxLon),cp(np,minLon:maxLon),fal(0:np,minLon:maxLon),fap(np,minLon:maxLon),&
        fupl(0:np,minLon:maxLon),fupp(np,minLon:maxLon)
-  real:: dEner, dPart, dEnerLocal_C(minLon:maxLon), dPartLocal_C(minLon:maxLon)
+  real:: dEner, dPart, dEnerLocal_C(minLonPar:maxLonPar), dPartLocal_C(minLonPar:maxLonPar)
   real:: f_upwind
   logical:: UseUpwind = .false.
 
@@ -1710,9 +1715,17 @@ subroutine driftIM(iw2,nspec,np,nt,minLon,maxLon,nm,nk,dt,dlat,dphi,rb,driftin,d
      ! send to neigboring Procs
      call MPI_send(iba(MinLonPar),1,MPI_INTEGER,iProcLeft,&
           1,iComm,iError)
+     call MPI_send(iba(MaxLonPar),1,MPI_INTEGER,iProcRight,&
+          1,iComm,iError)
      ! recieve from neigboring Procs
      call MPI_recv(iba(iLonRight),1,MPI_INTEGER,iProcRight,&
           1,iComm,iStatus_I,iError)
+     call MPI_recv(iba(iLonLeft),1,MPI_INTEGER,iProcLeft,&
+          1,iComm,iStatus_I,iError)
+     
+  else
+     iba(iLonLeft)=iba(MaxLonPar)
+     iba(iLonRight)=iba(MinLonPar)
   endif
   nloop: do n=1,nspec
      kloop: do k=1,nk
@@ -1777,6 +1790,7 @@ subroutine driftIM(iw2,nspec,np,nt,minLon,maxLon,nm,nk,dt,dlat,dphi,rb,driftin,d
               enddo
            enddo
 
+           if (nProc > 1) then
             !send fb0 ghostcells
             call MPI_send(fb0(MinLonPar:MinLonPar+nGhostCell-1),&
                   nGhostCell,MPI_REAL,&
@@ -1816,6 +1830,18 @@ subroutine driftIM(iw2,nspec,np,nt,minLon,maxLon,nm,nk,dt,dlat,dphi,rb,driftin,d
             call MPI_sendrecv( cl( :,MaxLonPar ), np, MPI_REAL, &
                   iProcRight, 10, cl(:, iLonLeft ), np, MPI_REAL, &
                   iProcLeft, 10, iComm, iStatus_I, iError )
+           else
+            fb0(iLonLeft-nGhostCell+1:iLonLeft) = &
+                 fb0(MaxLonPar-nGhostCell+1:MaxLonPar)
+            fb0(iLonRight:iLonRight+nGhostCell-1) = &
+                 fb0(MinLonPar:MinLonPar+nGhostCell-1)
+            fb1(iLonLeft-nGhostCell+1:iLonLeft) = &
+                 fb1(MaxLonPar-nGhostCell+1:MaxLonPar)
+            fb1(iLonRight:iLonRight+nGhostCell-1) = &
+                 fb1(MinLonPar:MinLonPar+nGhostCell-1)
+            cp(:,iLonLeft) = cp(:,MaxLonPar)
+            cl(:,iLonLeft) = cl(:,MaxLonPar)
+           end if
            ! run drift nrun times
            do nn=1,nrun
               UseUpwind=.false.
@@ -1874,6 +1900,11 @@ subroutine driftIM(iw2,nspec,np,nt,minLon,maxLon,nm,nk,dt,dlat,dphi,rb,driftin,d
                     f2d(1:np,iLonRight:iLonRight+nGhostCell-1), &
                     nGhostCell*np, MPI_REAL, iProcRight, 4, &
                     iComm, iStatus_I, iError)
+              else
+                f2d(:,iLonLeft-nGhostCell+1:iLonLeft) = &
+                  f2d(:,MaxLonPar-nGhostCell+1:MaxLonPar)
+                f2d(:,iLonRight:iLonRight+nGhostCell-1) = &
+                  f2d(:,MinLonPar:MinLonPar+nGhostCell-1)
               endif
 
               ! calculate fluxes at the cell surface for finite volume scheme.
@@ -1899,27 +1930,6 @@ subroutine driftIM(iw2,nspec,np,nt,minLon,maxLon,nm,nk,dt,dlat,dphi,rb,driftin,d
               endif
 
               fal( 0, MinLonPar:MaxLonPar ) = f2d( 1, MinLonPar:MaxLonPar )
-              ! When nProc>1 pass needed ghost cell info for fap,
-              ! 	fupp, cp, and cl
-              if (nProc>1) then
-                 call MPI_sendrecv( fap( :, MaxLonPar ), np, MPI_REAL, &
-                      iProcRight, 10, fap( :, iLonLeft ), np, MPI_REAL, &
-                      iProcLeft, 10, iComm, iStatus_I, iError)
-
-!!$                 ! Old MPI calls for sending fupp ghostcells
-!!$                 call MPI_send(fupp(:,MaxLonPar-1:MaxLonPar),2*np,MPI_REAL,&
-!!$                      iProcRight,10,iComm,iError)
-!!$                 !recieve fupp from neigboring Procs
-!!$                 call MPI_recv(fupp(:,iLonLeft-1:iLonLeft),2*np,MPI_REAL,&
-!!$                      iProcLeft,10,iComm,iStatus_I,iError)
-
-                 ! NEW MPI calls utilizing sendrecv for sending fupp
-                 ! ghostcells
-                 call MPI_sendrecv( fupp( :, MaxLonPar ), np, MPI_REAL, &
-                      iProcRight, 10, fupp( :, iLonLeft ), np, MPI_REAL, &
-                      iProcLeft, 10, iComm, iStatus_I, iError )
-              endif
-
               f2d0(:,:)=f2d(:,:)   ! save f2 in the current time step
               jloop: do j=MinLonPar,MaxLonPar
                  j_1=j-1
@@ -2573,7 +2583,7 @@ subroutine cimi_output( &
   use ModConst,   ONLY: cProtonMass
   use ModNumConst, ONLY: cPi, cDegToRad
   use ModCimiGrid, ONLY: iProc,nProc,iComm,MinLonPar,MaxLonPar,&
-       iProcLeft, iLonLeft, iProcRight, iLonRight
+       iProcLeft, iLonLeft, iProcRight, iLonRight, MinLonGlobal
   use ModMpi
   use ModCimiBoundary, ONLY: CIMIboundary, Outputboundary
   use ModCimi, ONLY: vdr_q1,vdr_q3,vgyr_q1,vgyr_q3,eng_q1, &
@@ -2601,7 +2611,7 @@ subroutine cimi_output( &
   integer:: iStatus_I(MPI_STATUS_SIZE), iError
   logical, parameter:: DoCalcFac=.true.
 
-  integer:: i, j, k, m, n, j1, j_1
+  integer:: i, j, k, m, n, j1, j_1, jg
 !!!!!!!!!!!
   !  real:: vdr_q1(nspec,np,nt),vdr_q3(nspec,np,nt),vgyr_q1(nspec,np,nt),vgyr_q3(nspec,np,nt)
   !  real:: eng_q1(nspec,np,nt),eng_q3(nspec,np,nt),vexb(nspec,np,nt),dif_q1(nspec,np,nt)
@@ -2636,13 +2646,14 @@ subroutine cimi_output( &
 
   ! aloge=log10(energy)
   jloop1: do j=MinLonPar,MaxLonPar
+     jG = MinLonGlobal + j - 1
      iloop1: do i=1,iba(j)
         ftv1=ftv(i,j)     ! ftv1: flux tube volume in m^3/Wb
         nloop: do n=1,nspec
            Pressure0=0.0
            Pressure1=0.0
            PressurePar1=0.0
-           Den_IC(i,j,n)=0.0
+           Den_IC(i,jG,n)=0.0
            amu1=amu_I(n)**1.5
 !!!! Calculate Den_IC, and 2D flux, fl2D(log), ekev2D(log) and sinA1D
            do k=1,nk
@@ -2687,7 +2698,7 @@ subroutine cimi_output( &
                  !   P    = 4*pi/3*int(E*flx*p/M*dcosAdM)
                  !   Ppar = 4*pi*int(E*flx*p/M*(cosA)^2*dcosAdM)
 
-                 Den_IC(i,j,n) = Den_IC(i,j,n) &
+                 Den_IC(i,jG,n) = Den_IC(i,jG,n) &
                       + flx*pp(i,j,m,k,n)/xmm(m,n)*dmm(m,n)*dcosa
                  Pressure0 = ekev(i,j,m,k,n)*flx*pp(i,j,m,k,n)/xmm(m,n) &
                       *dmm(m,n)*dcosa
@@ -2696,7 +2707,7 @@ subroutine cimi_output( &
               enddo
            enddo
 
-           Den_IC(i,j,n) = Den_IC(i,j,n)*2.0*cPi/1.6e-20   ! density in m^-3
+           Den_IC(i,jG,n) = Den_IC(i,jG,n)*2.0*cPi/1.6e-20   ! density in m^-3
            ! Coeff = 1.6e-16*2./3.*1.e9                   ! for the old p
            Coeff = 4.*cPi/3.*1.e4*1.e9
            Pressure_IC(i,j,n) = Pressure1*Coeff          ! pressure in nPa
@@ -2740,6 +2751,7 @@ subroutine cimi_output( &
 
   ! Calculate pressure of the 'hot' ring current phot, and temperature Temp_IC
   jloop2: do j=MinLonPar,MaxLonPar
+     jG = MinLonGlobal + j - 1
      iloop2: do i=1,iba(j)
 !!!! calculate pitch-angle averaged flux
         do n=1,nspec
@@ -2756,9 +2768,9 @@ subroutine cimi_output( &
               phot(i,j,n)=phot(i,j,n)+fave(i,j,k,n)*delEE(k,n)*pf(n) ! phot in nPa
               if (CIMIboundary) Part_phot(i,j,k,n) = fave(i,j,k,n)*delEE(k,n)*pf(n) 
            enddo
-           Temp_IC(i,j,n)=0.
-           if (Den_IC(i,j,n) > 0.) &
-                Temp_IC(i,j,n)=phot(i,j,n)*1.e-9/Den_IC(i,j,n)/1.6e-19   ! eV
+           Temp_IC(i,jG,n)=0.
+           if (Den_IC(i,jG,n) > 0.) &
+                Temp_IC(i,jG,n)=phot(i,j,n)*1.e-9/Den_IC(i,jG,n)/1.6e-19   ! eV
         enddo
 !!!! calculate parallel pressure
         cosAo2(1:npit) = 1-sinAo(1:npit)**2  ! store 1-sinAo^2
@@ -2857,7 +2869,19 @@ subroutine cimi_output( &
               enddo
            enddo
         enddo
+     else
+       do k=1,nk
+          do m=1,nm
+             do n=1,nspec
+                ekev(:,iLonLeft,m,k,n)=ekev(:,MaxLonPar,m,k,n)
+                ekev(:,iLonRight,m,k,n)=ekev(:,MinLonPar,m,k,n)
+                eta(:,iLonLeft,m,k,n)=eta(:,MaxLonPar,m,k,n)
+                eta(:,iLonRight,m,k,n)=eta(:,MinLonPar,m,k,n)
+             enddo
+          enddo
+       end do
      endif
+
      jloop3: do j=MinLonPar,MaxLonPar
         j1=j+1
         j_1=j-1
@@ -2894,7 +2918,8 @@ subroutine cimi_gather( delta_t)
        BminGlobal_C, photGlobal, PparGlobal_IC, &
        prePGlobal, preFGlobal, Eje1Global, &
        vdr_q3Global, eng_q3Global, part_photGlobal, vexbGlobal, dif_q3Global, &
-       fluxGlobal, psdGlobal, vlEaGlobal, vpEaGlobal
+       fluxGlobal, psdGlobal, vlEaGlobal, vpEaGlobal, MinLonGlobal, MaxLonGlobal
+  use ModIeCimi, ONLY: pot, potGlobal
 
   use ModCimiBoundary,	ONLY: 	Outputboundary
   use ModCimiGrid,	ONLY: 	&
@@ -2916,12 +2941,36 @@ subroutine cimi_gather( delta_t)
   ! Vars for mpi passing
   integer, allocatable :: iBufferSend_I(:), iBufferRecv_I(:)
   integer, allocatable :: iReceiveCount_P(:), iDisplacement_P(:)
-  integer:: iSendCount, iM, iK, iLon1, iError, iEnergy, iPit, &
+  integer:: iSendCount, iM, iK, jG, iLon1, iError, iEnergy, iPit, &
        iRecvLower, iRecvUpper, iPe, iSpecies
   real:: BufferSend_C( np, MinLonGlobal:MaxLonGlobal ), BufferRecv_C( np, nt )
   integer:: BufferSend_I( MinLonGlobal:MaxLonGlobal ), BufferRecv_I( nt )
   integer:: iStatus_I( MPI_STATUS_SIZE )
   !----------------------------------------------------------------------------
+  if (nProc == 1) then
+    FACGlobal_C(:,:) = FAC_C(:,MinLonPar:MaxLonPar)
+    PressureGlobal_IC(:,:,:) = Pressure_IC(:,MinLonPar:MaxLonPar,:)
+    PressureParGlobal_IC(:,:,:) = PressurePar_IC(:,MinLonPar:MaxLonPar,:)
+    DenGlobal_IC(:,:,:) = Den_IC(:,MinLonGlobal:MaxLonGlobal,:)
+    BminGlobal_C(:,:) = Bmin_C(:,MinLonPar:MaxLonPar)
+    photGlobal(:,:,:) = phot(:,MinLonPar:MaxLonPar,:)
+    PparGlobal_IC(:,:,:) = Ppar_IC(:,MinLonPar:MaxLonPar,:)
+    prePGlobal(:,:,:,:) = preP(:,MinLonPar:MaxLonPar,:,:)
+    preFGlobal(:,:,:,:) = preF(:,MinLonPar:MaxLonPar,:,:)
+    Eje1Global(:,:,:) = Eje1(:,MinLonPar:MaxLonPar,:)
+    vdr_q3Global(:,:,:) = vdr_q3(:,MinLonPar:MaxLonPar,:)
+    eng_q3Global(:,:,:) = eng_q3(:,MinLonPar:MaxLonPar,:)
+    part_photGlobal(:,:,:,:) = Part_phot(:,MinLonPar:MaxLonPar,:,:)
+    vexbGlobal(:,:,:) = vexb(:,MinLonPar:MaxLonPar,:)
+    dif_q3Global(:,:,:) = dif_q3(:,MinLonPar:MaxLonPar,:)
+    fluxGlobal(:,:,:,:,:) = flux(:,MinLonPar:MaxLonPar,:,:,:)
+    psdGlobal(:,:,:,:,:) = psd(:,MinLonPar:MaxLonPar,:,:,:)
+    vlEaGlobal(:,:,:,:,:) = vlEa(:,MinLonPar:MaxLonPar,:,:,:)
+    vpEaGlobal(:,:,:,:,:) = vpEa(:,MinLonPar:MaxLonPar,:,:,:)
+    potGlobal(:,:) = pot(:,MinLonPar:MaxLonPar)
+    call gather_field_trace
+    return
+  end if
   allocate( iReceiveCount_P( nProc ), iDisplacement_P( nProc ) )
 
   ! Gather to root
@@ -2934,6 +2983,12 @@ subroutine cimi_gather( delta_t)
        MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
        MPI_REAL, 0, iComm, iError)
   if (iProc==0) FACGlobal_C(:,:)=BufferRecv_C(:,:)
+
+  BufferSend_C(:,MinLonGlobal:MaxLonGlobal) = pot(:,MinLonPar:MaxLonPar)
+  call MPI_GATHERV(BufferSend_C(:,MinLonGlobal:MaxLonGlobal), iSendCount, &
+       MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
+       MPI_REAL, 0, iComm, iError)
+  if (iProc==0) potGlobal(:,:)=BufferRecv_C(:,:)
 
   do iSpecies=1,nspec
      BufferSend_C(:,MinLonGlobal:MaxLonGlobal)=Pressure_IC(:,MinLonPar:MaxLonPar,iSpecies)
@@ -2960,7 +3015,7 @@ subroutine cimi_gather( delta_t)
           MPI_REAL, 0, iComm, iError)
      if (iProc==0) PparGlobal_IC(:,:,iSpecies)=BufferRecv_C(:,:)
 
-     BufferSend_C(:,MinLonGlobal:MaxLonGlobal)=Den_IC(:,MinLonPar:MaxLonPar,iSpecies)
+     BufferSend_C(:,MinLonGlobal:MaxLonGlobal)=Den_IC(:,MinLonGlobal:MaxLonGlobal,iSpecies)
      call MPI_GATHERV(BufferSend_C(:,MinLonGlobal:MaxLonGlobal), iSendCount, &
           MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
           MPI_REAL, 0, iComm, iError)
@@ -3115,6 +3170,14 @@ subroutine core_ps_gather
   integer:: BufferSend_I( MinLonGlobal:MaxLonGlobal ), BufferRecv_I( nt )
   integer:: iStatus_I( MPI_STATUS_SIZE )
   !----------------------------------------------------------------------------
+  if (nProc == 1) then
+    ftvGlobal(:,:) = ftv(:,MinLonPar:MaxLonPar)
+    phi2oGlobal(:,:) = phi2o(:,MinLonPar:MaxLonPar)
+    bradGlobal(:,:) = brad(:,MinLonPar:MaxLonPar)
+    ibaGlobal(:) = iba(MinLonPar:MaxLonPar)
+    return
+  end if
+
   allocate( iReceiveCount_P( nProc ), iDisplacement_P( nProc ) )
 
   ! Gather to root
