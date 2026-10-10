@@ -1685,7 +1685,8 @@ subroutine driftIM(iw2,nspec,np,nt,minLon,maxLon,nm,nk,dt,dlat,dphi,rb,driftin,d
        fb1(minLon:maxLon),fo_log,fb_log,f_log, cmaxAll
   real:: slope,cl(np,minLon:maxLon),cp(np,minLon:maxLon),fal(0:np,minLon:maxLon),fap(np,minLon:maxLon),&
        fupl(0:np,minLon:maxLon),fupp(np,minLon:maxLon)
-  real:: dEner, dPart, dEnerLocal_C(minLonPar:maxLonPar), dPartLocal_C(minLonPar:maxLonPar)
+  real:: dEnerLocal_C(minLonPar:maxLonPar), dPartLocal_C(minLonPar:maxLonPar), &
+   dInLocal_V(nspec), dOutLocal_V(nspec), dBuf_VI(2,nspec), dSum_VI(2,nspec)
   real:: f_upwind
   logical:: UseUpwind = .false.
 
@@ -1705,8 +1706,6 @@ subroutine driftIM(iw2,nspec,np,nt,minLon,maxLon,nm,nk,dt,dlat,dphi,rb,driftin,d
   ! number of 1st cell in a given proc; function from proc no
   iDisplacement_P = np * nLonBefore_P
 
-  if (.not.allocated(cmax_P) .and. nProc>1) allocate(cmax_P(nProc))
-
   ! When nProc>1 pass iba from neighboring procs
   if (nProc >1) then
      ! send to neigboring Procs
@@ -1724,6 +1723,8 @@ subroutine driftIM(iw2,nspec,np,nt,minLon,maxLon,nm,nk,dt,dlat,dphi,rb,driftin,d
      iba(iLonLeft)=iba(MaxLonPar)
      iba(iLonRight)=iba(MinLonPar)
   endif
+  dInLocal_V(1:nspec)=0.
+  dOutLocal_V(1:nspec)=0.
   nloop: do n=1,nspec
      kloop: do k=1,nk
         mloop: do m=1,iw2(k,n)
@@ -2098,24 +2099,14 @@ subroutine driftIM(iw2,nspec,np,nt,minLon,maxLon,nm,nk,dt,dlat,dphi,rb,driftin,d
                     dEnerLocal_C(j)=ekev(iba(j),j,m,k,n)*dPartLocal_C(j)
                  enddo
               endif
-              ! sum all dEner to root proc
-              if(nProc>1) then
-                 call MPI_REDUCE (sum(dPartLocal_C(MinLonPar:MaxLonPar)), &
-                      dPart, 1, MPI_REAL, MPI_SUM, 0, iComm, iError)
-                 call MPI_REDUCE (sum(dEnerLocal_C(MinLonPar:MaxLonPar)), &
-                      dEner, 1, MPI_REAL, MPI_SUM, 0, iComm, iError)
-              else
-                 dPart=sum(dPartLocal_C)
-                 dEner=sum(dEnerLocal_C)
-              endif
-
-              if( iProc == 0 ) then
-                 if (dPart > 0.) driftin(n)=driftin(n)+dEner
-                 if (dPart < 0.) driftout(n)=driftout(n)+dEner
-              else
-                 driftin(n)=0.
-                 driftout(n)=0.
-              endif
+              ! classify each column's boundary flux as in/out and accumulate
+              ! locally; reduced once after all loops
+              do j=MinLonPar,MaxLonPar
+                 if (dPartLocal_C(j) > 0.) &
+                      dInLocal_V(n)  = dInLocal_V(n)  + dEnerLocal_C(j)
+                 if (dPartLocal_C(j) < 0.) &
+                      dOutLocal_V(n) = dOutLocal_V(n) + dEnerLocal_C(j)
+              enddo
            enddo          ! end of do nn=1,nrun
            !f2(1:np,minLonPar:maxLonPar,k,m,n)=f2d(1:np,minLonPar:maxLonPar)
            where(f2d(1:np,minLonPar:maxLonPar).eq.0.0) f2(1:np,minLonPar:maxLonPar,m,k,n)=1e-50
@@ -2123,6 +2114,23 @@ subroutine driftIM(iw2,nspec,np,nt,minLon,maxLon,nm,nk,dt,dlat,dphi,rb,driftin,d
         enddo mloop
      enddo kloop
   enddo nloop
+
+  dBuf_VI(1,:) = dInLocal_V
+  dBuf_VI(2,:) = dOutLocal_V
+  if (nProc > 1) then
+     call MPI_REDUCE(dBuf_VI, dSum_VI, 2*nspec, MPI_REAL, MPI_SUM, &
+          0, iComm, iError)
+  else
+     dSum_VI = dBuf_VI
+  endif
+
+  if (iProc == 0) then
+     driftin(1:nspec)  = driftin(1:nspec)  + dSum_VI(1,:)
+     driftout(1:nspec) = driftout(1:nspec) + dSum_VI(2,:)
+  else
+     driftin(1:nspec)  = 0.
+     driftout(1:nspec) = 0.
+  endif
 
   ! Update ib0
   ib0(minLonPar:maxLonPar) = iba(minLonPar:maxLonPar)
