@@ -70,7 +70,7 @@ subroutine cimi_run(delta_t)
   use ModIndicesInterfaces
   use ModLstar,	ONLY:	&
        Lstar_C, Lstarm, Lstar_max, Lstarm_max, &
-       calc_Lstar1, calc_Lstar2
+       calc_Lstar1, calc_Lstar2, gather_lstar, LstarGlobal_C, LstarmGlobal
   use ModPlasmasphere, ONLY:	&
        UseCorePsModel, PlasSpinUpTime, init_plasmasphere, &
        advance_plasmasphere, DoSavePlas, DtPlasOutput,&
@@ -142,28 +142,21 @@ subroutine cimi_run(delta_t)
      ! Gather Field Trace variables to root for calculating Lstar
      call gather_field_trace
      
-
-     ! Allocate lstar variables on all processors
-     if(.not. allocated(Lstar_C)) allocate(Lstar_C(np,nt), Lstar_max, &
-          Lstarm(np,nt,nk), Lstarm_max(nk))
-
      ! Trace lstar variables for initial_f2.
-     if ( iProc == 0 ) then
+     call timing_start('calc_Lstar1')
+     call calc_Lstar1
+     call timing_stop('calc_Lstar1')
 
-        call timing_start('calc_Lstar1')
-        call calc_Lstar1
-        call timing_stop('calc_Lstar1')
+     call timing_start('calc_Lstar2')
+     call calc_Lstar2
+     call timing_stop('calc_Lstar2')
 
-        call timing_start('calc_Lstar2')
-        call calc_Lstar2
-        call timing_stop('calc_Lstar2')
-
-     endif
+     call gather_lstar
 
      ! Broadcast Lstar variable to all PEs
      if (nProc > 1 ) then
-        call MPI_bcast(Lstar_C,np*nt,MPI_REAL,0,iComm,iError)
-        call MPI_bcast(Lstarm,np*nt*nk,MPI_REAL,0,iComm,iError)
+        call MPI_bcast(LstarGlobal_C,np*nt,MPI_REAL,0,iComm,iError)
+        call MPI_bcast(LstarmGlobal,np*nt*nk,MPI_REAL,0,iComm,iError)
      endif
 
   endif
@@ -379,6 +372,7 @@ subroutine cimi_run(delta_t)
         endif
 
         if ( DoSaveLstar ) then
+           call gather_lstar
 
            call Cimi_plot_Lstar(xk,time)
 
@@ -592,11 +586,15 @@ subroutine cimi_run(delta_t)
   ! When nProc >1 gather all relevant output variables.
   call cimi_gather( delta_t)
 
+  call timing_start('calc_Lstar1')
+  call calc_Lstar1
+  call timing_stop('calc_Lstar1')
+  call gather_lstar
+
+
   if ( iProc == 0 ) then
 
-     call timing_start('calc_Lstar1')
-     call calc_Lstar1
-     call timing_stop('calc_Lstar1')
+     
 
      ! Plot CIMI parameters at the equator
      if ( ( DoSaveEq ) .and. &
@@ -634,6 +632,7 @@ subroutine cimi_run(delta_t)
         call timing_start('calc_Lstar2')
         call calc_Lstar2
         call timing_stop('calc_Lstar2')
+        call gather_lstar
 
         call Cimi_plot_Lstar( xk, time )
 
@@ -1128,7 +1127,7 @@ subroutine initial_f2(nspec,np,nt,amu_I,xjac,ib0)
   use ModMpi
 
   use ModLstar, 		ONLY:	&
-       Lstar_C, Lstarm
+       LstarGlobal_C, LstarmGlobal
 
   implicit none
 
@@ -1206,7 +1205,7 @@ subroutine initial_f2(nspec,np,nt,amu_I,xjac,ib0)
            do i=1,irm(j)
               do k=1,nk
                  if ( DoLstarInitialization ) then
-                    roii=Lstarm(i,MinLonGlobal+j-1,k)
+                    roii=LstarmGlobal(i,MinLonGlobal+j-1,k)
                  else
                     roii=ro(i,j)
                  endif
@@ -1773,6 +1772,9 @@ subroutine driftIM(iw2,nspec,np,nt,minLon,maxLon,nm,nk,dt,dlat,dphi,rb,driftin,d
                  if (DoUseUniformLGrid) then
                     cl1=dt/dvarL*vl(i,j,m,k,n)  ! Courant number in L, unitless
                  else
+                    cl1 = dt
+                    cl1 = dlat(i)
+                    cl1 = vl(i,j,m,k,n)
                     cl1=dt/dlat(i)*vl(i,j,m,k,n)  ! Courant number in L
                  endif
                  cp1=dt/dphi*vp(i,j,m,k,n)   ! Courant number in phi

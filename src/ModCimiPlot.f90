@@ -86,7 +86,7 @@ contains
     use ModCimiPlanet,		ONLY:	nspec, NamePlotVar, &
          iPplot_I, iPparplot_I, iPhotplot_I, iPparhotplot_I, iNplot_I, &
          Beq_, Vol_, Pot_, FAC_, Lstar_, Plas_, nVar
-    use ModLstar, 		ONLY:	Lstar_C
+    use ModLstar, 		ONLY:	Lstar_C => LstarGlobal_C
     use ModCimiGrid,		ONLY:	&
          PhiIono_C => phi, LatIono_C => xlatr
     use ModCimiTrace,		ONLY:	iba => ibaGlobal
@@ -234,7 +234,7 @@ contains
     use ModCimiTrace,		ONLY:	iba => ibaGlobal
     
     use ModPlasmasphere,	ONLY:	UseCorePsModel, PlasDensity_C
-    use ModLstar,		ONLY:	Lstar_C
+    use ModLstar,		ONLY:	Lstar_C => LstarGlobal_C
     
     integer, intent(in) :: nLat, nLon
     real,    intent(in) :: X_C(nLat,nLon), Y_C(nLat,nLon), Time, Dt
@@ -383,7 +383,7 @@ contains
     use ModCimiTrace,		ONLY:	ro => roGlobal, bo => boGlobal, xmlto => xmltoGlobal, irm => irmGlobal
     use ModCimiRestart,		ONLY: 	IsRestart
     use ModImTime,		ONLY: 	iCurrentTime_I
-    use ModLstar,		ONLY:	Lstar_C, Lstar_max
+    use ModLstar,		ONLY:	Lstar_C => LstarGlobal_C, Lstar_max
     
     real, intent(in) :: flux(nLat,nLon,nEnergy,nPitchAng), time
     
@@ -464,7 +464,7 @@ contains
     use ModCimiRestart,		ONLY:	IsRestart
     use ModImTime,		ONLY: 	iCurrentTime_I
     use ModConst,		ONLY:	cElectronCharge, cLightSpeed
-    use ModLstar,		ONLY:	Lstarm
+    use ModLstar,		ONLY:	Lstarm => LstarmGlobal
     
     real, intent(in) :: psd( nLat, nLon, nm, nk), xmm(0:nm+1,nSpecies),&
          xk(nk),time
@@ -911,7 +911,7 @@ contains
           if (iLat.gt.irm(iLon)) xmlt1=xmlto(irm(iLon),iLon)
           write(UnitTmp_,'(f7.2,f6.1,2f8.3)') &
                lat,xmlt(iLon),ro1,xmlt1
-          write(UnitTmp_,'(7F08.3)') (Lstarm(iLat,iLon,k),k=1,nk,2)
+          write(UnitTmp_,'(7F08.3)') (LstarmGlobal(iLat,iLon,k),k=1,nk,2)
           write(UnitTmp_,'(1p,7E10.3)') (bm1(k),k=1,nk,2)
        enddo
     enddo
