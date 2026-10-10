@@ -1697,6 +1697,10 @@ subroutine driftIM(iw2,nspec,np,nt,minLon,maxLon,nm,nk,dt,dlat,dphi,rb,driftin,d
   real:: buf2D_send( np , MinLonPar:MaxLonPar )
   real:: buf2D_recv( np, minLon:maxLon ), buf2D_send_1( np, 2 ), buf2D_recv_1( np, 2 )
 
+  integer :: iG, nBcCount
+  real :: BcSendL_VI(2,nGhostCell,nm,nk,nspec), BcSendR_VI(2,nGhostCell,nm,nk,nspec), &
+           BcRecvL_VI(2,nGhostCell,nm,nk,nspec), BcRecvR_VI(2,nGhostCell,nm,nk,nspec)
+
   ! number of cells for current proc; should be the same
   ! MaxLonPar-MinLonPar+1
   !----------------------------------------------------------------------------
@@ -1725,6 +1729,37 @@ subroutine driftIM(iw2,nspec,np,nt,minLon,maxLon,nm,nk,dt,dlat,dphi,rb,driftin,d
   endif
   dInLocal_V(1:nspec)=0.
   dOutLocal_V(1:nspec)=0.
+
+  ! Exchange ghost cells of the inner (f2 at i=1 -> fb0) and outer (fb -> fb1)
+  ! boundary values for all (m,k,n) at once. Index 1 = fb0, index 2 = fb1.
+  do n=1,nspec
+     do k=1,nk
+        do m=1,nm
+           do iG=1,nGhostCell
+              BcSendL_VI(1,iG,m,k,n) = f2(1,MinLonPar+iG-1,m,k,n)
+              BcSendL_VI(2,iG,m,k,n) = fb(MinLonPar+iG-1,m,k,n)
+              BcSendR_VI(1,iG,m,k,n) = f2(1,MaxLonPar-nGhostCell+iG,m,k,n)
+              BcSendR_VI(2,iG,m,k,n) = fb(MaxLonPar-nGhostCell+iG,m,k,n)
+           enddo
+        enddo
+     enddo
+  enddo
+
+  nBcCount = 2*nGhostCell*nm*nk*nspec
+  if (nProc > 1) then
+     ! what I send right becomes my right neighbour's left ghost cells
+     call MPI_Sendrecv(BcSendR_VI, nBcCount, MPI_REAL, iProcRight, 21, &
+                       BcRecvL_VI, nBcCount, MPI_REAL, iProcLeft,  21, &
+                       iComm, iStatus_I, iError)
+     ! what I send left becomes my left neighbour's right ghost cells
+     call MPI_Sendrecv(BcSendL_VI, nBcCount, MPI_REAL, iProcLeft,  22, &
+                       BcRecvR_VI, nBcCount, MPI_REAL, iProcRight, 22, &
+                       iComm, iStatus_I, iError)
+  else
+     BcRecvL_VI = BcSendR_VI
+     BcRecvR_VI = BcSendL_VI
+  endif
+
   nloop: do n=1,nspec
      kloop: do k=1,nk
         mloop: do m=1,iw2(k,n)
@@ -1787,57 +1822,25 @@ subroutine driftIM(iw2,nspec,np,nt,minLon,maxLon,nm,nk,dt,dlat,dphi,rb,driftin,d
               enddo
            enddo
 
+           ! fb0/fb1 ghost cells come from the exchange done before the loops
+           do iG=1,nGhostCell
+              fb0(iLonLeft-nGhostCell+iG) = BcRecvL_VI(1,iG,m,k,n)
+              fb1(iLonLeft-nGhostCell+iG) = BcRecvL_VI(2,iG,m,k,n)
+              fb0(iLonRight+iG-1)         = BcRecvR_VI(1,iG,m,k,n)
+              fb1(iLonRight+iG-1)         = BcRecvR_VI(2,iG,m,k,n)
+           enddo
+
+           ! cp and cl depend on dt1, so they still need a per-iteration exchange
            if (nProc > 1) then
-            !send fb0 ghostcells
-            call MPI_send(fb0(MinLonPar:MinLonPar+nGhostCell-1),&
-                  nGhostCell,MPI_REAL,&
-                  iProcLeft,5,iComm,iError)
-            call MPI_send(fb0(MaxLonPar-nGhostCell+1:MaxLonPar),&
-                  nGhostCell,MPI_REAL,iProcRight,&
-                  6,iComm,iError)
-            ! receive fb0 from neigboring Procs
-            call MPI_recv(fb0(iLonRight:iLonRight+nGhostCell-1),&
-                  nGhostCell,MPI_REAL,&
-                  iProcRight,5,iComm,iStatus_I,iError)
-            call MPI_recv(fb0(iLonLeft-nGhostCell+1:iLonLeft),&
-                  nGhostCell,MPI_REAL,iProcLeft,&
-                  6,iComm,iStatus_I,iError)
-
-            ! send fb1 ghostcells
-            call MPI_send(fb1(MinLonPar:MinLonPar+nGhostCell-1),&
-                  nGhostCell,MPI_REAL,&
-                  iProcLeft,7,iComm,iError)
-            call MPI_send(fb1(MaxLonPar-nGhostCell+1:MaxLonPar),&
-                  nGhostCell,MPI_REAL,&
-                  iProcRight,8,iComm,iError)
-            ! receive fb1 from neigboring Procs
-            call MPI_recv(fb1(iLonRight:iLonRight+nGhostCell-1),&
-                  nGhostCell,MPI_REAL,&
-                  iProcRight,7,iComm,iStatus_I,iError)
-            call MPI_recv(fb1(iLonLeft-nGhostCell+1:iLonLeft),&
-                  nGhostCell,MPI_REAL,&
-                  iProcLeft,8,iComm,iStatus_I,iError)
-
-            call MPI_sendrecv( cp( :, MaxLonPar ), np, MPI_REAL, &
-                  iProcRight, 10, cp(:, iLonLeft ), np, MPI_REAL, &
-                  iProcLeft, 10, iComm, iStatus_I, iError )
-
-            ! NEW MPI calls utilizing sendrecv for sending cl
-            ! ghostcells
-            call MPI_sendrecv( cl( :,MaxLonPar ), np, MPI_REAL, &
-                  iProcRight, 10, cl(:, iLonLeft ), np, MPI_REAL, &
-                  iProcLeft, 10, iComm, iStatus_I, iError )
+              call MPI_sendrecv( cp( :, MaxLonPar ), np, MPI_REAL, &
+                   iProcRight, 10, cp(:, iLonLeft ), np, MPI_REAL, &
+                   iProcLeft, 10, iComm, iStatus_I, iError )
+              call MPI_sendrecv( cl( :, MaxLonPar ), np, MPI_REAL, &
+                   iProcRight, 10, cl(:, iLonLeft ), np, MPI_REAL, &
+                   iProcLeft, 10, iComm, iStatus_I, iError )
            else
-            fb0(iLonLeft-nGhostCell+1:iLonLeft) = &
-                 fb0(MaxLonPar-nGhostCell+1:MaxLonPar)
-            fb0(iLonRight:iLonRight+nGhostCell-1) = &
-                 fb0(MinLonPar:MinLonPar+nGhostCell-1)
-            fb1(iLonLeft-nGhostCell+1:iLonLeft) = &
-                 fb1(MaxLonPar-nGhostCell+1:MaxLonPar)
-            fb1(iLonRight:iLonRight+nGhostCell-1) = &
-                 fb1(MinLonPar:MinLonPar+nGhostCell-1)
-            cp(:,iLonLeft) = cp(:,MaxLonPar)
-            cl(:,iLonLeft) = cl(:,MaxLonPar)
+              cp(:,iLonLeft) = cp(:,MaxLonPar)
+              cl(:,iLonLeft) = cl(:,MaxLonPar)
            end if
            ! run drift nrun times
            do nn=1,nrun
