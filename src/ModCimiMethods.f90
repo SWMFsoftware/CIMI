@@ -752,6 +752,7 @@ subroutine cimi_init
   use CIMI_aurora, ONLY: init_mod_aurora
   use ModIeCimi, ONLY: init_mod_iecimi
   use ModGmCimi, ONLY: init_cimi_gm
+  use ModCimiBoundary, ONLY: init_cimi_boundary
   use ModUtilities, ONLY: CON_stop
 
 
@@ -1096,6 +1097,7 @@ subroutine cimi_init
 
   call init_mod_iecimi
   call init_cimi_gm
+  call init_cimi_boundary
 
   if(IsRestart) then
      ! set initial state when restarting

@@ -12,6 +12,7 @@ module ModCimiBoundary
 
   public :: cimi_set_boundary_mhd
   public :: cimi_set_boundary_empirical
+  public :: init_cimi_boundary
   
   !when in standalone mode which boundary type do you use for the RC?
   logical,public :: UseBoundaryEbihara =.true.
@@ -20,10 +21,21 @@ module ModCimiBoundary
   logical,public :: Outputboundary = .false.
   
   !boundary density in m^-3 and temperature in eV
-  real, public :: BoundaryDens_IC(nt,nSpec)
-  real, public :: BoundaryTemp_IC(nt,nSpec),BoundaryTempPar_IC(nt,nSpec)
+  real, public, allocatable :: BoundaryDens_IC(:,:),BoundaryTemp_IC(:,:),&
+   BoundaryTempPar_IC(:,:)
 
 contains
+  !============================================================================
+  subroutine init_cimi_boundary
+    use ModCimiGrid,    ONLY: MinLonPar,MaxLonPar
+    use ModCimiPlanet,  ONLY: nSpec
+
+    if(allocated(BoundaryDens_IC)) RETURN
+    allocate(BoundaryDens_IC(MinLonPar:MaxLonPar,nSpec), &
+             BoundaryTemp_IC(MinLonPar:MaxLonPar,nSpec), &
+             BoundaryTempPar_IC(MinLonPar:MaxLonPar,nSpec))
+
+  end subroutine init_cimi_boundary
   !============================================================================
   subroutine cimi_set_boundary_mhd
     use ModGmCimi,      ONLY: Den_IC,Temp_IC,Temppar_IC,StateBmin_IIV,&
@@ -221,7 +233,7 @@ contains
     real :: TimeBoundary, Bz, vsw, xnsw, Rtsy, phit
     integer :: iError, iLon, ib1, iSpecies
     
-    real :: xn1(nt), xkt1(nt)
+    real :: xn1(MinLonPar:MaxLonPar), xkt1(MinLonPar:MaxLonPar)
     !variable for young et al density split
     real :: O_H_ratio, F107, Kp
     !--------------------------------------------------------------------------
@@ -254,10 +266,10 @@ contains
        call get_SW_N  (TimeBoundary, xnsw, iError)
        
        ! Density in m^-3, Ebihara & Ejiri 2000
-       xn1(1:nt)=(0.025*xnsw+0.395)*cCm3toM3 
+       xn1(MinLonPar:MaxLonPar)=(0.025*xnsw+0.395)*cCm3toM3
        
        ! kT_ion in eV, Borovsky etal 1998
-       xkt1(1:nt)=(0.019*vsw-3.65)*cKevTOeV          
+       xkt1(MinLonPar:MaxLonPar)=(0.019*vsw-3.65)*cKevTOeV
     else
        ! use Tsyganenko-Mukai PS model
        call get_IMF_Bz(CurrentTime, Bz, iError)
@@ -275,9 +287,9 @@ contains
 
     ! Fill boundary arrays for all species
     do iSpecies = 1, nSpec
-       BoundaryDens_IC(1:nt,iSpecies) = dFactor_I(iSpecies)*xn1(1:nt)
-       BoundaryTemp_IC(1:nt,iSpecies) = tFactor_I(iSpecies)*xkt1(1:nt)
-       BoundaryTempPar_IC(1:nt,iSpecies) = BoundaryTemp_IC(1:nt,iSpecies)
+       BoundaryDens_IC(MinLonPar:MaxLonPar,iSpecies) = dFactor_I(iSpecies)*xn1(MinLonPar:MaxLonPar)
+       BoundaryTemp_IC(MinLonPar:MaxLonPar,iSpecies) = tFactor_I(iSpecies)*xkt1(MinLonPar:MaxLonPar)
+       BoundaryTempPar_IC(MinLonPar:MaxLonPar,iSpecies) = BoundaryTemp_IC(MinLonPar:MaxLonPar,iSpecies)
     end do
  
  end subroutine cimi_set_boundary_empirical
