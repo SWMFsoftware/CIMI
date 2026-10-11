@@ -1067,6 +1067,7 @@ Module ModCimiTrace
 
     use ModGmCimi
     use ModNumConst, ONLY: cPi
+    use ModCimiGrid, ONLY: MinLonGlobal
 
     integer,intent(in)  :: iLat,iLon,np
     real,   intent(in)  :: Lat,Lon,re
@@ -1087,6 +1088,7 @@ Module ModCimiTrace
 
     real xa(np),ya(np),za(np),x0(3),xend(3),f(3),t0,tend,h,h1,aza(np)
     real dir,pas,xwrk(4,nd),rlim,Bmid,dss(np),ss,yint(np)
+    integer :: iLonGlobal
     character(len=*), parameter :: NameSub='mhd_trace_IM'
     Logical IsFoundLine,UseDipole
     !---------------------------------------------------------------------------
@@ -1100,8 +1102,8 @@ Module ModCimiTrace
     iAlt = MinAlt
     IsFoundLine=.false.
     UseDipole  =.false.
+    iLonGlobal = minLonGlobal + iLon - 1
     FieldTrace: do iPoint = 1,nPoint
-
 !       if(iLon==5 .and. iLat==22) &
 !            write(*,*)'iLineIndex_II(iLon,iLat),int(StateLine_VI(I_,iPoint))'&
 !            ,iLineIndex_II(iLon,iLat),int(StateLine_VI(I_,iPoint))
@@ -1117,7 +1119,7 @@ Module ModCimiTrace
 
           iAlt = iAlt+1
           IsFoundLine=.true.
-       elseif (iLineIndex_II(iLon,iLat) /= int(StateLine_VI(I_,iPoint)) &
+       elseif (iLineIndex_II(iLonGlobal,iLat) /= int(StateLine_VI(I_,iPoint)) &
             .and. IsFoundLine) then
           exit FieldTrace 
        endif
@@ -1152,10 +1154,10 @@ Module ModCimiTrace
     endif
 
     if (.not. UseDipole) then
-       ro1=sqrt(sum(StateBmin_IIV(iLat,iLon,1:2)**2.0))
+       ro1=sqrt(sum(StateBmin_IIV(iLat,iLonGlobal,1:2)**2.0))
        xmlt1=&
-            (atan2(-StateBmin_IIV(iLat,iLon,2),&
-            -StateBmin_IIV(iLat,iLon,1)))&
+            (atan2(-StateBmin_IIV(iLat,iLonGlobal,2),&
+            -StateBmin_IIV(iLat,iLonGlobal,1)))&
             *12./cPi   ! mlt in hr
 
 !       if (iLon==25 .and. .not.UseDipole) then
@@ -1168,7 +1170,7 @@ Module ModCimiTrace
 
 
        if (xmlt1 < 0.) xmlt1=xmlt1+24.
-       bo1=StateBmin_IIV(iLat,iLon,3)
+       bo1=StateBmin_IIV(iLat,iLonGlobal,3)
     endif
 
     !Check that nAlt < np
