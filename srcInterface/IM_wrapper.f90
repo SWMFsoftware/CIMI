@@ -1306,7 +1306,8 @@ contains
   !============================================================================
   subroutine IM_put_from_ie_complete
 
-    use ModCimiGrid,  ONLY: np,nt,iComm, iProc, MinLonGlobal, MaxLonGlobal
+    use ModCimiGrid,  ONLY: np,nt,iComm, iProc, MinLonGlobal, MaxLonGlobal, &
+         MinLonPar, MaxLonPar
     use ModIeCimi,    ONLY: Pot, PotGlobal
     use ModPrerunField, ONLY: DoWritePrerun, save_prerun_IE
     use ModCimi,    ONLY: Time
@@ -1317,7 +1318,7 @@ contains
     ! Bcast  potential to all procs
     nsize=np*nt
     call MPI_bcast(PotGlobal,nsize,MPI_REAL,0,iComm,iError)
-    pot = potGlobal(1:np,MinLonGlobal:MaxLonGlobal)
+    pot(:,MinLonPar:MaxLonpar) = potGlobal(1:np,MinLonGlobal:MaxLonGlobal)
 
     if (iProc == 0 .and. DoWritePrerun) call save_prerun_IE(Time)
     RETURN

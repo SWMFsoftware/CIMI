@@ -118,20 +118,20 @@ contains
                    / (cProtonMass*amu_I(iSpecies))
            enddo
            ! set electron density
-           Den_IC(nSpec,iLat,iLon) = sum(Den_IC(1:nSpec-1,iLat,iLon))
+           Den_IC(iLat,iLon,nSpec) = sum(Den_IC(iLat,iLon,1:nSpec-1))
            
            ! set temperatures
-           Temp_IC(1:nSpec,iLat,iLon) = tFactor_I(1:nSpec) * &
+           Temp_IC(iLat,iLon,1:nSpec) = tFactor_I(1:nSpec) * &
                 StateBmin_IIV(jLat,iLonGlobal,TotalP_)  &
-                /(Den_IC(nSpec,iLat,iLon)) &
+                /(Den_IC(iLat,iLon,nSpec)) &
                 * cJouleToEv
            if(UseTotalPparGm) then
-              Temppar_IC(1:nSpec,iLat,iLon) = tFactor_I(iSpecies) * &
+              Temppar_IC(iLat,iLon,1:nSpec) = tFactor_I(1:nSpec) * &
                    StateBmin_IIV(jLat,iLonGlobal,TotalPpar_) &
-                   / (Den_IC(nSpec,iLat,iLon)) &
+                   / (Den_IC(iLat,iLon,nSpec)) &
                    * cJouleToEv
            else
-              Temppar_IC(:,iLat,iLon) = Temp_IC(:,iLat,iLon)
+              Temppar_IC(iLat,iLon,1:nSpec) = Temp_IC(iLat,iLon,1:nSpec)
            endif
            
         end do
@@ -170,14 +170,14 @@ contains
            enddo
 
            ! set electron density
-           Den_IC(nSpec,iLat,iLon) = sum(Den_IC(1:nSpec-1,iLat,iLon))
+           Den_IC(iLat,iLon,nSpec) = sum(Den_IC(iLat,iLon,1:nSpec-1))
            
            ! set electron temperatures
-           Temp_IC(nSpec,iLat,iLon) = &
+           Temp_IC(iLat,iLon,nSpec) = &
                 sum(StateBmin_IIV(jLat,iLonGlobal,iBufferP_I(1:nSpec-1)))  &
-                /(Den_IC(nSpec,iLat,iLon)) &
+                /(Den_IC(iLat,iLon,nSpec)) &
                 * cJouleToEv
-           Temppar_IC(nSpec,iLat,iLon) = Temp_IC(nSpec,iLat,iLon)
+           Temppar_IC(iLat,iLon,nSpec) = Temp_IC(iLat,iLon,nSpec)
         end do
      end do
   else
@@ -192,9 +192,9 @@ contains
         ib1=min(iba(iLon)+1,irm(iLon))
         do iLat=1,irm(iLon)
            jLat = max(iLat, iLatMin)
-           Temp_IC(nSpec,iLat,iLon) = StateBmin_IIV(jLat,iLonGlobal,TotalPe_)&
-                / Den_IC(nSpec,iLat,iLon)* cJouleToEv
-           Temppar_IC(nSpec,iLat,iLon) = Temp_IC(nSpec,iLat,iLon)
+           Temp_IC(iLat,iLon,nSpec) = StateBmin_IIV(jLat,iLonGlobal,TotalPe_)&
+                / Den_IC(iLat,iLon,nSpec)* cJouleToEv
+           Temppar_IC(iLat,iLon,nSpec) = Temp_IC(iLat,iLon,nSpec)
         end do
      end do
   endif
@@ -275,7 +275,7 @@ contains
        call get_IMF_Bz(CurrentTime, Bz, iError)
        call get_SW_V  (CurrentTime, vsw, iError)
        call get_SW_N  (CurrentTime, xnsw, iError)
-       do iLon=1,nt  
+       do iLon=MinLonPar,MaxLonPar
           ! Set boundary index consistant with boundaryIM
           ib1=min(iba(iLon)+1,irm(iLon))
           Rtsy=ro(ib1,iLon)

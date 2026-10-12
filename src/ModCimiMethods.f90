@@ -844,6 +844,8 @@ subroutine cimi_init
   if(nProc > 1) then
     call MPI_Allreduce(iMidnightLocal, iProcMidnight, 1, MPI_INTEGER, MPI_MAX, &
                       iComm, iError)
+  else
+    iProcMidnight = iMidnightLocal
   end if
   if(iProcMidnight < 0) call CON_stop('IM error: No Midnight Proc Found')
 
@@ -1137,7 +1139,7 @@ subroutine initial_f2(nspec,np,nt,amu_I,xjac,ib0)
   real, intent(in):: amu_I(nspec), xjac(np,nm,nspec)
   integer, intent(out):: ib0(MinLon:MaxLon)
 
-  integer:: n, j, i, k, m, iError, jGlobal
+  integer:: n, j, i, k, m, iError
   real:: velperp2, velpar2
   real:: pi,xmass,chmass,f21,vtchm
   real:: Tempperp_IC(np,MinLonpar:MaxLonPar,nspec)
@@ -1774,9 +1776,6 @@ subroutine driftIM(iw2,nspec,np,nt,minLon,maxLon,nm,nk,dt,dlat,dphi,rb,driftin,d
                  if (DoUseUniformLGrid) then
                     cl1=dt/dvarL*vl(i,j,m,k,n)  ! Courant number in L, unitless
                  else
-                    cl1 = dt
-                    cl1 = dlat(i)
-                    cl1 = vl(i,j,m,k,n)
                     cl1=dt/dlat(i)*vl(i,j,m,k,n)  ! Courant number in L
                  endif
                  cp1=dt/dphi*vp(i,j,m,k,n)   ! Courant number in phi
@@ -2924,7 +2923,7 @@ subroutine cimi_gather( delta_t)
        phot, Ppar_IC, preP, preF, Eje1,&
        vdr_q3, eng_q3, vexb, dif_q3, Part_phot, flux, psd, vlEa, vpEa, &
        FACGlobal_C, PressureGlobal_IC, PressureParGlobal_IC, DenGlobal_IC, &
-       BminGlobal_C, photGlobal, PparGlobal_IC, &
+       BminGlobal_C, photGlobal, PparGlobal_IC, TempGlobal_IC, &
        prePGlobal, preFGlobal, Eje1Global, &
        vdr_q3Global, eng_q3Global, part_photGlobal, vexbGlobal, dif_q3Global, &
        fluxGlobal, psdGlobal, vlEaGlobal, vpEaGlobal, MinLonGlobal, MaxLonGlobal
@@ -2939,7 +2938,7 @@ subroutine cimi_gather( delta_t)
   use ModCimiPlot
   use ModCimiTrace,	ONLY:	gather_field_trace
   use ModCoupleSami,	ONLY:	DoCoupleSami
-  use ModGmCimi,	ONLY:	Den_IC
+  use ModGmCimi,	ONLY:	Den_IC, Temp_IC
   use ModImSat,		ONLY:	DoWriteSats, DtSatOut
   use ModMPI
 
@@ -3029,6 +3028,12 @@ subroutine cimi_gather( delta_t)
           MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
           MPI_REAL, 0, iComm, iError)
      if (iProc==0) DenGlobal_IC(:,:,iSpecies)=BufferRecv_C(:,:)
+
+     BufferSend_C(:,MinLonGlobal:MaxLonGlobal)=Temp_IC(:,MinLonPar:MaxLonPar,iSpecies)
+     call MPI_GATHERV(BufferSend_C(:,MinLonGlobal:MaxLonGlobal), iSendCount, &
+          MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
+          MPI_REAL, 0, iComm, iError)
+     if (iProc==0) TempGlobal_IC(:,:,iSpecies)=BufferRecv_C(:,:)
 
   enddo
 

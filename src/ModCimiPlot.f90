@@ -922,12 +922,12 @@ contains
   !============================================================================
     subroutine Cimi_plot_boundary_check(time)
     use ModIoUnit,      ONLY: UnitTmp_
-    use ModCimiTrace,   ONLY: ro,bm,xmlto,irm
+    use ModCimiTrace,   ONLY: roGlobal,bmGlobal,xmltoGlobal,irmGlobal
     use ModCimiRestart, ONLY: IsRestart
     use ModCimiGrid, ONLY: nlat=>np,nLon=>nt,neng
-    use ModCimi, ONLY: phot,Pressure_IC,energy, &
-         part_phot, dif_q3, eng_q3, vdr_q3, vexb
-    use ModGmCimi,      ONLY: Den_IC,Temp_IC
+    use ModCimi, ONLY: photGlobal,PressureGlobal_IC,energy, &
+         part_photGlobal, dif_q3Global, eng_q3Global, vdr_q3Global, &
+         vexbGlobal, DenGlobal_IC, TempGlobal_IC
     
     real, intent(in) :: time
     
@@ -945,7 +945,7 @@ contains
        
        write(UnitTmp_,"(4i10,6x,'! nr,ip,neng,ntime')") &
             nLat-1,nLon,neng,nprint
-       write(UnitTmp_,'(10f8.3)') (energy(1,i),i=1,neng)
+       write(UnitTmp_,'(10f8.3)') (energy(i,1),i=1,neng)
     else
        open(unit=UnitTmp_,&
             file='IM/plots/Cimi.boundary.check',status='old',&
@@ -954,30 +954,30 @@ contains
     write(UnitTmp_,"(f8.3,6x, '! time, h ')") time/3600.
     do iLon=1,nLon
        do iLat=2,nLat
-          ro1=ro(iLat,iLon)
-          xmlt1=xmlto(iLat,iLon)
-          if (iLat.gt.irm(iLon)) xmlt1=0.0
+          ro1=roGlobal(iLat,iLon)
+          xmlt1=xmltoGlobal(iLat,iLon)
+          if (iLat.gt.irmGlobal(iLon)) xmlt1=0.0
           
-          eng1=eng_q3(iLat,iLon,1)
-          if (iLat.gt.irm(iLon)) eng1=0.0
+          eng1=eng_q3Global(iLat,iLon,1)
+          if (iLat.gt.irmGlobal(iLon)) eng1=0.0
           
-          vexb1=vexb(iLat,iLon,1)
-          if (iLat.gt.irm(iLon)) vexb1=0.0
+          vexb1=vexbGlobal(iLat,iLon,1)
+          if (iLat.gt.irmGlobal(iLon)) vexb1=0.0
           
-          vdr1=vdr_q3(iLat,iLon,1)
-          if (iLat.gt.irm(iLon)) vdr1=0.0
+          vdr1=vdr_q3Global(iLat,iLon,1)
+          if (iLat.gt.irmGlobal(iLon)) vdr1=0.0
           
-          dif1=dif_q3(iLat,iLon,1)        
-          if (iLat.gt.irm(iLon)) dif1=0.0
+          dif1=dif_q3Global(iLat,iLon,1)        
+          if (iLat.gt.irmGlobal(iLon)) dif1=0.0
           
-          phot1 = Phot(iLat,iLon,1)
-          press1 = Pressure_IC(iLat,iLon,1)
-          den1 = Den_IC(iLat,iLon,1)/1.e6
-          temp1 = Temp_IC(iLat,iLon,1)/1000. ! in keV
+          phot1 = PhotGlobal(iLat,iLon,1)
+          press1 = PressureGlobal_IC(iLat,iLon,1)
+          den1 = DenGlobal_IC(iLat,iLon,1)/1.e6
+          temp1 = TempGlobal_IC(iLat,iLon,1)/1000. ! in keV
           
           write(UnitTmp_,'(2i10,2f8.3,1p,8e11.3)') &
                iLon,iLat,xmlt1,ro1,phot1,press1,temp1,den1,eng1,vexb1,vdr1,dif1
-          write(UnitTmp_,'(1p,6e12.4)') Part_phot(iLat,iLon,1,1:neng)
+          write(UnitTmp_,'(1p,6e12.4)') Part_photGlobal(iLat,iLon,1:neng,1)
        enddo
     enddo
     close(UnitTmp_)

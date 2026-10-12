@@ -1108,7 +1108,7 @@ Module ModCimiTrace
 !            write(*,*)'iLineIndex_II(iLon,iLat),int(StateLine_VI(I_,iPoint))'&
 !            ,iLineIndex_II(iLon,iLat),int(StateLine_VI(I_,iPoint))
 
-       if (iLineIndex_II(iLon,iLat) == int(StateLine_VI(I_,iPoint)))then
+       if (iLineIndex_II(iLonGlobal,iLat) == int(StateLine_VI(I_,iPoint)))then
           !if(iLon==5)write(*,*)'!!! Found line for iLat,iLon',iLat,iLon
           !when line index found, fill in output arrays
           if(iAlt > np) &

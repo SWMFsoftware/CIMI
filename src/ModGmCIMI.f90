@@ -46,6 +46,9 @@ contains
    allocate(Den_IC(nLat,MinLonPar:MaxLonPar,nspec), &
             Temp_IC(nLat,MinLonPar:MaxLonPar,nspec), &
             Temppar_IC(nLat,MinLonPar:MaxLonPar,nspec))
+   Den_IC = 0.0
+   Temp_IC = 0.0
+   Temppar_IC = 0.0
  end subroutine init_cimi_gm
   
 end Module ModGmCimi

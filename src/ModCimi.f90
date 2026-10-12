@@ -62,7 +62,7 @@ Module ModCimi
   ! Global output array for proc 0 only
   real, allocatable :: FACGlobal_C(:,:), PressureGlobal_IC(:,:,:), PressureParGlobal_IC(:,:,:), &
     BminGlobal_C(:,:), photGlobal(:,:,:), PparGlobal_IC(:,:,:), DenGlobal_IC(:,:,:), &
-    prePGlobal(:,:,:,:), preFGlobal(:,:,:,:), Eje1Global(:,:,:), &
+    TempGlobal_IC(:,:,:), prePGlobal(:,:,:,:), preFGlobal(:,:,:,:), Eje1Global(:,:,:), &
     vdr_q3Global(:,:,:), eng_q3Global(:,:,:), part_photGlobal(:,:,:,:), vexbGlobal(:,:,:), dif_q3Global(:,:,:), &
     fluxGlobal(:,:,:,:,:), psdGlobal(:,:,:,:,:), vlEaGlobal(:,:,:,:,:), vpEaGlobal(:,:,:,:,:)
 
@@ -136,9 +136,10 @@ contains
     allocate( eng_q1( np, minLon:maxLon, nspec ), eng_q3( np, minLon:maxLon, nspec ), &
          vexb( np, minLon:maxLon, nspec ), dif_q1( np, minLon:maxLon, nspec ) )
     allocate( Part_phot( np, minLon:maxLon, neng, nspec ), dif_q3( np, minLon:maxLon, nspec ) )
-
+    
     if(iProc == 0) then
-      allocate( FACGlobal_C(np,nt), PressureGlobal_IC(np,nt,nspec), PressureParGlobal_IC(np,nt,nspec), &
+      allocate( FACGlobal_C(np,nt), PressureGlobal_IC(np,nt,nspec), &
+           PressureParGlobal_IC(np,nt,nspec), TempGlobal_IC(np,nt,nspec), &
            BminGlobal_C(np,nt), photGlobal(np,nt,nspec), PparGlobal_IC(np,nt,nspec), DenGlobal_IC(np,nt,nspec), &
            prePGlobal(np,nt,neng+2,nspec), preFGlobal(np,nt,neng+2,nspec), Eje1Global(np,nt,nspec), &
            vdr_q3Global(np,nt,nspec), eng_q3Global(np,nt,nspec), part_photGlobal(np,nt,neng,nspec), &
