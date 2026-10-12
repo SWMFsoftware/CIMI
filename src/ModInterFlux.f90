@@ -2,39 +2,8 @@
 
    integer :: iOrderLat=2,iOrderLon=2
    logical :: UseHigherOrder=.false.  ! use higher order inter-flux
-
-   !the number of ghost cells required for a given scheme order
-   !Fill at set time
-   integer :: nGhostLonLeft, nGhostLonRight
    
  contains
-
-   ! Set the number of longitude ghostcells based on the order of the
-   ! scheme
-   !
-   ! March 2022 - CMK: Update as needed as other order schemes are
-   ! implemented
-   subroutine set_nghostcell_scheme
-
-     DEFINE_GHOST_CELLS: select case( iOrderLon )
-
-     case( 2 )
-        nGhostLonLeft  = 1
-        nGhostLonRight = 2
-        
-     case( 7 )
-        nGhostLonLeft  = 3
-        nGhostLonRight = 4
-        
-     case default 
-        nGhostLonLeft  = 1
-        nGhostLonRight = 2
-        
-     end select DEFINE_GHOST_CELLS
-
-   end subroutine set_nghostcell_scheme
-   
-     
      
 !*******************************************************************************
 !                            FLS_2D_ho
@@ -62,14 +31,16 @@
 !  By S.-B. Kang, Code 673, at NASA/GSFC in 2017
 !*******************************************************************************
   subroutine FLS_2D_ho(ir,ip,iba,fb0,fb1,cl,cp,f,fhol,fhop,fupl,fupp)
-  use ModCimi,       ONLY: MinLonPar,MaxLonPar
+  use ModCimi,       ONLY: MinLonPar,MaxLonPar,MinLon,MaxLon
+  use ModCimiGrid,   ONLY: nGhostCell
+  use ModUtilities,  ONLY: CON_stop
   implicit none
 
-  integer,intent(in) :: ir,ip,iba(ip)
-  real,intent(in) ::  fb0(ip),fb1(ip),cl(ir,ip),cp(ir,ip),f(ir,ip)
-  real,intent(out) :: fhol(0:ir,ip),fhop(ir,ip),fupl(0:ir,ip),fupp(ir,ip)
-  real fwbc(-2:ir+4,ip),df,cl1,cp1,cl2,cp2,c1,&
-       xsignl(ir,ip),xsignp(ir,ip),xsign,fup,flw2,flw3,flw4,flw5,flw6,flw7,&
+  integer,intent(in) :: ir,ip,iba(MinLon:MaxLon)
+  real,intent(in) ::  fb0(MinLon:MaxLon),fb1(MinLon:MaxLon),cl(ir,MinLon:MaxLon),cp(ir,MinLon:MaxLon),f(ir,MinLon:MaxLon)
+  real,intent(out) :: fhol(0:ir,MinLon:MaxLon),fhop(MinLon:MaxLon),fupl(0:ir,MinLon:MaxLon),fupp(ir,MinLon:MaxLon)
+  real fwbc(-2:ir+4,MinLon:MaxLon),df,cl1,cp1,cl2,cp2,c1,&
+       xsignl(ir,MinLon:MaxLon),xsignp(ir,MinLon:MaxLon),xsign,fup,flw2,flw3,flw4,flw5,flw6,flw7,&
        x,r,xlimiter,corr,d1,d2,fc,fu,fd,ref,del,adel,acurv,flim
   real a21,a22,a23,a24,&
        a41,a42,a43,a44,a45,a46,&
@@ -84,6 +55,10 @@
 
   
    i0=1   
+
+   if(iOrderLon > 2 * nGhostCell) & 
+      call CON_stop('IM ModInterFlux: Not enough ghost cells for high order'//&
+                    'scheme')
 
 !!erLat=3
 !!erLon=3
@@ -130,7 +105,7 @@
   fwbc(1:ir,1:ip)=f(1:ir,1:ip)        ! flwbc is f with boundary condition
 
 ! up boundary condition
-  do j=MinLonPar,MaxLonPar
+  do j=MinLonPar-1,MaxLonPar
      fwbc(-2:0,j)=fb0(j)
      ib=iba(j)
      fwbc(ib+1:ir+4,j)=fb1(j)
@@ -138,14 +113,14 @@
 
 ! determine xsign
   do i=i0,ir
-     do j=MinLonPar,MaxLonPar
+     do j=MinLonPar-1,MaxLonPar
         xsignl(i,j)=sign(1.,cl(i,j))
         xsignp(i,j)=sign(1.,cp(i,j))
      enddo
   enddo
 
 !  1st order fup and 7th order fho
-  do j=MinLonPar,MaxLonPar
+  do j=MinLonPar-1,MaxLonPar
      j01=j-1
      j02=j-2
      j03=j-3
@@ -153,13 +128,6 @@
      j20=j+2
      j30=j+3
      j40=j+4
-     if (j01.lt.1) j01=j01+ip
-     if (j02.lt.1) j02=j02+ip
-     if (j03.lt.1) j03=j03+ip
-     if (j10.gt.ip) j10=j10-ip
-     if (j20.gt.ip) j20=j20-ip
-     if (j30.gt.ip) j30=j30-ip
-     if (j40.gt.ip) j40=j40-ip
      ib=max(iba(j),iba(j10))
      do i=i0,ib
         cl1=cl(i,j)
@@ -315,13 +283,10 @@
   enddo                 ! end of do j=1,ip
 
 ! ULTIMATE universial limiter
-  do j=MinLonPar,MaxLonPar
+  do j=MinLonPar-1,MaxLonPar
      j01=j-1
      j10=j+1
      j20=j+2
-     if (j01.lt.1) j01=j01+ip
-     if (j10.gt.ip) j10=j10-ip
-     if (j20.gt.ip) j20=j20-ip
      ib=max(iba(j),iba(j10))
      do i=i0,ib
      ! f*l

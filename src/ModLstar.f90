@@ -198,11 +198,11 @@ contains
 ! Calulates dmlt at MLT grid 
   dmlt(1:ip)=24./ip
 
-! Find magnetic island
-! Needed for ALL longitudes on every processor, since the flux integral
-! below loops over all j and looks at B_island(ii1,j). The cost is only
-! O(ir*ip), negligible compared to the flux integral, so it is computed
-! redundantly instead of communicated.
+  ! Find magnetic island
+  ! Needed for ALL longitudes on every processor, since the flux integral
+  ! below loops over all j and looks at B_island(ii1,j).
+  ! This is O(ir * ip) so not really worth it to parallelize
+  ! Full Lstar integral is O(ir * ip^2)
   B_island(1:ir,1:ip)=0    ! 0=normal, 1=island
   do j=1,ip
      ii=1000
@@ -324,8 +324,8 @@ contains
   dmlt(1:ip)=24./ip
 
   do m=1,ik
-! Find magnetic island (all longitudes, computed redundantly on each
-! processor, see calc_Lstar1)
+  ! Find magnetic island (all longitudes, computed redundantly on each
+  ! processor, see calc_Lstar1)
      B_island(1:ir,1:ip)=0    ! 0=normal, 1=island
      do j=1,ip
         ii=1000
@@ -344,7 +344,7 @@ contains
         enddo
      enddo
    
-! Caculates L* at each grid, only for the longitudes owned by this processor
+  ! Caculates L* at each grid, only for the longitudes owned by this processor
      Bflux=0.  ! Initialize magnetic fluxes
      Lstarm(1:ib0-1,MinLonPar:MaxLonPar,m)=ro(1:ib0-1,MinLonPar:MaxLonPar)  ! set L*=ro at i<ib0
      do j0=MinLonPar,MaxLonPar      ! local MLT grid
