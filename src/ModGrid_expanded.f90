@@ -8,7 +8,6 @@ Module ModCimiGrid
   logical :: DoVerboseLatGrid = .false.
   
   ! define dimensions of CIMI grids
-  integer,parameter :: np1=76,nt1=48,npit1=18!,nspec1=1  
   integer,parameter :: nm=48,nk=29 ! dimension of CIMI magnetic moment and K
   integer,parameter :: nGhostCell=2
 
@@ -18,7 +17,7 @@ Module ModCimiGrid
   integer,parameter :: npit=18  ! dimension of the CIMI pitch-angle grid
 
   ! These have to be initialized so that IM_set_grid does not fail on non-IM PEs
-  real:: xlat(np) = 0.0, phiGlobal(nt1)= 0.0
+  real:: xlat(np) = 0.0, phiGlobal(nt)= 0.0
 
   real, parameter :: xlat_data(0:77)=(/ &
        09.8403398252184129, 11.8094287214197298, 13.7766188250317825, &
@@ -57,7 +56,7 @@ Module ModCimiGrid
           varNpower=1.5
   logical :: DoDefineVarNpower = .false.
 
-    real :: xlatr(np), dlat(np1), sinAo(npit), xmltGlobal(nt)
+    real :: xlatr(np), dlat(np), sinAo(npit), xmltGlobal(nt)
   real, allocatable :: phi(:), xmlt(:)
 
   real, allocatable :: d4Element_C(:,:,:,:) !4D element (dlat*dphi*dmm*dk)

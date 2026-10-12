@@ -1,11 +1,11 @@
 Module ModCimiInitialize
-  use ModCimiGrid,	ONLY: nm, nk, neng, npit1, np1
+  use ModCimiGrid,	ONLY: nm, nk, neng,npit,np
   use ModCimiPlanet,	ONLY: nspec
   implicit none
   
   real		:: &
        xmm(0:nm+1,nspec), xk(0:nk+1), dphi, dmm(nm,nspec), dk(nk),&
-       dmu(npit1), xjac(np1,nm,nspec)
+       dmu(npit), xjac(np,nm,nspec)
 
   logical	:: &
        IsEmptyInitial = .false., IsDataInitial = .false., &
