@@ -38,7 +38,7 @@
 
   integer,intent(in) :: ir,ip,iba(MinLon:MaxLon)
   real,intent(in) ::  fb0(MinLon:MaxLon),fb1(MinLon:MaxLon),cl(ir,MinLon:MaxLon),cp(ir,MinLon:MaxLon),f(ir,MinLon:MaxLon)
-  real,intent(out) :: fhol(0:ir,MinLon:MaxLon),fhop(MinLon:MaxLon),fupl(0:ir,MinLon:MaxLon),fupp(ir,MinLon:MaxLon)
+  real,intent(out) :: fhol(0:ir,MinLon:MaxLon),fhop(ir,MinLon:MaxLon),fupl(0:ir,MinLon:MaxLon),fupp(ir,MinLon:MaxLon)
   real fwbc(-2:ir+4,MinLon:MaxLon),df,cl1,cp1,cl2,cp2,c1,&
        xsignl(ir,MinLon:MaxLon),xsignp(ir,MinLon:MaxLon),xsign,fup,flw2,flw3,flw4,flw5,flw6,flw7,&
        x,r,xlimiter,corr,d1,d2,fc,fu,fd,ref,del,adel,acurv,flim

@@ -758,7 +758,7 @@ subroutine cimi_init
 
   implicit none
 
-  integer:: i, n, k, m, iPe, iError, iLonGrid, iMidnightLocal
+  integer:: i, n, k, m, iPe, iError, iLonGlobal, iMidnightLocal
 
   ! Variables for specifying the Energy Grid
   real:: aloga, eratio, delta_E, E0, &
@@ -830,10 +830,10 @@ subroutine cimi_init
   
   iMidnightLocal = -1
   do i = MinLon, MaxLon
-    iLonGrid = MinLonGlobal + i - 1
-    if (iLonGrid > nt) iLonGrid = iLonGrid - nt
-    if (iLonGrid < 1) iLonGrid = iLonGrid + nt
-    phi(i) = phiGlobal(iLonGrid)
+    iLonGlobal = MinLonGlobal + i - 1
+    if (iLonGlobal > nt) iLonGlobal = iLonGlobal - nt
+    if (iLonGlobal < 1) iLonGlobal = iLonGlobal + nt
+    phi(i) = phiGlobal(iLonGlobal)
     xmlt(i)=mod(phi(i)*12.0/cPi + 12.0,24.0)
     !
     if(xmlt(i) <= 0.01 .and. i >= MinLonPar .and. i <= MaxLonPar) then 

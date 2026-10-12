@@ -40,6 +40,7 @@ contains
     use ModConst, only: EM_speed=>cLightSpeed
     use ModCimiPlanet, ONLY: re_m
     use ModCimiTrace, only: bo,ro,CurvaturePointsXyz_IIID,BCurvaturePoints_III
+    use ModCimiGrid, only: MinLonGlobal
     !!use CurvScatt, only: pc_flc,zeta1,zeta2
     implicit none
     
@@ -47,7 +48,7 @@ contains
     real,dimension(5) :: xa,ya,za,ds,Rc
     real Rc0,Rc1,Rc2,ds0,ds1,ds2,drC1,drC2,B0,dB1,dB2
     real :: eVtoKeV=1.e-3
-    integer ::  is,is1,is2, iPoint
+    integer ::  is,is1,is2, iPoint, jG
 
     ! allocate needed variables
     if(.not. allocated(tau_flc)) allocate(tau_flc(ir,MinLon:MaxLon,nspec),&
@@ -59,26 +60,27 @@ contains
     !for zeta. Otherwise calculate 
     if (ro(i,j).gt.4.) then   ! assume a dipole < 4 RE
        if (UseGm) then
+          jG = MinLonGlobal + j - 1
           ! extract points from buffer around min b from couple buffer
-          xa(1) = StateBmin_IIV(i,j,6)
-          ya(1) = StateBmin_IIV(i,j,7)
-          za(1) = StateBmin_IIV(i,j,8)
+          xa(1) = StateBmin_IIV(i,jG,6)
+          ya(1) = StateBmin_IIV(i,jG,7)
+          za(1) = StateBmin_IIV(i,jG,8)
           
-          xa(2) = StateBmin_IIV(i,j,9)
-          ya(2) = StateBmin_IIV(i,j,10)
-          za(2) = StateBmin_IIV(i,j,11)
+          xa(2) = StateBmin_IIV(i,jG,9)
+          ya(2) = StateBmin_IIV(i,jG,10)
+          za(2) = StateBmin_IIV(i,jG,11)
           
-          xa(3) = StateBmin_IIV(i,j,12)
-          ya(3) = StateBmin_IIV(i,j,13)
-          za(3) = StateBmin_IIV(i,j,14)
+          xa(3) = StateBmin_IIV(i,jG,12)
+          ya(3) = StateBmin_IIV(i,jG,13)
+          za(3) = StateBmin_IIV(i,jG,14)
           
-          xa(4) = StateBmin_IIV(i,j,15)
-          ya(4) = StateBmin_IIV(i,j,16)
-          za(4) = StateBmin_IIV(i,j,17)
+          xa(4) = StateBmin_IIV(i,jG,15)
+          ya(4) = StateBmin_IIV(i,jG,16)
+          za(4) = StateBmin_IIV(i,jG,17)
           
-          xa(5) = StateBmin_IIV(i,j,18)
-          ya(5) = StateBmin_IIV(i,j,19)
-          za(5) = StateBmin_IIV(i,j,20)
+          xa(5) = StateBmin_IIV(i,jG,18)
+          ya(5) = StateBmin_IIV(i,jG,19)
+          za(5) = StateBmin_IIV(i,jG,20)
           
           
        else

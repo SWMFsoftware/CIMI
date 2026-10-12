@@ -179,7 +179,7 @@ Module ModCimiTrace
 
     if (imod <= 2) then
        if (.not.allocated(CurvaturePointsXyz_IIID))&
-            allocate(CurvaturePointsXyz_IIID(ir,ip,5,3))
+            allocate(CurvaturePointsXyz_IIID(ir,MinLon:MaxLon,5,3))
     endif
     if (.not.allocated(BCurvaturePoints_III))&
          allocate(BCurvaturePoints_III(ir,ip,5))
