@@ -46,44 +46,6 @@
 !                      - remove allocate and deallocate logBo_i
 !  * March 21, 2016    - Add calc_lstar2.f90
 !  * May 22, 2018      - Added verbose 
-!  * goto statements removed (cycle / exit / do while)
-!  * MPI version      - Domain decomposition in longitude (MLT index).
-!                        Each processor owns the longitudes MinLonPar:
-!                        MaxLonPar (LOCAL indices, 1:nLonPar), which are
-!                        global longitudes MinLonGlobal:MaxLonGlobal
-!                        (global = MinLonGlobal + local - 1), and computes
-!                        L* only for those. The drift path of one longitude
-!                        needs B at every other longitude, so the LOCAL
-!                        arrays bo, iba (and bm) are gathered to the full
-!                        longitude range 1:nt on every processor with
-!                        MPI_allgatherv (boAll, ibaAll, bmAll below). The
-!                        boGlobal/ibaGlobal/bmGlobal arrays of ModCimiTrace
-!                        are NOT used, since they exist on iProc 0 only.
-!                        gather_Lstar / gather_Lstarm collect the local L* to
-!                        LstarGlobal_C / LstarmGlobal on iProc 0.
-!                        Lstar_max and Lstarm_max are combined across
-!                        processors with MPI_allreduce (MIN) and are
-!                        identical on all processors.
-!
-! Assumptions for the MPI version
-!  * ModCimiTrace provides the LOCAL arrays, all indexed over the local
-!    longitude range MinLonPar:MaxLonPar:
-!       bo(np,MinLonPar:MaxLonPar)        ro(np,MinLonPar:MaxLonPar)
-!       iba(MinLonPar:MaxLonPar)          bm(np,MinLonPar:MaxLonPar,nk)
-!    (bo and ro are as stated; iba and bm are assumed to follow the same
-!    convention - rename in the use statements below if they differ).
-!  * The global longitude of local index j is MinLonGlobal + j - 1. The
-!    block start/size of every processor are collected with MPI_allgather
-!    (so no particular rank ordering is assumed); the sizes must add up
-!    to nt. Block sizes may differ between processors.
-!  * Lstar_C(np,MinLonPar:MaxLonPar) and Lstarm(np,MinLonPar:MaxLonPar,nk)
-!    are LOCAL and allocated by the caller; Lstar_max (scalar) and
-!    Lstarm_max(nk) are allocated by the caller and hold the same value on
-!    every processor.
-!  * nLonPar, MinLonPar, MaxLonPar, MinLonGlobal, MaxLonGlobal, iProc, nProc, iComm
-!    come from ModCimiGrid. Rename these use statements if they live
-!    elsewhere.
-!  * Real is the default real kind, matching MPI_REAL.
 !**************************************************************************
 Module ModLstar
 
@@ -96,8 +58,7 @@ Module ModLstar
   
   real, allocatable :: Lstar_C(:,:), Lstar_max, Lstarm(:,:,:), Lstarm_max(:)
 
-  ! Full-longitude L*, only allocated/filled on iProc 0 by gather_Lstar /
-  ! gather_Lstarm
+  ! Full-longitude L*, only filled on iProc 0 by gather_Lstar
   real, allocatable :: LstarGlobal_C(:,:), LstarmGlobal(:,:,:)
 
   ! Fields gathered to the full longitude range 1:nt on every processor
@@ -111,111 +72,92 @@ Module ModLstar
   public :: calc_Lstar1
   public :: calc_Lstar2
   public :: gather_Lstar
-  public :: gather_Lstarm
   
 contains
   
 !**************************************************************************
-  subroutine set_Lstar_decomposition
+  subroutine gather_Lstar_field
 !
-! Collects the size and global start of every processor's longitude block
+! Gathers the local bo, bm and iba to boAll(np,nt), bmAll(np,nt,nk) and
+! ibaAll(nt) on every processor. bo and bm are packed into one buffer so
+! that a single MPI_allgatherv moves both.
 !**************************************************************************
+  use ModCimiTrace, ONLY: bo, bm, iba
   implicit none
 
-  integer :: iLonStart, iError
+  integer :: iLonStart, m, iError
+  integer :: iCount(0:nProc-1), iDisp(0:nProc-1)
+  ! Slot 0 holds bo, slots 1:nk hold bm, so every processor's longitude
+  ! block is contiguous in memory
+  real    :: BufferSend(np,0:nk,nLonPar), BufferRecv(np,0:nk,nt)
 
-  iLonStart = MinLonGlobal - 1             ! 0-based global start of my block
-
-  if (.not.allocated(nLonProc)) allocate(nLonProc(0:nProc-1), iLonOffProc(0:nProc-1))
-
-  call MPI_allgather(nLonPar, 1, MPI_INTEGER, nLonProc, 1, MPI_INTEGER, &
-       iComm, iError)
-  call MPI_allgather(iLonStart, 1, MPI_INTEGER, iLonOffProc, 1, MPI_INTEGER, &
-       iComm, iError)
-
-  if (sum(nLonProc).ne.nt) then
-     if (iProc.eq.0) write(*,*) 'ModLstar: local longitude counts sum to', &
-          sum(nLonProc), ' but nt =', nt
-     call MPI_abort(iComm, 1, iError)
+  ! Size and 0-based global start of every processor's longitude block
+  if (.not.allocated(nLonProc)) then
+     allocate(nLonProc(0:nProc-1), iLonOffProc(0:nProc-1))
+     iLonStart = MinLonGlobal - 1
+     call MPI_allgather(nLonPar, 1, MPI_INTEGER, nLonProc, 1, MPI_INTEGER, &
+          iComm, iError)
+     call MPI_allgather(iLonStart, 1, MPI_INTEGER, iLonOffProc, 1, MPI_INTEGER, &
+          iComm, iError)
+     if (sum(nLonProc).ne.nt) then
+        if (iProc.eq.0) write(*,*) 'ModLstar: local longitude counts sum to', &
+             sum(nLonProc), ' but nt =', nt
+        call MPI_abort(iComm, 1, iError)
+     endif
   endif
 
-  end subroutine set_Lstar_decomposition
-
-!**************************************************************************
-  subroutine gather_Lstar_bo
-!
-! Gathers local bo and iba to boAll(np,nt) and ibaAll(nt) on every processor
-!**************************************************************************
-  use ModCimiTrace, ONLY: bo, iba
-  implicit none
-
-  integer :: iError
-  integer :: iCount(0:nProc-1), iDisp(0:nProc-1)
-
   if (.not.allocated(boAll))  allocate(boAll(np,nt))
+  if (.not.allocated(bmAll))  allocate(bmAll(np,nt,nk))
   if (.not.allocated(ibaAll)) allocate(ibaAll(nt))
 
-  iCount = np*nLonProc
-  iDisp  = np*iLonOffProc
-  call MPI_allgatherv(bo(1:np,MinLonPar:MaxLonPar), np*nLonPar, MPI_REAL, &
-       boAll, iCount, iDisp, MPI_REAL, iComm, iError)
+  BufferSend(:,0,:) = bo(1:np,MinLonPar:MaxLonPar)
+  do m = 1, nk
+     BufferSend(:,m,:) = bm(1:np,MinLonPar:MaxLonPar,m)
+  enddo
 
-  iCount = nLonProc
-  iDisp  = iLonOffProc
+  iCount = np*(nk+1)*nLonProc
+  iDisp  = np*(nk+1)*iLonOffProc
+  call MPI_allgatherv(BufferSend, np*(nk+1)*nLonPar, MPI_REAL, &
+       BufferRecv, iCount, iDisp, MPI_REAL, iComm, iError)
+
+  boAll = BufferRecv(:,0,:)
+  do m = 1, nk
+     bmAll(:,:,m) = BufferRecv(:,m,:)
+  enddo
+
   call MPI_allgatherv(iba(MinLonPar:MaxLonPar), nLonPar, MPI_INTEGER, &
-       ibaAll, iCount, iDisp, MPI_INTEGER, iComm, iError)
+       ibaAll, nLonProc, iLonOffProc, MPI_INTEGER, iComm, iError)
 
-  end subroutine gather_Lstar_bo
+  end subroutine gather_Lstar_field
 
 !**************************************************************************
-  subroutine gather_Lstar_bm
+  subroutine gather_Lstar
 !
-! Gathers local bm to bmAll(np,nt,nk) on every processor
-! (iba is gathered by gather_Lstar_bo)
+! Gathers the local Lstar_C and Lstarm to LstarGlobal_C and LstarmGlobal
+! on iProc 0 with a single MPI_gatherv (same packing as gather_Lstar_field)
 !**************************************************************************
-  use ModCimiTrace, ONLY: bm
   implicit none
 
   integer :: m, iError
   integer :: iCount(0:nProc-1), iDisp(0:nProc-1)
+  real    :: BufferSend(np,0:nk,nLonPar), BufferRecv(np,0:nk,nt)
 
-  if (.not.allocated(bmAll)) allocate(bmAll(np,nt,nk))
-
-  iCount = np*nLonProc
-  iDisp  = np*iLonOffProc
+  BufferSend(:,0,:) = Lstar_C(1:np,MinLonPar:MaxLonPar)
   do m = 1, nk
-     call MPI_allgatherv(bm(1:np,MinLonPar:MaxLonPar,m), np*nLonPar, MPI_REAL, &
-          bmAll(1:np,1:nt,m), iCount, iDisp, MPI_REAL, iComm, iError)
+     BufferSend(:,m,:) = Lstarm(1:np,MinLonPar:MaxLonPar,m)
   enddo
 
-  end subroutine gather_Lstar_bm
+  iCount = np*(nk+1)*nLonProc
+  iDisp  = np*(nk+1)*iLonOffProc
+  call MPI_gatherv(BufferSend, np*(nk+1)*nLonPar, MPI_REAL, &
+       BufferRecv, iCount, iDisp, MPI_REAL, 0, iComm, iError)
 
-!**************************************************************************
-
-  subroutine gather_Lstar
-
-  implicit none
-
-  real    :: BufferSend_C(np,nt), BufferRecv_C(np,nt)
-  integer :: iSendCount, iError, m
-  integer :: iReceiveCount_P(0:nProc-1), iDisplacement_P(0:nProc-1)
-
-  iSendCount      = np*nLonPar
-  iReceiveCount_P = np*nLonProc
-  iDisplacement_P = np*iLonOffProc
-
-  BufferSend_C(1:np,MinLonGlobal:MaxLonGlobal) = Lstar_C(1:np,MinLonPar:MaxLonPar)
-  call MPI_GATHERV(BufferSend_C(1:np,MinLonGlobal:MaxLonGlobal), iSendCount, &
-       MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
-       MPI_REAL, 0, iComm, iError)
-  if (iProc.eq.0) LstarGlobal_C(:,:) = BufferRecv_C(:,:)
-  do m = 1, nk
-     BufferSend_C(1:np,MinLonGlobal:MaxLonGlobal) = Lstarm(1:np,MinLonPar:MaxLonPar,m)
-     call MPI_GATHERV(BufferSend_C(1:np,MinLonGlobal:MaxLonGlobal), iSendCount, &
-          MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
-          MPI_REAL, 0, iComm, iError)
-     if (iProc.eq.0) LstarmGlobal(:,:,m) = BufferRecv_C(:,:)
-  enddo
+  if (iProc.eq.0) then
+     LstarGlobal_C = BufferRecv(:,0,:)
+     do m = 1, nk
+        LstarmGlobal(:,:,m) = BufferRecv(:,m,:)
+     enddo
+  endif
 
   end subroutine gather_Lstar
 
@@ -242,8 +184,7 @@ contains
   if(.not. allocated(Lstar_C)) allocate(Lstar_C(np,MinLonPar:MaxLonPar), Lstar_max, &
           Lstarm(np,MinLonPar:MaxLonPar,nk), Lstarm_max(nk), LstarGlobal_C(np,nt), LstarmGlobal(np,nt,nk))
 
-  call set_Lstar_decomposition
-  call gather_Lstar_bo
+  call gather_Lstar_field
 
   jdawn=nint(float(ip)*0.75)+1     ! MLT index at dawn (global)
   jdusk=nint(float(ip)*0.25)+1     ! MLT index at dusk (global)
@@ -369,9 +310,7 @@ contains
   integer i,j,m,j0,jg,jl,ib0,ii,ii1,jdawn,jdusk,jnoon,j1,j2,B_island(ir,ip),iError
  
   ! Gather the drift-path data (all longitudes) onto every processor
-  call set_Lstar_decomposition
-  call gather_Lstar_bo      ! iba -> ibaAll
-  call gather_Lstar_bm      ! bm  -> bmAll
+  call gather_Lstar_field
 
   jdawn=nint(float(ip)*0.75)+1     ! MLT index at dawn (global)
   jdusk=nint(float(ip)*0.25)+1     ! MLT index at dusk (global)
