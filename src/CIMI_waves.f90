@@ -230,7 +230,7 @@ contains
     implicit none
     integer, intent(in)::ir,MinLonPar, MaxLonPar, MinLon, MaxLon
     integer,intent(in) :: iba(MinLon:MaxLon)
-    real,   intent(in) :: t, AE, Kp,ro(ir,MinLon:MaxLon), density(ir,MinLon:MaxLon), Bo(ir,MinLon:MaxLon), &
+    real,   intent(in) :: t, AE, Kp,ro(ir,MinLon:MaxLon), density(ir,MinLonPar:MaxLonPar), Bo(ir,MinLon:MaxLon), &
          xmlto(ir,MinLon:MaxLon)
     real :: ro1,xmlt1,r_hiss, AE_chorus, AE_hiss
     integer :: iae,jae,i,j

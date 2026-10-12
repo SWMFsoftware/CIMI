@@ -217,7 +217,7 @@ Module ModCoupleSami
 
     !==========================================================================
     subroutine interpolate_sami_to_cimi(TimeSimulation)
-      use ModCimiGrid, ONLY: nLat=>np, nLon=>nt,Lat_C=>xlatr,Lon_C=>phi      
+      use ModCimiGrid, ONLY: nLat=>np, nLon=>nt,Lat_C=>xlatr,Lon_C=>phiGlobal      
       use ModInterpolate, ONLY: bilinear
       use ModNumConst,    ONLY: cDegToRad,cPi,cTwoPi
       

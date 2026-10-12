@@ -84,7 +84,7 @@ contains
   subroutine diffuse_aa(f2,dt,xjac,iba,iw2)
     use ModPlasmasphere, ONLY:PlasDensity_C,PlasmaPauseDensity
     use ModMPI
-    use ModCimiGrid,   ONLY: MinLonPar,MaxLonPar
+    use ModCimiGrid,   ONLY: MinLonPar,MaxLonPar,MinLonGlobal
     use ModCimiUtil, ONLY: lintp3IM,tridagIM
     use ModCimi, ONLY: MinLon, MaxLon
     
@@ -92,7 +92,7 @@ contains
     
     integer,parameter :: ie=40 ! diffusion subroutine has its own energy grid
     integer i,j,m,k,irun,n,nn,ier
-    integer iba(MinLon:MaxLon),iw2(ik,nspec)
+    integer iba(MinLon:MaxLon),iw2(ik,nspec), iLonGlobal
     real f2(ir,MinLon:MaxLon,iw,ik,nspec),xjac(ir,iw,nspec),dt  ! xjac has different dimension from CIMI !
     
     
@@ -130,6 +130,7 @@ contains
     
     !   do j=1,ip
     do j=MinLonPar,MaxLonPar
+       iLonGlobal = MinLonGlobal + j - 1
        do i=1,iba(j)
           ro1=ro(i,j)
           ompe1=ompe(i,j)                           ! fpe/fce
@@ -203,7 +204,7 @@ contains
                       if (ao_d.lt.cPA(1)) ao_d=cPA(1)
                       if (ao_d.gt.cPA(ipa)) ao_d=cPA(ipa)
                       cDaoao=0.
-                      if (UseChorus.and.PlasDensity_C(i,j).le.PlasmaPauseDensity) then
+                      if (UseChorus.and.PlasDensity_C(i,iLonGlobal).le.PlasmaPauseDensity) then
                          if (ein(k).ge.ckeV(1).and.ein(k).le.ckeV(iwc)) &
                               call lintp3IM(cOmpe,ckeV_log,cPA,cDaa,ipc,iwc, &
                               ipa,ompe1,ein_log(k),ao_d,cDaoao)
@@ -217,7 +218,7 @@ contains
                       hDaoao=0.
                       if(UseHiss.and.&
                            ompe1.ge.2..and.&
-                           PlasDensity_C(i,j).gt.PlasmaPauseDensity)then
+                           PlasDensity_C(i,iLonGlobal).gt.PlasmaPauseDensity)then
                          if (ein(k).ge.hkeV(1).and.ein(k).le.hkeV(iwh))&
                               call lintp3IM(hOmpe,hkeV_log,cPA,hDaa,iph,iwh, &
                               ipa,ompe1,ein_log(k),ao_d,hDaoao)
@@ -331,7 +332,7 @@ contains
     
     use ModPlasmasphere, ONLY:PlasDensity_C,PlasmaPauseDensity
     use ModMPI
-    use ModCimiGrid,   ONLY: MinLonPar,MaxLonPar
+    use ModCimiGrid,   ONLY: MinLonPar,MaxLonPar,MinLonGlobal
     use ModCimiUtil,   ONLY: lintp3IM,tridagIM
     
     !  use constants
@@ -339,7 +340,7 @@ contains
     implicit none
     integer i,j,k,m,k1,k2,iww,irun,nrun,ier,n
     real xjac(ir,iw,nspec),xmm(0:iw+1,nspec)  ! xjac and xmm have different dimension from CIMI !
-    integer iba(MinLon:MaxLon),iw2(ik,nspec)
+    integer iba(MinLon:MaxLon),iw2(ik,nspec), iLonGlobal
     real dt,Eo,f2(ir,MinLon:MaxLon,iw,ik,nspec),fl(iw), &
          xlam,alam,um(iw),up(iw),ompe1,ro1,PA1, &
          fr(iw),a1d(iw),b1d(iw),c1d(iw),&
@@ -370,6 +371,7 @@ contains
     n=nspec  ! use last index to access electrons; different from CIMI
     
     do j=MinLonPar,MaxLonPar
+       iLonGlobal = MinLonGlobal + j - 1
        do i=1,iba(j)
           ro1=ro(i,j)
           Cfactor=(BLc0/bo(i,j))*CHpower(i,j)/Cpower0
@@ -421,7 +423,7 @@ contains
                    Ep_log=log10(Ep)
                    if (k.ge.k1) dEn(k)=E1(k)-E1(k-1)
                    DEEc=0.
-                   if (UseChorus.and.PlasDensity_C(i,j).le.PlasmaPauseDensity) then
+                   if (UseChorus.and.PlasDensity_C(i,iLonGlobal).le.PlasmaPauseDensity) then
                       if (Ep.ge.ckeV(1).and.Ep.le.ckeV(iwc)) call lintp3IM(cOmpe, &
                            ckeV_log,cPA,cDEE,ipc,iwc,ipa,ompe1,Ep_log,PA1,DEEc)
                    endif
@@ -431,7 +433,7 @@ contains
                    !        ukeV_log,cPA,uDEE,ipu,iwu,ipa,ompe1,Ep_log,PA1,DEEu)
                    !endif
                    DEEh=0.
-                   if(UseHiss.and.ompe1.ge.2..and.PlasDensity_C(i,j).gt.PlasmaPauseDensity)then
+                   if(UseHiss.and.ompe1.ge.2..and.PlasDensity_C(i,iLonGlobal).gt.PlasmaPauseDensity)then
                       if (Ep.ge.hkeV(1).and.Ep.le.hkeV(iwh)) call lintp3IM(hOmpe, &
                            hkeV_log,cPA,hDEE,iph,iwh,ipa,ompe1,Ep_log,PA1,DEEh)
                    endif
@@ -544,13 +546,13 @@ contains
 
     use ModPlasmasphere, ONLY:PlasDensity_C,PlasmaPauseDensity
     use ModMPI
-    use ModCimiGrid,   ONLY: MinLonPar,MaxLonPar
+    use ModCimiGrid,   ONLY: MinLonPar,MaxLonPar,MinLonGlobal
     use ModCimiUtil,   ONLY: lintp3IM,tridagIM
     
     implicit none
     integer,parameter :: ie=80
     integer i,j,m,k,k1,k2,nrun,n,ier,iww,nn
-    integer iba(MinLonPar:MaxLonPar),iw2(ik,nspec),nrun2
+    integer iba(MinLonPar:MaxLonPar),iw2(ik,nspec),nrun2,iLonGlobal
     real f2(ir,MinLonPar:MaxLonPar,iw,ik,nspec),xjac(ir,iw,nspec),einlog, &
          ein_log(ie),&
          fl(0:ie+1),f1d(iw),ein(ie),ao(0:ik+1),dao(ik),ao1, &
@@ -591,6 +593,7 @@ contains
     n=nspec  ! use last index to access electrons; different from CIMI
     !   do j=1,ip
     do j=MinLonPar,MaxLonPar
+       iLonGlobal = MinLonGlobal + j - 1
        do i=1,iba(j)
           ompe1=ompe(i,j)                         ! fpe/fce
           ro1=ro(i,j)
@@ -679,7 +682,7 @@ contains
                 if (ao1.gt.cPA(ipa)) ao1=cPA(ipa)
                 do k=k1-1,k2+1
                    DaEc=0.
-                   if (UseChorus.and.PlasDensity_C(i,j).le.PlasmaPauseDensity) then
+                   if (UseChorus.and.PlasDensity_C(i,iLonGlobal).le.PlasmaPauseDensity) then
                       if (ein(k).ge.ckeV(1).and.ein(k).le.ckeV(iwc)) &
                            call lintp3IM(cOmpe,ckeV_log,cPA,cDaE,ipc,iwc,ipa,&
                            ompe1,ein_log(k),ao1,DaEc)
@@ -691,7 +694,7 @@ contains
                    !        ompe1,ein_log(k),ao1,DaEu)
                    !endif
                    DaEh=0.
-                   if(UseHiss.and.ompe1.ge.2..and.PlasDensity_C(i,j).gt.PlasmaPauseDensity)then
+                   if(UseHiss.and.ompe1.ge.2..and.PlasDensity_C(i,iLonGlobal).gt.PlasmaPauseDensity)then
                       if (ein(k).ge.hkeV(1).and.ein(k).le.hkeV(iwh)) &
                            call lintp3IM(hOmpe,hkeV_log,cPA,hDaE,iph,iwh,ipa, &
                            ompe1,ein_log(k),ao1,DaEh)

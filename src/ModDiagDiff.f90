@@ -102,14 +102,14 @@ contains
 !  Routine calculates the plasmapause locations
 ! ************************************************************************
   subroutine find_loc_plasmapause
-  use ModCimiGrid, only: np,nt
+  use ModCimiGrid, only: np,nt, MinLonPar,MaxLonPar
   use ModCimiTrace, only: ro,iba
   use ModPlasmasphere, ONLY:PlasDensity_C,PlasmaPauseDensity
   implicit none
 
   integer i,j
 
-  do j=1,nt
+  do j=MinLonPar,MaxLonPar
      find_Lpp: do i=iba(j),1,-1
         if (PlasDensity_C(i,j).ge.PlasmaPauseDensity) then
            rpp(j)=ro(i,j)

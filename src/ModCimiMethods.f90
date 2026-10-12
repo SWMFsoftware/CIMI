@@ -57,7 +57,7 @@ subroutine cimi_run(delta_t)
   use ModCimiGrid, ONLY:	&
        iProc, nProc, iComm, nLonPar, nLonPar_P, nLonBefore_P, &
        MinLonPar, MaxLonPar, nt, np, neng, npit, nm, nk, dlat, &
-       phi, phiGlobal, sinao, xlat, xlatr, xmlt
+       phi, phiGlobal, sinao, xlat, xlatr, xmlt, MinLonGlobal, MaxLonGlobal
   use ModCimiBoundary, ONLY:	&
        cimi_set_boundary_mhd, cimi_set_boundary_empirical,&
        CIMIboundary, Outputboundary
@@ -262,7 +262,7 @@ subroutine cimi_run(delta_t)
      !  read wave diffcoef 
      if (IsFirstCall) call ReadDiffCoef(np,nt)
      
-     call WavePower(np,Time,PlasDensity_C,AE_temp,Kp_Temp, &
+     call WavePower(np,Time,PlasDensity_C(:,MinLonGlobal:MaxLonGlobal),AE_temp,Kp_Temp, &
           Bo,brad,xmlto,iba,MinLon,MaxLon,MinLonPar,MaxLonPar)
 
      if (IsFirstCall .and. UseDiagDiffusion) then
@@ -526,7 +526,7 @@ subroutine cimi_run(delta_t)
            call timing_stop('simple_plasmasphere')
         end if
         
-        call WavePower(np,Time,PlasDensity_C,AE_temp,Kp_Temp, &
+        call WavePower(np,Time,PlasDensity_C(:,MinLonGlobal:MaxLonGlobal),AE_temp,Kp_Temp, &
           Bo,Brad,xmlto,iba,MinLon,MaxLon,MinLonPar,MaxLonPar)
      endif
 

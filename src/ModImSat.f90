@@ -26,9 +26,9 @@ contains
     use ModNumConst,    ONLY: cDegToRad,cRadToDeg
     use ModCimi,        ONLY: t=>time, Energy
     use ModCimiPlanet,  ONLY: nSpecies=>nspec,NameSpeciesExtension_I
-    use ModCimiGrid,    ONLY: LonGrid_I=>phi, LatGrid_I=>xlat, &
+    use ModCimiGrid,    ONLY: LonGrid_I=>phiGlobal, LatGrid_I=>xlat, &
                               AngleGrid_I=>sinAo
-    use ModCimiTrace,  ONLY: BfieldEq_C => bo, iba
+    use ModCimiTrace,  ONLY: BfieldEq_C => boGlobal, iba
     use ModImTime,      ONLY: iCurrentTime_I
     use ModCimiUtil,    ONLY: locate1IM
 

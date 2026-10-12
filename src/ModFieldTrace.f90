@@ -521,7 +521,7 @@ Module ModCimiTrace
                      call calc_fang_loss( &
                         ionization(i,j,k,m,n), ekev(i,j,k,m,n), rmir(i,j,m), n)
                      if(.not.UsePrecipEnergyLoss) &
-                        alscone = 1 - ionization(i,j,k,m,n) * &
+                        alscone(i,j,k,m,n) = 1 - ionization(i,j,k,m,n) * &
                            (1. - alscone(i,j,k,m,n))
                    else
                      if (rmir(i,j,m).le.rc) then
