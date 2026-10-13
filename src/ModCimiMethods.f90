@@ -1104,6 +1104,8 @@ subroutine cimi_init
   if(IsRestart) then
      ! set initial state when restarting
      call cimi_read_restart
+     ! fill the global arrays used by the first IM->GM/IE coupling
+     call cimi_gather_coupling
   endif
 
 end subroutine cimi_init
@@ -2986,100 +2988,57 @@ subroutine cimi_gather( delta_t)
   iReceiveCount_P = np * nLonPar_P
   iDisplacement_P = np * nLonBefore_P
 
-  BufferSend_C(:,MinLonGlobal:MaxLonGlobal) = FAC_C(:,MinLonPar:MaxLonPar)
-  call MPI_GATHERV(BufferSend_C(:,MinLonGlobal:MaxLonGlobal), iSendCount, &
-       MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
-       MPI_REAL, 0, iComm, iError)
+  call gather_c(FAC_C(:,MinLonPar:MaxLonPar))
   if (iProc==0) FACGlobal_C(:,:)=BufferRecv_C(:,:)
 
-  BufferSend_C(:,MinLonGlobal:MaxLonGlobal) = pot(:,MinLonPar:MaxLonPar)
-  call MPI_GATHERV(BufferSend_C(:,MinLonGlobal:MaxLonGlobal), iSendCount, &
-       MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
-       MPI_REAL, 0, iComm, iError)
+  call gather_c(pot(:,MinLonPar:MaxLonPar))
   if (iProc==0) potGlobal(:,:)=BufferRecv_C(:,:)
 
   do iSpecies=1,nspec
-     BufferSend_C(:,MinLonGlobal:MaxLonGlobal)=Pressure_IC(:,MinLonPar:MaxLonPar,iSpecies)
-     call MPI_GATHERV(BufferSend_C(:,MinLonGlobal:MaxLonGlobal), iSendCount, &
-          MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
-          MPI_REAL, 0, iComm, iError)
+     call gather_c(Pressure_IC(:,MinLonPar:MaxLonPar,iSpecies))
      if (iProc==0) PressureGlobal_IC(:,:,iSpecies)=BufferRecv_C(:,:)
 
      BufferSend_C(:,MinLonGlobal:MaxLonGlobal)=PressurePar_IC(:,MinLonPar:MaxLonPar,iSpecies)
-     call MPI_GATHERV(BufferSend_C(:,MinLonGlobal:MaxLonGlobal), iSendCount, &
-          MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
-          MPI_REAL, 0, iComm, iError)
+     call gather_c(PressurePar_IC(:,MinLonPar:MaxLonPar,iSpecies))
      if (iProc==0) PressureParGlobal_IC(:,:,iSpecies)=BufferRecv_C(:,:)
 
-     BufferSend_C(:,MinLonGlobal:MaxLonGlobal)=phot(:,MinLonPar:MaxLonPar,iSpecies)
-     call MPI_GATHERV(BufferSend_C(:,MinLonGlobal:MaxLonGlobal), iSendCount, &
-          MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
-          MPI_REAL, 0, iComm, iError)
+     call gather_c(phot(:,MinLonPar:MaxLonPar,iSpecies))
      if (iProc==0) photGlobal(:,:,iSpecies)=BufferRecv_C(:,:)
 
-     BufferSend_C(:,MinLonGlobal:MaxLonGlobal)=Ppar_IC(:,MinLonPar:MaxLonPar,iSpecies)
-     call MPI_GATHERV(BufferSend_C(:,MinLonGlobal:MaxLonGlobal), iSendCount, &
-          MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
-          MPI_REAL, 0, iComm, iError)
+     call gather_c(Ppar_IC(:,MinLonPar:MaxLonPar,iSpecies))
      if (iProc==0) PparGlobal_IC(:,:,iSpecies)=BufferRecv_C(:,:)
 
-     BufferSend_C(:,MinLonGlobal:MaxLonGlobal)=Den_IC(:,MinLonPar:MaxLonPar,iSpecies)
-     call MPI_GATHERV(BufferSend_C(:,MinLonGlobal:MaxLonGlobal), iSendCount, &
-          MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
-          MPI_REAL, 0, iComm, iError)
+     call gather_c(Den_IC(:,MinLonPar:MaxLonPar,iSpecies))
      if (iProc==0) DenGlobal_IC(:,:,iSpecies)=BufferRecv_C(:,:)
 
-     BufferSend_C(:,MinLonGlobal:MaxLonGlobal)=Temp_IC(:,MinLonPar:MaxLonPar,iSpecies)
-     call MPI_GATHERV(BufferSend_C(:,MinLonGlobal:MaxLonGlobal), iSendCount, &
-          MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
-          MPI_REAL, 0, iComm, iError)
+     call gather_c(Temp_IC(:,MinLonPar:MaxLonPar,iSpecies))
      if (iProc==0) TempGlobal_IC(:,:,iSpecies)=BufferRecv_C(:,:)
 
   enddo
 
-  BufferSend_C(:,MinLonGlobal:MaxLonGlobal) = Bmin_C(:,MinLonPar:MaxLonPar)
-  call MPI_GATHERV(BufferSend_C(:,MinLonGlobal:MaxLonGlobal), iSendCount, &
-       MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
-       MPI_REAL, 0, iComm, iError)
+  call gather_c(Bmin_C(:,MinLonPar:MaxLonPar))
   if (iProc==0) BminGlobal_C(:,:)=BufferRecv_C(:,:)
 
   call gather_field_trace
   
   do  iSpecies = 1, nspec
-
      do iM = 1, nm
-
         do iK = 1, nk
-
-           BufferSend_C(:,MinLonGlobal:MaxLonGlobal)=psd(:,MinLonPar:MaxLonPar,iM,iK,iSpecies)
-           call MPI_GATHERV(BufferSend_C(:,MinLonGlobal:MaxLonGlobal),iSendCount, &
-                MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
-                MPI_REAL, 0, iComm, iError)
+           call gather_c(psd(:,MinLonPar:MaxLonPar,iM,iK,iSpecies))
            if (iProc==0) psdGlobal(:,:,iM,iK,iSpecies)=BufferRecv_C(:,:)
-
         end do
-
      end do
 
      do iEnergy = 1, neng
         do iPit = 1, nPit
 
-           BufferSend_C(:,MinLonGlobal:MaxLonGlobal)=flux(:,MinLonPar:MaxLonPar,iEnergy,iPit,iSpecies)
-           call MPI_GATHERV(BufferSend_C(:,MinLonGlobal:MaxLonGlobal),iSendCount, &
-                MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
-                MPI_REAL, 0, iComm, iError)
+           call gather_c(flux(:,MinLonPar:MaxLonPar,iEnergy,iPit,iSpecies))
            if (iProc==0) fluxGlobal(:,:,iEnergy,iPit,iSpecies)=BufferRecv_C(:,:)
 
-           BufferSend_C(:,MinLonGlobal:MaxLonGlobal)=vlEa(:,MinLonPar:MaxLonPar,iEnergy,iPit,iSpecies)
-           call MPI_GATHERV(BufferSend_C(:,MinLonGlobal:MaxLonGlobal),iSendCount, &
-                MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
-                MPI_REAL, 0, iComm, iError)
+           call gather_c(vlEa(:,MinLonPar:MaxLonPar,iEnergy,iPit,iSpecies))
            if (iProc==0) vlEaGlobal(:,:,iEnergy,iPit,iSpecies)=BufferRecv_C(:,:)
 
-           BufferSend_C(:,MinLonGlobal:MaxLonGlobal)=vpEa(:,MinLonPar:MaxLonPar,iEnergy,iPit,iSpecies)
-           call MPI_GATHERV(BufferSend_C(:,MinLonGlobal:MaxLonGlobal),iSendCount, &
-                MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
-                MPI_REAL, 0, iComm, iError)
+           call gather_c(vpEa(:,MinLonPar:MaxLonPar,iEnergy,iPit,iSpecies))
            if (iProc==0) vpEaGlobal(:,:,iEnergy,iPit,iSpecies)=BufferRecv_C(:,:)
 
         enddo
@@ -3090,24 +3049,15 @@ subroutine cimi_gather( delta_t)
 
      do iEnergy = 1, neng + 2
 
-        BufferSend_C(:,MinLonGlobal:MaxLonGlobal)=preP(:,MinLonPar:MaxLonPar,iEnergy,iSpecies)
-        call MPI_GATHERV(BufferSend_C(:,MinLonGlobal:MaxLonGlobal),iSendCount, &
-             MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
-             MPI_REAL, 0, iComm, iError)
+        call gather_c(preP(:,MinLonPar:MaxLonPar,iEnergy,iSpecies))
         if (iProc==0) prePGlobal(:,:,iEnergy,iSpecies)=BufferRecv_C(:,:)
 
-        BufferSend_C(:,MinLonGlobal:MaxLonGlobal)=preF(:,MinLonPar:MaxLonPar,iEnergy,iSpecies)
-        call MPI_GATHERV(BufferSend_C(:,MinLonGlobal:MaxLonGlobal),iSendCount, &
-             MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
-             MPI_REAL, 0, iComm, iError)
+        call gather_c(preF(:,MinLonPar:MaxLonPar,iEnergy,iSpecies))
         if (iProc==0) preFGlobal(:,:,iEnergy,iSpecies)=BufferRecv_C(:,:)
 
      enddo ! Do loop over iEnergy
 
-     BufferSend_C(:,MinLonGlobal:MaxLonGlobal)=Eje1(:,MinLonPar:MaxLonPar,iSpecies)
-     call MPI_GATHERV(BufferSend_C(:,MinLonGlobal:MaxLonGlobal),iSendCount, &
-          MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
-          MPI_REAL, 0, iComm, iError)
+     call gather_c(Eje1(:,MinLonPar:MaxLonPar,iSpecies))
      if (iProc==0) Eje1Global(:,:,iSpecies)=BufferRecv_C(:,:)
 
   enddo ! Do loop over Species
@@ -3119,37 +3069,22 @@ subroutine cimi_gather( delta_t)
 
         do iEnergy=1,neng
 
-           BufferSend_C(:,MinLonGlobal:MaxLonGlobal) = Part_phot(:,MinLonPar:MaxLonPar,iEnergy,iSpecies)
-           call MPI_GATHERV(BufferSend_C(:,MinLonGlobal:MaxLonGlobal),iSendCount, &
-                MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
-                MPI_REAL, 0, iComm, iError)
+           call gather_c(Part_phot(:,MinLonPar:MaxLonPar,iEnergy,iSpecies))
            if (iProc==0) &
                 Part_photGlobal(:,:,iEnergy,iSpecies)=BufferRecv_C(:,:)
 
         enddo ! Do loop over iEnergy
 
-        BufferSend_C(:,MinLonGlobal:MaxLonGlobal)=eng_q3(:,MinLonPar:MaxLonPar,iSpecies)
-        call MPI_GATHERV(BufferSend_C(:,MinLonGlobal:MaxLonGlobal),iSendCount, &
-             MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
-             MPI_REAL, 0, iComm, iError)
+        call gather_c(eng_q3(:,MinLonPar:MaxLonPar,iSpecies))
         if (iProc==0) eng_q3Global(:,:,iSpecies)=BufferRecv_C(:,:)
 
-        BufferSend_C(:,MinLonGlobal:MaxLonGlobal)=vexb(:,MinLonPar:MaxLonPar,iSpecies)
-        call MPI_GATHERV(BufferSend_C(:,MinLonGlobal:MaxLonGlobal),iSendCount, &
-             MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
-             MPI_REAL, 0, iComm, iError)
+        call gather_c(vexb(:,MinLonPar:MaxLonPar,iSpecies))
         if (iProc==0) vexbGlobal(:,:,iSpecies)=BufferRecv_C(:,:)
 
-        BufferSend_C(:,MinLonGlobal:MaxLonGlobal)=vdr_q3(:,MinLonPar:MaxLonPar,iSpecies)
-        call MPI_GATHERV(BufferSend_C(:,MinLonGlobal:MaxLonGlobal),iSendCount, &
-             MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
-             MPI_REAL, 0, iComm, iError)
+        call gather_c(vdr_q3(:,MinLonPar:MaxLonPar,iSpecies))
         if (iProc==0) vdr_q3Global(:,:,iSpecies)=BufferRecv_C(:,:)
 
-        BufferSend_C(:,MinLonGlobal:MaxLonGlobal)=dif_q3(:,MinLonPar:MaxLonPar,iSpecies)
-        call MPI_GATHERV(BufferSend_C(:,MinLonGlobal:MaxLonGlobal),iSendCount, &
-             MPI_REAL, BufferRecv_C,iReceiveCount_P, iDisplacement_P, &
-             MPI_REAL, 0, iComm, iError)
+        call gather_c(dif_q3(:,MinLonPar:MaxLonPar,iSpecies))
         if (iProc==0) dif_q3Global  (:,:,iSpecies)=BufferRecv_C(:,:)
 
      enddo
@@ -3158,7 +3093,103 @@ subroutine cimi_gather( delta_t)
 
   deallocate( iReceiveCount_P, iDisplacement_P )
 
+contains
+  subroutine gather_c(Local_C)
+    real, intent(in) :: Local_C(np,nLonPar)
+    call MPI_GATHERV(Local_C, np*nLonPar, &
+         MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
+         MPI_REAL, 0, iComm, iError)
+  end subroutine gather_c
+
 end subroutine cimi_gather
+!==============================================================================
+subroutine cimi_gather_coupling
+
+  ! Gather to proc 0 only the global arrays used by IM_get_for_gm and
+  ! IM_get_for_ie. Needed after reading a restart, since the first
+  ! coupling happens before cimi_run calls cimi_gather.
+
+  use ModCimi,		ONLY: &
+       FAC_C, Pressure_IC, PressurePar_IC, Bmin_C, preP, preF, Eje1, &
+       FACGlobal_C, PressureGlobal_IC, PressureParGlobal_IC, DenGlobal_IC, &
+       BminGlobal_C, prePGlobal, preFGlobal, Eje1Global
+  use ModCimiGrid,	ONLY: &
+       iProc, nProc, iComm, nLonPar, nLonPar_P, nLonBefore_P, &
+       MinLonPar, MaxLonPar, nt, np, neng
+  use ModCimiPlanet,	ONLY: nspec
+  use ModCimiTrace,	ONLY: iba, ibaGlobal
+  use ModGmCimi,	ONLY: Den_IC
+  use ModMPI
+
+  implicit none
+
+  integer :: iSpecies, iEnergy, iError
+  real :: BufferRecv_C(np,nt)
+  integer :: BufferRecv_I(nt)
+  integer, allocatable :: iReceiveCount_P(:), iDisplacement_P(:)
+  !----------------------------------------------------------------------------
+  if (nProc == 1) then
+    FACGlobal_C(:,:) = FAC_C(:,MinLonPar:MaxLonPar)
+    PressureGlobal_IC(:,:,:) = Pressure_IC(:,MinLonPar:MaxLonPar,:)
+    PressureParGlobal_IC(:,:,:) = PressurePar_IC(:,MinLonPar:MaxLonPar,:)
+    DenGlobal_IC(:,:,:) = Den_IC(:,MinLonPar:MaxLonPar,:)
+    BminGlobal_C(:,:) = Bmin_C(:,MinLonPar:MaxLonPar)
+    prePGlobal(:,:,:,:) = preP(:,MinLonPar:MaxLonPar,:,:)
+    preFGlobal(:,:,:,:) = preF(:,MinLonPar:MaxLonPar,:,:)
+    Eje1Global(:,:,:) = Eje1(:,MinLonPar:MaxLonPar,:)
+    ibaGlobal(:) = iba(MinLonPar:MaxLonPar)
+    return
+  end if
+
+  allocate( iReceiveCount_P( nProc ), iDisplacement_P( nProc ) )
+  iReceiveCount_P = np * nLonPar_P
+  iDisplacement_P = np * nLonBefore_P
+
+  call gather_c(FAC_C(:,MinLonPar:MaxLonPar))
+  if (iProc==0) FACGlobal_C = BufferRecv_C
+
+  call gather_c(Bmin_C(:,MinLonPar:MaxLonPar))
+  if (iProc==0) BminGlobal_C = BufferRecv_C
+
+  do iSpecies = 1, nspec
+     call gather_c(Pressure_IC(:,MinLonPar:MaxLonPar,iSpecies))
+     if (iProc==0) PressureGlobal_IC(:,:,iSpecies) = BufferRecv_C
+
+     call gather_c(PressurePar_IC(:,MinLonPar:MaxLonPar,iSpecies))
+     if (iProc==0) PressureParGlobal_IC(:,:,iSpecies) = BufferRecv_C
+
+     call gather_c(Den_IC(:,MinLonPar:MaxLonPar,iSpecies))
+     if (iProc==0) DenGlobal_IC(:,:,iSpecies) = BufferRecv_C
+
+     call gather_c(Eje1(:,MinLonPar:MaxLonPar,iSpecies))
+     if (iProc==0) Eje1Global(:,:,iSpecies) = BufferRecv_C
+
+     do iEnergy = 1, neng + 2
+        call gather_c(preP(:,MinLonPar:MaxLonPar,iEnergy,iSpecies))
+        if (iProc==0) prePGlobal(:,:,iEnergy,iSpecies) = BufferRecv_C
+
+        call gather_c(preF(:,MinLonPar:MaxLonPar,iEnergy,iSpecies))
+        if (iProc==0) preFGlobal(:,:,iEnergy,iSpecies) = BufferRecv_C
+     end do
+  end do
+
+  call MPI_GATHERV(iba(MinLonPar:MaxLonPar), nLonPar, &
+       MPI_INTEGER, BufferRecv_I, nLonPar_P, nLonBefore_P, &
+       MPI_INTEGER, 0, iComm, iError)
+  if (iProc==0) ibaGlobal = BufferRecv_I
+
+  deallocate( iReceiveCount_P, iDisplacement_P )
+
+contains
+
+  subroutine gather_c(Local_C)
+    real, intent(in) :: Local_C(np,nLonPar)
+    call MPI_GATHERV(Local_C, np*nLonPar, &
+         MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
+         MPI_REAL, 0, iComm, iError)
+  end subroutine gather_c
+
+end subroutine cimi_gather_coupling
 !==============================================================================
 subroutine core_ps_gather
 
