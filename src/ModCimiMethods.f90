@@ -6,6 +6,9 @@ module ModCimiMethods
 
     public:: cimi_init
     public:: cimi_run
+    public:: initial_f2
+    public:: initial_extra
+    public:: lossconeIM
 
 contains
 subroutine cimi_run(delta_t)
@@ -14,7 +17,7 @@ subroutine cimi_run(delta_t)
 
   use ModConst,	ONLY: cLightSpeed, cElectronCharge
   use ModCimiInitialize, ONLY:	&
-       xmm, xk, dphi, dmm, dk, dmu, xjac,&
+       xmm, xk, dmm, dk, dmu, xjac,&
        DoLstarInitialization
   use ModCimi, ONLY:	&
        minLon, maxLon, nTotalCell, &
@@ -56,14 +59,15 @@ subroutine cimi_run(delta_t)
        nImSats, write_im_sat, DoWriteSats, DtSatOut
   use ModCimiGrid, ONLY:	&
        iProc, nProc, iComm, nLonPar, nLonPar_P, nLonBefore_P, &
-       MinLonPar, MaxLonPar, nt, np, neng, npit, nm, nk, dlat, &
+       MinLon, MaxLon, &
+       MinLonPar, MaxLonPar, nt, np, neng, npit, nm, nk, dlat, dphi, &
        phi, phiGlobal, sinao, xlat, xlatr, xmlt, MinLonGlobal, MaxLonGlobal
   use ModCimiBoundary, ONLY:	&
        cimi_set_boundary_mhd, cimi_set_boundary_empirical,&
        CIMIboundary, Outputboundary, cimi_set_boundary_f2
   use ModMpi
-  use CIMI_waves, ONLY:	&
-       UseWaves, UseKpIndex, ReadDiffCoef, WavePower
+  use CIMI_waves, ONLY:	UseDiagDiffusion, UseWaves,&
+                       TypeChorus,TypeHiss,UseKpIndex, ReadDiffCoef, WavePower
   use ModImIndices, ONLY:   interpolate_ae,&
        UseAeKyoto,UseKpApF107IndicesFile,get_im_indices_Kp
   use ModCoupleSami, ONLY:	DoCoupleSami
@@ -77,7 +81,7 @@ subroutine cimi_run(delta_t)
        PlasDensity_C, save_plot_plasmasphere, &
        cimi_put_to_plasmasphere,PlasMinDensity
   use ModDiagDiff, ONLY:	&
-       UseDiagDiffusion, calc_DQQ, interpol_D_coefK, &
+       calc_DQQ, calc_Q2_only, interpol_D_coefK, &
        mapPSDtoQ, mapPSDtoE, diffuse_Q1, diffuse_Q2, &
        UsePitchAngleDiffusionTest,&
        UseEnergyDiffusionTest, init_diag_diff
@@ -112,6 +116,13 @@ subroutine cimi_run(delta_t)
      dt = 0.0
   else
      nstep=nint(delta_t/dt)
+     if (nstep==0) then
+         if (iProc==0) then
+            write(*,*) 'IM: WARNING, nstep=0 (setting to 1),&
+                                                  check #IMTIMESTEP settings!'
+         endif
+         nstep=1    ! nstep=0 -> no progress!!
+     endif
      dt=delta_t/nstep         ! new dt
   endif
 
@@ -165,7 +176,6 @@ subroutine cimi_run(delta_t)
   ! interpolate a0 of const. Q2 curve correspoding K
   if ( .NOT.( IsFirstCall ) .AND. &
        UseWaves .and. UseDiagDiffusion ) then
-     call init_diag_diff
      call timing_start('cimi_interpol_D_coefK')
      call interpol_D_coefK
      call timing_stop('cimi_interpol_D_coefK')
@@ -194,15 +204,15 @@ subroutine cimi_run(delta_t)
   if (UseCorePsModel .and. nProc>1) then
      call MPI_bcast(PlasDensity_C,np*nt,MPI_REAL,0,iComm,iError)
   endif
-!  if (UseCorePsModel) then
-!     !when using the core PS model overwrite the density in the
-!     !wave calculation
-!     where (PlasDensity_C > PlasMinDensity)
-!        density=PlasDensity_C
-!     elsewhere
-!        density=PlasMinDensity
-!     end where
-!  endif
+  !if (UseCorePsModel) then
+  !   !when using the core PS model overwrite the density in the
+  !   !wave calculation
+  !   where (PlasDensity_C > PlasMinDensity)
+  !      density=PlasDensity_C
+  !   elsewhere
+  !      density=PlasMinDensity
+  !   end where
+  !endif
   
   ! get Bmin, needs to be passed to GM for anisotropic pressure coupling
   Bmin_C = bo
@@ -268,7 +278,15 @@ subroutine cimi_run(delta_t)
 
      if (IsFirstCall .and. UseDiagDiffusion) then
         call init_diag_diff
-        call calc_DQQ
+        select case(TypeHiss)
+        case('UCLA')
+            call calc_DQQ
+        case('BU')
+            call calc_Q2_only
+            call timing_start('cimi_interpol_D_coefK')
+            call interpol_D_coefK
+            call timing_stop('cimi_interpol_D_coefK')
+        end select
      endif
   end if
 
@@ -758,7 +776,7 @@ subroutine cimi_init
 
   implicit none
 
-  integer:: i, n, k, m, iPe, iError, iLonGlobal, iMidnightLocal
+  integer:: i, n, k, m, iPe, iError
 
   ! Variables for specifying the Energy Grid
   real:: aloga, eratio, delta_E, E0, &
@@ -801,7 +819,8 @@ subroutine cimi_init
 
   ! The longitude ghost-cell exchange needs every proc to own at least
   ! nGhostCell longitudes
-  if (minval(nLonPar_P) < nGhostCell) call CON_stop( &
+  write(*,*) nLonPar_P
+  if (minval(nLonPar_P) < nGhostCell .and. .not. DoSingleGrid) call CON_stop( &
        'IM: each processor needs at least nGhostCell longitudes; '// &
        'use fewer processors or a smaller nGhostCell')
 
@@ -827,33 +846,6 @@ subroutine cimi_init
      iProcRight=0
   endif
 
-  ! CIMI xmlt grid
-  dphi=2.*cPi/nt
-  do i=1,nt
-     phiGlobal(i)=(i-1)*dphi
-     xmltGlobal(i)=mod(phiGlobal(i)*12.0/cPi + 12.0,24.0)
-  enddo
-  
-  iMidnightLocal = -1
-  do i = MinLon, MaxLon
-    iLonGlobal = MinLonGlobal + i - 1
-    if (iLonGlobal > nt) iLonGlobal = iLonGlobal - nt
-    if (iLonGlobal < 1) iLonGlobal = iLonGlobal + nt
-    phi(i) = phiGlobal(iLonGlobal)
-    xmlt(i)=mod(phi(i)*12.0/cPi + 12.0,24.0)
-    !
-    if(xmlt(i) <= 0.01 .and. i >= MinLonPar .and. i <= MaxLonPar) then 
-      iLonMidnight = i
-      iMidnightLocal = iProc
-    end if
-  end do
-  if(nProc > 1) then
-    call MPI_Allreduce(iMidnightLocal, iProcMidnight, 1, MPI_INTEGER, MPI_MAX, &
-                      iComm, iError)
-  else
-    iProcMidnight = iMidnightLocal
-  end if
-  if(iProcMidnight < 0) call CON_stop('IM error: No Midnight Proc Found')
 
   ! Set start time
 
@@ -867,6 +859,7 @@ subroutine cimi_init
 
   ! Define latitude grid
   call init_lat
+  call init_mlt
 
   if ( DoVerboseLatGrid .and. iProc == 0) then
 
@@ -1228,7 +1221,7 @@ subroutine initial_f2(nspec,np,nt,amu_I,xjac,ib0)
                        if (e1 < ei(1)) e1=ei(1)    ! flat dist. at low E
                        if (roii < roi(1)) roii=roi(1) ! flat dist @ lowL
                        if (roii > roi(il)) roii=roi(il) ! flat @ high L
-                       call lintp2IM(roi,ei,fi,il,ie,roii,e1,x)
+                       call lintp2IM(roi,ei,fi,il,ie,roii,e1,x,.false.)
                        fluxi=10.**x          ! flux in (cm^2 s sr keV)^-1
                        psd2=fluxi/(1.6e19*pp(i,j,m,k,n))/pp(i,j,m,k,n)
                    
@@ -3163,10 +3156,9 @@ subroutine cimi_precip_calc(dsec)
        precipEnergyLoss, precipNumberLoss
   use ModCimiTrace, 		ONLY:	iba, UsePrecipEnergyLoss
   use ModCimiGrid,		ONLY:	&
-       nProc,iProc,iComm,MinLonPar,MaxLonPar,nt,np,neng,xlatr,xmlt,dlat
+       nProc,iProc,iComm,MinLonPar,MaxLonPar,nt,np,neng,xlatr,xmlt,dlat,dphi
   use ModCimiPlanet,		ONLY: 	nspec, re_m, rc
   use ModMPI
-  use ModCimiInitialize, 	ONLY: 	dphi
 
   implicit none
 

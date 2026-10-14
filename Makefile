@@ -602,7 +602,13 @@ LOCALWAVE_rundir:
 
 ########## Integration Tests
 INTEGRATION:
-	rm -f ${BINDIR}/cimi.exe
+	make INTEGRATION_compile
+	make INTEGRATION_rundir
+	@cd ${TESTDIR};   ./integration.exe
+
+INTEGRATION_compile:
+	./Config.pl -EarthHO -GridSinglePoint -show
+	#./Config.pl -EarthHO -GridDefault -show
 	@cd ${SHAREDIR};  	make LIB
 	@cd ${NOMPIDIR};	make LIB
 	@cd ${TIMINGDIR}; 	make LIB 
@@ -612,3 +618,11 @@ INTEGRATION:
 	@cd srcGIMME;	make LIB
 	@cd src;	make LIB_INTEGRATION
 	@cd src;	make INTEGRATION
+
+INTEGRATION_rundir:
+	rm -rf ${TESTDIR}
+	@make rundir RUNDIR=${TESTDIR} STANDALONE=YES IMDIR=`pwd`
+	@cp input/testfiles/*.dat ${TESTDIR}/
+	@cp input/testfiles/PARAM.in.test.WaveDiff ${TESTDIR}/PARAM.in
+	@cd ${TESTDIR}; ln -s ${BINDIR}/integration.exe
+

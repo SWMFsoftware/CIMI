@@ -389,11 +389,21 @@ contains
     
     real          :: parmod(1:10)=0.0, lat, ro1, xmlt1, bo1, &
          energy_temp(1:nEnergy)
-    integer       :: iLat,iLon,k,m,n,i,nprint
+    integer       :: iLat,iLon,k,m,n,i,nprint,iLatStart,iLonStart
     logical, dimension(nspec), save :: IsFirstCall = .true.
     character(len=15):: outnameSep
     character(len=40), dimension(nspec), save :: NamePlotFlux
     !--------------------------------------------------------------------------
+    if (nLat.eq.1) then
+        iLatStart=1
+    else
+        iLatStart=2
+    endif
+    if (nLon.eq.1) then
+        iLatStart=1
+    else
+        iLonStart=2
+    endif
     nprint=ifix(time/DtFluxOutput(n))
     write(outnameSep,"(i4.4,i2.2,i2.2,a,i2.2,i2.2,i2.2)") & 
          iCurrentTime_I(1),iCurrentTime_I(2),iCurrentTime_I(3),'_',&
@@ -402,49 +412,144 @@ contains
     
     energy_temp(1:nEnergy)=energy(1:nEnergy,n)
     if (DoSaveSeparateFluxFiles(n)) then
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! AB: making this more like MCF's version with more outputs
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!       open(unit=UnitTmp_,&
+!            file='IM/plots/'//outnameSep//NameSpeciesExtension_I(n)//'.fls',&
+!            status='unknown')
+!       write(UnitTmp_,"(f10.6,5i6,6x,'! rc in Re,nr,ip,je,ig,ntime')") &
+!            rc,nLat-1,nLon,nEnergy,nPitchAng,nprint
+!       write(UnitTmp_,'(6f14.3)') (energy_temp(k),k=1,nEnergy)
+!       write(UnitTmp_,'(6f9.5)') (sinAo(m),m=1,nPitchAng)
+!       write(UnitTmp_,'(10f8.3)') (xlat(i),i=2,nLat)
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
        open(unit=UnitTmp_,&
             file='IM/plots/'//outnameSep//NameSpeciesExtension_I(n)//'.fls',&
             status='unknown')
-       write(UnitTmp_,"(f10.6,5i6,6x,'! rc in Re,nr,ip,je,ig,ntime')") &
-            rc,nLat-1,nLon,nEnergy,nPitchAng,nprint
+       ! Grid info
+       write(UnitTmp_,"('rc in Re and ir,ip,je,ig, no. of grid in Li,mlong,E,sinPAo')")
+       write(UnitTmp_,"(f10.6,5i6,6x)") &
+            rc,nLat-(iLatStart-1),nLon,nEnergy,nPitchAng,nprint
+
+       write(UnitTmp_,"(' Li(1:ir)')")
+       write(UnitTmp_,'(10f8.3)') (xlat(i),i=iLatStart,nLat)
+
+       write(UnitTmp_,"(' mphi(1:ip), magnetic longitude in radian')")
+       write(UnitTmp_,'(10f8.3)') (xmlt(i),i=iLonStart,nLon)
+
+       write(UnitTmp_,"(' gride(1:je), energy in keV')")
        write(UnitTmp_,'(6f14.3)') (energy_temp(k),k=1,nEnergy)
+
+       write(UnitTmp_,"(' gridy(1:ig), sine of equatorial pitch angle')")
        write(UnitTmp_,'(6f9.5)') (sinAo(m),m=1,nPitchAng)
-       write(UnitTmp_,'(10f8.3)') (xlat(i),i=2,nLat)
+
     else
        if ( IsFirstCall( n ) ) then
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! AB: making this more like MCF's version with more outputs
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!          write(NamePlotFlux(n), '(A,I8.8,A)' ) &
+!               'IM/plots/CimiFlux_n', nprint, NameSpeciesExtension_I(n)//'.fls'
+!          open(unit = UnitTmp_,&
+!               file = TRIM( NameplotFlux( n ) ), status = 'UNKNOWN')
+!          write(UnitTmp_,"(f10.6,5i6,6x,'! rc in Re,nr,ip,je,ig,ntime')") &
+!               rc,nLat-1,nLon,nEnergy,nPitchAng,nprint
+!          write(UnitTmp_,'(6f14.3)') (energy_temp(k),k=1,nEnergy)
+!          write(UnitTmp_,'(6f9.5)') (sinAo(m),m=1,nPitchAng)
+!          write(UnitTmp_,'(10f8.3)') (xlat(i),i=2,nLat)
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
           write(NamePlotFlux(n), '(A,I8.8,A)' ) &
                'IM/plots/CimiFlux_n', nprint, NameSpeciesExtension_I(n)//'.fls'
           open(unit = UnitTmp_,&
                file = TRIM( NameplotFlux( n ) ), status = 'UNKNOWN')
-          write(UnitTmp_,"(f10.6,5i6,6x,'! rc in Re,nr,ip,je,ig,ntime')") &
-               rc,nLat-1,nLon,nEnergy,nPitchAng,nprint
+          ! Grid info
+          write(UnitTmp_,&
+              "('rc in Re and ir,ip,je,ig, no. of grid in Li,mlong,E,sinPAo')")
+          write(UnitTmp_,"(f10.6,5i6,6x)") &
+                rc,nLat-(iLatStart-1),nLon,nEnergy,nPitchAng
+
+          write(UnitTmp_,"(' Li(1:ir)')")
+          write(UnitTmp_,'(10f8.3)') (xlat(i),i=iLatStart,nLat)
+
+          write(UnitTmp_,"(' mphi(1:ip), magnetic longitude in radian')")
+          write(UnitTmp_,'(7f11.6)') (MOD(xmlt(i)+12.,24.)*3.14159265358979/12.,i=1,nLon)
+      
+          write(UnitTmp_,"(' gride(1:je), energy in keV')")
           write(UnitTmp_,'(6f14.3)') (energy_temp(k),k=1,nEnergy)
+
+          write(UnitTmp_,"(' gridy(1:ig), sine of equatorial pitch angle')")
           write(UnitTmp_,'(6f9.5)') (sinAo(m),m=1,nPitchAng)
-          write(UnitTmp_,'(10f8.3)') (xlat(i),i=2,nLat)
+
        else
           open(unit = UnitTmp_, file = TRIM( NamePlotFlux( n ) ), &
                status = 'OLD', position = 'APPEND')
        endif
     endif
-    write(UnitTmp_,'(f12.8,f8.3,10f9.2,"    ! hour, L*max, parmod")') &
-         time/3600.,Lstar_max,parmod(1:10)
-    do iLat=2,nLat             ! Write fluxes @ fixed E & y grids
-       do iLon=1,nLon
-          lat=xlat(iLat)
-          if (iLat.gt.irm(iLon)) lat=xlat(irm(iLon))
-          ro1=ro(iLat,iLon)
-          if (iLat.gt.irm(iLon)) ro1=ro(irm(iLon),iLon)
-          bo1=bo(iLat,iLon)
-          if (iLat.gt.irm(iLon)) bo1=bo(irm(iLon),iLon)
-          xmlt1=xmlto(iLat,iLon)
-          if (iLat.gt.irm(iLon)) xmlt1=xmlto(irm(iLon),iLon)
-          write(UnitTmp_,'(f7.2,f6.1,2f8.3,1pe11.3,0p,f8.3,i6)') &
-               lat,xmlt(iLon),ro1,xmlt1,bo1,Lstar_C(iLat,iLon)
-          do k=1,nEnergy
-             write( UnitTmp_, '(1p,12e11.3)' ) &
-                  ( flux( iLat, iLon, k, m ), m = 1, nPitchAng )
-          enddo
-       enddo
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! AB: making this more like MCF's version with more outputs
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!    write(UnitTmp_,'(f12.8,f8.3,10f9.2,"    ! hour, L*max, parmod")') &
+!         time/3600.,Lstar_max,parmod(1:10)
+!    do iLat=2,nLat             ! Write fluxes @ fixed E & y grids
+!       do iLon=1,nLon
+!          lat=xlat(iLat)
+!          if (iLat.gt.irm(iLon)) lat=xlat(irm(iLon))
+!          ro1=ro(iLat,iLon)
+!          if (iLat.gt.irm(iLon)) ro1=ro(irm(iLon),iLon)
+!          bo1=bo(iLat,iLon)
+!          if (iLat.gt.irm(iLon)) bo1=bo(irm(iLon),iLon)
+!          xmlt1=xmlto(iLat,iLon)
+!          if (iLat.gt.irm(iLon)) xmlt1=xmlto(irm(iLon),iLon)
+!          write(UnitTmp_,'(f7.2,f6.1,2f8.3,1pe11.3,0p,f8.3,i6)') &
+!               lat,xmlt(iLon),ro1,xmlt1,bo1,Lstar_C(iLat,iLon)
+!          do k=1,nEnergy
+!             write( UnitTmp_, '(1p,12e11.3)' ) &
+!                  ( flux( iLat, iLon, k, m ), m = 1, nPitchAng )
+!          enddo
+!       enddo
+!    enddo
+
+    write(UnitTmp_,"(' hour, parmod(1:10),L*max')")
+    write(UnitTmp_,'(f12.8,f8.3,10f9.2)') &
+        time/3600.,parmod(1:10),Lstar_max
+    do iLat=iLatStart,nLat             ! Write fluxes @ fixed E & y grids
+        do iLon=1,nLon
+            ! Make sure we're not going out of bounds
+            lat=xlat(iLat)
+            if (iLat.gt.irm(iLon)) lat=xlat(irm(iLon))
+            ro1=ro(iLat,iLon)
+            if (iLat.gt.irm(iLon)) ro1=ro(irm(iLon),iLon)
+            bo1=bo(iLat,iLon)
+            if (iLat.gt.irm(iLon)) bo1=bo(irm(iLon),iLon)
+            xmlt1=xmlto(iLat,iLon)
+            if (iLat.gt.irm(iLon)) xmlt1=xmlto(irm(iLon),iLon)
+
+            write(UnitTmp_,&
+                "(' LatN, mltN, latS, mltS, ro, mlto, BrN, BrS, bo, iba')")
+            write(UnitTmp_,&
+                "(' denCP, ompe, CHpower, HIpower, denWP, TparaWP, TperpWP, HRPe, HRPi, rpp, Lstar, volume/bflux')")
+            write(UnitTmp_,'(6f8.3,1p,3e10.3,0p,i4)') &
+                ! TODO setting all south variables to 0 for now
+                ! TODO setting what will be values to -99 for now
+                lat,xmlt(iLon),0.,0.,ro1,xmlt1, &
+                !BriN(iLat,iLon),0,bo1,iba(iLon)
+                99.,0.,bo1,99
+            write(UnitTmp_,'(1p,9e10.3,0p,2f8.3,1pe10.3)') &
+                ! TODO setting what will be values to -99 for now
+                99.,99.,99.,99., &
+                99.,99.,99., &
+                99.,99.,99.,99.,99.
+                !density(i,j),ompe(i,j),CHpower(i,j),HIpower(i,j), &
+                !denWP(n,i,j),TparaWP(n,i,j),TperpWP(n,i,j), &
+                !HRPee(n,i,j),HRPii(n,i,j),rppa(j),Lstar(i,j,0),volume(i,j)
+            write(UnitTmp_,&
+                "(' flux(je,ig), differential flux in #/cm^2/s/sr/keV')")
+            do k=1,nEnergy
+                write( UnitTmp_, '(1p,12e11.3)' ) &
+                    ( flux( iLat, iLon, k, m ), m = 1, nPitchAng )
+            enddo
+        enddo
     enddo
     close(UnitTmp_)
     IsFirstCall(n) = .false.
@@ -470,12 +575,17 @@ contains
          xk(nk),time
     
     real          :: parmod(1:10)=0.0,lat,ro1,xmlt1,bo1
-    integer       :: iLat,iLon,k,m,n,i,nprint
+    integer       :: iLat,iLon,k,m,n,i,nprint,iLatStart
     logical, dimension(nspec), save :: IsFirstCall = .true.
     character(len=15):: outnameSep
     character(len=40), dimension(nspec), save :: NamePlotPSD
     !--------------------------------------------------------------------------
     nprint=ifix(time/DtPSDOutput(n))
+    if (nLat.eq.1) then
+        iLatStart=1
+    else
+        iLatStart=2
+    endif
     write(outnameSep,"(i4.4,i2.2,i2.2,a,i2.2,i2.2,i2.2)") & 
          iCurrentTime_I(1),iCurrentTime_I(2),iCurrentTime_I(3),'_',&
          iCurrentTime_I(4),iCurrentTime_I(5),iCurrentTime_I(6)
@@ -515,7 +625,7 @@ contains
     endif
     write(UnitTmp_,'(f12.8,10f9.2,"    ! hour,  parmod")') &
          time/3600.,parmod(1:10)
-    do iLat=2,nLat             ! Write PSD @ fixed mu & K grids
+    do iLat=iLatStart,nLat             ! Write PSD @ fixed mu & K grids
        do iLon=1,nLon
           lat=xlat(iLat)
           if (iLat.gt.irm(iLon)) lat=xlat(irm(iLon))
@@ -753,40 +863,39 @@ contains
     write(UnitTmp_,'(1es18.08E3)',ADVANCE='NO') &
          -0.5 * cMu / cPi / dipmom * &
          SUM( rbsumglobal ) * 1000. * cElectronCharge * 10 ** ( 9. )
-
+    
     ! write out the operator changes
     ! don't write previous time step operators (OpLossCone0, OpFLC0)
     do iSpecies=1,nSpecies
        if (iSpecies < nSpecies) then
-          write(UnitTmp_,'(12es18.08E3)',ADVANCE='NO') &
+          write(UnitTmp_,'(11es18.08E3)',ADVANCE='NO') & 
                rbsumglobal(iSpecies), rcsumglobal(iSpecies), &
                eChangeGlobal(1:nOperator-2,iSpecies), &
                driftin(iSpecies), driftout(iSpecies)
        else
-          write(UnitTmp_,'(12es18.08E3)') &
+          write(UnitTmp_,'(11es18.08E3)') & 
                rbsumglobal(iSpecies), rcsumglobal(iSpecies), &
                eChangeGlobal(1:nOperator-2,iSpecies), &
                driftin(iSpecies), driftout(iSpecies)
        endif
     enddo
-
+    
     close(UnitTmp_)
-
+    
   end subroutine cimi_plot_log
-
+  
   subroutine cimi_plot_precip( n, time )
-    use ModDstOutput,		ONLY: DstOutput
+    use ModDstOutput,		ONLY: DstOutput 
     use ModIoUnit,		ONLY: UnitTmp_
     use ModCimi,		ONLY: energy
     use ModCimiGrid,		ONLY: &
-         nLat => np, nLon => nt, nEnergy => neng, xlat, xmlt => xmltGlobal
+         nLat => np, nLon => nt, nEnergy => neng, xlat, xmlt => xmltGlobal, dphi
     use ModCimiPlanet,		ONLY: &
          nSpecies=>nspec, re_m, NameSpeciesExtension_I, rc
     use ModCimiTrace,		ONLY: ro => roGlobal, bo => boGlobal, xmlto => xmltoGlobal, irm => irmGlobal
     use ModCimiRestart,		ONLY: IsRestart
     ! for separate files only do need right now
     use ModImTime,		ONLY: iCurrentTime_I   
-    use ModCimiInitialize, 	ONLY: dphi
     use ModCimi,		ONLY: Eje1Global, prePGlobal, preFGlobal
     
     implicit none

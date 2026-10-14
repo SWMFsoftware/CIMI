@@ -513,6 +513,29 @@ simulation. Command is used only in stand-alone runs. VelSW specifies
 the x-component of the solar wind velocity.
 
 </command>
+
+<command name="SINGLEGRID">
+    <parameter name="DoReadParamGrid" type="logical" default="F"/>
+    <if expr="$DoReadParamGrid">
+        <parameter name="LatitudeDeg" type="real"/>
+        <parameter name="dLatitudeDeg" type="real"/>
+        <parameter name="LongitudeRad" type="real"/>
+        <parameter name="dLongitudeRad" type="real"/>
+    </if>
+
+#SINGLEGRID
+F           DoSingleGrid
+62.0        LatitudeDeg
+1.0         dLatitudeDeg
+0.0         LongitudeRad
+1.0         dLongitudeRad
+
+Command sets the location and ad-hoc cell size for single grid point
+configuration. Command only works if CIMI is configured with
+-GridSinglePoint. LatitudeDeg, etc. only read if DoSingleGrid=.true.
+Defaults shown.
+
+</command>
 	 
 <command name="SMOOTH">
   <parameter name="UseSmooth" type="logical" default="F"/>

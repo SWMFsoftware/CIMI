@@ -18,6 +18,10 @@ Module ModCimiGrid
 
   ! These have to be initialized so that IM_set_grid does not fail on non-IM PEs
   real:: xlat(np) = 0.0, phiGlobal(nt)= 0.0
+  logical :: DoReadParamGrid = .false.
+  real :: LatitudeDeg,  dLatitudeDeg,&
+          LongitudeRad, dLongitudeRad
+  integer :: minLon, maxLon, nTotalCell
 
 !  real, parameter :: xlat_data(0:77)=(/ &
 !       09.8403398252184129, 11.8094287214197298, 13.7766188250317825, &
@@ -47,7 +51,7 @@ Module ModCimiGrid
 !       80.8786008210180256, 82.2216559222371330, 83.7663121676587963, &
 !       85.4404094624754862, 87.1942709870800599, 88.9996559369669313/)
 
-  real :: xlatr(np), dlat(np), sinAo(npit), xmltGlobal(nt)
+  real :: xlatr(np), dlat(np), sinAo(npit), xmltGlobal(nt), dphi
   real, allocatable :: phi(:), xmlt(:)
 
   real, allocatable :: d4Element_C(:,:,:,:) !4D element (dlat*dphi*dmm*dk)
@@ -116,6 +120,25 @@ contains
  dlat(np)=0.5*(acos(1./sqrt(varL(np+1)))-xlat(np-1))
 
  end subroutine init_lat
+!-----------------------------------------------------------------------------
+
+!-----------------------------------------------------------------------------
+ subroutine init_mlt
+ ! This subroutine initializes and defines MLT grid
+!-----------------------------------------------------------------------------
+ use ModNumConst,    ONLY: cDegToRad,cPi
+ implicit none
+
+ integer i
+
+ ! CIMI xmlt grid
+ dphi=2.*cPi/nt
+ do i=1,nt
+    phi(i)=(i-1)*dphi
+    xmlt(i)=mod(phi(i)*12.0/cPi + 12.0,24.0)
+ enddo
+
+ end subroutine init_mlt
 !-----------------------------------------------------------------------------
      
 end Module ModCimiGrid

@@ -4,7 +4,7 @@ Module ModCimiInitialize
   implicit none
   
   real		:: &
-       xmm(0:nm+1,nspec), xk(0:nk+1), dphi, dmm(nm,nspec), dk(nk),&
+       xmm(0:nm+1,nspec), xk(0:nk+1), dmm(nm,nspec), dk(nk),&
        dmu(npit), xjac(np,nm,nspec)
 
   logical	:: &

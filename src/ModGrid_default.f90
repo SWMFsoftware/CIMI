@@ -27,8 +27,12 @@ Module ModCimiGrid
        61.671,62.170,62.666,63.159,63.649,64.137,64.624,65.109,65.593, &
        66.077,66.560,67.043,67.526,68.009,68.492,68.975,69.458/)
 
-  real :: xlatr(np), dlat(np), sinAo(npit), xmltGlobal(nt)
+  real :: xlatr(np), dlat(np), sinAo(npit), xmltGlobal(nt), dphi
   real, allocatable :: phi(:), xmlt(:)
+  logical :: DoReadParamGrid = .false.
+  real :: LatitudeDeg,  dLatitudeDeg,&
+          LongitudeRad, dLongitudeRad
+  integer :: minLon, maxLon, nTotalCell
 
   real :: varL(0:np+1)=0.,&
           dvarL=1.,&
@@ -87,6 +91,48 @@ contains
  xlatr(:)=xlat(:)*cDegToRad
 
  end subroutine init_lat
+!-----------------------------------------------------------------------------
+
+!-----------------------------------------------------------------------------
+ subroutine init_mlt
+ ! This subroutine initializes and defines MLT grid
+!-----------------------------------------------------------------------------
+ use ModNumConst,    ONLY: cDegToRad,cPi
+ use ModUtilities, ONLY: CON_stop
+ use ModMpi
+ implicit none
+
+ integer i, iError, iMidnightLocal, iLonGlobal
+
+  ! CIMI xmlt grid
+  dphi=2.*cPi/nt
+  do i=1,nt
+     phiGlobal(i)=(i-1)*dphi
+     xmltGlobal(i)=mod(phiGlobal(i)*12.0/cPi + 12.0,24.0)
+  enddo
+  
+  iMidnightLocal = -1
+  do i = MinLon, MaxLon
+    iLonGlobal = MinLonGlobal + i - 1
+    if (iLonGlobal > nt) iLonGlobal = iLonGlobal - nt
+    if (iLonGlobal < 1) iLonGlobal = iLonGlobal + nt
+    phi(i) = phiGlobal(iLonGlobal)
+    xmlt(i)=mod(phi(i)*12.0/cPi + 12.0,24.0)
+    !
+    if(xmlt(i) <= 0.01 .and. i >= MinLonPar .and. i <= MaxLonPar) then 
+      iLonMidnight = i
+      iMidnightLocal = iProc
+    end if
+  end do
+  if(nProc > 1) then
+    call MPI_Allreduce(iMidnightLocal, iProcMidnight,1,MPI_INTEGER,MPI_MAX, &
+                      iComm, iError)
+  else
+    iProcMidnight = iMidnightLocal
+  end if
+  if(iProcMidnight < 0) call CON_stop('IM error: No Midnight Proc Found')
+
+ end subroutine init_mlt
 !-----------------------------------------------------------------------------
      
 end Module ModCimiGrid

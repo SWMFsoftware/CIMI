@@ -11,7 +11,6 @@ Module ModCimi
   logical :: UseMcLimiter = .false., UseStrongDiff = .false., UseDecay =.false.
   logical :: UseFLC=.false., useElectronDecay=.false.
   real    :: BetaLimiter = 1.5
-  integer :: minLon, maxLon, nTotalCell
 
   real    :: Pmin = 1e-6
 
@@ -91,57 +90,57 @@ contains
     if(nLonPar < nGhostCell) then
       call CON_stop('Error: nLonPar<nGhostCell, increase nt or decrease nProc')
     endif
-    minLon = -nGhostCell+1
-    maxLon = nLonPar+nGhostCell
-    nTotalCell = maxLon - minLon
+    MinLon = -nGhostCell+1
+    MaxLon = nLonPar+nGhostCell
+    nTotalCell = MaxLon - MinLon
 
     allocate(                         &
-         phi(minLon:maxLon), xmlt(minLon:maxLon), &
-         f2(np,minLon:maxLon,nm,nk,nspec),     &
-         SDtime(np,minLon:maxLon,nm,nk),         &
-         phot(np,minLon:maxLon,nspec),           &
-         Ppar_CI(np,minLon:maxLon,nspec),        &
-         Pressure_CI(np,minLon:maxLon,nspec),    &
-         PressurePar_CI(np,minLon:maxLon,nspec), &
-         FAC_C(np,minLon:maxLon),                &
-         Bmin_C(np,minLon:maxLon),              &
+         phi(MinLon:MaxLon), xmlt(MinLon:MaxLon), &
+         f2(np,MinLon:MaxLon,nm,nk,nspec),     &
+         SDtime(np,MinLon:MaxLon,nm,nk),         &
+         phot(np,MinLon:MaxLon,nspec),           &
+         Ppar_CI(np,MinLon:MaxLon,nspec),        &
+         Pressure_CI(np,MinLon:MaxLon,nspec),    &
+         PressurePar_CI(np,MinLon:MaxLon,nspec), &
+         FAC_C(np,MinLon:MaxLon),                &
+         Bmin_C(np,MinLon:MaxLon),              &
          d4Element_C(np,nm,nk,nspec))
     ! minimum B field along each field line
     ! passed from GM to IM, now as an output of IM
 
     ! now allocate arrays for energy tracking
-    allocate(eChangeOperator_CIIV(np,minLon:maxLon,neng+2,nOperator,nspec), &
+    allocate(eChangeOperator_CIIV(np,MinLon:MaxLon,neng+2,nOperator,nspec), &
          driftin(nspec), driftout(nspec), &
          rbsumLocal(nspec),rbsumGlobal(nspec), &
          rcsumLocal(nspec),rcsumGlobal(nspec))
 
-    allocate(pChangeOperator_CIIV(np,minLon:maxLon,neng+2,nOperator,nspec), &
+    allocate(pChangeOperator_CIIV(np,MinLon:MaxLon,neng+2,nOperator,nspec), &
          eChangeLocal(nOperator,nspec),eChangeGlobal(nOperator,nspec), &
          eTimeAccumult_CII(np,minLon:maxLon,neng+2,nspec), &
          pTimeAccumult_CII(np,minLon:maxLon,neng+2,nspec))
     eChangeOperator_CIIV = 0.0; pChangeOperator_CIIV = 0.0
     eTimeAccumult_CII = 0.0; pTimeAccumult_CII = 0.0
 
-    allocate(preP(np,minLon:maxLon,neng+2,nspec), preF(np,minLon:maxLon,neng+2,nspec), &
-         Eje1(np,minLon:maxLon,nspec), precipEnergyLoss(np,minLon:maxLon,neng+2,nspec), &
-         precipNumberLoss(np,minLon:maxLon,neng+2,nspec))
+    allocate(preP(np,MinLon:MaxLon,neng+2,nspec), preF(np,MinLon:MaxLon,neng+2,nspec), &
+         Eje1(np,MinLon:MaxLon,nspec), precipEnergyLoss(np,MinLon:MaxLon,neng+2,nspec), &
+         precipNumberLoss(np,MinLon:MaxLon,neng+2,nspec))
     preP = 0.0
     preF = 0.0
     Eje1 = 0.0
-    allocate(flux(np,minLon:maxLon,neng,npit,nspec), psd(np,minLon:maxLon,nm,nk,nspec), &
-        vlEa(np,minLon:maxLon,neng,npit,nspec), vpEa(np,minLon:maxLon,neng,npit,nspec))
-    allocate(vl(0:np,minLon:maxLon,nm,nk,nspec), vp(0:np,minLon:maxLon,nm,nk,nspec), &
-        fb(minLon:maxLon,nm,nk,nspec), achar(0:np,minLon:maxLon,nm,nk,nspec))
+    allocate(flux(np,MinLon:MaxLon,neng,npit,nspec), psd(np,MinLon:MaxLon,nm,nk,nspec), &
+        vlEa(np,MinLon:MaxLon,neng,npit,nspec), vpEa(np,MinLon:MaxLon,neng,npit,nspec))
+    allocate(vl(0:np,MinLon:MaxLon,nm,nk,nspec), vp(0:np,MinLon:MaxLon,nm,nk,nspec), &
+        fb(MinLon:MaxLon,nm,nk,nspec), achar(0:np,MinLon:MaxLon,nm,nk,nspec))
     vl = 0.0
     vp = 0.0
 
     allocate(energy(neng,nspec), Ebound(neng,nspec), delE(neng,nspec))
 
-    allocate( vdr_q1( np, minLon:maxLon, nspec ), vdr_q3( np, minLon:maxLon, nspec ), &
-         vgyr_q1( np, minLon:maxLon, nspec ), vgyr_q3( np, minLon:maxLon, nspec ) )
-    allocate( eng_q1( np, minLon:maxLon, nspec ), eng_q3( np, minLon:maxLon, nspec ), &
-         vexb( np, minLon:maxLon, nspec ), dif_q1( np, minLon:maxLon, nspec ) )
-    allocate( Part_phot( np, minLon:maxLon, neng, nspec ), dif_q3( np, minLon:maxLon, nspec ) )
+    allocate( vdr_q1( np, MinLon:MaxLon, nspec ), vdr_q3( np, MinLon:MaxLon, nspec ), &
+         vgyr_q1( np, MinLon:MaxLon, nspec ), vgyr_q3( np, MinLon:MaxLon, nspec ) )
+    allocate( eng_q1( np, MinLon:MaxLon, nspec ), eng_q3( np, MinLon:MaxLon, nspec ), &
+         vexb( np, MinLon:MaxLon, nspec ), dif_q1( np, MinLon:MaxLon, nspec ) )
+    allocate( Part_phot( np, MinLon:MaxLon, neng, nspec ), dif_q3( np, MinLon:MaxLon, nspec ) )
     
     if(iProc == 0) then
       allocate( FACGlobal_C(np,nt), PressureGlobal_CI(np,nt,nspec), &

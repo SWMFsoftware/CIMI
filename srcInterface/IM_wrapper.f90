@@ -43,6 +43,7 @@ contains
     use ModIeCimi,  ONLY: UseIE
     use ModCimiGrid, ONLY: iProc,nProc,iComm
     use ModCimi,    ONLY: DtCalcPrecip
+    use CIMI_SetParams, ONLY: CIMI_set_parameters
 
     character (len=*), intent(in)     :: TypeAction ! which action to perform
     type(CompInfoType), intent(inout) :: CompInfo   ! component information

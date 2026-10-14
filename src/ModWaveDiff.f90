@@ -30,11 +30,17 @@ module ModWaveDiff
        ekev, tya, y => sinA, Bo, ro, xmlto, lintpIM, bm, volume
   use ModNumConst,	ONLY:	pi => cPi
   use ModUtilities,	ONLY:	CON_STOP
-  use CIMI_waves,         ONLY: cOmpe,hOmpe,ckeV,hkeV,cDaa,cDEE,cDaE,&
-       hDaa,hDEE,hDaE,UseChorus,UseHiss,&
-       ipc,iwc,iph,iwh,ipa,&
-       Cpower0,Hpower0,BLc0,BLh0,&
-       CHpower,HIpower,ompe,r_wave,cPA
+  use CIMI_waves,         ONLY: cLshell,hLshell,&
+                                cOmpe,hOmpe,&
+                                ckeV,hkeV,&
+                                cPa,hPa,&
+                                cDaa,cDEE,cDaE,&
+                                hDaa,hDEE,hDaE,&
+                                UseChorus,UseHiss,TypeChorus,TypeHiss,&
+                                icL,ihL,icfpefce,ihfpefce,&
+                                icEnergy,ihEnergy,icPa,ihPa,&
+                                Cpower0,Hpower0,BLc0,BLh0,&
+                                CHpower,HIpower,ompe,r_wave
   implicit none
   
   !real               :: DiffStartT = 0.
@@ -85,7 +91,7 @@ contains
     use ModPlasmasphere, ONLY:PlasDensity_C,find_plasmasphere_column
     use ModMPI
     use ModCimiGrid,   ONLY: MinLonPar,MaxLonPar,MinLonGlobal
-    use ModCimiUtil, ONLY: lintp3IM,tridagIM
+    use ModCimiUtil, ONLY: lintp3IM,lintp4IM,tridagIM
     use ModCimi, ONLY: MinLon, MaxLon
     
     implicit none
@@ -102,7 +108,7 @@ contains
          um(ik),up(ik),a1d(ik),b1d(ik),c1d(ik),f0(0:ik+1),uDaoao, &
          f2d(ie,ik),df(ie,ik),df1(ie),fr(ik),ekevlog(iw,ik), &
          hDaoao,Cfactor,Upower0,Hfactor,Daoao,Ufactor, &
-         ckeV_log(iwc),hkeV_log(iwh)
+         ckeV_log(icEnergy),hkeV_log(ihEnergy)
     !ukeV_log(iwu)
     real u_max,u_max_log,ompe1,ro1,emin,emax,x0,x2,x,cDaoao
     real u_mx,u_mx_log,factor1,factor_1,DDm,DDp,ump_mx,xlam,alam,dpsd,ao_d
@@ -121,8 +127,8 @@ contains
     
     ! determine edmax and edmin
     !if (iUBC.eq.1) edmax=ukeV(iwu)
-    if (UseHiss) edmax=hkeV(iwh)
-    if (UseChorus) edmax=ckeV(iwc)
+    if (UseHiss) edmax=hkeV(ihEnergy)
+    if (UseChorus) edmax=ckeV(icEnergy)
     if (UseHiss) edmin=hkeV(1)
     if (UseChorus) edmin=ckeV(1)
     !if (iUBC.eq.1) edmin=ukeV(1)
@@ -139,17 +145,27 @@ contains
           IsPlasmasphere=IsPlasmasphere_I(i)
           ro1=ro(i,j)
           ompe1=ompe(i,j)                           ! fpe/fce
-          Cfactor=(BLc0/bo(i,j))*CHpower(i,j)/Cpower0
+          select case(TypeChorus)
+          case('UCLA')
+            Cfactor=(BLc0/bo(i,j))*CHpower(i,j)/Cpower0
+          case('BU')
+            Cfactor = CHpower(i,j)/Cpower0
+          end select
           !Ufactor=(BLu0/bo(i,j))*UBCpower(i,j)/Upower0
           Ufactor=0.0
-          Hfactor=(BLh0/bo(i,j))*HIpower(i,j)/Hpower0
+          select case(TypeHiss)
+          case('UCLA')
+            Hfactor=(BLh0/bo(i,j))*HIpower(i,j)/Hpower0
+          case('BU')
+            Hfactor=HIpower(i,j)/Hpower0
+          end select
           
           ! for testing; this is because we do not have realistic
           !        plasmasphere now
           !ompe1=cOmpe(1)
 
           
-          if (ompe1.ge.cOmpe(1).and.ompe1.le.cOmpe(ipc).and.ro1.ge.r_wave) then
+          if (ompe1.ge.cOmpe(1).and.ompe1.le.cOmpe(icfpefce).and.ro1.ge.r_wave) then
              ! Set up the energy grid, ein
              emin=minval(ekev(i,j,1,1:ik,n))
              emax=maxval(ekev(i,j,iw,1:ik,n))
@@ -206,13 +222,25 @@ contains
                    ! calculate DD, Daoao*Gjac
                    do m=0,ik+1
                       ao_d=ao(m)*180./pi
-                      if (ao_d.lt.cPA(1)) ao_d=cPA(1)
-                      if (ao_d.gt.cPA(ipa)) ao_d=cPA(ipa)
                       cDaoao=0.
-                      if (UseChorus.and..not.IsPlasmasphere) then
-                         if (ein(k).ge.ckeV(1).and.ein(k).le.ckeV(iwc)) &
-                              call lintp3IM(cOmpe,ckeV_log,cPA,cDaa,ipc,iwc, &
-                              ipa,ompe1,ein_log(k),ao_d,cDaoao)
+                      if (UseChorus.and..not.&
+                                IsPlasmasphere) then
+                         if (ao_d.lt.cPA(1)) ao_d=cPa(1)
+                         if (ao_d.gt.cPA(icPa)) ao_d=cPa(icPa)
+                         if (ein(k).ge.ckeV(1).and.&
+                             ein(k).le.ckeV(icEnergy))then
+                          select case(TypeChorus)
+                              case('UCLA')
+                                call lintp3IM(cOmpe,ckeV_log,cPA,&
+                                            cDaa(1,:,:,:),&
+                                            icfpefce,icEnergy,icPa,&
+                                            ompe1,ein_log(k),ao_d,cDaoao,.true.)
+                              case('BU')
+                                call lintp4IM(cLshell,cOmpe,ckeV_log,cPa,cDaa,&
+                                              icL,icfpefce,icEnergy,icPa,&
+                                              ro1,ompe1,ein_log(k),ao_d,cDaoao)
+                              end select
+                         endif
                       endif
                       uDaoao=0.
                       !if (iUBC.eq.1.and.PlasDensity_Ci,j).le.PlasmaPauseDensity) then
@@ -224,9 +252,22 @@ contains
                       if(UseHiss.and.&
                            ompe1.ge.2..and.&
                            IsPlasmasphere)then
-                         if (ein(k).ge.hkeV(1).and.ein(k).le.hkeV(iwh))&
-                              call lintp3IM(hOmpe,hkeV_log,cPA,hDaa,iph,iwh, &
-                              ipa,ompe1,ein_log(k),ao_d,hDaoao)
+                         if (ao_d.lt.hPA(1)) ao_d=hPa(1)
+                         if (ao_d.gt.hPA(ihPa)) ao_d=hPa(ihPa)
+                         if (ein(k).ge.hkeV(1).and.ein(k).le.hkeV(ihEnergy))then
+                              select case(TypeHiss)
+                              case('UCLA')
+                                call lintp3IM(hOmpe,hkeV_log,hPa,hDaa(1,:,:,:),&
+                                              ihfpefce,ihEnergy,ihPa,&
+                                              ompe1,ein_log(k),ao_d,hDaoao,.true.)
+                                !write(*,*) hDaoao
+                              case('BU')
+                                call lintp4IM(hLshell,hOmpe,hkeV_log,hPa,hDaa,&
+                                              ihL,ihfpefce,ihEnergy,ihPa,&
+                                              ro1,ompe1,ein_log(k),ao_d,hDaoao)
+                                !write(*,*) hDaoao
+                              end select
+                         endif
                       endif
                       
                       Daoao=cDaoao*Cfactor+uDaoao*Ufactor+hDaoao*Hfactor
@@ -278,22 +319,41 @@ contains
                       b1d(m)=1.+xlam*(um(m)+up(m))
                       c1d(m)=-xlam*up(m)
                    enddo
+
+                   ! Apply implicit Neumann (zero-flux) boundary conditions
+                   b1d(1)  = b1d(1) + a1d(1)   ! Enforces f(0) = f(1)
+                   a1d(1)  = 0.0               ! Shut off flux to the left
+                   
+                   b1d(ik) = b1d(ik) + c1d(ik) ! Enforces f(ik+1) = f(ik)
+                   c1d(ik) = 0.0               ! Shut off flux to the right
                    
                    ! start diffusion in ao
                    f0(1:ik)=f2d(k,1:ik)
                    do nn=1,irun
                       f0(0)=f0(1)
                       f0(ik+1)=f0(ik)
-                      fr(1)=alam*um(1)*f0(0)+(1.-alam*(up(1)+um(1)))*f0(1)+ &
-                           alam*up(1)*f0(2)+xlam*um(1)*f0(0)
+                      !fr(1)=alam*um(1)*f0(0)+(1.-alam*(up(1)+um(1)))*f0(1)+ &
+                      !     alam*up(1)*f0(2)+xlam*um(1)*f0(0)
+                      !do m=2,ik-1    ! calculate the RHS of matrix equation
+                      !   fr(m)=alam*um(m)*f0(m-1)+(1.-alam*(up(m)+um(m)))*&
+                      !        f0(m)+alam*up(m)*f0(m+1)
+                      !enddo
+                      !fr(ik)=alam*um(ik)*f0(ik-1)+&
+                      !     (1.-alam*(up(ik)+um(ik)))*f0(ik) &
+                      !     +alam*up(ik)*f0(ik+1)+xlam*up(ik)*f0(ik+1)
+                      !call tridagIM(a1d,b1d,c1d,fr,f0(1:ik),ik,ier)
+                      
+                      ! True Neumann RHS for left boundary (um drops out)
+                      fr(1) = (1. - alam*up(1))*f0(1) + alam*up(1)*f0(2)
                       do m=2,ik-1    ! calculate the RHS of matrix equation
-                         fr(m)=alam*um(m)*f0(m-1)+(1.-alam*(up(m)+um(m)))*&
-                              f0(m)+alam*up(m)*f0(m+1)
+                         fr(m)=alam*um(m)*f0(m-1) + &
+                                (1.-alam*(up(m)+um(m)))*f0(m) + &
+                                                            alam*up(m)*f0(m+1)
                       enddo
-                      fr(ik)=alam*um(ik)*f0(ik-1)+&
-                           (1.-alam*(up(ik)+um(ik)))*f0(ik) &
-                           +alam*up(ik)*f0(ik+1)+xlam*up(ik)*f0(ik+1)
+                      ! True Neumann RHS for right boundary (up drops out)
+                      fr(ik) = alam*um(ik)*f0(ik-1) + (1. - alam*um(ik))*f0(ik)
                       call tridagIM(a1d,b1d,c1d,fr,f0(1:ik),ik,ier)
+
                       if (ier.eq.1) &
                            call CON_STOP('ERROR in CIMI: Diffusionaa: '//&
                            'tridag failed,ier=1')
@@ -321,7 +381,7 @@ contains
                    if (f2(i,j,k,m,n).lt.0.) f2(i,j,k,m,n)=0.
                 enddo
              enddo
-          endif    ! end of if (ompe1.ge.cOmpe(1).and.ompe1.le.cOmpe(ipc).and...
+          endif    ! end of if (ompe1.ge.cOmpe(1).and.ompe1.le.cOmpe(icfpefce).and...
           
        enddo
     enddo         ! end of j loop
@@ -338,7 +398,8 @@ contains
     use ModPlasmasphere, ONLY:PlasDensity_C,find_plasmasphere_column
     use ModMPI
     use ModCimiGrid,   ONLY: MinLonPar,MaxLonPar,MinLonGlobal
-    use ModCimiUtil,   ONLY: lintp3IM,tridagIM
+    use ModCimiUtil,   ONLY: lintp3IM,lintp4IM,tridagIM
+    use ModConst,      ONLY: cRmeElectron,j2keV => cKEV
     
     !  use constants
     !  use cimigrid_dim CHECK je and ig
@@ -355,9 +416,9 @@ contains
          factor1,gjac_1,gjac1,gjac(iw),E1(0:iw),Ep,DEE(0:iw+1), &
          DDm,DDp,DEEc,DEEu,DEEh,u_mx,ump_mx,Enor(iw),dEn(iw), & ! CHECKED
          WM1,Wo,Cfactor,Ufactor,edmin,edmax, & ! CHECKED
-         ckeV_log(iwc),hkeV_log(iwh),Ep_log ! CHECKED
+         ckeV_log(icEnergy),hkeV_log(ihEnergy),Ep_log ! CHECKED
     !,ukeV_log(iwu)
-    Eo=511.               ! electron rest energy in keV
+    Eo=cRmeElectron/j2keV  ! electron rest energy in keV
     xlam=0.5              ! implicitness in solving diffusion equation
     alam=1.-xlam
     Upower0=10000.        ! coeff based on UB chorus power of (100pT)^2
@@ -368,8 +429,8 @@ contains
     
     ! determine edmax and edmin
     !if (iUBC.eq.1) edmax=ukeV(iwu)
-    if (UseHiss) edmax=hkeV(iwh)
-    if (UseChorus) edmax=ckeV(iwc)
+    if (UseHiss) edmax=hkeV(ihEnergy)
+    if (UseChorus) edmax=ckeV(icEnergy)
     if (UseHiss) edmin=hkeV(1)
     if (UseChorus) edmin=ckeV(1)
     !if (iUBC.eq.1) edmin=ukeV(1)
@@ -391,11 +452,9 @@ contains
           
           if (testDiff_EE) ompe1=cOmpe(1)
           
-          if (ompe1.ge.cOmpe(1).and.ompe1.le.cOmpe(ipc).and.ro1.ge.r_wave) then
+          if (ompe1.ge.cOmpe(1).and.ompe1.le.cOmpe(icfpefce).and.ro1.ge.r_wave) then
              do m=1,ik
                 PA1=asin(y(i,j,m))*180./pi        ! pitch angle in degree
-                if (PA1.lt.cPA(1)) PA1=cPA(1)
-                if (PA1.gt.cPA(ipa)) PA1=cPA(ipa)
                 do k=1,iw
                    Enor(k)=ekev(i,j,k,m,n)/Eo
                    gjac(k)=(Enor(k)+1.)*sqrt(Enor(k)*(Enor(k)+2.))
@@ -433,9 +492,22 @@ contains
                    Ep_log=log10(Ep)
                    if (k.ge.k1) dEn(k)=E1(k)-E1(k-1)
                    DEEc=0.
-                   if (UseChorus.and..not.IsPlasmasphere) then
-                      if (Ep.ge.ckeV(1).and.Ep.le.ckeV(iwc)) call lintp3IM(cOmpe, &
-                           ckeV_log,cPA,cDEE,ipc,iwc,ipa,ompe1,Ep_log,PA1,DEEc)
+                   if (UseChorus.and.&
+                       .not.IsPlasmasphere) then
+                      if (PA1.lt.cPa(1)) PA1=cPa(1)
+                      if (PA1.gt.cPa(icPa)) PA1=cPa(icPa)
+                      if (Ep.ge.ckeV(1).and.Ep.le.ckeV(icEnergy))then
+                          select case(TypeChorus)
+                          case('UCLA')
+                            call lintp3IM(cOmpe,ckeV_log,cPa,cDEE(1,:,:,:),&
+                                          icfpefce,icEnergy,icPa,&
+                                          ompe1,Ep_log,PA1,DEEc,.true.)
+                          case('BU')
+                            call lintp4IM(cLshell,cOmpe,ckeV_log,cPa,cDEE,&
+                                          icL,icfpefce,icEnergy,icPa,&
+                                          ro1,ompe1,Ep_log,PA1,DEEc)
+                          end select
+                      endif
                    endif
                    DEEu=0.
                    !if (iUBC.eq.1.and.PlasDensity_Ci,j).le.PlasmaPauseDensity) then
@@ -444,8 +516,20 @@ contains
                    !endif
                    DEEh=0.
                    if(UseHiss.and.ompe1.ge.2..and.IsPlasmasphere)then
-                      if (Ep.ge.hkeV(1).and.Ep.le.hkeV(iwh)) call lintp3IM(hOmpe, &
-                           hkeV_log,cPA,hDEE,iph,iwh,ipa,ompe1,Ep_log,PA1,DEEh)
+                      if (PA1.lt.hPa(1)) PA1=hPa(1)
+                      if (PA1.gt.hPa(ihPa)) PA1=hPa(ihPa)
+                      if (Ep.ge.hkeV(1).and.Ep.le.hkeV(ihEnergy))then 
+                          select case(TypeHiss)
+                          case('UCLA')
+                            call lintp3IM(hOmpe,hkeV_log,hPA,hDEE(1,:,:,:),&
+                                          ihfpefce,ihEnergy,ihPa,&
+                                          ompe1,Ep_log,PA1,DEEh,.true.)
+                           case('BU')
+                            call lintp4IM(hLshell,hOmpe,hkeV_log,hPa,hDEE,&
+                                          ihL,ihfpefce,ihEnergy,ihPa,&
+                                          ro1,ompe1,Ep_log,PA1,DEEh)
+                           end select
+                      endif
                    endif
                    DEE(k)=DEEc*Cfactor+DEEu*Ufactor+DEEh*Hfactor ! this is DEE/E^2
                    
@@ -535,7 +619,7 @@ contains
                 enddo
                 
              enddo       ! end of m=1,ik
-          endif          ! end of if (ompe1.ge.cOmpe(1).and.ompe1.le.cOmpe(ipc)..)
+          endif          ! end of if (ompe1.ge.cOmpe(1).and.ompe1.le.cOmpe(icfpefce)..)
           
        enddo       ! end of i loop
     enddo         ! end of j loop
@@ -557,13 +641,15 @@ contains
     use ModPlasmasphere, ONLY:PlasDensity_C,find_plasmasphere_column
     use ModMPI
     use ModCimiGrid,   ONLY: MinLonPar,MaxLonPar,MinLonGlobal
-    use ModCimiUtil,   ONLY: lintp3IM,tridagIM
+    use ModCimiUtil,   ONLY: lintp3IM,lintp4IM,tridagIM
+    use ModConst,      ONLY: cRmeElectron,j2keV => cKEV
     
     implicit none
     integer,parameter :: ie=80
     integer i,j,m,k,k1,k2,nrun,n,ier,iww,nn
     integer iba(MinLonPar:MaxLonPar),iw2(ik,nspec),nrun2,iLonGlobal
     logical IsPlasmasphere, IsPlasmasphere_I(ir)
+    real Eo
     real f2(ir,MinLonPar:MaxLonPar,iw,ik,nspec),xjac(ir,iw,nspec),einlog, &
          ein_log(ie),&
          fl(0:ie+1),f1d(iw),ein(ie),ao(0:ik+1),dao(ik),ao1, &
@@ -571,16 +657,16 @@ contains
          f2d0(ie,ik), &
          f2d(ie,0:ik+1), &
          df1(ie),fr(ie),ekevlog(iw,ik),Upower0, &
-         Eo,Enor(ie),edmin,edmax, &
+         Enor(ie),edmin,edmax, &
          gjacA(0:ik+1),Dae(ie,0:ik+1),Cfactor,Ufactor,Hfactor,DaEc,DaEu,DaEh,&
          u1(ie,ik),u2(ie,ik),u3(ie,ik),dtda2,dtda2dE2,Dkm,Dk_1m,Dkm_1,Dkm1, &
          Dk1m,gjacE(ie),ompe1,ro1,emin,emax,x0,x2,x, &
-         ckeV_log(iwc),hkeV_log(iwh), &
+         ckeV_log(icEnergy),hkeV_log(ihEnergy), &
          f2d1(ie,0:ik+1),f2d2(ie,0:ik+1),time
     !,ukeV_log(iwu)
     character(len=6) :: tchar
     
-    Eo=511.               ! electron rest energy in keV
+    Eo=cRmeElectron/j2keV  ! electron rest energy in keV
     Upower0=10000.        ! coeff based on UB chorus power of (100pT)^2
     
     ckeV_log(:)=log10(ckeV(:))
@@ -589,8 +675,8 @@ contains
     
     ! determine edmax and edmin
     !if (iUBC.eq.1) edmax=ukeV(iwu)
-    if (UseHiss) edmax=hkeV(iwh)
-    if (UseChorus) edmax=ckeV(iwc)
+    if (UseHiss) edmax=hkeV(ihEnergy)
+    if (UseChorus) edmax=ckeV(icEnergy)
     if (UseHiss) edmin=hkeV(1)
     if (UseChorus) edmin=ckeV(1)
     !if (iUBC.eq.1) edmin=ukeV(1)
@@ -616,7 +702,7 @@ contains
           Ufactor=0.0!(BLu0/bo(i,j))*UBCpower(i,j)/Upower0
           Hfactor=(BLh0/bo(i,j))*HIpower(i,j)/Hpower0
           if (testDiff_aE) ompe1=cOmpe(1)
-          if (ompe1.ge.cOmpe(1).and.ompe1.le.cOmpe(ipc).and.ro1.ge.r_wave) then
+          if (ompe1.ge.cOmpe(1).and.ompe1.le.cOmpe(icfpefce).and.ro1.ge.r_wave) then
              ! Set up the energy grid, ein
              emin=minval(ekev(i,j,1,1:ik,n))
              emax=maxval(ekev(i,j,iw,1:ik,n))
@@ -693,14 +779,23 @@ contains
              ! Find Dae
              do m=0,ik+1
                 ao1=ao(m)*180./pi
-                if (ao1.lt.cPA(1)) ao1=cPA(1)
-                if (ao1.gt.cPA(ipa)) ao1=cPA(ipa)
                 do k=k1-1,k2+1
                    DaEc=0.
                    if (UseChorus.and..not.IsPlasmasphere) then
-                      if (ein(k).ge.ckeV(1).and.ein(k).le.ckeV(iwc)) &
-                           call lintp3IM(cOmpe,ckeV_log,cPA,cDaE,ipc,iwc,ipa,&
-                           ompe1,ein_log(k),ao1,DaEc)
+                      if (ao1.lt.cPa(1)) ao1=cPa(1)
+                      if (ao1.gt.cPa(icPa)) ao1=cPa(icPa)
+                      if (ein(k).ge.ckeV(1).and.ein(k).le.ckeV(icEnergy))then
+                           select case(TypeChorus)
+                           case('UCLA')
+                             call lintp3IM(cOmpe,ckeV_log,cPA,cDaE(1,:,:,:),&
+                                           icfpefce,icEnergy,icPa,&
+                                           ompe1,ein_log(k),ao1,DaEc,.true.)
+                           case('BU')
+                             call lintp4IM(cLshell,cOmpe,ckeV_log,cPa,cDaE,&
+                                           icL,icfpefce,icEnergy,icPa,&
+                                           ro1,ompe1,ein_log(k),ao1,DaEc)
+                           end select
+                      endif
                    endif
                    DaEu=0.
                    !if (iUBC.eq.1.and.PlasDensity_Ci,j).le.PlasmaPauseDensity) then
@@ -710,9 +805,20 @@ contains
                    !endif
                    DaEh=0.
                    if(UseHiss.and.ompe1.ge.2..and.IsPlasmasphere)then
-                      if (ein(k).ge.hkeV(1).and.ein(k).le.hkeV(iwh)) &
-                           call lintp3IM(hOmpe,hkeV_log,cPA,hDaE,iph,iwh,ipa, &
-                           ompe1,ein_log(k),ao1,DaEh)
+                      if (ao1.lt.hPa(1)) ao1=hPa(1)
+                      if (ao1.gt.hPa(ihPa)) ao1=hPa(ihPa)
+                      if (ein(k).ge.hkeV(1).and.ein(k).le.hkeV(ihEnergy))then
+                           select case(TypeHiss)
+                           case('UCLA')
+                             call lintp3IM(hOmpe,hkeV_log,hPA,hDaE(1,:,:,:),&
+                                           ihfpefce,ihEnergy,ihPa, &
+                                           ompe1,ein_log(k),ao1,DaEh,.true.)
+                           case('BU')
+                             call lintp4IM(hLshell,hOmpe,hkeV_log,hPa,hDaE,&
+                                           ihL,ihfpefce,ihEnergy,ihPa,&
+                                           ro1,ompe1,ein_log(k),ao1,DaEh)
+                           end select
+                      endif
                    endif
                    Dae(k,m)=DaEc*Cfactor+DaEu*Ufactor+DaEh*Hfactor
                 enddo
@@ -925,7 +1031,7 @@ contains
                 enddo
              enddo
              
-          endif  ! end if (ompe1.ge.cOmpe(1).and.ompe1.le.cOmpe(ipc).and.ro1..)
+          endif  ! end if (ompe1.ge.cOmpe(1).and.ompe1.le.cOmpe(icfpefce).and.ro1..)
           
        enddo     ! end of i loop
     enddo       ! end of j loop

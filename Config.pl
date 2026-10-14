@@ -81,6 +81,7 @@ foreach (@Arguments){
     if(/^-griddefault$/i)       {$NewGrid="GridDefault";           next};
     if(/^-gridexpanded$/i)      {$NewGrid="GridExpanded";          next};
     if(/^-gridsouthexpanded$/i) {$NewGrid="SouthGridExpanded";     next};
+    if(/^-gridsinglepoint$/i)   {$NewGrid="GridSinglePoint";       next};
     if(/^-griduniforml$/i)      {$NewGrid="GridUniformL";          next};
     if(/^-ng$/i)                {$ShowGhostCell=1;                 next};
     if(/^-ng=(.*)$/i)           {$NewGhostCell=$1;                 next};
@@ -276,6 +277,7 @@ sub set_grid{
     $File = " $Dir/ModGrid_expanded.f90"  if $Grid eq "GridExpanded";
     $File = " $Dir/ModGrid_southexpanded.f90"  if $Grid eq "SouthGridExpanded";
     $File = " $Dir/ModGrid_UniformL.f90"  if $Grid eq "GridUniformL";
+    $File = " $Dir/ModGrid_SinglePoint.f90"  if $Grid eq "GridSinglePoint";
 
     &shell_command("cp $File src/ModGrid.f90");
 
@@ -313,6 +315,8 @@ sub print_help{
 
 -SouthGridExpanded    Configure CIMI with S hemisiphere and a  grid expanded to higher lat
 
+-GridSinglePoint    Configure CIMI with single spatial grid point (FOR TESTS ONLY)
+
 -ng              Print the current number of ghost cells (nGhostCell).
 
 -ng=NG           Set nGhostCell=NG in src/ModGrid.f90.
@@ -333,6 +337,7 @@ sub print_help{
 Note: selecting a grid with -Grid... copies a template over src/ModGrid.f90,
 which resets nGhostCell, np, nt, nm and nk unless -ng, -np, -nt, -nm and -nk
 are passed again.
+=======
 
 These flags are case insensitive.
 

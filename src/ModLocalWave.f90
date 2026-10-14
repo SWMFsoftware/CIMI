@@ -1,34 +1,42 @@
 module whistler_model
     implicit none
     save
+    private ! except
     
     ! Global Constants
-    real, parameter :: cC = 2.9979e8       ! speed of light (m/s)
-    real, parameter :: cMe = 9.1094e-31    ! electron mass (kg)
-    real, parameter :: cPi = 3.14159265359
-    real, parameter :: cEta0 = 8.854e-12   ! permittivity of free space
-    real, parameter :: cQe = 1.602e-19     ! electron charge (coulombs)
-    real, parameter :: ckeV2Joule = cQe*1e3! keV to Joules
-    real, parameter :: ccm2m = 1e-4        ! cm^2 to m^2
+    real, parameter, public :: cC = 2.9979e8       ! speed of light (m/s)
+    real, parameter, public :: cMe = 9.1094e-31    ! electron mass (kg)
+    real, parameter, public :: cPi = 3.14159265359
+    real, parameter, public :: cEta0 = 8.854e-12   ! permittivity of free space
+    real, parameter, public :: cQe = 1.602e-19     ! electron charge (coulombs)
+    real, parameter, public :: ckeV2Joule = cQe*1e3! keV to Joules
+    real, parameter, public :: ccm2m = 1e-4        ! cm^2 to m^2
     
     ! Grid & Simulation parameters (Manually set in this module)
     ! NOTE W_I indicates array with shape of of resonant frequency grid
     !      P_I indicates array with shape of perpendicular momentum grid
-    integer :: nFreq=189, nPperp=100, nPpar=100
+    integer,public :: nFreq=189, nPperp=100, nPpar=100
+    real, allocatable,public :: wResW_I(:), pperpP_I(:), pparP_I(:),&
+                                rIonoW_I(:)
     real :: FreqGridFactor=0.95
-    real, allocatable :: wResW_I(:), pperpP_I(:), pparP_I(:), rIonoW_I(:)
     real :: dpperp, dppar
 
     ! Grid & Simulation parameters (To be allocated outside the module)
     !integer,public :: n_energy, n_alpha
-    real :: tSim, dt
+    real, public :: tSim, dt
     
     ! Global State Variables
-    real, allocatable :: WPowW_I(:)          ! Wave power
-    real, allocatable :: WPowGrownW_I(:)     ! Power generated
-    real, allocatable :: WPowLostW_I(:)      ! Power lost
-    real :: WPowTotal                        ! Wave power in pT^2
+    real, allocatable, public :: WPowW_I(:)          ! Wave power
+    real, allocatable, public :: WPowGrownW_I(:)     ! Power generated
+    real, allocatable, public :: WPowLostW_I(:)      ! Power lost
+    real, public :: WPowTotal                        ! Wave power in pT^2
     
+    public :: init_whistlers
+    public :: update_wave_power
+    public :: interp_polar_to_cartesian
+    public :: calc_derivatives
+    public :: momentum, wplasma, wgyro,&
+              calc_kr, calc_gamma_lorentz, calc_pR, calc_delR
     
 contains
     ! ======================================================================
@@ -276,9 +284,14 @@ contains
     end subroutine calc_a_rel
 
     ! ======================================================================
-    ! Utility Subroutines and Functions (Eq A1 - A9)
+    ! Utility Subroutines and Functions
     ! ======================================================================
-    
+    subroutine calc_derivativesMK()
+        ! TODO
+        ! get pperp(m)
+        ! get ppar(m,k)
+        ! calc interp on target points
+    end subroutine calc_derivativesMK
     subroutine calc_derivatives(p,sina,PSD, ppar_0,pperp_0,dppar,dpperp,&! IN
                                 dfdppar,dfdpperp)                        !OUT
         ! Inputs
@@ -316,6 +329,7 @@ contains
 
     end subroutine calc_derivatives
 
+    !-------------------------------------------------------------------------
     subroutine interp_polar_to_cartesian(p, sina, PSD, pperp, ppar,&
                                          PSDinterp)
         ! Inputs
@@ -393,25 +407,31 @@ contains
 
     end subroutine interp_polar_to_cartesian
 
-    ! Function I
+    !-------------------------------------------------------------------------
+    elemental real function momentum(energy)
+        real,intent(in) :: energy
+        momentum = sqrt(energy*cMe*((energy/(cMe*cC**2))+2))
+    end function momentum
+
+    !-------------------------------------------------------------------------
     real function wplasma(N_dens)
         real, intent(in) :: N_dens
         wplasma = sqrt(N_dens * cQe**2 / (cMe*cEta0))
     end function wplasma
 
-    ! Function II
+    !-------------------------------------------------------------------------
     real function wgyro(bo)
         real, intent(in) :: bo
         wgyro = abs((cQe * bo) / (cMe))
     end function wgyro
 
-    ! Function III (Dispersion - requires solving Eq A8 for k)
+    !-------------------------------------------------------------------------
     real function calc_kr(w_r, wp, wg)
         real, intent(in) :: w_r, wp, wg
         calc_kr = (w_r / cC) * sqrt(1.0 + (wp**2) / (w_r * (wg - w_r)))
     end function calc_kr
 
-    ! Function IV (Eq A4 equivalent for Lorentz factor)
+    !-------------------------------------------------------------------------
     real function calc_gamma_lorentz(wResW_I, wp, wg, pperp)
         real, intent(in) :: wResW_I, wp, wg, pperp
         real :: kr, term1, term2, term3
@@ -425,7 +445,7 @@ contains
                                  /(term1 * (wResW_I / wg))
     end function calc_gamma_lorentz
 
-    ! Function V (Eq A5)
+    !-------------------------------------------------------------------------
     real function calc_pR(wResW_I, wp, wg, pperp)
         real,intent(in) :: wResW_I,wp,wg,pperp
         real :: kr,gamma_L
@@ -434,7 +454,7 @@ contains
         calc_pR = (cMe / kr) * (gamma_L * wResW_I - wg)
     end function calc_pR
 
-    ! Function IV (Eq A6)
+    !-------------------------------------------------------------------------
     real function calc_delR(wResW_I,wp,wg,pperp)
         real, intent(in) :: wResW_I,wp,wg,pperp
         real :: kr,gamma_L,pR
@@ -445,13 +465,13 @@ contains
         calc_delR = 1.0 - (wResW_I * pR)/(cMe * cC**2 * kr * gamma_L)
     end function calc_delR
 
-    ! Function VII (Eq A7)
+    !-------------------------------------------------------------------------
     real function calc_Acritical(wResW_I, wg)
         real, intent(in) :: wResW_I, wg
         calc_Acritical = wResW_I / (wg - wResW_I)
     end function calc_Acritical
 
-    ! Function VIII (Eq A9 - Group Velocity)
+    !-------------------------------------------------------------------------
     real function calc_vgroup(wResW_I, wp, wg)
         real, intent(in) :: wResW_I, wp, wg
         real :: kr, num, den
@@ -461,7 +481,7 @@ contains
         calc_vgroup = num / den
     end function calc_vgroup
 
-    ! Function IX (Eq A1 - Growth Rate)
+    !-------------------------------------------------------------------------
     real function calc_growth_rate(wResW_I,wp,wg,eta_r, a_r)
         real, intent(in) :: wResW_I, wp, wg, eta_r, a_r
         real :: a_crit,num,denom
@@ -471,7 +491,7 @@ contains
         calc_growth_rate = num / denom
     end function calc_growth_rate
 
-    ! Norm 1
+    !-------------------------------------------------------------------------
     real function calc_norm1(wResW_I,wp,wg,N)
         real, intent(in) :: wResW_I,wp,wg,N
         real :: kr
@@ -479,7 +499,7 @@ contains
         calc_norm1 = cPi*cMe*(wResW_I-wg)/(N*kr)
     end function calc_norm1
 
-    ! Norm 2
+    !-------------------------------------------------------------------------
     real function calc_norm2(wResW_I,wp,wg)
         real, intent(in) :: wResW_I,wp,wg
         real ::  kr
@@ -487,6 +507,6 @@ contains
         calc_norm2 =  kr/(cMe*(wResW_I-wg))
     end function calc_norm2
 
-
+    !-------------------------------------------------------------------------
 end module whistler_model
 

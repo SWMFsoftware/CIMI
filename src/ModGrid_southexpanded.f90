@@ -48,8 +48,12 @@ Module ModCimiGrid
        -80.8786008210180256, -82.2216559222371330, -83.7663121676587963, &
        -85.4404094624754862, -87.1942709870800599, -88.9996559369669313/)
 
-  real :: xlatr(np), dlat(np), sinAo(npit), xmltGlobal(nt)
+  real :: xlatr(np), dlat(np), sinAo(npit), xmltGlobal(nt), dphi
   real, allocatable :: phi(:), xmlt(:)
+  logical :: DoReadParamGrid = .false.
+  real :: LatitudeDeg,  dLatitudeDeg,&
+          LongitudeRad, dLongitudeRad
+  integer :: MinLon, MaxLon, nTotalCell
 
   real, allocatable :: d4Element_C(:,:,:,:) !4D element (dlat*dphi*dmm*dk)
   

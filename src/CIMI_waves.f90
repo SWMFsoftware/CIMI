@@ -35,28 +35,36 @@ Module CIMI_waves
   
 
   !copy and paste directly from waveDiffCoef in standalone code
-  real,allocatable,public,dimension(:) :: cOmpe,hOmpe,ckeV,hkeV
+  real,allocatable,public,dimension(:) :: cLshell,hLshell,&
+                                          cOmpe,hOmpe,&
+                                          ckeV,hkeV,&
+                                          cPa,hPa
   !chorus diffusion coef
-  real,public,allocatable,dimension(:,:,:) :: cDaa,cDEE,cDaE!cDpp,cDap,hDaa,hDpp,hDap
+  real,public,allocatable,dimension(:,:,:,:) :: cDaa,cDEE,cDaE!cDpp,cDap,hDaa,hDpp,hDap
   !hiss diffusion coef
-  real,public,allocatable,dimension(:,:,:) :: hDaa,hDEE,hDaE
+  real,public,allocatable,dimension(:,:,:,:) :: hDaa,hDEE,hDaE
+
+  real,allocatable,public,dimension(:,:,:,:) :: E_Q2c0,E_Q2h0,&
+                                                cDqq10,cDqq20,hDqq10,hDqq20
   
   !The type of wave model. In the standalone code this was ichor, ihiss
-  character(len=100) :: TypeHiss, TypeChorus
+  character(len=100),public :: TypeHiss, TypeChorus
 
   !Name of input wave files
   character(len=100),public :: NameHissFile, NameChorusFile
 
   !flags that indicate if we are using waves and what kind
   logical, public :: UseWaves=.false., UseChorus, UseHiss
+  logical, public :: UseDiagDiffusion=.true.
 
   ! dimension of LB chorus & hiss diff coef copied from cimigrid_dim module of
   ! standalone code
   ! dimension of LB chorus & hiss diff coef
-  integer,public :: ipc,iwc,iph,iwh
-  integer, public,parameter :: ipa=89
+  !integer,public :: ipc,iwc,iph,iwh
+  !integer, public,parameter :: ipa=89
+  !real,public :: cPA(ipa)
+  integer,public :: icL,ihL,icfpefce,ihfpefce,icEnergy,ihEnergy,icPa,ihPa
 
-  real,public :: cPA(ipa)
   
   ! option to use KpIndex instead of AE. This was origional wave approach
   logical, public :: UseKpIndex
@@ -87,6 +95,8 @@ contains
           TypeHiss='UCLA'
        !case('D_hiss_Albert.dat')
        !   TypeHiss='Albert'
+       case('D_hiss_BU.dat')
+          TypeHiss='BU'
        case default
           call CON_stop('IM ERROR: Hiss wave file type not recognized.')
        end select
@@ -96,27 +106,65 @@ contains
        select case (NameChorusFile)
        case('D_LBchorus_QZ.dat','D_LBchorus_merge2.dat',&
             'D_LBchorus_merge3.dat')
-          TypeChorus='ChorusFileType1'
+          TypeChorus='UCLA'
        !case('D_LBchorus_merge.dat')
        !   TypeChorus='ChorusFileType2'
+       case('D_LBchorus_BUMLAT010.dat',&
+            'D_LBchorus_BUMLAT1020.dat',&
+            'D_LBchorus_BUMLAT2030.dat')
+          TypeChorus='BU'
        case default
           call CON_stop('IM ERROR: Chorus wave file type not recognized.')
        end select
     endif
 
+    if (TypeHiss.ne.TypeChorus) then
+        call CON_stop('IM ERROR: Wave file types must match.')
+    endif
+
     
     ! pitch-angle grid
-    do m=1,ipa
-       cPA(m)=real(m) !m*1.
-    enddo
+    !do m=1,ipa
+    !   cPA(m)=real(m) !m*1.
+    !enddo
 
     !read chorus data
     if (UseChorus) then
-       call read_chorus
+       select case(TypeChorus)
+       case('UCLA')
+         call read_chorus
+       case('BU')
+         if(UseDiagDiffusion) then
+            call read_BU_waves_DQQ(NameChorusFile,&
+                               Cpower0,icL,icfpefce,icEnergy,icPa,&
+                               cLshell,cOmpe,ckeV,cPa,&
+                               E_Q2c0,cDqq10,cDqq20)
+         else
+            call read_BU_waves_DaE(NameChorusFile,&
+                               Cpower0,icL,icfpefce,icEnergy,icPa,&
+                               cLshell,cOmpe,ckeV,cPa,&
+                               cDaa,cDaE,cDEE)
+         endif
+       end select
     endif
 
     if (UseHiss) then
-       call read_hiss
+       select case (TypeHiss)
+       case('UCLA')
+         call read_hiss
+       case('BU')
+         if(UseDiagDiffusion) then
+            call read_BU_waves_DQQ(NameHissFile,&
+                               Hpower0,ihL,ihfpefce,ihEnergy,ihPa,&
+                               hLshell,hOmpe,hkeV,hPa,&
+                               E_Q2h0,hDqq10,hDqq20)
+         else
+            call read_BU_waves_DaE(NameHissFile,&
+                            Hpower0,ihL,ihfpefce,ihEnergy,ihPa,&
+                            hLshell,hOmpe,hkeV,hPa,&
+                            hDaa,hDaE,hDEE)
+         endif
+       end select
     endif
   end subroutine readDiffCoef
 
@@ -139,31 +187,38 @@ contains
     open(unit=UnitTmp_,file='IM/'//NameChorusFile,status='old')
     !write(*,*) 'IM: Using Chorus wave file: ', NameChorusFile
     read(UnitTmp_,*) Cpower0,Lc0
-    read(UnitTmp_,*) ipc,iwc
+    read(UnitTmp_,*) icfpefce,icEnergy,icPa
+    icL = 1
     !note some additional variables will be needed when we go to p-k system
     !those are commented out for now
-    allocate (cOmpe(ipc),ckeV(iwc))!,ckeVlog(iwc))
+    allocate (cLshell(icL),&
+              cOmpe(icfpefce),&
+              ckeV(icEnergy),&
+              cPa(icPa))!,ckeVlog(iwc))
     !allocate (wDaa(iwc,ipa),wDap(iwc,ipa),wDpp(iwc,ipa))
     !allocate (Daa1(iwc),Dap1(iwc),Dpp1(iwc))
     !allocate (cDaa(ipc,0:iw+1,ipa),cDap(ipc,0:iw+1,ipa),cDpp(ipc,0:iw+1,ipa))
-    allocate (cDEE(ipc,iwc,ipa),cDaa(ipc,iwc,ipa),cDaE(ipc,iwc,ipa))
+    allocate (cDEE(icL,icfpefce,icEnergy,icPa),&
+              cDaa(icL,icfpefce,icEnergy,icPa),&
+              cDaE(icL,icfpefce,icEnergy,icPa))
     read(UnitTmp_,*) cOmpe
     read(UnitTmp_,*) ckeV
     !ckeVlog(:)=log10(ckeV(:))
     BLc0=xme/(Lc0*rPlanet_I(Earth_))**3       ! dipole B at Lc0
-    cDaa(:,:,:)=0.
-    cDaE(:,:,:)=0.
-    cDEE(:,:,:)=0.
-    do j=1,ipc
+    cDaa(icL,:,:,:)=0.
+    cDaE(icL,:,:,:)=0.
+    cDEE(icL,:,:,:)=0.
+    do j=1,icfpefce
        ! Read coefficients
-       do k=1,iwc
+       do k=1,icEnergy
           read(UnitTmp_,'(a80)') header
           read(UnitTmp_,'(a80)') header
-          do m=1,ipa
+          do m=1,icPa
              read(UnitTmp_,*) pa,daa,dap,dpp,daE,dEE
-             cDaa(j,k,m) = daa    ! coeff in 1/sec
-             cDaE(j,k,m) = daE
-             cDEE(j,k,m) = dEE
+             cPa(m) = pa
+             cDaa(icL,j,k,m) = daa    ! coeff in 1/sec
+             cDaE(icL,j,k,m) = daE
+             cDEE(icL,j,k,m) = dEE
           enddo
        enddo
     enddo
@@ -190,37 +245,231 @@ contains
     open(unit=UnitTmp_,file='IM/'//NameHissFile,status='old')
     !write(*,*) 'IM: Using Hiss wave file: ', NameHissFile
     read(UnitTmp_,*) Hpower0,Lh0
-    read(UnitTmp_,*) iph,iwh
+    read(UnitTmp_,*) ihfpefce,ihEnergy,ihPa
+    ihL = 1
     !note some additional variables will be needed when we go to p-k system
     !those are commented out for now
-    allocate (hOmpe(iph),hkeV(iwh))!,ckeVlog(iwc))
+    allocate (hLshell(ihL),&
+              hOmpe(ihfpefce),&
+              hkeV(ihEnergy),&
+              hPa(ihPa))!,ckeVlog(iwc))
     !allocate (wDaa(iwc,ipa),wDap(iwc,ipa),wDpp(iwc,ipa))
     !allocate (Daa1(iwc),Dap1(iwc),Dpp1(iwc))
     !allocate (cDaa(ipc,0:iw+1,ipa),cDap(ipc,0:iw+1,ipa),cDpp(ipc,0:iw+1,ipa))
-    allocate (hDEE(iph,iwh,ipa),hDaa(iph,iwh,ipa),hDaE(iph,iwh,ipa))
+    allocate (hDEE(ihL,ihfpefce,ihEnergy,ihPa),&
+              hDaa(ihL,ihfpefce,ihEnergy,ihPa),&
+              hDaE(ihL,ihfpefce,ihEnergy,ihPa))
     read(UnitTmp_,*) hOmpe
     read(UnitTmp_,*) hkeV
     !ckeVlog(:)=log10(ckeV(:))
     BLh0=xme/(Lh0*rPlanet_I(Earth_))**3       ! dipole B at Lc0
-    hDaa(:,:,:)=0.
-    hDaE(:,:,:)=0.
-    hDEE(:,:,:)=0.
-    do j=1,iph
+    hDaa(ihL,:,:,:)=0.
+    hDaE(ihL,:,:,:)=0.
+    hDEE(ihL,:,:,:)=0.
+    do j=1,ihfpefce
        ! Read coefficients
        read(UnitTmp_,'(a80)') header
        read(UnitTmp_,'(a80)') header
-       do k=1,iwh
-          do m=1,ipa
+       do k=1,ihEnergy
+          do m=1,ihPa
              read(UnitTmp_,*) Lh0,EEo,pa,daa,dap,dpp,daE,dEE
-             hDaa(j,k,m) = daa    ! coeff in 1/sec
-             hDaE(j,k,m) = daE
-             hDEE(j,k,m) = dEE
+             hPa(m) = pa
+             hDaa(ihL,j,k,m) = daa    ! coeff in 1/sec
+             hDaE(ihL,j,k,m) = daE
+             hDEE(ihL,j,k,m) = dEE
           enddo
        enddo
     enddo
     close(UnitTmp_)
     
   end subroutine read_hiss
+
+  !***************************************************************************
+  subroutine read_BU_waves_DQQ(NameFile,&
+                               power0,iL,ifpefce,iEnergy,iPa,&
+                               Lshell,Ompe,Energy,Pa,&
+                               EQ2,Dq1q1,Dq2q2)
+    use ModIoUnit, ONLY: UnitTmp_
+
+    ! Inputs
+    character,intent(in):: NameFile
+    ! Outputs
+    real,intent(out):: power0
+    integer,intent(out):: iL,ifpefce,iEnergy,iPa
+    real, allocatable, intent(out), dimension(:) :: Lshell,Ompe,Energy,Pa
+    real, allocatable, intent(out), dimension(:,:,:,:) :: EQ2,Dq1q1,Dq2q2
+    ! index vars
+    integer :: i, j, k, m
+
+    ! dummy variables for reading lines
+    real :: raw_daa, raw_dap, raw_dpp
+    real :: eq2_val, raw_dq1q1, raw_dq2q2
+    real :: blk_E, blk_fpe, blk_L
+
+    character(len=100) :: header
+    !---------------------------------------------------------------------------
+
+    open(unit=UnitTmp_, file='IM/'//NameHissFile, status='old')
+
+    ! Read nominal wave power
+    read(UnitTmp_, *) power0, header
+
+    ! Read grid sizes: nLshell, nfpefce, nEnergy/EQ2, nPa/alpha0
+    read(UnitTmp_, *) iL, ifpefce, iEnergy, iPa, header
+
+    ! Allocate 1D arrays for the grids
+    allocate (Lshell(iL))
+    allocate (Ompe(ifpefce), Energy(iEnergy), Pa(iPa))
+
+    ! Allocate 4D arrays for Q-coordinate coefficients (Lshell, fpefce, EQ2, alpha0)
+    allocate (EQ2(iL, ifpefce, iEnergy, iPa))
+    allocate (Dq1q1(iL, ifpefce, iEnergy, iPa))
+    allocate (Dq2q2(iL, ifpefce, iEnergy, iPa))
+
+    Dq1q1(:,:,:,:) = 0.
+    Dq2q2(:,:,:,:) = 0.
+
+    ! Read 1D grid arrays (skip text headers)
+    read(UnitTmp_, '(a80)') header  ! "L-shell"
+    read(UnitTmp_, *) Lshell
+
+    read(UnitTmp_, '(a80)') header  ! "fpe/fce"
+    read(UnitTmp_, *) Ompe
+
+    read(UnitTmp_, '(a80)') header  ! "energy (keV) / Q2 (keV)"
+    read(UnitTmp_, *) Energy
+
+    read(UnitTmp_, '(a80)') header  ! "pitch-angle (deg) / Q1 (deg)"
+    read(UnitTmp_, *) Pa
+
+    ! Loop over blocks (Lshell -> fpe/fce -> Energy/EQ2)
+    do i = 1, iL
+       do j = 1, ifpefce
+          do k = 1, iEnergy
+
+             ! Read block header
+             read(UnitTmp_, *) blk_E, blk_fpe, blk_L
+
+             ! Skip the column header line
+             read(UnitTmp_, '(a80)') header
+
+             do m = 1, iPa
+                ! Column 5: Eq2(keV) -> eq2_val
+                ! Column 6: Dq1q1    -> raw_dq1q1
+                ! Column 7: Dq2q2/Q2^2 (sec^-1 -> raw_dq2q2
+                read(UnitTmp_, *) &
+                                  Pa(m), raw_daa, raw_dap, raw_dpp, &
+                                  eq2_val, raw_dq1q1, raw_dq2q2
+               ! Store the local EQ2 coordinate for this (L, fpe/fce, E, Pa)
+                EQ2(i, j, k, m) = eq2_val
+                ! Store Dq1q1, and Dq2q2 directly
+                Dq1q1(i, j, k, m) = raw_dq1q1
+                Dq2q2(i, j, k, m) = raw_dq2q2
+             enddo
+          enddo
+       enddo
+    enddo
+
+    close(UnitTmp_)
+  end subroutine read_BU_waves_DQQ
+
+  !***************************************************************************
+  subroutine read_BU_waves_DaE(NameFile,&
+                           power0,&
+                           iL,ifpefce,iEnergy,iPa,&
+                           Lshell,Ompe,keV,Pa,&
+                           Daa,DaE,DEE)
+    use ModIoUnit, ONLY: UnitTmp_
+    use ModConst,  ONLY: cRmeElectron,cKEV
+
+    ! Input variables
+    character(len=100),intent(in) :: NameFile
+    ! Output variables
+    real,intent(out) :: power0
+    integer,intent(out) :: iL,ifpefce,iEnergy,iPa
+    real,allocatable,dimension(:),intent(out) :: Lshell,Ompe,keV,Pa
+    real,allocatable,dimension(:,:,:,:),intent(out) :: Daa,DaE,DEE
+    ! index variables
+    integer :: i, j, k, m 
+    ! to hold record diffusion coef from file
+    real :: dum_pa, raw_daa, raw_dap, raw_dpp
+    real :: dum_Eq2, dum_Dq1, dum_Dq2
+    real :: blk_E, blk_fpe, blk_L
+
+    ! conversion variables
+    real :: E_keV, cE_rest, gamma, v_c
+
+    character(len=100) :: header
+    !-------------------------------------------------------------------------
+
+    ! Rest mass of electron in keV (used for momentum to energy conversion)
+    cE_rest = cRmeElectron/cKEV
+
+    open(unit=UnitTmp_, file='IM/'//NameFile, status='old')
+    !write(*,*) 'IM: Using Hiss wave file: ', NameFile
+    ! Read nominal wave power
+    read(UnitTmp_, *) power0
+    ! Read grid sizes: nLshell, nfpefce, nEnergy, nPa
+    read(UnitTmp_, *) iL, ifpefce, iEnergy, iPa
+    ! Allocate 1D arrays for the grids
+    allocate (Lshell(iL),&
+              Ompe(ifpefce),&
+              keV(iEnergy),&
+              Pa(iPa))
+    ! Allocate 4D arrays for coefficients (Lshell, fpe/fce, Energy, PitchAngle)
+    allocate (Daa(iL, ifpefce, iEnergy, iPa))
+    allocate (DaE(iL, ifpefce, iEnergy, iPa))
+    allocate (DEE(iL, ifpefce, iEnergy, iPa))
+    Daa(:,:,:,:) = 0.
+    DaE(:,:,:,:) = 0.
+    DEE(:,:,:,:) = 0.
+    ! Read 1D grid arrays (skip text headers)
+    read(UnitTmp_, '(a80)') header  ! "L-shell"
+    read(UnitTmp_, *) Lshell
+
+    read(UnitTmp_, '(a80)') header  ! "fpe/fce"
+    read(UnitTmp_, *) Ompe
+
+    read(UnitTmp_, '(a80)') header  ! "energy (keV) / Q2 (keV)"
+    read(UnitTmp_, *) keV
+
+    read(UnitTmp_, '(a80)') header  ! "pitch-angle (deg) / Q1 (deg)"
+    read(UnitTmp_, *) Pa
+
+    ! Loop over blocks (Block order: Lshell -> fpe/fce -> Energy)
+    do i = 1, iL
+       do j = 1, ifpefce
+          do k = 1, iEnergy
+             ! Read block header
+             read(UnitTmp_, *) blk_E, blk_fpe, blk_L
+             ! Skip the column header line
+             read(UnitTmp_, '(a80)') header
+             ! Current energy in keV for conversion
+             E_keV = keV(k)
+             ! Relativistic conversion: velocity (v/c)
+             gamma = (E_keV / cE_rest) + 1.0
+             v_c = sqrt(gamma**2 - 1.0) / gamma
+             do m = 1, iPa
+                ! Read the 7 data columns
+                read(UnitTmp_, *) Pa(m), raw_daa, raw_dap, raw_dpp, &
+                                  dum_Eq2, dum_Dq1, dum_Dq2
+                ! --- UNIT & PHYSICS CONVERSION ---
+                ! <Daa> is already the correct units (Daa/p^2)
+                Daa(i,j,k,m) = raw_daa
+                ! <DaE> (1/sec) from Dap/E^2:
+                ! D_aE = v * D_ap -> <DaE> rate = v_c * E_keV * (Dap / E^2)
+                DaE(i,j,k,m) = v_c * E_keV * raw_dap
+                ! <DEE> (1/sec) from Dpp/E^2:
+                ! D_EE = v^2 * D_pp -> <DEE> rate = (v_c**2) * (Dpp / E^2)
+                DEE(i,j,k,m) = (v_c**2) * raw_dpp
+             enddo
+          enddo
+       enddo
+    enddo
+
+    close(UnitTmp_)
+
+  end subroutine read_BU_waves_DaE
       
   
   !****************************************************************************

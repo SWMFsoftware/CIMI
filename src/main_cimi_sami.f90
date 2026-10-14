@@ -23,6 +23,7 @@ program cimi_sami
   use ModImTime,	ONLY: TimeMaxCIMI=>TimeMax
   use ModCimiRestart,	ONLY: DtSaveRestart,cimi_write_restart
   use ModReadParam
+  use CIMI_SetParams, ONLY: CIMI_set_parameters
   use ModPrerunField,	ONLY: UsePrerun, read_prerun, read_prerun_IE, DtRead
   use ModImSat,		ONLY: UsePrerunSat, read_prerun_sat, DtReadSat, &
        IsFirstWrite

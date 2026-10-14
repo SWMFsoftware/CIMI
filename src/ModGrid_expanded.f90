@@ -47,6 +47,13 @@ Module ModCimiGrid
        80.8786008210180256, 82.2216559222371330, 83.7663121676587963, &
        85.4404094624754862, 87.1942709870800599, 88.9996559369669313/)
 
+  real :: xlatr(np), dlat(np), sinAo(npit), xmltGlobal(nt), dphi
+  real, allocatable :: phi(:), xmlt(:)
+  logical :: DoReadParamGrid = .false.
+  real :: LatitudeDeg,  dLatitudeDeg,&
+          LongitudeRad, dLongitudeRad
+  integer :: minLon, maxLon, nTotalCell
+
   real :: varL(0:np+1)=0.,&
           dvarL=1.,&
           Lfactor(0:np+1) = 0.,&
@@ -107,6 +114,25 @@ contains
  xlatr(:)=xlat(:)*cDegToRad
 
  end subroutine init_lat
+!-----------------------------------------------------------------------------
+
+!-----------------------------------------------------------------------------
+ subroutine init_mlt
+ ! This subroutine initializes and defines MLT grid
+!-----------------------------------------------------------------------------
+ use ModNumConst,    ONLY: cDegToRad,cPi
+ implicit none
+
+ integer i
+
+ ! CIMI xmlt grid
+ dphi=2.*cPi/nt
+ do i=1,nt
+    phi(i)=(i-1)*dphi
+    xmlt(i)=mod(phi(i)*12.0/cPi + 12.0,24.0)
+ enddo
+
+ end subroutine init_mlt
 !-----------------------------------------------------------------------------
      
 end Module ModCimiGrid

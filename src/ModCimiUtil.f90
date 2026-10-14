@@ -4,9 +4,11 @@ module ModCimiUtil
 
     private ! except
 
+    public::lintp1IM
     public::lintp2aIM
     public::lintp2IM
     public::lintp3IM
+    public::lintp4IM
     public::locate1IM
     public::tridagIM
     public::ln_gamma
@@ -83,7 +85,39 @@ contains
 !  y=(yy(j)*(xx(j+1)-x)+yy(j+1)*(x-xx(j)))/d
 !
 ! end subroutine lintp
+!==============================================================================
+subroutine lintp1IM(x, v, nx, x1, v1, DoExtrapolate)
 
+  ! 1-d interpolation to position x1
+  ! Boundary behavior: Flat (constant) extrapolation
+
+  implicit none
+
+  integer, intent(in):: nx
+  real, intent(in):: x(nx), v(nx)
+  real, intent(in):: x1
+  logical, intent(in):: DoExtrapolate
+  real, intent(out):: v1
+
+  integer:: i, i1
+  real:: a
+  !----------------------------------------------------------------------------
+
+  call locate1IM(x,nx,x1,i)
+  if (i > (nx-1)) i=nx-1
+  if (i < 1) i=1
+
+  i1 = i + 1
+
+  ! Calculate weight
+  a = (x1 - x(i))/(x(i1) - x(i))
+  ! Clamp to [0.0, 1.0] for flat extrapolation
+  if(.not. DoExtrapolate) a = max(0.0, min(1.0, a))
+
+  ! Perform 1D Interpolation
+  v1 = (1.-a)*v(i) + a*v(i1)
+
+end subroutine lintp1IM
 !==============================================================================
 subroutine lintp2aIM(x,y,v,nx,ny,x1,y1,v1)
 
@@ -146,7 +180,7 @@ subroutine lintp2aIM(x,y,v,nx,ny,x1,y1,v1)
 
 end subroutine lintp2aIM
 !==============================================================================
-subroutine lintp2IM(x, y, v, nx, ny, x1, y1, v1)
+subroutine lintp2IM(x, y, v, nx, ny, x1, y1, v1, DoExtrapolate)
 
   ! Do 2-D interpolation. x and y must be increasing or decreasing
   ! monotonically
@@ -155,28 +189,35 @@ subroutine lintp2IM(x, y, v, nx, ny, x1, y1, v1)
   
   integer, intent(in):: nx, ny
   real, intent(in):: x(nx), y(ny), v(nx,ny), x1, y1
+  logical, intent(in):: DoExtrapolate
   real, intent(out):: v1
 
   integer:: i, j, i1, j1
   real:: a, b, q00, q01, q10, q11
   !----------------------------------------------------------------------------
-  call locate1IM(x,nx,x1,i)
-  if (i > (nx-1)) i=nx-1      ! extrapolation if out of range
-  if (i < 1) i=1              ! extrapolation if out of range
-  i1 = i + 1
-  a = (x1 - x(i))/(x(i1) - x(i))
+  if (nx.eq.1 .and. ny.eq.1) then ! trivial case for single point
+      v1 = v(1,1)
+  else
+    call locate1IM(x,nx,x1,i)
+    if (i > (nx-1)) i=nx-1      ! extrapolation if out of range
+    if (i < 1) i=1              ! extrapolation if out of range
+    i1 = i + 1
+    a = (x1 - x(i))/(x(i1) - x(i))
+    if (.not. DoExtrapolate) a = max(0.0,min(1.0,a))
 
-  call locate1IM(y,ny,y1,j)
-  if (j > (ny-1)) j=ny-1      ! extrapolation if out of range
-  if (j < 1) j=1              ! extrapolation if out of range
-  j1 = j + 1
-  b = (y1 - y(j))/(y(j1) - y(j))
+    call locate1IM(y,ny,y1,j)
+    if (j > (ny-1)) j=ny-1      ! extrapolation if out of range
+    if (j < 1) j=1              ! extrapolation if out of range
+    j1 = j + 1
+    b = (y1 - y(j))/(y(j1) - y(j))
+    if (.not. DoExtrapolate) b = max(0.0,min(1.0,b))
 
-  q00 = (1-a)*(1.-b)
-  q01 = (1-a)*b
-  q10 = a*(1-b)
-  q11 = a*b
-  v1 = q00*v(i,j) + q01*v(i,j1) + q10*v(i1,j) + q11*v(i1,j1)
+    q00 = (1-a)*(1.-b)
+    q01 = (1-a)*b
+    q10 = a*(1-b)
+    q11 = a*b
+    v1 = q00*v(i,j) + q01*v(i,j1) + q10*v(i1,j) + q11*v(i1,j1)
+  endif
 
 end subroutine lintp2IM
 !==============================================================================
@@ -233,7 +274,7 @@ subroutine locate1IM(xx, n, x, j)
 
 end subroutine locate1IM
 !==============================================================================
-subroutine lintp3IM(x, y, z, v, nx, ny, nz, x1, y1, z1, v1)
+subroutine lintp3IM(x, y, z, v, nx, ny, nz, x1, y1, z1, v1, DoExtrapolate)
 
   ! 3-d interplation to position x1, y1, z1
 
@@ -242,6 +283,7 @@ subroutine lintp3IM(x, y, z, v, nx, ny, nz, x1, y1, z1, v1)
   integer, intent(in):: nx, ny, nz
   real, intent(in):: x(nx),y(ny),z(nz),v(nx,ny,nz)
   real, intent(in):: x1, y1, z1
+  logical, intent(in):: DoExtrapolate
   real, intent(out):: v1
 
   integer:: i, j, k, i1, j1, k1
@@ -263,8 +305,13 @@ subroutine lintp3IM(x, y, z, v, nx, ny, nz, x1, y1, z1, v1)
   j1 = j + 1
   k1 = k + 1
   a = (x1 - x(i))/(x(i1) - x(i))
+  if (.not. DoExtrapolate) a = max(0.0,min(1.0,a))
+
   b = (y1 - y(j))/(y(j1) - y(j))
+  if (.not. DoExtrapolate) b = max(0.0,min(1.0,b))
+
   c = (z1 - z(k))/(z(k1) - z(k))
+  if (.not. DoExtrapolate) c = max(0.0,min(1.0,c))
 
   q000 = (1-a)*(1.-b)*(1.-c)*v(i,j,k)
   q001 = (1-a)*(1.-b)*c*v(i,j,k1)
@@ -278,6 +325,84 @@ subroutine lintp3IM(x, y, z, v, nx, ny, nz, x1, y1, z1, v1)
   v1 = q000 + q001 + q010 + q011 + q100 + q101 + q110 + q111
 
 end subroutine lintp3IM
+!==============================================================================
+subroutine lintp4IM(x, y, z, w, v, nx, ny, nz, nw, x1, y1, z1, w1, v1)
+
+  ! 4-d interpolation to position x1, y1, z1, w1
+
+  implicit none
+
+  integer, intent(in):: nx, ny, nz, nw
+  real, intent(in):: x(nx), y(ny), z(nz), w(nw)
+  real, intent(in):: v(nx,ny,nz,nw)
+  real, intent(in):: x1, y1, z1, w1
+  real, intent(out):: v1
+
+  integer:: i, j, k, l, i1, j1, k1, l1
+  real:: a, b, c, d
+
+  ! 16 corner weights for a 4D hypercube
+  real:: q0000, q0001, q0010, q0011, q0100, q0101, q0110, q0111
+  real:: q1000, q1001, q1010, q1011, q1100, q1101, q1110, q1111
+  !----------------------------------------------------------------------------
+
+  call locate1IM(x,nx,x1,i)
+  if (i > (nx-1)) i=nx-1      ! extrapolation if out of range
+  if (i < 1) i=1              ! extrapolation if out of range
+
+  call locate1IM(y,ny,y1,j)
+  if (j > (ny-1)) j=ny-1      ! extrapolation if out of range
+  if (j < 1) j=1              ! extrapolation if out of range
+
+  call locate1IM(z,nz,z1,k)
+  if (k > (nz-1)) k=nz-1      ! extrapolation if out of range
+  if (k < 1) k=1              ! extrapolation if out of range
+
+  call locate1IM(w,nw,w1,l)
+  if (l > (nw-1)) l=nw-1      ! extrapolation if out of range
+  if (l < 1) l=1              ! extrapolation if out of range
+
+  i1 = i + 1
+  j1 = j + 1
+  k1 = k + 1
+  l1 = l + 1
+
+  a = (x1 - x(i))/(x(i1) - x(i))
+  a = max(0.0,min(1.0,a))
+
+  b = (y1 - y(j))/(y(j1) - y(j))
+  b = max(0.0,min(1.0,b))
+
+  c = (z1 - z(k))/(z(k1) - z(k))
+  c = max(0.0,min(1.0,c))
+
+  d = (w1 - w(l))/(w(l1) - w(l))
+  d = max(0.0,min(1.0,d))
+
+  ! Terms where d=0 (w matches lower index l)
+  q0000 = (1.-a)*(1.-b)*(1.-c)*(1.-d)*v(i, j, k, l)
+  q0010 = (1.-a)*(1.-b)*    c *(1.-d)*v(i, j, k1,l)
+  q0100 = (1.-a)*    b *(1.-c)*(1.-d)*v(i, j1,k, l)
+  q0110 = (1.-a)*    b *    c *(1.-d)*v(i, j1,k1,l)
+  q1000 =     a *(1.-b)*(1.-c)*(1.-d)*v(i1,j, k, l)
+  q1010 =     a *(1.-b)*    c *(1.-d)*v(i1,j, k1,l)
+  q1100 =     a *    b *(1.-c)*(1.-d)*v(i1,j1,k, l)
+  q1110 =     a *    b *    c *(1.-d)*v(i1,j1,k1,l)
+
+  ! Terms where d=1 (w matches upper index l1)
+  q0001 = (1.-a)*(1.-b)*(1.-c)*    d *v(i, j, k, l1)
+  q0011 = (1.-a)*(1.-b)*    c *    d *v(i, j, k1,l1)
+  q0101 = (1.-a)*    b *(1.-c)*    d *v(i, j1,k, l1)
+  q0111 = (1.-a)*    b *    c *    d *v(i, j1,k1,l1)
+  q1001 =     a *(1.-b)*(1.-c)*    d *v(i1,j, k, l1)
+  q1011 =     a *(1.-b)*    c *    d *v(i1,j, k1,l1)
+  q1101 =     a *    b *(1.-c)*    d *v(i1,j1,k, l1)
+  q1111 =     a *    b *    c *    d *v(i1,j1,k1,l1)
+
+  v1 = q0000 + q0001 + q0010 + q0011 + q0100 + q0101 + q0110 + q0111 &
+     + q1000 + q1001 + q1010 + q1011 + q1100 + q1101 + q1110 + q1111
+
+end subroutine lintp4IM
 !==============================================================================
 subroutine tridagIM(a,b,c,r,u,n,ier)
 

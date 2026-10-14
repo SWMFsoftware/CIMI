@@ -20,6 +20,8 @@
 module ModDiagDiff 
   use ModCimiGrid, only: ir=>np,ip=>nt,iw=>nm,ik=>nk
   use ModUtilities, ONLY: CON_stop
+  use CIMI_waves,   ONLY: E_Q2c0,E_Q2h0,cDqq10,cDqq20,hDqq10,hDqq20
+
 
   private !! except
 
@@ -32,13 +34,13 @@ module ModDiagDiff
        !!PSD_Q         ,& ! phase space density [#s3/kg3m6] in fixed Q2
        !!PSD_CHTest  ,& !    "   "      " for chorus diffusion test
        !!PSD_HITest  ,& !    "   "      " for chorus diffusion test
-       UseDiagDiffusion              ,&  
        UsePitchAngleDiffusionTest    ,&
        UseEnergyDiffusionTest        ,&
        ! subroutines
        diffuse_Q2    ,& ! calcualte diffusion in Q2 and fixed Q1
        diffuse_Q1    ,& !     "         "     in Q1 and fixed Q2
        calc_DQQ      ,& ! calculate Dq1q1, Dq2q2 from Daa,DaE,DEE
+       calc_Q2_only  ,& ! Does less than calc_DQQ since we read from table
        mapPSDtoQ     ,& ! map PSD from M [J/T] to Q2 [keV]
        mapPSDtoE     ,& ! map PSD from Q2 [keV] to M [J/T]
        interpol_D_coefK      ,&
@@ -50,7 +52,7 @@ module ModDiagDiff
   !private :: cSign,hSign  ! sign of DaE for chorus and hiss
   !           rpp          ! plasma pause location in RE
   !           iLpp         ! MLT index at plasma pause location
-  !           ipc0,iph     ! closest fpe/fce to table values 
+  !           icfpefce0,iph     ! closest fpe/fce to table values 
   !                             at given latitude and MLT   
   ! subroutines
   !           find_loc_plasmapause        ,&
@@ -70,20 +72,22 @@ module ModDiagDiff
   
   ! Variables  
   integer,parameter :: iq=80
-  real VarQ(0:iq+1)
-  real,allocatable,dimension(:,:,:) :: E_Q2c,E_Q2h,&
-       cDqq1,cDqq2,hDqq1,hDqq2,cSign,hSign
-  real, allocatable, dimension(:,:,:,:) :: Dqq1K, Dqq2K, dQ2dEK, E_Q2K, PSD_Q, PSDcopy, PSD_Qcopy
+  real :: VarQ(0:iq+1)
+  real, public :: Eq(0:iq+1)
+  real, allocatable, dimension (:,:,:,:):: E_Q2c,E_Q2h,&
+                                           cDqq1,cDqq2,hDqq1,hDqq2,&
+                                           cSign,hSign
+  real, allocatable, dimension(:,:,:,:) :: Dqq1K, Dqq2K, dQ2dEK, E_Q2K,&
+                                           PSD_Q, PSDcopy, PSD_Qcopy
   real cLambda2D           ! 1 / analytic solution decay time scale
   real,allocatable :: PSD_CHTest(:),PSD_HITest(:)
   real, allocatable :: rpp(:)
-  integer, allocatable :: ipc0(:,:),iph0(:,:),iLpp(:)
+  integer, allocatable :: iLpp(:)
   ! true = hiss, false = chorus
   logical, allocatable :: IsPlasmasphere_C(:,:)
   
-  logical :: UseDiagDiffusion=.true.,&
-       UsePitchAngleDiffusionTest=.false.,&
-       UseEnergyDiffusionTest=.false.  
+  logical :: UsePitchAngleDiffusionTest=.false.,&
+             UseEnergyDiffusionTest=.false.  
   ! Use test_diff.f90 
   !  instead of cimi.f90
 
@@ -98,7 +102,6 @@ contains
          Dqq2K(ir,MinLon:MaxLon,iq,0:ik+1), &
          dQ2dEK(ir,MinLon:MaxLon,iq,0:ik+1), &
          E_Q2K(ir,MinLon:MaxLon,iq,0:ik+1), &
-         ipc0(ir,MinLon:MaxLon), iph0(ir,MinLon:MaxLon), &
          iLpp(MinLon:MaxLon), rpp(MinLon:MaxLon), &
          PSDcopy(ir,MinLon:MaxLon,iw,ik), PSD_Qcopy(ir,MinLon:MaxLon,iq,ik), &
          IsPlasmasphere_C(ir,MinLon:MaxLon) )
@@ -151,13 +154,13 @@ contains
   use ModCimiGrid, only: ir=>np,ip=>nt,ik=>nk
   use ModCimiInitialize, only: xjac
   use ModCimi, only: f2,dt
-  use CIMI_waves, only: UseChorus, UseHiss,&
+  use CIMI_waves, only: UseChorus, UseHiss,TypeChorus,TypeHiss,&
                      CHpower,HIpower,&
                      Cpower0,Hpower0,BLc0,BLh0
   use ModCimiTrace, only: iba,bo,ro
   use ModCimi,       ONLY: MinLonPar,MaxLonPar
   !!use diagDiffCoef, only: iq,VarQ,Dqq2K,Dqq2K,dQ2dEK,E_Q2K,PSD_Q,&
-  !!                        ipc0,iph0,iLpp
+  !!                        icfpefce0,ihfpefce0,iLpp
   implicit none
 
   real,dimension(iq,ik) :: Dqq2,dQ2dE,E1,PSD
@@ -187,14 +190,24 @@ contains
         DoDiff=.False.
         if (.not.IsPlasmasphere_C(i,j).and.UseChorus) then
 !(3) outside plasmasphere
-           Po=(BLc0/bo(i,j))*CHpower(i,j)/Cpower0
+           select case(TypeChorus)
+           case('UCLA')
+             Po=(BLc0/bo(i,j))*CHpower(i,j)/Cpower0
+           case('BU')
+             Po=CHpower(i,j)/Cpower0
+           end select
            DoDiff=.True.
         else if (IsPlasmasphere_C(i,j).and.UseHiss) then
 !(4) inside plasmasphere
-           Po=(BLh0/bo(i,j))*HIpower(i,j)/Hpower0
+           select case(TypeHiss)
+           case('UCLA')
+             Po=(BLh0/bo(i,j))*HIpower(i,j)/Hpower0
+           case('BU')
+             Po=HIpower(i,j)/Hpower0
+           end select
            DoDiff=.True.
         else
-           !!! Either inside the plasmasphere, but not using hiss, ore
+           !!! Either inside the plasmasphere, but not using hiss,
            !!! or not using chorus and not using hiss
            Po=-1
            DoDiff=.false.
@@ -289,13 +302,13 @@ contains
   use ModCimiGrid, only: ir=>np,ip=>nt,ik=>nk
   use ModCimiInitialize, only: xjac,xk
   use ModCimi, only: f2,dt
-  use CIMI_waves, only: UseChorus, UseHiss,&
+  use CIMI_waves, only: UseChorus, UseHiss,TypeChorus,TypeHiss,&
                      CHpower,HIpower,&
                      Cpower0,Hpower0,BLc0,BLh0
   use ModCimiTrace, only: iba,bo,bm,ro,tya,y=>sinA
   use ModCimi,       ONLY: MinLonPar,MaxLonPar
   !!use diagDiffCoef, only: iq,Dqq1K,PSD_Q,&
-  !!                        ipc0,iph0,iLpp
+  !!                        icfpefce0,ihfpefce0,iLpp
   implicit none
 
   real,dimension(iq,ik) :: PSD
@@ -325,11 +338,21 @@ contains
         DoDiff=.False.
         if (.not.IsPlasmasphere_C(i,j).and.UseChorus) then
 !(3) outside plasmasphere
-           Po=(BLc0/bo(i,j))*CHpower(i,j)/Cpower0
+           select case(TypeChorus)
+           case('UCLA')
+             Po=(BLc0/bo(i,j))*CHpower(i,j)/Cpower0
+           case('BU')
+             Po=CHpower(i,j)/Cpower0
+           end select
            DoDiff=.True.
         else if (UseHiss) then
 !(4) inside plasmasphere
-           Po=(BLh0/bo(i,j))*HIpower(i,j)/Hpower0
+           select case(TypeHiss)
+           case('UCLA')
+             Po=(BLh0/bo(i,j))*HIpower(i,j)/Hpower0
+           case('BU')
+             Po=HIpower(i,j)/Hpower0
+           end select
            DoDiff=.True.
         else 
            !!! Either inside the plasmasphere, but not using hiss, ore
@@ -450,66 +473,98 @@ contains
 ! ************************************************************************
 !                        find_ompe_index       
 !
-! Subroutine finds indices of closest ompe 
+! Subroutine finds indices of closest ompe  (nearest neighbor)
 ! ************************************************************************
-  subroutine find_ompe_index
-  use ModCimiGrid, only: ir=>np,ip=>nt,ik=>nk
-  use ModCimiTrace, only: iba
-  use CIMI_waves, only: UseChorus, UseHiss,&
-                         ompe,&
-                         cOmpe,hOmpe,&
-                         ipc,iph
-  use ModCimi,       ONLY: MinLonPar,MaxLonPar
-  !!use diagDiffCoeff, only:ipc0,iph0
+subroutine find_ompe_index(OmpeTab,iOmpeTab,iompe)
+  use ModCimiGrid,  ONLY: ir=>np,ip=>nt,ik=>nk
+  use ModCimiTrace, ONLY: iba
+  use CIMI_waves,   ONLY: ompe
+  use ModCimi,      ONLY: MinLonPar,MaxLonPar
   implicit none
 
-  real ompe1
-  integer i,j,ipc1,iph1
+  ! Inputs
+  real, dimension(:), intent(in) :: OmpeTab ! tabulated fpe/fce grid
+  integer, intent(in) :: iOmpeTab ! dimension of tabulated fpe/fce grid
+  ! Output
+  integer, dimension(ir,ip), intent(out) :: iompe ! index of selected 
+                                                  !  fpe/fce grid point
+  ! Locals
+  real :: ompe1
+  integer :: i,j,iompe1
 
-!!!
-  ipc1=0
-  iph1=0
+  iompe1=0
   
   do j=MinLonPar,MaxLonPar ! start of j
      do i=1,iba(j)         ! start of i
         ompe1=ompe(i,j)                         ! fpe/fce
-        if (UseChorus) then
-           !write(*,*)' '
-           !write(*,*)'ompe1 = ',ompe1
-           !write(*,*)'cOmpe',cOmpe
-           call locate1(cOmpe,ipc,ompe1,ipc1,'find_ompe_index')
-           if (ipc1.eq.0) ipc1=1
-           if (ipc1.lt.ipc) then
-              if((cOmpe(ipc1+1)-ompe1).lt.(ompe1-cOmpe(ipc1))) ipc1=ipc1+1
-              ipc0(i,j)=ipc1
-           else
-              !!!ipc1=ipc
-              ipc0(i,j)=ipc
-           endif
-        endif
-        if (UseHiss) then
-           call locate1(hOmpe,iph,ompe1,iph1,'find_ompe_index')
-           if (iph1.eq.0) iph1=1
-           if (iph1.gt.iph) iph1=iph
-           if (iph1.lt.iph) then
-              if ((hOmpe(iph1+1)-ompe1).lt.(ompe1-hOmpe(iph1))) iph1=iph1+1
-              iph0(i,j)=iph1
-           else
-              !!!iph1=iph
-              iph0(i,j)=iph1
-           endif
+        ! Find the largest table index that doesn't exceed CIMI fpe/fce
+        call locate1(OmpeTab,iOmpeTab,ompe1,iompe1,'find_ompe_index')
+        ! If the index is 0 set it to 1 because the table doesn't have a 0
+        if (iompe1.eq.0) iompe1=1
+        if (iompe1.lt.iOmpeTab) then
+            ! Now check which of the two points is actually closer
+            if((OmpeTab(iompe1+1)-ompe1).lt.(ompe1-OmpeTab(iompe1))) then
+                iompe1=iompe1+1 ! higher one closer so bump up by one
+            endif
+            iompe(i,j)=iompe1
+        else
+            ! If we're outside the range of the table use the max index
+            iompe(i,j)=iOmpeTab
         endif
      enddo              ! end of i
   enddo                 ! end of j
 
   do j=MinLonPar,MaxLonPar ! start of j
      do i=1,iba(j)         ! start of i
-        if (ipc0(i,j)==0) write(*,*) i,j,ompe(i,j),cOmpe(:)
+        if (iompe(i,j).le.0) write(*,*) i,j,ompe(i,j),OmpeTab(:)
      enddo
   enddo
 
   end subroutine find_ompe_index
-  
+!*****************************************************************************
+  subroutine calc_Q2_only
+  use CIMI_waves, only:  icL,icfpefce,icEnergy,icPa,&
+                         ihL,ihfpefce,ihEnergy,ihPa,&
+                         ckeV,hkeV,&
+                         UseChorus, UseHiss
+  implicit none
+
+  real :: Qmin,Qmax,rQ
+  real,dimension(0:iq+1) ::logEq
+  integer :: i,j,k,m
+!(1) Set variable Q2
+  Qmin=1.      ! at k = 1  
+  Qmax=1.e4    ! at k = iq+1
+  rQ=10.**(log10(Qmax/Qmin)/iq)
+  VarQ(0)=Qmin/rQ
+  do k=1,iq+1
+    VarQ(k)=VarQ(k-1)*rQ
+  enddo
+  Eq(0:iq+1)=VarQ(0:iq+1)
+  logEq(:)=log(Eq(:))
+  if (UseChorus) then
+     allocate (cDqq1(icL,icfpefce,0:iq+1,icPa))
+     allocate (cDqq2(icL,icfpefce,0:iq+1,icPa))
+     allocate (E_Q2c(icL,icfpefce,0:iq+1,icPa))
+     call interpol_D_coef_single(cDqq10,ckeV,logEq,&
+                                 icL,icfpefce,icEnergy,icPa,cDqq1)
+     call interpol_D_coef_single(cDqq20,ckeV,logEq,&
+                                 icL,icfpefce,icEnergy,icPa,cDqq2)
+     call interpol_D_coef_single(E_Q2c0,ckeV,logEq,&
+                                 icL,icfpefce,icEnergy,icPa,E_Q2c)
+  endif
+  if (UseHiss) then
+     allocate (hDqq1(ihL,ihfpefce,0:iq+1,ihPa))
+     allocate (hDqq2(ihL,ihfpefce,0:iq+1,ihPa))
+     allocate (E_Q2h(ihL,ihfpefce,0:iq+1,ihPa))
+     call interpol_D_coef_single(hDqq10,hkeV,logEq,&
+                                 ihL,ihfpefce,ihEnergy,ihPa,hDqq1)
+     call interpol_D_coef_single(hDqq20,hkeV,logEq,&
+                                 ihL,ihfpefce,ihEnergy,ihPa,hDqq2)
+     call interpol_D_coef_single(E_Q2h0,hkeV,logEq,&
+                                 ihL,ihfpefce,ihEnergy,ihPa,E_Q2h)
+  endif
+  end subroutine calc_Q2_only
   
 !*****************************************************************************
 !                           calc_Dqq    
@@ -527,19 +582,20 @@ contains
   use ModNumConst, only: pi=>cPi
   use ModCimiGrid, only: ir=>np,ip=>nt,ik=>nk,&
                          iProc
-  use CIMI_waves, only: ipc,iwc,iph,iwh,ipa,&
-                         UseChorus, UseHiss,&
-                         ckeV,hkeV,&
-                         cDEE,cDaa,cDaE,&
-                         hDEE,hDaa,hDaE,&
-                         cPA,cOmpe,hOmpe
+  use CIMI_waves, only:  icL,icfpefce,icEnergy,icPa,&
+                         ihL,ihfpefce,ihEnergy,ihPa,&
+                         UseChorus, UseHiss,TypeChorus,TypeHiss,&
+                         cLshell,cOmpe,ckeV,cPa,&
+                         hLshell,hOmpe,hkeV,hPa,&
+                         cDaa,cDaE,cDEE,&
+                         hDaa,hDaE,hDEE
   !!use diagDiffCoef, only: iq,VarQ,E_Q2c,E_Q2h,cDqq1,cDqq2,hDqq1,hDqq2,&
   !!                        cSign,hSign,Dqq1K,Dqq2K,dQ2dEK,E_Q2K
   implicit none
 
-  real Qmin,Qmax,rQ,Eq(0:iq+1),logEq(0:iq+1)
-  real,dimension(ipc,0:iq+1,ipa) :: cDaa0,cDaE0,cDEE0
-  real,dimension(iph,0:iq+1,ipa) :: hDaa0,hDaE0,hDEE0
+  real Qmin,Qmax,rQ,logEq(0:iq+1)
+  real,dimension(icL,icfpefce,0:iq+1,icPa) :: cDaa0,cDaE0,cDEE0
+  real,dimension(ihL,ihfpefce,0:iq+1,ihPa) :: hDaa0,hDaE0,hDEE0
   integer j,k,m,k1,k2
 
 !(1) Set variable Q2
@@ -554,51 +610,61 @@ contains
    logEq(:)=log(Eq(:))
 
   if (UseChorus) then
-     allocate (cSign(ipc,iwc,ipa))
-     cSign(:,:,:)=sign(1.,cDaE(:,:,:))
-     where (cDaE(:,:,:).eq.0.) cSign(:,:,:)=1.
+     allocate (cSign(icL,icfpefce,icEnergy,icPa))
+     cSign(:,:,:,:)=sign(1.,cDaE(:,:,:,:))
+     where (cDaE(:,:,:,:).eq.0.) cSign(:,:,:,:)=1.
 
 !(2) interpolate diffusion coef. to same grids of Q
-     call interpol_D_coef(cDaa,cDaE,cDEE,cSign,ckeV,logEq,ipc,iwc,iq,cDaa0,cDaE0,cDEE0)
-     allocate (E_Q2c(ipc,0:iq+1,ipa))
-     allocate (cDqq1(ipc,iq,ipa),cDqq2(ipc,iq,ipa))
+     call interpol_D_coef(cDaa,cDaE,cDEE,cSign,ckeV,logEq,&
+                         icL,icfpefce,icEnergy,icPa,cDaa0,cDaE0,cDEE0)
+     allocate (E_Q2c(icL,icfpefce,0:iq+1,icPa))
+     allocate (cDqq1(icL,icfpefce,iq,icPa),cDqq2(icL,icfpefce,iq,icPa))
 
 !(3) calculate energy crossponding to constant Q
-     call calc_Q_curve(cDaa0,cDaE0,Eq,cPA*pi/180,ipc,0,iq+1,ipa,E_Q2c,'chorus')
+     call calc_Q_curve(cDaa0,cDaE0,Eq,cPa*pi/180,&
+                       icL,icfpefce,0,iq+1,icPa,E_Q2c,'chorus')
 
 !(4) calculate Daa and Dqq2 at the fixed grids of (a0,Q2)
-     call DaEtoDQQ(cDaa0,cDEE0,cDaE0,Eq,E_Q2c,VarQ,ipc,iq,iq,&
+     call DaEtoDQQ(cDaa0,cDEE0,cDaE0,Eq,E_Q2c,VarQ,&
+                   icL,icfpefce,icEnergy,icPa,iq,&
                    cDqq1,cDqq2,'chorus')
   endif
 
 !(5) Hiss
   if (UseHiss) then
-     allocate (hSign(iph,iwh,ipa))
-     hSign(:,:,:)=sign(1.,hDaE(:,:,:))
-     where (hDaE(:,:,:).eq.0.) hSign(:,:,:)=1.
+     allocate (hSign(ihL,ihfpefce,ihEnergy,ihPa))
+     hSign(:,:,:,:)=sign(1.,hDaE(:,:,:,:))
+     where (hDaE(:,:,:,:).eq.0.) hSign(:,:,:,:)=1.
 !(6) interpolate diffusion coef. to same grids of Q for hiss
-     call interpol_D_coef(hDaa,hDaE,hDEE,hSign,hkeV,logEq,iph,iwh,iq,hDaa0,hDaE0,hDEE0)
-     allocate (E_Q2h(iph,0:iq+1,ipa))
-     allocate (hDqq1(iph,iq,ipa),hDqq2(iph,iq,ipa))
+     call interpol_D_coef(hDaa,hDaE,hDEE,hSign,hkeV,logEq,&
+                          ihL,ihfpefce,ihEnergy,ihPa,hDaa0,hDaE0,hDEE0)
+     allocate (E_Q2h(ihL,ihfpefce,0:iq+1,ihPa))
+     allocate (hDqq1(ihL,ihfpefce,iq,ihPa),hDqq2(ihL,ihfpefce,iq,ihPa))
 
 !(7) calculate energy crossponding to constant Q for hiss
-     call calc_Q_curve(hDaa0,hDaE0,Eq,cPA*pi/180,iph,0,iq+1,ipa,E_Q2h,'hiss')
+     call calc_Q_curve(hDaa0,hDaE0,Eq,hPa*pi/180,&
+                       ihL,ihfpefce,0,iq+1,ihPa,E_Q2h,'hiss')
 
 !(8) calculate Daa and Dqq2 at the fixed grids of (a0,Q2) for hiss
-     call DaEtoDQQ(hDaa0,hDEE0,hDaE0,Eq,E_Q2h,VarQ,iph,iq,iq,&
+     call DaEtoDQQ(hDaa0,hDEE0,hDaE0,Eq,E_Q2h,VarQ,&
+                   ihL,ihfpefce,ihEnergy,ihPa,iq,&
                    hDqq1,hDqq2,'hiss')
   endif
 
   if (iProc.eq.0) then
      if (UseChorus) call write_Q2info(cDEE,cDaE,cDaa0,cDaE0,cDEE0,&
-                       cDqq1,cDqq2,&
-                       ckeV,cOmpe,Eq,E_Q2c,ipc,iwc,iq,&
+                                      cDqq1,cDqq2,&
+                                      cLshell,cOmpe,ckeV,cPa,&
+                                      icL,icfpefce,icEnergy,icPa,iq,&
+                                      Eq,E_Q2c,&
                        'IM/plots/chorus_constQ.dat',&
                        'IM/plots/chorus_constQ2.dat',&
                        'IM/plots/D_LBchorus_QQ.dat')
      if (UseHiss) call write_Q2info(hDEE,hDaE,hDaa0,hDaE0,hDEE0,&
-                       hDqq1,hDqq2,&
-                       hkeV,hOmpe,Eq,E_Q2h,iph,iwh,iq,&
+                                    hDqq1,hDqq2,&
+                                    hLshell,hOmpe,hkeV,hPa,&
+                                    ihL,ihfpefce,ihEnergy,ihPa,iq,&
+                                    Eq,E_Q2h,&
                        'IM/plots/hiss_constQ.dat',&
                        'IM/plots/hiss_constQ2.dat',&
                        'IM/plots/D_hiss_QQ.dat')
@@ -612,18 +678,20 @@ contains
 !                           calc_Q_curve    
 !  Routine calculates energy E(a,Q) corresponding to contant Q curve.
 !*****************************************************************************
-  subroutine calc_Q_curve(Daa,DaE,keV,a0,ip,iw0,iw,ipa,E,NameWave)
+  subroutine calc_Q_curve(Daa,DaE,keV,a0,&
+                          iL,ifpefce,iEnergy0,iEnergy,iPa,&
+                          E,NameWave)
   use ModNumConst, only: pi=>cPi
   implicit none
 
-  integer,intent(in) :: ip,iw0,iw,ipa
-  real,dimension(ip,iw0:iw,ipa),intent(in) :: Daa,DaE
-  real,intent(in) :: keV(iw0:iw),a0(ipa)
-  real,intent(out) :: E(ip,iw0:iw,ipa)
+  integer,intent(in) :: iL,ifpefce,iEnergy0,iEnergy,iPa
+  real,dimension(iL,ifpefce,iEnergy0:iEnergy,iPa),intent(in) :: Daa,DaE
+  real,intent(in) :: keV(iEnergy0:iEnergy),a0(iPa)
+  real,intent(out) :: E(iL,ifpefce,iEnergy0:iEnergy,iPa)
   character(len=*),intent(in) :: NameWave
   real,allocatable :: da(:),keV1(:),dEda(:,:)
   real r,dEdam,dEda1
-  integer j,k,m,m0,k1,k2,kk,iww
+  integer i,j,k,m,m0,k1,k2,kk,iE
 
 !!! this is a limit on the DaE to Daa ratio which in the future should
   !!! be a parameter input in PARAM.in. We should also include an offset
@@ -631,70 +699,78 @@ contains
   real, parameter :: LowEnerLimit = 10.0
   
   
-  iww=iw-iw0+1
-!!!allocate (da(ipa-1))
-  allocate (da(ipa))
-  allocate (keV1(iww),dEda(iww,ipa))
+  iE=iEnergy-iEnergy0+1
+!!!allocate (da(iPa-1))
+  allocate (da(iPa))
+  allocate (keV1(iE),dEda(iE,iPa))
  
   r=0.99  ! minimum ratio difference between adjacent grids
-  do m=1,ipa-1
+  do m=1,iPa-1
      da(m)=a0(m+1)-a0(m)
   enddo
 !!!
-  da(ipa)=a0(ipa)-a0(ipa-1)
+  da(iPa)=a0(iPa)-a0(iPa-1)
   
-  keV1(1:iww)=keV(iw0:iw)
+  keV1(1:iE)=keV(iEnergy0:iEnergy)
 
-  do j=1,ip
-     dEda(:,:)=0.
+  do i=1,iL
+    do j=1,ifpefce
+        dEda(:,:)=0.
 !    where(Daa(j,:,:).ne.0.) 
-!       dEda(1:iww,1:ipa)=&
-!            min(DaE(j,iw0:iw,1:ipa)/Daa(j,iw0:iw,1:ipa),DaEtoDaaMax)
-!       dEda(1:iww,1:ipa)=&
-!            max(dEda(1:iww,1:ipa),-1.0*DaEtoDaaMax)
+!       dEda(1:iE,1:iPa)=&
+!            min(DaE(j,iEnergy0:iEnergy,1:iPa)/Daa(j,iEnergy0:iEnergy,1:iPa),DaEtoDaaMax)
+!       dEda(1:iE,1:iPa)=&
+!            max(dEda(1:iE,1:iPa),-1.0*DaEtoDaaMax)
 !    end where
 
-     do m=1,ipa
-        do k=1,iww
-           if (Daa(j,k+iw0-1,m).ne.0. .and. keV1(k)<LowEnerLimit) then
-              dEda(k,m)=&
-                   min(DaE(j,k+iw0-1,m)/Daa(j,k+iw0-1,m),DaEtoDaaMax)
-              dEda(k,m)=&
-                   max(dEda(k,m),-1.0*DaEtoDaaMax)
-           end if
+        do m=1,iPa
+            do k=1,iE
+            if (Daa(i,j,k+iEnergy0-1,m).ne.0. .and. keV1(k)<LowEnerLimit) then
+                dEda(k,m)=&
+                  min(DaE(i,j,k+iEnergy0-1,m)/Daa(i,j,k+iEnergy0-1,m),&
+                      DaEtoDaaMax)
+                dEda(k,m)=&
+                  max(dEda(k,m),-1.0*DaEtoDaaMax)
+            end if
+            end do
         end do
-     end do
            
-     do m=1,ipa
-        dEda(:,m)=dEda(:,m)*keV1(:)
-     enddo
-     do k=iw0,iw
-        call rk4(keV(k),da,keV1,a0,dEda(:,:),iww,ipa,E(j,k,:))
-     enddo
-! make sure E is monotonically increasing
-     do m=2,ipa
-        m0=m-1
-        do k=iw-1,iw0,-1
-           k2=k+1
-           if (E(j,k,m).ge.E(j,k2,m)) then
-              write(*,*) ' E(a0,Q) calculation'
-              write(*,'(a,3i3,a)') ' At j,k,m =',j,k,m,',  E(k-1)>E(k)'
-              write(*,'(a,1p2E11.3)') ' E(j,k,1),E(j,k+1,1) =',E(j,k:k2,1)
-              write(*,'(a,1p2E11.3)') ' E(j,k,m),E(j,k+1,m) =',E(j,k:k2,m)
-              write(*,'(a,1p2E11.3)') ' DaE/Daa(k,m-1:m) (in keV) =',dEda(k,m0:m)*keV(k)
-              write(*,'(a,1p2E11.3)') ' DaE/Daa(k+1,m-1:m) (in keV) =',dEda(k+1,m0:m)*keV(k+1)
-              if (E(j,k2,m)/E(j,k,m).ge.0.97) then
-                 !!E(j,k,m)=0.97*E(j,k2,m)
-              else
-                 call CON_stop('IM: CIMI dies in calc_Q_curve for '//NameWave)
-                 write(*,'(f6.2,a)') E(j,k2,m)/E(j,k,m)*100.,' %'
-              endif
-              call CON_stop('IM: CIMI dies in calc_Q_curve for '//NameWave)
-              !!E1=E(j,k2,m)*r
-              !!E(j,k,m)=E1
-           endif
+        do m=1,iPa
+            dEda(:,m)=dEda(:,m)*keV1(:)
         enddo
-     enddo
+        do k=iEnergy0,iEnergy
+            call rk4(keV(k),da,keV1,a0,dEda(:,:),iE,iPa,E(i,j,k,:))
+        enddo
+! make sure E is monotonically increasing
+        do m=2,iPa
+            m0=m-1
+            do k=iEnergy-1,iEnergy0,-1
+            k2=k+1
+            if (E(i,j,k,m).ge.E(i,j,k2,m)) then
+                write(*,*) ' E(a0,Q) calculation'
+                write(*,'(a,3i3,a)') ' At i,j,k,m =',i,j,k,m,',  E(k-1)>E(k)'
+                write(*,'(a,1p2E11.3)') ' E(i,j,k,1),E(i,j,k+1,1) =',&
+                                                                E(i,j,k:k2,1)
+                write(*,'(a,1p2E11.3)') ' E(i,j,k,m),E(i,j,k+1,m) =',&
+                                                                E(i,j,k:k2,m)
+                write(*,'(a,1p2E11.3)') ' DaE/Daa(k,m-1:m) (in keV) =',&
+                                                         dEda(k,m0:m)*keV(k)
+                write(*,'(a,1p2E11.3)') ' DaE/Daa(k+1,m-1:m) (in keV) =',&
+                                                     dEda(k+1,m0:m)*keV(k+1)
+                if (E(i,j,k2,m)/E(i,j,k,m).ge.0.97) then
+                    !!E(j,k,m)=0.97*E(j,k2,m)
+                else
+                    call CON_stop('IM: CIMI dies in calc_Q_curve for '//&
+                                                                    NameWave)
+                    write(*,'(f6.2,a)') E(i,j,k2,m)/E(i,j,k,m)*100.,' %'
+                endif
+                call CON_stop('IM: CIMI dies in calc_Q_curve for '//NameWave)
+                !!E1=E(j,k2,m)*r
+                !!E(j,k,m)=E1
+            endif
+            enddo
+        enddo
+    enddo
   enddo
   
   deallocate (da,keV1,dEda)
@@ -707,176 +783,242 @@ contains
 !  Routine calculates DQQ(a0,Q) at fixed grids of (a0,Q)
 !   from Daa,DEE,DaE at fixed grids of (a0,E)
 !*****************************************************************************
-     subroutine DaEtoDQQ(Daa,DEE,DaE,keV,E,VarQ,ip,iw,iq,Dqq1,Dqq2,NameWave)
-     use CIMI_waves, only:ipa
+     subroutine DaEtoDQQ(Daa,DEE,DaE,keV,E,VarQ,&
+                         iL,ifpefce,iEnergy,iPa,iq,&
+                         Dqq1,Dqq2,NameWave)
      use ModCimi,       ONLY: MinLonPar,MaxLonPar
      implicit none
 
-     integer,intent(in) :: ip,iw,iq
-     real,dimension(ip,0:iw+1,ipa),intent(in) :: Daa,DEE,DaE
-     real,dimension(ip,0:iq+1,ipa),intent(in) :: E
-     real,intent(in) :: keV(0:iw+1),VarQ(0:iq+1)
+     ! Inputs
+     integer,intent(in) :: iL,ifpefce,iEnergy,iPa,iq
+     real,dimension(iL,ifpefce,0:iEnergy+1,iPa),intent(in) :: Daa,DEE,DaE
+     real,dimension(iL,ifpefce,0:iq+1,iPa),intent(in) :: E
+     real,intent(in) :: keV(0:iEnergy+1),VarQ(0:iq+1)
      character(len=*),intent(in) :: NameWave
-     real,dimension(ip,iq,ipa),intent(out) :: Dqq1,Dqq2
-     real,dimension(iw+2) ::  keVlog,logDaa,logDEE,logDaE
+     ! Outputs
+     real,dimension(iL,ifpefce,iq,iPa),intent(out) :: Dqq1,Dqq2
+     ! Locals
+     real,dimension(iEnergy+2) ::  keVlog,logDaa,logDEE,logDaE
      real,dimension(0:iq+1) :: logE,VarQ2,E2
      real dQ(iq),Daa1,DaE1,DEE1,dQdE,DaE2,DaE2max,Dqq0,&
           logDaa1,logDaE1,logDEE1
-     integer k1,iw1,j,k,m
+     integer i,j,k,m
 
-     Dqq1(:,:,:)=0.
-     Dqq2(:,:,:)=0.
-     keVlog(1:iw+2)=log(keV(0:iw+1))
+     Dqq1(:,:,:,:)=0.
+     Dqq2(:,:,:,:)=0.
+     keVlog(1:iEnergy+2)=log(keV(0:iEnergy+1))
      do k=1,iq
         dQ(k)=VarQ(k+1)-VarQ(k-1)
      enddo
      VarQ2(0:iq+1)=VarQ(0:iq+1)*VarQ(0:iq+1) 
 
-     do j=1,ip
-        do m=1,ipa
-           E2(0:iq+1)=E(j,0:iq+1,m)*E(j,0:iq+1,m)
-           !write(*,*) ' '
-           !write(*,*) E(j,0:iq+1,m)
-           logE(0:iq+1)=log(E(j,0:iq+1,m))
-           logDaa(:)=-75.
-           logDaE(:)=-75.
-           logDEE(:)=-75.
-           where(Daa(j,0:iw+1,m).ne.0.) &
-                logDaa(1:iw+2)=log(Daa(j,0:iw+1,m))
-           where(DaE(j,0:iw+1,m).ne.0.) &
-                logDaE(1:iw+2)=log(abs(DaE(j,0:iw+1,m))) !  in s^-1
-           where(DEE(j,0:iw+1,m).ne.0.) &
-                logDEE(1:iw+2)=log(DEE(j,0:iw+1,m))      !  in s^-1
-           do k=1,iq
-              if (logE(k).ge.keVlog(1).and.logE(k).le.keVlog(iw+2)) then
-                 call lintp(keVlog(:),logDaa(:),iw+2,logE(k),logDaa1,'DaEtoDQQ')
-                 call lintp(keVlog(:),logDaE(:),iw+2,logE(k),logDaE1,'DaEtoDQQ')
-                 call lintp(keVlog(:),logDEE(:),iw+2,logE(k),logDEE1,'DaEtoDQQ')
-                 if (logDaa1.gt.-70.) then
-                    Daa1=exp(logDaa1)
-                 else
-                    Daa1=0.
-                 endif
-                 if (logDEE1.gt.-70.) then
-                    DEE1=exp(logDEE1)
-                 else
-                    DEE1=0.
-                 endif
-                 if (Daa1.gt.0..and.DEE1.gt.0.) then
-                    if (logDaE1.gt.-70.) then
-                       DaE1=exp(logDaE1)
-                    else
-                       DaE1=0.
+     do i=1,iL
+        do j=1,ifpefce
+            do m=1,iPa
+                E2(0:iq+1)=E(i,j,0:iq+1,m)*E(i,j,0:iq+1,m)
+                !write(*,*) ' '
+                !write(*,*) E(i,j,0:iq+1,m)
+                logE(0:iq+1)=log(E(i,j,0:iq+1,m))
+                logDaa(:)=-75.
+                logDaE(:)=-75.
+                logDEE(:)=-75.
+                where(Daa(i,j,0:iEnergy+1,m).ne.0.) &
+                    logDaa(1:iEnergy+2)=log(Daa(i,j,0:iEnergy+1,m))
+                where(DaE(i,j,0:iEnergy+1,m).ne.0.) &
+                    logDaE(1:iEnergy+2)=log(abs(DaE(i,j,0:iEnergy+1,m)))
+                    !  in s^-1
+                where(DEE(i,j,0:iEnergy+1,m).ne.0.) &
+                    logDEE(1:iEnergy+2)=log(DEE(i,j,0:iEnergy+1,m))
+                    !  in s^-1
+                do k=1,iq
+                    if (logE(k).ge.keVlog(1).and.&
+                        logE(k).le.keVlog(iEnergy+2)) then
+                        call lintp(keVlog(:),logDaa(:),iEnergy+2,logE(k),&
+                                                           logDaa1,'DaEtoDQQ')
+                        call lintp(keVlog(:),logDaE(:),iEnergy+2,logE(k),&
+                                                           logDaE1,'DaEtoDQQ')
+                        call lintp(keVlog(:),logDEE(:),iEnergy+2,logE(k),&
+                                                           logDEE1,'DaEtoDQQ')
+                        if (logDaa1.gt.-70.) then
+                            Daa1=exp(logDaa1)
+                        else
+                            Daa1=0.
+                        endif
+                        if (logDEE1.gt.-70.) then
+                            DEE1=exp(logDEE1)
+                        else
+                            DEE1=0.
+                        endif
+                        if (Daa1.gt.0..and.DEE1.gt.0.) then
+                            if (logDaE1.gt.-70.) then
+                            DaE1=exp(logDaE1)
+                            else
+                            DaE1=0.
+                            endif
+                        else
+                            DaE1=0.
+                        endif
+                        Dqq1(i,j,k,m)=Daa1
+                        if (Daa1.eq.0.) then
+                            Dqq2(i,j,k,m)=DEE1*E2(k)/VarQ2(k)
+                        else
+                            DaE2=DaE1*DaE1
+                            DaE2max=Daa1*DEE1
+                            if (DaE2.gt.DaE2max) DaE2=DaE2max
+                            DQQ0=(DaE2max-DaE2)/Daa1
+                            dQdE=dQ(k)/(E(i,j,k+1,m)-E(i,j,k-1,m))
+                            ! Dqq2/Q^2 in 1/s
+                            Dqq2(i,j,k,m)=DQQ0*dQdE*dQdE*E2(k)/VarQ2(k)
+                        endif
+                        if (Dqq2(i,j,k,m).lt.0.) then
+                            write(*,*) ' Dqq2 has to be positive definite!'
+                            write(*,'(a,3i3,a,1p5E11.3)')&
+                            ' At i,j,k,m =',i,j,k,m,', DQQ,Daa,DEE,DaE =',&
+                            Dqq2(i,j,k,m),Daa1,DEE1,DaE1,DEE1-DaE1*DaE1/Daa1
+                            call CON_stop('IM: CIMI dies in &
+                                           mapping DaE to Dqq for '//NameWave)
+                        endif
                     endif
-                 else
-                    DaE1=0.
-                 endif
-                 Dqq1(j,k,m)=Daa1
-                 if (Daa1.eq.0.) then
-                    Dqq2(j,k,m)=DEE1*E2(k)/VarQ2(k)
-                 else
-                    DaE2=DaE1*DaE1
-                    DaE2max=Daa1*DEE1
-                    if (DaE2.gt.DaE2max) DaE2=DaE2max
-                    DQQ0=(DaE2max-DaE2)/Daa1
-                    dQdE=dQ(k)/(E(j,k+1,m)-E(j,k-1,m))
-                    Dqq2(j,k,m)=DQQ0*dQdE*dQdE*E2(k)/VarQ2(k) ! Dqq2/Q^2 in 1/s
-                 endif
-                 if (Dqq2(j,k,m).lt.0.) then
-                    write(*,*) ' Dqq2 has to be positive definite!'
-                    write(*,'(a,3i3,a,1p5E11.3)')&
-                     ' At j,k,m =',j,k,m,', DQQ,Daa,DEE,DaE =',&
-                     Dqq2(j,k,m),Daa1,DEE1,DaE1,DEE1-DaE1*DaE1/Daa1
-                    call CON_stop('IM: CIMI dies in mapping DaE to Dqq for '//NameWave)
-                 endif
-              endif
-           enddo
+                enddo
+            enddo
         enddo
      enddo
 
      end subroutine DaEtoDQQ
+!*****************************************************************************
+!                         interpol_D_coef_single
+!  Routine interpolates Daa,DaE,DEE to Q2(m=1) energy grids
+!   where Q2 = E at a0 = a0(m=1)
+!*****************************************************************************
+     subroutine interpol_D_coef_single(D,&
+                                keV,logE,&
+                                iL,ifpefce,iEnergy,iPa,&
+                                D0)
+     use ModCimiUtil, ONLY: lintp1IM
+     implicit none
 
+     ! Inputs
+     real,dimension(iL,ifpefce,iEnergy,iPa),intent(in) :: D
+     real,intent(in) :: keV(iEnergy),logE(0:iq+1)
+     integer,intent(in) :: iL,ifpefce,iEnergy,iPa
+     ! Outputs
+     real,dimension(iL,ifpefce,0:iq+1,iPa),intent(out) :: D0
+     ! Locals
+     real,dimension(iEnergy) :: keVlog,logDoo
+     real minDoo
+     integer i,j,k,m
+
+     keVlog(:)=log(keV(:))
+     D0(:,:,:,:)=0.   
+     do i=1,iL
+        do j=1,ifpefce
+            do m=1,iPa
+                minDoo=minval(D(i,j,:,m),D(i,j,:,m).gt.0.)
+                minDoo=log(minDoo)
+                logDoo(:)=-115.
+                where(D(i,j,:,m).gt.0.) logDoo(:)=log(D(i,j,:,m))
+                do k=0,iq+1
+                ! linear interpolation
+                    call lintp1IM(keVlog,logDoo,iEnergy,logE(k),D0(i,j,k,m),&
+                                  .true.)
+                    if (D0(i,j,k,m).ge.minDoo) then
+                        D0(i,j,k,m)=exp(D0(i,j,k,m))
+                    else
+                        D0(i,j,k,m)=0.
+                    endif
+                enddo
+            enddo
+        enddo
+     enddo
+     end subroutine interpol_D_coef_single
 
 !*****************************************************************************
 !                         interpol_D_coef
 !  Routine interpolates Daa,DaE,DEE to Q2(m=1) energy grids
 !   where Q2 = E at a0 = a0(m=1)
 !*****************************************************************************
-     subroutine interpol_D_coef(Daa,DaE,DEE,xSign,keV,logE,ip,iw,iq,Daa0,DaE0,DEE0)
-     use CIMI_waves, only: cPA,ipa
-     use ModCimi,       ONLY: MinLonPar,MaxLonPar
+     subroutine interpol_D_coef(Daa,DaE,DEE,xSign,&
+                                keV,logE,&
+                                iL,ifpefce,iEnergy,iPa,&
+                                Daa0,DaE0,DEE0)
+     use ModCimi,    ONLY: MinLonPar,MaxLonPar
      implicit none
 
-     integer,intent(in) :: ip,iw,iq
-     real,dimension(ip,iw,ipa),intent(in) :: Daa,DaE,DEE,xSign
-     real,intent(in) :: keV(iw),logE(0:iq+1)
-     real,dimension(ip,0:iq+1,ipa),intent(out) :: Daa0,DaE0,DEE0
-     real,dimension(iw) :: keVlog,logDoo
-     !!real,dimension(iw) :: b,c,d
+     ! Inputs
+     real,dimension(iL,ifpefce,iEnergy,iPa),intent(in) :: Daa,DaE,DEE,xSign
+     real,intent(in) :: keV(iEnergy),logE(0:iq+1)
+     integer,intent(in) :: iL,ifpefce,iEnergy,iPa
+     ! Outputs
+     real,dimension(iL,ifpefce,0:iq+1,iPa),intent(out) :: Daa0,DaE0,DEE0
+     ! Locals
+     real,dimension(iEnergy) :: keVlog,logDoo
      real minDoo,sign1,DaEmax,dE,dE2
-     integer j,k,m,kk
+     integer i,j,k,m,kk
 
      keVlog(:)=log(keV(:))
-     Daa0(:,:,:)=0.   
-     DaE0(:,:,:)=0.   
-     DEE0(:,:,:)=0.   
-     do j=1,ip
-        do m=1,ipa
+     Daa0(:,:,:,:)=0.   
+     DaE0(:,:,:,:)=0.   
+     DEE0(:,:,:,:)=0.   
+     do i=1,iL
+        do j=1,ifpefce
+            do m=1,iPa
 !(1) interpolate Daa
-           minDoo=minval(Daa(j,:,m),Daa(j,:,m).gt.0.)
-           minDoo=log(minDoo)
-           logDoo(:)=-115.
-           where(Daa(j,:,m).gt.0.) logDoo(:)=log(Daa(j,:,m))
-           do k=0,iq+1
-           ! linear interpolation
-              call lintp(keVlog,logDoo,iw,logE(k),Daa0(j,k,m),&
-                         'interpol_D_coef')
-              if (Daa0(j,k,m).ge.minDoo) then
-                 Daa0(j,k,m)=exp(Daa0(j,k,m))
-              else
-                 Daa0(j,k,m)=0.
-              endif
-           enddo
+                minDoo=minval(Daa(i,j,:,m),Daa(i,j,:,m).gt.0.)
+                minDoo=log(minDoo)
+                logDoo(:)=-115.
+                where(Daa(i,j,:,m).gt.0.) logDoo(:)=log(Daa(i,j,:,m))
+                do k=0,iq+1
+                ! linear interpolation
+                    call lintp(keVlog,logDoo,iEnergy,logE(k),Daa0(i,j,k,m),&
+                                'interpol_D_coef')
+                    if (Daa0(i,j,k,m).ge.minDoo) then
+                        Daa0(i,j,k,m)=exp(Daa0(i,j,k,m))
+                    else
+                        Daa0(i,j,k,m)=0.
+                    endif
+                enddo
 !(2) interpolate DEE
-           minDoo=minval(DEE(j,:,m),DEE(j,:,m).gt.0.)
-           minDoo=log(minDoo)
-           logDoo(:)=-115.
-           where(DEE(j,:,m).gt.0.) logDoo(:)=log(DEE(j,:,m))
-           do k=0,iq+1
-           ! linear interpolation
-              call lintp(keVlog,logDoo,iw,logE(k),DEE0(j,k,m),&
-                         'interpol_D_coef')
-              if (DEE0(j,k,m).ge.minDoo) then
-                 DEE0(j,k,m)=exp(DEE0(j,k,m))
-              else
-                 DEE0(j,k,m)=0.
-              endif
-           enddo
+                minDoo=minval(DEE(i,j,:,m),DEE(i,j,:,m).gt.0.)
+                minDoo=log(minDoo)
+                logDoo(:)=-115.
+                where(DEE(i,j,:,m).gt.0.) logDoo(:)=log(DEE(i,j,:,m))
+                do k=0,iq+1
+                ! linear interpolation
+                    call lintp(keVlog,logDoo,iEnergy,logE(k),DEE0(i,j,k,m),&
+                                'interpol_D_coef')
+                    if (DEE0(i,j,k,m).ge.minDoo) then
+                        DEE0(i,j,k,m)=exp(DEE0(i,j,k,m))
+                    else
+                        DEE0(i,j,k,m)=0.
+                    endif
+                enddo
 !(3) interpolate DaE
-           minDoo=minval(abs(DaE(j,:,m)),abs(DaE(j,:,m)).gt.0.)
-           minDoo=log(minDoo)
-           logDoo(:)=-115.
-           where(abs(DaE(j,:,m)).gt.0.) logDoo(:)=log(abs(DaE(j,:,m)))
-           do k=0,iq+1
-           ! linear interpolation
-              call lintp(keVlog,logDoo,iw,logE(k),DaE0(j,k,m),&
-                         'interpol_D_coef')
-              call lintp(keVlog,xSign(j,:,m),iw,logE(k),sign1,&
-                         'interpol_D_coef')
-              if (DaE0(j,k,m).ge.minDoo) then
-                 DaE0(j,k,m)=sign(exp(DaE0(j,k,m)),sign1)
-              else
-                 DaE0(j,k,m)=0.
-              endif
-           ! DaE < sqrt(Daa * DEE)
-              if (Daa0(j,k,m).eq.0..or.DEE0(j,k,m).eq.0.) then
-                 DaE0(j,k,m)=0.
-              else
-                 DaEmax=sqrt(Daa0(j,k,m)*DEE0(j,k,m))
-                 if (abs(DaE0(j,k,m)).gt.DaEmax) &
-                    DaE0(j,k,m)=sign(DaEmax,sign1)
-              endif
-           enddo
+                minDoo=minval(abs(DaE(i,j,:,m)),abs(DaE(i,j,:,m)).gt.0.)
+                minDoo=log(minDoo)
+                logDoo(:)=-115.
+                where(abs(DaE(i,j,:,m)).gt.0.) &
+                                            logDoo(:)=log(abs(DaE(i,j,:,m)))
+                do k=0,iq+1
+                ! linear interpolation
+                    call lintp(keVlog,logDoo,iEnergy,&
+                                    logE(k),DaE0(i,j,k,m),'interpol_D_coef')
+                    call lintp(keVlog,xSign(i,j,:,m),iEnergy,&
+                                            logE(k),sign1,'interpol_D_coef')
+                    if (DaE0(i,j,k,m).gt.minDoo) then
+                            DaE0(i,j,k,m)=sign(exp(DaE0(i,j,k,m)),sign1)
+                    else
+                        DaE0(i,j,k,m)=0.
+                    endif
+                ! DaE < sqrt(Daa * DEE)
+                    if (Daa0(i,j,k,m).eq.0..or.DEE0(i,j,k,m).eq.0.) then
+                        DaE0(i,j,k,m)=0.
+                    else
+                        DaEmax=sqrt(Daa0(i,j,k,m)*DEE0(i,j,k,m))
+                    endif
+                    if (abs(DaE0(i,j,k,m)).gt.DaEmax) &
+                                              DaE0(i,j,k,m)=sign(DaEmax,sign1)
+                enddo
+            enddo
         enddo
      enddo
      end subroutine interpol_D_coef
@@ -891,25 +1033,31 @@ contains
   use ModNumConst, only: pi=>cPi
   use ModCimiGrid, only: ir=>np,ip=>nt,ik=>nk,&
                          MinLonPar,MaxLonPar
-  use CIMI_waves, only: ipc,iwc,iph,iwh,ipa,&
-                         UseChorus, UseHiss,&
-                         cOmpe,cPA
+  use CIMI_waves, only: icL,icfpefce,icEnergy,icPa,&
+                        ihL,ihfpefce,ihEnergy,ihPa,&
+                        UseChorus, UseHiss,TypeChorus,TypeHiss,&
+                        cLShell,cOmpe,ckeV,cPa,&
+                        hLShell,hOmpe,hkeV,hPa
   use ModCimiTrace, only: y=>sinA,iba,ro
+  use ModCimiUtil,  only: lintp2IM
   !use ModCimiGrid,       ONLY: MinLonPar,MaxLonPar
   !!use diagDiffCoef, only: iq,cDqq1,cDqq2,hDqq1,hDqq2,Dqq1K,&
   !!                        Dqq2K,E_Q2c,E_Q2h,dQ2dEK,E_Q2K,VarQ,&
-  !!                        ipc0,iph0,iLpp
+  !!                        icfpefce0,ihfpefce0,iLpp
   implicit none
 
   real a0(0:ik+1),dQ(iq),&
-       PAwBound(ipa+2),&     ! pitch angle from 0 - 90 deg
-       DkkIn(ipa+2),&        ! D_Q1Q1 going in to interpolation
-       DqqIn(ipa+2),&        ! D_Q2Q2 going in to interpolation
-       Eq2In(ipa+2)          ! E_Q2 going in to interpolation
+       PAwBound(icPa+2),&     ! pitch angle from 0 - 90 deg
+       DkkIn(icPa+2),&        ! D_Q1Q1 going in to interpolation
+       DqqIn(icPa+2),&        ! D_Q2Q2 going in to interpolation
+       Eq2In(icPa+2)          ! E_Q2 going in to interpolation
+  integer,dimension(ir,ip) :: icfpefce0,ihfpefce0 ! index of fpe/fce ratio to use
   real RadToDeg
-  integer i,j,k,m,l,m1,m2,ipc1,iph1
- 
-  call find_ompe_index
+  integer :: i,j,k,m,l,m1,m2,icfpefce1,ihfpefce1
+  logical :: DoLDim=.false.
+
+  if (UseChorus) call find_ompe_index(cOmpe,icfpefce,icfpefce0)
+  if (UseHiss)   call find_ompe_index(hOmpe,ihfpefce,ihfpefce0)
 
   RadToDeg=180./pi
 
@@ -917,9 +1065,9 @@ contains
      dQ(k)=VarQ(k+1)-VarQ(k-1)
   enddo
 
-  PAwBound(2:ipa+1)=cPA(1:ipa)
+  PAwBound(2:icPa+1)=cPa(1:icPa)
   PAwBound(1)=PAwBound(2)
-  PAwBound(ipa+2)=PAwBound(ipa+1)
+  PAwBound(icPa+2)=PAwBound(icPa+1)
 
   ! find Lpp(1:nt)
   call find_loc_plasmapause
@@ -928,47 +1076,73 @@ contains
 !(1) interpolate begins when L>Lpp for chorus
      do i=1,iba(j)
         if (UseChorus.and..not.IsPlasmasphere_C(i,j)) then
-           ipc1=ipc0(i,j)
+           icfpefce1=icfpefce0(i,j)
            a0(0:ik+1)=asin(y(i,j,0:ik+1))*RadToDeg
            m1=ik+1
            m2=0
            do m=0,ik+1
-              !!if (a0(m).ge.PAwBound(1).and.a0(m).le.PAwBound(ipa+2)) then
-              if (a0(m).ge.cPA(1).and.a0(m).le.cPA(ipa)) then
+              !!if (a0(m).ge.PAwBound(1).and.a0(m).le.PAwBound(icPa+2)) then
+              if (a0(m).ge.cPa(1).and.a0(m).le.cPa(icPa)) then
                  if (m.le.m1) m1=m
                  if (m.ge.m2) m2=m
 !!!!!!!!!!if (i.eq.iLpp(1)+4.and.j.eq.1) write(*,*) m,a0(m),m1,m2
 !(2) interpolate Dqq1, Dqq2 to y grids
                  do k=1,iq
-                    call lintp(cPA,cDqq1(ipc1,k,:),ipa,a0(m),Dqq1K(i,j,k,m),&
-                               'interpol_D_coefK')
-                    if (Dqq1K(i,j,k,m).ne.Dqq1K(i,j,k,m).or.&
-                        Dqq1K(i,j,k,m).lt.0.) then
-                       write(*,*) 'i,j,k,m =',i,j,k,m
-                       write(*,*) 'Dqq1K =',Dqq1K(i,j,k,m)
-                       call CON_stop('IM: CIMI dies in '//'interpol_D_coefK')
-                    endif
-                    call lintp(cPA,cDqq2(ipc1,k,:),ipa,a0(m),Dqq2K(i,j,k,m),&
-                               'interpol_D_coefK')
-                    if (Dqq2K(i,j,k,m).ne.Dqq2K(i,j,k,m).or.&
-                        Dqq2K(i,j,k,m).lt.0.) then
-                       write(*,*) 'i,j,k,m =',i,j,k,m
-                       write(*,*) 'Dqq2K =',Dqq2K(i,j,k,m)
-                       call CON_stop('IM: CIMI dies in '//'interpol_D_coefK')
-                    endif
-                    call lintp(cPA,E_Q2c(ipc1,k,:),ipa,a0(m),E_Q2K(i,j,k,m),&
-                               'interpol_D_coefK')
+                    select case(TypeChorus)
+                    case('UCLA')
+                        call lintp(cPa,E_Q2c(1,icfpefce1,k,:),icPa,&
+                                   a0(m),E_Q2K(i,j,k,m),'interpol_D_coefK')
+                    case('BU')
+                        call lintp2IM(cLshell,cPa,&
+                                      E_Q2c(:,icfpefce1,k,:),&
+                                      icL,icPa,&
+                                      ro(i,j),a0(m),E_Q2K(i,j,k,m),.false.)
+                    end select
                     if (E_Q2K(i,j,k,m).ne.E_Q2K(i,j,k,m).or.&
                         E_Q2K(i,j,k,m).le.0.) then
-                       write(*,*) 'i,j,k,m =',i,j,k,m
-                       write(*,*) 'E_Q2K =',E_Q2K(i,j,k,m)
-                       write(*,*) 'a0 (=asin(sinA(i,j,:))'
-                       write(*,'(10f8.3)') a0
-                       write(*,*) 'cPA'
-                       write(*,'(10f8.3)') cPA
-                       write(*,*) 'E_Q2c (ipc1,k,:)'
-                       write(*,'(1p9E13.5)') E_Q2c(ipc1,k,:)
-                       call CON_stop('IM: CIMI dies in '//'interpol_D_coefK')
+                        write(*,*) 'CHORUS'
+                        write(*,*) 'i,j,k,m =',i,j,k,m
+                        write(*,*) 'E_Q2K =',E_Q2K(i,j,k,m)
+                        write(*,*) 'a0 (=asin(sinA(i,j,:))'
+                        write(*,'(10f8.3)') a0
+                        write(*,*) 'cPa'
+                        write(*,'(10f8.3)') cPa
+                        write(*,*) 'E_Q2c (icfpefce1,k,:)'
+                        write(*,'(1p9E13.5)') E_Q2c(1,icfpefce1,k,:)
+                        call CON_stop('IM: CIMI dies in '//'interpol_D_coefK')
+                    endif
+                    select case(TypeChorus)
+                    case('UCLA')
+                        call lintp(cPa,cDqq1(1,icfpefce1,k,:),icPa,&
+                                   a0(m),Dqq1K(i,j,k,m),'interpol_D_coefK')
+                    case('BU')
+                        call lintp2IM(cLshell,cPa,&
+                                      cDqq1(:,icfpefce1,k,:),&
+                                      icL,icPa,&
+                                      ro(i,j),a0(m),Dqq1K(i,j,k,m),.false.)
+                    end select
+                    if (Dqq1K(i,j,k,m).lt.0.) Dqq1K(i,j,k,m) = 0.
+                    if (Dqq1K(i,j,k,m).ne.Dqq1K(i,j,k,m).or.&
+                        Dqq1K(i,j,k,m).lt.0.) then
+                        write(*,*) 'i,j,k,m =',i,j,k,m
+                        write(*,*) 'Dqq1K =',Dqq1K(i,j,k,m)
+                        call CON_stop('IM: CIMI dies in '//'interpol_D_coefK')
+                    endif
+                    select case(TypeChorus)
+                    case('UCLA')
+                        call lintp(cPa,cDqq2(1,icfpefce1,k,:),icPa,&
+                                   a0(m),Dqq2K(i,j,k,m),'interpol_D_coefK')
+                    case('BU')
+                        call lintp2IM(cLshell,cPa,&
+                                      cDqq2(:,icfpefce1,k,:),&
+                                      icL,icPa,&
+                                      ro(i,j),a0(m),Dqq2K(i,j,k,m),.false.)
+                    end select
+                    if (Dqq2K(i,j,k,m).ne.Dqq2K(i,j,k,m).or.&
+                        Dqq2K(i,j,k,m).lt.0.) then
+                        write(*,*) 'i,j,k,m =',i,j,k,m
+                        write(*,*) 'Dqq2K =',Dqq2K(i,j,k,m)
+                        call CON_stop('IM: CIMI dies in '//'interpol_D_coefK')
                     endif
                  enddo   ! end of k
               endif
@@ -999,50 +1173,76 @@ contains
 !(5) interpolate begins when L<Lpp for hiss
      do i=1,iba(j)
         if (UseHiss.and.IsPlasmasphere_C(i,j)) then
-           iph1=iph0(i,j)
+           ihfpefce1=ihfpefce0(i,j)
            a0(:)=asin(y(i,j,:))*RadToDeg
            m1=ik+1
            m2=0
            do m=0,ik+1
-              if (a0(m).ge.cPA(1).and.a0(m).le.cPA(ipa)) then
+              if (a0(m).ge.hPa(1).and.a0(m).le.hPa(ihPa)) then
                  if (m.le.m1) m1=m
                  if (m.ge.m2) m2=m
 !(6) interpolate Dqq1, Dqq2 to y grids
                  do k=1,iq
-                    call lintp(cPA,hDqq1(iph1,k,:),ipa,a0(m),Dqq1K(i,j,k,m),&
-                               'interpol_D_coefK')
-                    if (Dqq1K(i,j,k,m).ne.Dqq1K(i,j,k,m).or.& 
-                        Dqq1K(i,j,k,m).lt.0.) then
-                       write(*,*) 'i,j,k,m =',i,j,k,m
-                       write(*,*) 'Dqq1K =',Dqq1K(i,j,k,m)
-                       call CON_stop('IM: CIMI dies in '//'interpol_D_coefK')
-                    endif
-                    call lintp(cPA,hDqq2(iph1,k,:),ipa,a0(m),Dqq2K(i,j,k,m),&
-                               'interpol_D_coefK')
-                    if (Dqq2K(i,j,k,m).ne.Dqq2K(i,j,k,m).or.& 
-                        Dqq2K(i,j,k,m).lt.0.) then
-                       write(*,*) 'i,j,k,m =',i,j,k,m
-                       write(*,*) 'Dqq2K =',Dqq2K(i,j,k,m)
-                       call CON_stop('IM: CIMI dies in '//'interpol_D_coefK')
-                    endif
-                    call lintp(cPA,E_Q2h(iph1,k,:),ipa,a0(m),E_Q2K(i,j,k,m),&
-                               'interpol_D_coefK')
+                    select case(TypeHiss)
+                    case('UCLA')
+                        call lintp(hPa,E_Q2h(1,ihfpefce1,k,:),ihPa,&
+                                   a0(m),E_Q2K(i,j,k,m),'interpol_D_coefK')
+                    case('BU')
+                        call lintp2IM(hLshell,hPa,&
+                                      E_Q2h(:,ihfpefce1,k,:),&
+                                      ihL,ihPa,&
+                                      ro(i,j),a0(m),E_Q2K(i,j,k,m),.false.)
+                    end select
                     if (E_Q2K(i,j,k,m).ne.E_Q2K(i,j,k,m).or.& 
                         E_Q2K(i,j,k,m).le.0.) then
-                       write(*,*) 'i,j,k,m =',i,j,k,m
-                       write(*,*) 'E_Q2K =',E_Q2K(i,j,k,m)
-                       write(*,*) 'a0 (=asin(sinA(i,j,:))'
-                       write(*,'(10f8.3)') a0
-                       write(*,*) 'cPA'
-                       write(*,'(10f8.3)') cPA
-                       write(*,*) 'E_Q2h (iph1,k,:)'
-                       write(*,'(1p9E13.5)') E_Q2h(iph1,k,:)
-                       write(*,*) 'E_Q2K (i,j,k,:)'
-                       write(*,'(1p9E13.5)') E_Q2K(i,j,k,0:m)
-                       call CON_stop('IM: CIMI dies in '//'interpol_D_coefK')
+                        write(*,*) 'HISS'
+                        write(*,*) 'i,j,k,m =',i,j,k,m
+                        write(*,*) 'E_Q2K =',E_Q2K(i,j,k,m)
+                        write(*,*) 'a0 (=asin(sinA(i,j,:))'
+                        write(*,'(10f8.3)') a0
+                        write(*,*) 'hPa'
+                        write(*,'(10f8.3)') hPa
+                        write(*,*) 'E_Q2h (ihfpefce1,k,:)'
+                        write(*,'(1p9E13.5)') E_Q2h(1,ihfpefce1,k,:)
+                        write(*,*) 'E_Q2K (i,j,k,:)'
+                        write(*,'(1p9E13.5)') E_Q2K(i,j,k,0:m)
+                        call CON_stop('IM: CIMI dies in '//'interpol_D_coefK')
+                    endif
+                    select case(TypeHiss)
+                    case('UCLA')
+                        call lintp(hPa,hDqq1(1,ihfpefce1,k,:),ihPa,&
+                                   a0(m),Dqq1K(i,j,k,m),'interpol_D_coefK')
+                    case('BU')
+                        call lintp2IM(hLshell,hPa,&
+                                      hDqq1(:,ihfpefce1,k,:),&
+                                      ihL,ihPa,&
+                                      ro(i,j),a0(m),Dqq1K(i,j,k,m),.false.)
+                    end select
+                    if (Dqq1K(i,j,k,m).lt.0.) Dqq1K(i,j,k,m) = 0.
+                    if (Dqq1K(i,j,k,m).ne.Dqq1K(i,j,k,m).or.& 
+                        Dqq1K(i,j,k,m).lt.0.) then
+                        write(*,*) 'i,j,k,m =',i,j,k,m
+                        write(*,*) 'Dqq1K =',Dqq1K(i,j,k,m)
+                        call CON_stop('IM: CIMI dies in '//'interpol_D_coefK')
+                    endif
+                    select case(TypeHiss)
+                    case('UCLA')
+                        call lintp(hPa,hDqq2(1,ihfpefce1,k,:),ihPa,&
+                                   a0(m),Dqq2K(i,j,k,m),'interpol_D_coefK')
+                    case('BU')
+                        call lintp2IM(hLshell,hPa,&
+                                      hDqq2(:,ihfpefce1,k,:),&
+                                      ihL,ihPa,&
+                                      ro(i,j),a0(m),Dqq2K(i,j,k,m),.false.)
+                    end select
+                    if (Dqq2K(i,j,k,m).ne.Dqq2K(i,j,k,m).or.& 
+                        Dqq2K(i,j,k,m).lt.0.) then
+                        write(*,*) 'i,j,k,m =',i,j,k,m
+                        write(*,*) 'Dqq2K =',Dqq2K(i,j,k,m)
+                        call CON_stop('IM: CIMI dies in '//'interpol_D_coefK')
                     endif
                  enddo       ! end of k
-             endif ! if (a0(m).ge.cPA(1).and.a0(m).le.cPA(ipa))
+             endif ! if (a0(m).ge.hPa(1).and.a0(m).le.hPa(ihPa))
            enddo    ! end of m
 !(7) assign Dqq1, Dqq2, where <1 deg and >89 deg
            do m=0,m1
@@ -1336,63 +1536,70 @@ contains
 !   (2) constant Q2 in (a0,E), setting Q1=a0
 !   (3) Daa, Dq2,q2
 !*****************************************************************************
-  subroutine write_Q2info(DEE,DaE,Daa0,DaE0,DEE0,Dqq1,Dqq2,keV,Ompe,&
-                          Eq,E,ip,iw,iq,&
+  subroutine write_Q2info(DEE,DaE,Daa0,DaE0,DEE0,&
+                          Dqq1,Dqq2,&
+                          Lshell,Ompe,keV,Pa,&
+                          iL,ifpefce,iEnergy,iPa,iq,&
+                          Eq,E,&
                           FileName1,FileName2,FileName3)
-  use CIMI_waves, only: ipa,cPA
-  !!use diagDiffCoef, only: VarQ
   implicit none
 
-  integer,intent(in) :: ip,iw,iq
-  real,intent(in),dimension(ip,iw,ipa) :: DEE,DaE
-  real,intent(in),dimension(ip,0:iq+1,ipa) :: Daa0,DaE0,DEE0,E
-  real,intent(in),dimension(ip,iq,ipa) :: Dqq1,Dqq2
-  real,intent(in) :: keV(iw),Eq(0:iq+1),Ompe(ip)
+  integer,intent(in) :: iL,ifpefce,iEnergy,iPa,iq
+  real,intent(in),dimension(iL,ifpefce,iEnergy,iPa) :: DEE,DaE
+  real,intent(in),dimension(iL,ifpefce,0:iq+1,iPa) :: Daa0,DaE0,DEE0,E
+  real,intent(in),dimension(iL,ifpefce,iq,iPa) :: Dqq1,Dqq2
+  real,intent(in) :: Lshell(iL),keV(iEnergy),Eq(0:iq+1),Ompe(ifpefce),Pa(iPa)
   character(len=*),intent(in) :: FileName1,FileName2,FileName3
-  real a(iw),DaEEE(iw,ipa),dE
-  integer j,k,m
+  real a(iEnergy),DaEEE(iEnergy,iPa),dE
+  integer i,j,k,m
 
 !!!! write Dqq
   open(unit=48,file=trim(FileName3))
   write(48,'(f7.0,f7.2)') 10000.,6.5 
-  write(48,*) ip,iq,ipa
+  write(48,*) ifpefce,iq,iPa
   write(48,'(10f7.2)') Ompe
   write(48,'(8f12.5)') VarQ(1:iq)  
-  do j=1,ip
-     do k=1,iq
-        write(48,'(f7.2,f12.5,a)') Ompe(j),VarQ(k),'     ! fpe/fce   E(keV)'
-        write(48,*) 'alpha0    Daa/p^2     DQQ/Q^2  (sec^-1)'
-        do m=1,ipa
-           write(48,'(f5.1,1p2E18.5)') cPA(m),Dqq1(j,k,m),Dqq2(j,k,m)
+  do i=1,iL
+      do j=1,ifpefce
+        do k=1,iq
+            write(48,'(f7.2,f12.5,a)') Ompe(j),VarQ(k),'   ! fpe/fce   E(keV)'
+            write(48,*) 'alpha0    Daa/p^2     DQQ/Q^2  (sec^-1)'
+            do m=1,iPa
+            write(48,'(f5.1,1p2E18.5)') Pa(m),Dqq1(i,j,k,m),Dqq2(i,j,k,m)
+            enddo
         enddo
-     enddo
+    enddo
   enddo
   close(48)
   write(*,*) 'write Dq1q1, Dq2q2'
      
   open(unit=60,file=trim(FileName1))
-  write(60,*) ip,iw,ipa
+  write(60,*) ifpefce,iEnergy,iPa
   write(60,'(1p10E11.3)') keV(:)
-  do j=1,ip
-     where (DEE(j,:,:).ne.0.) DaEEE(:,:)=DaE(j,:,:)/DEE(j,:,:)
-     where (DEE(j,:,:).eq.0.) DaEEE(:,:)=0.
-     do m=1,ipa
-        a(1)=cPA(m)
-        do k=2,iw
-           dE=(keV(k)-keV(k-1))
-           a(k)=a(k-1)+0.5*(DaEEE(k,m)/keV(k)+DaEEE(k-1,m)/keV(k-1))*dE
+  do i=1,iL
+    do j=1,ifpefce
+        where (DEE(i,j,:,:).ne.0.) DaEEE(:,:)=DaE(i,j,:,:)/DEE(i,j,:,:)
+        where (DEE(i,j,:,:).eq.0.) DaEEE(:,:)=0.
+        do m=1,iPa
+            a(1)=Pa(m)
+            do k=2,iEnergy
+            dE=(keV(k)-keV(k-1))
+            a(k)=a(k-1)+0.5*(DaEEE(k,m)/keV(k)+DaEEE(k-1,m)/keV(k-1))*dE
+            enddo
+            write(60,'(1p10E12.4)') a(:)
         enddo
-        write(60,'(1p10E12.4)') a(:)
-     enddo
+    enddo
   enddo
   close(60)
   open(unit=60,file=trim(FileName2))
-  write(60,*) ip,iq,ipa
+  write(60,*) iL,ifpefce,iq,iPa
   write(60,'(1p10E11.3)') Eq(1:iq)
-  do j=1,ip
-     do k=1,iq
-        write(60,'(1p10E12.4)') E(j,k,:)
-     enddo
+  do i=1,iL
+      do j=1,ifpefce
+        do k=1,iq
+            write(60,'(1p10E12.4)') E(i,j,k,:)
+        enddo
+    enddo
   enddo
   close(60)
 
@@ -1812,8 +2019,7 @@ end subroutine spline
   use CIMI_waves, ONLY: cDaa,cDaE,cDEE,&
                          hDaa,hDaE,hDEE,&
                          CHpower,HIpower,&
-                         Cpower0,Hpower0,BLc0,BLh0,&
-                         cPA,ipa
+                         Cpower0,Hpower0,BLc0,BLh0
   
   use ModCimiTrace, ONLY: bo,sinA,tya
   implicit none
@@ -1889,8 +2095,8 @@ end subroutine spline
 
 ! const. Q2 curve
   do k=0,iq+1
-     E_Q2c(:,k,:)=VarQ(k)
-     E_Q2h(:,k,:)=VarQ(k)
+     E_Q2c(:,:,k,:)=VarQ(k)
+     E_Q2h(:,:,k,:)=VarQ(k)
   enddo
 
 ! dQ2/dE 

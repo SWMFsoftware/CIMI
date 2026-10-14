@@ -31,7 +31,7 @@ OBJECTS = \
 	simple_plasmasphere.o\
 	ModCimiMethods.o\
 	ModCimiUtil.o\
-	set_parameters.o\
+	CIMI_SetParams.o\
 	plot_fieldline.o\
 	trace_dipole.o\
 	geopack.o \
@@ -166,23 +166,38 @@ unit_test_localwave_compile:
 OBJ_INTEGRATION = \
         ModPlanet.o\
 	ModCimi.o\
+	ModImIndices.o\
+	ModInterFlux.o\
+	ModPlasmasphere.o\
 	ModLocalWave.o\
+	ModCimiPlot.o\
+	CIMI_aurora.o\
 	ModFieldTrace.o\
+	ModGmCIMI.o\
 	ModGrid.o\
+	ModCoupleSAMI.o\
+	ModIeCimi.o\
+	ModImSat.o\
+	ModImTime.o\
 	ModInitialize.o\
+	ModRestart.o\
+	ModCimiBoundary.o\
 	ModTsyInput.o\
+	ModPrerunField.o\
 	simple_plasmasphere.o\
 	ModCimiMethods.o\
+	ModDiffusionTests.o\
 	ModCimiUtil.o\
-	integration.o\
-	set_parameters.o\
+	CIMI_SetParams.o\
+	plot_fieldline.o\
 	trace_dipole.o\
 	geopack.o \
 	CIMI_waves.o\
-	ModDiagDiff.o\
 	ModWaveDiff.o\
+	ModDiagDiff.o\
         ModLstar.o\
-	ModCurvScatt.o
+	ModCurvScatt.o\
+	ModLocalWave.o
 
 DEPEND_INTEGRATION:
 	@${SCRIPTDIR}/depend.pl ${SEARCHDIR} ${OBJ_INTEGRATION}
