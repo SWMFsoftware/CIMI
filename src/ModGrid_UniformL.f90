@@ -8,8 +8,8 @@ Module ModCimiGrid
   logical :: DoVerboseLatGrid = .false.
   
   ! define dimensions of CIMI grids
-  integer,parameter :: np1=76,nt1=48,npit1=18!,nspec1=1  
   integer,parameter :: nm=48,nk=29 ! dimension of CIMI magnetic moment and K
+  integer,parameter :: nGhostCell=2
 
   integer,parameter :: np=76    ! dimension of the CIMI latitude grid
   integer,parameter :: nt=48    ! dimension of the CIMI local-time grid
@@ -17,7 +17,7 @@ Module ModCimiGrid
   integer,parameter :: npit=18  ! dimension of the CIMI pitch-angle grid
 
   ! These have to be initialized so that IM_set_grid does not fail on non-IM PEs
-  real:: xlat(np) = 0.0, phi(nt1)=0.0
+  real:: xlat(np) = 0.0, phiGlobal(nt)= 0.0
 
 !  real, parameter :: xlat_data(0:77)=(/ &
 !       09.8403398252184129, 11.8094287214197298, 13.7766188250317825, &
@@ -47,8 +47,8 @@ Module ModCimiGrid
 !       80.8786008210180256, 82.2216559222371330, 83.7663121676587963, &
 !       85.4404094624754862, 87.1942709870800599, 88.9996559369669313/)
 
-
-  real :: xlatr(np), xmlt(nt), dlat(np1), sinAo(npit)
+  real :: xlatr(np), dlat(np), sinAo(npit), xmltGlobal(nt)
+  real, allocatable :: phi(:), xmlt(:)
 
   real, allocatable :: d4Element_C(:,:,:,:) !4D element (dlat*dphi*dmm*dk)
 
@@ -61,12 +61,12 @@ Module ModCimiGrid
           varNpower=2. 
   logical :: DoDefineVarNpower = .false.
   
-  
   ! Defines the outer boundary maximum distance.
   real	  :: rb = 15.0
 
   ! Define MPI parameters affecting grid
-  integer :: iProc, nProc, iComm, nLonPar, MinLonPar, MaxLonPar
+  integer :: iProc, nProc, iComm, nLonPar, MinLonPar, MaxLonPar, &
+     MinLonGlobal, MaxLonGlobal
   integer, allocatable :: nLonPar_P(:),nLonBefore_P(:)
   integer ::iProcLeft, iProcRight, iLonLeft, iLonRight
   integer :: iProcMidnight, iLonMidnight
