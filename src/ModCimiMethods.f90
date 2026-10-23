@@ -60,7 +60,7 @@ subroutine cimi_run(delta_t)
        phi, phiGlobal, sinao, xlat, xlatr, xmlt, MinLonGlobal, MaxLonGlobal
   use ModCimiBoundary, ONLY:	&
        cimi_set_boundary_mhd, cimi_set_boundary_empirical,&
-       CIMIboundary, Outputboundary
+       CIMIboundary, Outputboundary, cimi_set_boundary_f2
   use ModMpi
   use CIMI_waves, ONLY:	&
        UseWaves, UseKpIndex, ReadDiffCoef, WavePower
@@ -297,7 +297,8 @@ subroutine cimi_run(delta_t)
   call sume_cimi(OpBfield_)
 
   ! calculate boundary flux (fb) at the CIMI outer boundary at the equator
-  call boundaryIM(nspec,neng,np,nt,nm,nk,amu_I,xjac,energy)
+  call cimi_set_boundary_f2(neng,xjac,energy)
+
 
   ! calculate the ionospheric potential (if not using MHD potential)
   if (UseWeimer) then
@@ -1281,122 +1282,6 @@ subroutine initial_extra
   driftout(1:nspec)=0.     ! energy loss due drift-out loss
 
 end subroutine initial_extra
-!==============================================================================
-subroutine boundaryIM(nspec,neng,np,nt,nm,nk,amu_I,xjac,energy)
-
-  !  *Relativistic version of boundary PSD.*
-  ! Set up the boundary distribution for the CIMI. Distribution
-  ! at the boundary is assumed to be Maxwellian for ions and a kappa
-  ! (kappa=3) distribution for electrons. Boundary temperature and
-  ! density are from MHD (or empirical models if Weimer/Tsyganenko fields are
-  ! used)
-
-  ! Input: nspec,np,nt,nm,nk,iba,irm,amu,xjac,Den_IC,Temp_IC,vel
-  ! Output: fb
-
-  use ModGmCimi, ONLY:  Temp_IC, Temppar_IC
-  use ModCimi,        ONLY: MinLon,MaxLon, f2, fb
-  use ModCimiGrid, ONLY: MinLonPar,MaxLonPar
-  use ModCimiTrace,  ONLY: sinA,ekev,iw2,pp, iba, irm, vel
-  use ModCimiBoundary, ONLY: BoundaryDens_IC,BoundaryTemp_IC,BoundaryTempPar_IC
-  use ModCimiUtil,     ONLY: ln_gamma
-
-  implicit none
-
-  integer, intent(in):: nspec,neng,np,nt,nm,nk
-  real, intent(in):: amu_I(nspec), xjac(np,nm,nspec), energy(neng,nspec)
-
-  integer:: j,n,k,m,ib1,iLat
-  real:: pi, xmass, chmass, fb1, fb_temp, vtchm
-  real:: velperp2, velpar2,fbb,fbb1,parE1,perE1,den1,temp32,y2,x2,Psq,&
-       Pper2,Ppar2
-  real:: erpp,Vsq,Vper2,Vpar2
-  real:: BoundaryTempperp_IC(minLon:maxLon,nspec)
-  real:: kappa,kappa_plus_one,kappa_minus_half,ln_gamma_diff,gamma_ratio
-  real:: e_min
-
-  !real, external:: ln_gamma
-  !----------------------------------------------------------------------------
-  kappa=3.
-  ! zk1=zkappa+1.
-  kappa_plus_one=kappa+1.
-  kappa_minus_half=kappa-0.5
-  ln_gamma_diff=ln_gamma(kappa_plus_one)-ln_gamma(kappa_minus_half)
-  gamma_ratio=exp(ln_gamma_diff)
-
-  pi=acos(-1.)
-
-  !   defining Pperp and Ppar for both cases, anisotropic and isotropic.
-  !   Advantages: use the same form of Maxwellian/kappa dist
-  !   since in the case of isotropic PSD
-
-  do n=1,nspec
-     do j=MinLonPar,MaxLonPar
-        BoundaryTempperp_IC(j,n) = &
-             (3*BoundaryTemp_IC(j,n) - BoundaryTempPar_IC(j,n))/2
-     enddo
-  enddo
-
-  fb(MinLonPar:MaxLonPar,1:nm,1:nk,1:nspec)=0.
-  do n=1,nspec
-     e_min=0.
-     if (n==nspec) e_min=0.5*energy(1,n)
-     xmass=amu_I(n)*1.673e-27
-     chmass=1.6e-19/xmass
-     do j=MinLonPar,MaxLonPar
-        parE1=BoundaryTempPar_IC(j,n)/1000.      ! characteristic in keV
-        perE1=BoundaryTempPerp_IC(j,n)/1000.     ! characteristic in keV
-        den1 =BoundaryDens_IC(j,n)                     ! density in m-3
-        temp32=sqrt(parE1)*perE1*1.6e-16**1.5
-        ib1=iba(j)+1   ! difference bewteen cimi standalone where ib1=iba(j)
-        if (ib1 > irm(j)) ib1=irm(j)
-        if (n == nspec) then    !    kappa, for electrons only
-           fbb1=den1*gamma_ratio/temp32/(2.*pi*kappa*xmass)**1.5
-        else
-           fbb1=den1/temp32/(2.*pi*xmass)**1.5 ! Maxwellian
-        endif
-
-        !      do k=1,nm   ! magnetic moment
-        do k=1,nk   ! K invariant
-           y2=sinA(ib1,j,k)*sinA(ib1,j,k)
-           x2=1.-y2
-           do m=1,iw2(k,n)   ! magnetic moment
-              fbb=0.
-              if ((ekev(ib1,j,m,k,n) > e_min) .and. &
-                   (BoundaryDens_IC(j,n) > 0.)) then
-
-                 if (n == nspec) then   ! KAPPA FOR ELECTRONS
-                    Psq=pp(ib1,j,m,k,n)*pp(ib1,j,m,k,n)
-                    Ppar2=Psq*x2
-                    Pper2=Psq*y2
-                    erpp=(Ppar2/parE1+Pper2/perE1)/2./xmass/1.6e-16
-                    fbb=fbb1/(1.+erpp/kappa)**kappa_plus_one
-
-                 else ! MAXWELLIAN OTHERWISE:
-                    Vsq=vel(ib1,j,m,k,n)*vel(ib1,j,m,k,n)
-                    Vpar2=Vsq*x2
-                    Vper2=Vsq*y2
-                    erpp=(Vpar2/parE1+Vper2/perE1)/2./1000./chmass
-                    fbb=0.
-                    if (erpp < 500.) fbb=fbb1/exp(erpp)
-                 endif
-              endif      ! end of ekev(n,ib,j,m,k) > e_min.and.den1 > 0
-
-              fb(j,m,k,n)=fbb*xjac(ib1,m,n)
-
-              do iLat=ib1,np
-                 f2(iLat,j,m,k,n)=fbb*xjac(ib1,m,n) ! f2 beyond rb
-              enddo
-
-              !        if ((n == nspec).and.(j == 1).and.(m == 10)) write(*,*) fbb,xjac(n,ib1,k), &
-              !        ekev(ib1,j,k,m,n), vel(ib1,j,k,m,n),xmass,chmass, &
-              !        Psq,Ppar2,Vsq,Vpar2, 'f,jac,e,vel,m,chm,Psq,Ppar,Vsq,Vpar'   !   NB Jan 20 2017
-           enddo                ! end of m loop
-        enddo                   ! end of k loop
-     enddo                      ! end of j loop
-  enddo                         ! end of n loop
-
-end subroutine boundaryIM
 !==============================================================================
 subroutine ceparaIM(nspec,np,nt,nm,nk,dt)
 

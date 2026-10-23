@@ -13,12 +13,20 @@ module ModCimiBoundary
   public :: cimi_set_boundary_mhd
   public :: cimi_set_boundary_empirical
   public :: init_cimi_boundary
+  public :: cimi_set_boundary_f2
   
   !when in standalone mode which boundary type do you use for the RC?
   logical,public :: UseBoundaryEbihara =.true.
   logical,public :: UseYoungEtAl =.false.
   logical,public :: CIMIboundary = .false.
   logical,public :: Outputboundary = .false.
+
+  ! Dynamic boundary kappa based on Eyelade (2021)
+  logical,public :: UseDynamicKappa  = .false.
+  logical,public :: UseKappaTotalFit = .true.   ! temp to use for kappa fit
+  logical,public :: DoRescaleKappaTemp = .true.  ! rescale T to conserve energy
+  real, public :: KappaConst_I(nSpec) = -100, KappaMin_I(nSpec) = 2.0, &
+    KappaMax_I(nSpec) = 30.0
   
   !boundary density in m^-3 and temperature in eV
   real, public, allocatable :: BoundaryDens_IC(:,:),BoundaryTemp_IC(:,:),&
@@ -34,6 +42,9 @@ contains
     allocate(BoundaryDens_IC(MinLonPar:MaxLonPar,nSpec), &
              BoundaryTemp_IC(MinLonPar:MaxLonPar,nSpec), &
              BoundaryTempPar_IC(MinLonPar:MaxLonPar,nSpec))
+
+    ! default kappa for electrons
+    if(KappaConst_I(nSpec) == -100.) KappaConst_I(nSpec) = 3.0  
 
   end subroutine init_cimi_boundary
   !============================================================================
@@ -359,5 +370,194 @@ contains
    n_tsy=temp1*(rho**a_tsy(3,8)) + temp2*(rho*a_tsy(3,9))*sin(phi)*sin(phi)
    
  end subroutine get_tsy_plasma
+ !============================================================================
+ real function dynamic_kappa(Beta, EnergyKeV, iSpecies, UseTotalFit)
+
+  ! Empirical kappa = A*E**gamma with A,gamma = a*|log10(beta/beta0)|+b
+  ! from Eyelade et al. (2021, ApJS 253:34, Table 5), THEMIS observations.
+  ! Energy is in KeV
+
+  real,    intent(in):: Beta, EnergyKeV
+  integer, intent(in):: iSpecies
+  logical, intent(in):: UseTotalFit
+
+  ! (a, beta0, b) for A and gamma
+  ! note that while in paper, Core energy fit performs better against data,
+  ! our core energy needs to be set based on the kappa, so using it is circular
+  ! in nature. Default is to use total energy fit. 
+  real, parameter:: CoefIonACore_I(3) = [1.37, 0.06, 0.76]
+  real, parameter:: CoefIonATotal_I(3) = [1.26, 0.07, 0.84]
+  real, parameter:: CoefIonGCore_I(3) = [-0.53, 0.09, 1.28]
+  real, parameter:: CoefIonGTotal_I(3) = [-0.40, 0.11, 1.10]
+  real, parameter:: CoefEleACore_I(3) = [2.21, 0.15, 2.25]
+  real, parameter:: CoefEleATotal_I(3) = [1.69, 0.15, 1.83]  
+  real, parameter:: CoefEleGCore_I(3) = [-0.48, 0.09, 1.17]
+  real, parameter:: CoefEleGTotal_I(3) = [-0.68, 0.10, 1.33]
+
+  real:: CoefA_I(3), CoefG_I(3), BetaFit, EnergyFit, A, Gamma
+  !----------------------------------------------------------------------------
+  ! Pick right coefficients based on species and fit type
+  if (iSpecies == nSpec) then
+     EnergyFit = min(max(EnergyKeV, 0.25), 9.25)
+     if (UseTotalFit) then
+        CoefA_I = CoefEleATotal_I
+        CoefG_I = CoefEleGTotal_I
+     else
+        CoefA_I = CoefEleACore_I
+        CoefG_I = CoefEleGCore_I
+     endif
+  else
+     EnergyFit = min(max(EnergyKeV, 0.2), 15.25)
+     if (UseTotalFit) then
+        CoefA_I = CoefIonATotal_I
+        CoefG_I = CoefIonGTotal_I
+     else
+        CoefA_I = CoefIonACore_I
+        CoefG_I = CoefIonGCore_I
+     end if   
+  end if
+  
+  ! Restrict beta to observed range
+  ! Possibly should be restricted further on the > 1 side, since data doesn't
+  ! seem great for it
+  BetaFit = min(max(Beta, 1e-3), 1e2)
+
+  ! Set fit parameters
+  A     = CoefA_I(1)*abs(log10(BetaFit/CoefA_I(2))) + CoefA_I(3)
+  Gamma = CoefG_I(1)*abs(log10(BetaFit/CoefG_I(2))) + CoefG_I(3)
+
+  dynamic_kappa = A*EnergyFit**Gamma
+
+ end function dynamic_kappa
+ !============================================================================
+ subroutine cimi_set_boundary_f2( neng,xjac,energy)
+
+  !  *Relativistic version of boundary PSD.*
+  ! Set up the boundary distribution for the CIMI. Distribution
+  ! at the boundary is assumed to be Maxwellian for ions and a kappa
+  ! (kappa=3) distribution for electrons. Boundary temperature and
+  ! density are from MHD (or empirical models if Weimer/Tsyganenko fields are
+  ! used)
+
+  ! Input: nspec,np,nt,nm,nk,iba,irm,amu,xjac,Den_IC,Temp_IC,vel
+  ! Output: fb
+
+  use ModGmCimi, ONLY:  Temp_IC, Temppar_IC
+  use ModCimi,        ONLY: MinLon,MaxLon, f2, fb
+  use ModCimiTrace,  ONLY: sinA,ekev,iw2,pp, iba, irm, vel, bo
+  use ModCimiUtil,     ONLY: ln_gamma
+  use ModConst,      ONLY: cMu, cElectronCharge
+  use ModCimiGrid, ONLY: nm, nk
+
+  implicit none
+
+  integer, intent(in):: neng
+  real, intent(in):: xjac(np,nm,nspec), energy(neng,nspec)
+
+  integer:: j,n,k,m,ib1,iLat
+  real:: pi, xmass, chmass
+  real:: fbb,fbb1,parE1,perE1,den1,temp32,y2,x2,Psq,&
+       Pper2,Ppar2
+  real:: erpp,Vsq,Vper2,Vpar2
+  real:: BoundaryTempperp_IC(minLon:maxLon,nspec)
+  real:: kappa,kappa_plus_one,kappa_minus_half,ln_gamma_diff,gamma_ratio
+  real:: e_min, Beta, TempCoreFactor
+
+  !real, external:: ln_gamma
+  !----------------------------------------------------------------------------
+  pi=acos(-1.)
+
+  !   defining Pperp and Ppar for both cases, anisotropic and isotropic.
+  !   Advantages: use the same form of Maxwellian/kappa dist
+  !   since in the case of isotropic PSD
+
+  do n=1,nspec
+     do j=MinLonPar,MaxLonPar
+        BoundaryTempperp_IC(j,n) = &
+             (3*BoundaryTemp_IC(j,n) - BoundaryTempPar_IC(j,n))/2
+     enddo
+  enddo
+
+  fb(MinLonPar:MaxLonPar,1:nm,1:nk,1:nspec)=0.
+  do n=1,nspec
+     e_min=0.
+     if (n==nspec) e_min=0.5*energy(1,n)
+     xmass=amu_I(n)*1.673e-27
+     chmass=1.6e-19/xmass
+     do j=MinLonPar,MaxLonPar
+        den1 =BoundaryDens_IC(j,n)                     ! density in m-3
+        TempCoreFactor=1.0
+        ib1=iba(j)+1   ! difference bewteen cimi standalone where ib1=iba(j)
+        if (ib1 > irm(j)) ib1=irm(j)
+
+        ! Find Kappa
+        kappa=KappaConst_I(n)
+        if(UseDynamicKappa) then
+          ! Find species plasma beta
+          Beta = den1 * BoundaryTemp_IC(j,n) * cElectronCharge &
+            / (bo(ib1,j)**2 / (2 * cMu))
+          ! Use Eyelade (2021) fit for kappa as a function of beta + temp
+          kappa = dynamic_kappa(Beta, BoundaryTemp_IC(j,n)/1000., &
+                                    n, UseKappaTotalFit)
+          kappa = min(max(kappa,KappaMin_I(n)),KappaMax_I(n))  ! enforce min/max
+        end if
+        if(DoRescaleKappaTemp .and. kappa > 0.) &
+          TempCoreFactor = (kappa - 1.5)/kappa   ! rescale T to conserve energy
+        parE1=TempCoreFactor*BoundaryTempPar_IC(j,n)/1000. ! characteristic in keV
+        perE1= TempCoreFactor*BoundaryTempPerp_IC(j,n)/1000.! characteristic in keV
+        
+        temp32=sqrt(parE1)*perE1*1.6e-16**1.5
+        if (kappa > 0.) then    !    kappa, for electrons only
+           kappa_plus_one = kappa + 1.
+           kappa_minus_half = kappa - 0.5
+           ln_gamma_diff = ln_gamma(kappa_plus_one) - ln_gamma(kappa_minus_half)
+           gamma_ratio = exp(ln_gamma_diff)
+           fbb1=den1*gamma_ratio/temp32/(2.*pi*kappa*xmass)**1.5
+        else
+           fbb1=den1/temp32/(2.*pi*xmass)**1.5 ! Maxwellian
+        endif
+
+        !      do k=1,nm   ! magnetic moment
+        do k=1,nk   ! K invariant
+           y2=sinA(ib1,j,k)*sinA(ib1,j,k)
+           x2=1.-y2
+           do m=1,iw2(k,n)   ! magnetic moment
+              fbb=0.
+              if ((ekev(ib1,j,m,k,n) > e_min) .and. &
+                   (BoundaryDens_IC(j,n) > 0.)) then
+
+                 if (kappa > 0.) then   ! KAPPA FOR ELECTRONS
+                    Psq=pp(ib1,j,m,k,n)*pp(ib1,j,m,k,n)
+                    Ppar2=Psq*x2
+                    Pper2=Psq*y2
+                    erpp=(Ppar2/parE1+Pper2/perE1)/2./xmass/1.6e-16
+                    fbb=fbb1/(1.+erpp/kappa)**kappa_plus_one
+
+                 else ! MAXWELLIAN OTHERWISE:
+                    Vsq=vel(ib1,j,m,k,n)*vel(ib1,j,m,k,n)
+                    Vpar2=Vsq*x2
+                    Vper2=Vsq*y2
+                    erpp=(Vpar2/parE1+Vper2/perE1)/2./1000./chmass
+                    fbb=0.
+                    if (erpp < 500.) fbb=fbb1/exp(erpp)
+                 endif
+              endif      ! end of ekev(n,ib,j,m,k) > e_min.and.den1 > 0
+
+              fb(j,m,k,n)=fbb*xjac(ib1,m,n)
+
+              do iLat=ib1,np
+                 f2(iLat,j,m,k,n)=fbb*xjac(ib1,m,n) ! f2 beyond rb
+              enddo
+
+              !        if ((n == nspec).and.(j == 1).and.(m == 10)) write(*,*) fbb,xjac(n,ib1,k), &
+              !        ekev(ib1,j,k,m,n), vel(ib1,j,k,m,n),xmass,chmass, &
+              !        Psq,Ppar2,Vsq,Vpar2, 'f,jac,e,vel,m,chm,Psq,Ppar,Vsq,Vpar'   !   NB Jan 20 2017
+           enddo                ! end of m loop
+        enddo                   ! end of k loop
+     enddo                      ! end of j loop
+  enddo                         ! end of n loop
+
+end subroutine cimi_set_boundary_f2
+!==============================================================================
  
 end module ModCimiBoundary

@@ -21,7 +21,8 @@ subroutine CIMI_set_parameters(NameAction)
   use ModCimiPlanet,	 ONLY: nspec, dFactor_I, tFactor_I
   use ModImTime,	 ONLY: iStartTime_I, TimeMax
   use ModCimiBoundary,	 ONLY: &
-       UseBoundaryEbihara, UseYoungEtAl
+       UseBoundaryEbihara, UseYoungEtAl, UseDynamicKappa, DoRescaleKappaTemp, &
+         UseKappaTotalFit, KappaMin_I, KappaMax_I, KappaConst_I
   use ModIeCimi,	 ONLY: UseWeimer
   use ModPrerunField,	 ONLY: DoWritePrerun, UsePrerun, DtRead
   use ModGmCIMI,	 ONLY: UseGm
@@ -776,6 +777,24 @@ subroutine CIMI_set_parameters(NameAction)
            call CON_stop(NameSub//': unknown TypeComposition='//TypeComposition)
         end select
 
+     case('#BOUNDARYKAPPA')
+        call read_var('UseDynamicKappa',UseDynamicKappa)
+        if(UseDynamicKappa)then
+           call read_var('UseKappaTotalFit',UseKappaTotalFit)
+           do iSpec = 1, nSpec
+              call read_var('KappaMin',KappaMin_I(iSpec))
+              call read_var('KappaMax',KappaMax_I(iSpec))
+              if(KappaMin_I(iSpec) <= 1.5) &
+                  call CON_stop('IM: KappaMin must be >= 1.5')
+           end do
+        else
+           do iSpec = 1, nSpec
+              call read_var('KappaConst',KappaConst_I(iSpec))
+              if(KappaConst_I(iSpec) <= 1.5 .and. KappaConst_I(iSpec) > 0.0) &
+                  call CON_stop('IM: KappaConst must be >= 1.5')
+           end do
+        end if
+        call read_var('DoRescaleKappaTemp',DoRescaleKappaTemp)
         
      case('#STRONGDIFFUSION')
         call read_var('UseStrongDiff',UseStrongDiff)

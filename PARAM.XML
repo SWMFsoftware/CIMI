@@ -8,6 +8,8 @@ List of IM commands used in the PARAM.in file
      type="string" value="$_NameComp/restartOUT"/>
 <set name="NamePlotDir"
      type="string" value="$_NameComp/plots"/>
+<set name="nSpec" type="integer" value="3"/>
+
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!					!!!!!!!!!!!!!!!!!!!!!!
@@ -1108,6 +1110,62 @@ so in fact only the first parameter is adjustable, the rest is provided for
 testing purposes only.
 
 Default values are shown.
+
+</command>
+
+<command name="BOUNDARYKAPPA">
+  <parameter name="UseDynamicKappa" type="logical" default="F"/>
+  <if expr="$UseDynamicKappa">
+    <parameter name="UseKappaTotalFit" type="logical" default="T"/>
+    <for name="iSpec" from="1" to="$nSpec">
+      <parameter name="KappaMin" type="real" min="1.6" />
+      <parameter name="KappaMax" type="real" min="1.6" />
+    </for>
+  </if>
+  <if expr="not $UseDynamicKappa">
+    <for name="iSpec" from="1" to="$nSpec">
+      <parameter name="KappaConst" type="real" />
+    </for>
+  </if>
+  <parameter name="DoRescaleKappaTemp" type="logical" default="T"/>
+
+If UseDynamic Kappa is false, the boundary kappa values are set to a constant
+for each species. If the value is less than 0, it will be treated as a 
+maxwellian instead of a kappa. If DoRescaleKappaTemp is true, the temperature
+of a boundary kappa will rescale core energy to conserve total energy passed
+from BATSRUS. This is highly recommended since not conserving energy is bad.
+A positive KappaConst cannot be less than 1.5.
+
+The example syntax for this, along with the default values is shown below. 
+
+#BOUNDARYKAPPA
+F			UseDynamicKappa
+-1          KappaConst for species 1
+-1          KappaConst for species 2
+3.0       KappaConst for electrons
+T      DoRescaleKappaTemp
+
+If UseDynamicKappa is true, the boundary kappa values are set based on 
+Eyelade (2021), basing kappa values for both ions and electrons based on the
+core energy and plasma beta of the species. Eyelade (2021) provides 2 fits, one
+for the total energy, and one for the core energy of the kappa distributions.
+Since we are trying to derive the kappa for a new distribution that may need to
+be rescaled to conserve energy based on the kappa, the logic for using core 
+energy is circular. Therefore it is preferred to use UseKappaTotalFit=True.
+The example syntax for this, along with the suggested values are shown below. 
+Note that the KappaMin and KappaMax values are used to clamp excessively high 
+and low kappas. KappaMin cannot be less than 1.5. 
+
+#BOUNDARYKAPPA
+T      UseDynamicKappa
+T      UseKappaTotalFit
+2.0       KappaMin for species 1
+30.0      KappaMax for species 1
+2.0       KappaMin for species 2
+30.0      KappaMax for species 2
+2.0       KappaMin for electrons
+30.0      KappaMax for electrons
+T      DoRescaleKappaTemp
 
 </command>
 
