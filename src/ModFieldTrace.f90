@@ -56,6 +56,9 @@ Module ModCimiTrace
   !save 5 points around min B when using Tsy model. Otherwise this is from GM in that module. Also save B values at points for both Tsy and MHD
   real, allocatable :: CurvaturePointsXyz_IIID(:,:,:,:)
   real, allocatable :: BCurvaturePoints_III(:,:,:)
+
+  ! first and last point of each field line in StateLine_VI
+  integer, allocatable :: iLineFirst_I(:), iLineLast_I(:)
   
   public :: gather_field_trace
   contains
@@ -110,8 +113,8 @@ Module ModCimiTrace
          si3(np),bm1(np),rm(np),rs(np),dss(np),&
          h3(np),bs(np),bba(np),&
          x1(ir),xmlt(minLon:maxLon),xli(0:ir),&
-         ra(np),dssa(np),tya3(np)
-    integer :: n,i,j,k,m,mir,npf,npf1,im,im1,im2,igood,ii,iTaylor, j1
+         ra(np),dssa(np),tya3(np),HdenMidpoint(np)
+    integer :: n,i,j,k,m,mir,npf,npf1,im,im1,im2,igood,ii,iTaylor,j1,n8prev
     real    :: rNeighborMax
     integer :: iopt, n5, iout,n8,n7,n6,m0,n70,ib
     real    :: rlim,dre,xlati1,phi1,xmlt1,ro1,volume1,bo1,dss2
@@ -190,6 +193,7 @@ Module ModCimiTrace
     volume=0.0
     !  Start field line tracing.  
     call timing_start('cimi_trace')
+    if (imod == 3) call index_gm_lines
     LONGITUDE: do j=MinLonPar,MaxLonPar
        irm(j)=ir
        LATITUDE: do i=1,ir
@@ -373,17 +377,24 @@ Module ModCimiTrace
 
 
           ! Field line integration
+          ! Calculate midpoints ahead of time since they are not m/k dependent
+          do ii=1,n
+             HdenMidpoint(ii)=Hden(rs(ii))
+          enddo
+          ! start south search from previous point along field line
+          n8Prev=0
           do m=im2-1,1,-1 !im2 = middle of field line
              ! search for the southern conjugate point
              !  such that bm1(n7) < bm1(m) < bm1(n8)
              !  and       bs(n6)  < bm1(n7) < bs(n7)
              n8=npf
-             SEARCH: do ii=m,n
+             SEARCH: do ii=max(m,n8Prev-1),n
                 if (bm1(ii+1).ge.bm1(m)) then
                    n8=ii+1
                    EXIT SEARCH
                 endif
              enddo SEARCH
+             n8Prev=n8
              n7=n8-1    
              n6=n7-1
 
@@ -394,7 +405,7 @@ Module ModCimiTrace
                 cosa=sqrt(1.-bsi/bm1(m))  ! sina^2 = bsi/bm1(m)
                 Dsi3OverSqrtBm(ii)=cosa
                 Dtya3Ro(ii)=1./cosa
-                Dh3(ii)=Hden(rs(ii))/cosa
+                Dh3(ii)=HdenMidpoint(ii)/cosa
                 if (cosa.eq.0.) then
                    Dtya3Ro(ii)=0.
                    Dh3(ii)=0.
@@ -1088,7 +1099,7 @@ Module ModCimiTrace
 
     real xa(np),ya(np),za(np),x0(3),xend(3),f(3),t0,tend,h,h1,aza(np)
     real dir,pas,xwrk(4,nd),rlim,Bmid,dss(np),ss,yint(np)
-    integer :: iLonGlobal
+    integer :: iLonGlobal, iLine
     character(len=*), parameter :: NameSub='mhd_trace_IM'
     Logical IsFoundLine,UseDipole
     !---------------------------------------------------------------------------
@@ -1103,27 +1114,22 @@ Module ModCimiTrace
     IsFoundLine=.false.
     UseDipole  =.false.
     iLonGlobal = minLonGlobal + iLon - 1
-    FieldTrace: do iPoint = 1,nPoint
-!       if(iLon==5 .and. iLat==22) &
-!            write(*,*)'iLineIndex_II(iLon,iLat),int(StateLine_VI(I_,iPoint))'&
-!            ,iLineIndex_II(iLon,iLat),int(StateLine_VI(I_,iPoint))
-
-       if (iLineIndex_II(iLonGlobal,iLat) == int(StateLine_VI(I_,iPoint)))then
-          !if(iLon==5)write(*,*)'!!! Found line for iLat,iLon',iLat,iLon
-          !when line index found, fill in output arrays
-          if(iAlt > np) &
-               call CON_stop(NameSub//': iAlt exceeds np. Increase np in fieldpara!')
-          Bfield_I(iAlt)     = StateLine_VI(B_,iPoint)
-          FieldLength_I(iAlt)= StateLine_VI(S_,iPoint)
-          RadialDist_I(iAlt) = StateLine_VI(R_,iPoint)
-
-          iAlt = iAlt+1
+    ! Line index is now calculated ahead of time
+    iLine = iLineIndex_II(iLonGlobal,iLat)
+    if (iLine >= lbound(iLineFirst_I,1) .and. &
+         iLine <= ubound(iLineFirst_I,1)) then
+       if (iLineFirst_I(iLine) > 0) then
+          do iPoint = iLineFirst_I(iLine), iLineLast_I(iLine)
+             if(iAlt > np) &
+                  call CON_stop(NameSub//': iAlt exceeds np. Increase np in fieldpara!')
+             Bfield_I(iAlt)     = StateLine_VI(B_,iPoint)
+             FieldLength_I(iAlt)= StateLine_VI(S_,iPoint)
+             RadialDist_I(iAlt) = StateLine_VI(R_,iPoint)
+             iAlt = iAlt+1
+          end do
           IsFoundLine=.true.
-       elseif (iLineIndex_II(iLonGlobal,iLat) /= int(StateLine_VI(I_,iPoint)) &
-            .and. IsFoundLine) then
-          exit FieldTrace 
-       endif
-    end do FieldTrace
+       end if
+    end if
 
     ! Add points for the other end inside rBody
     nAlt = iAlt-1 + MinAlt
@@ -1193,6 +1199,36 @@ Module ModCimiTrace
     call closed(nAlt-1,yint,dss,ss)  ! use closed form
     if (iLat >= 1 .and. iLat <= ir) volume1=ss*re   ! volume / flux
   end subroutine mhd_trace_IM
+  !============================================================================
+  subroutine index_gm_lines
+
+    ! Record the first and last point of each field line in StateLine_VI.
+    use ModGmCimi, ONLY: StateLine_VI, nPoint
+
+    integer :: iPoint, iLine, iLinePrev, iLineMin, iLineMax
+    logical :: IsFirstRun
+    !--------------------------------------------------------------------------
+    if (allocated(iLineFirst_I)) deallocate(iLineFirst_I, iLineLast_I)
+
+    iLineMin = minval(int(StateLine_VI(1,1:nPoint)))
+    iLineMax = maxval(int(StateLine_VI(1,1:nPoint)))
+    allocate(iLineFirst_I(iLineMin:iLineMax), iLineLast_I(iLineMin:iLineMax))
+    iLineFirst_I = 0
+    iLineLast_I  = -1
+
+    iLinePrev  = iLineMin - 1
+    IsFirstRun = .false.
+    do iPoint = 1, nPoint
+       iLine = int(StateLine_VI(1,iPoint))
+       if (iLine /= iLinePrev) then
+          IsFirstRun = iLineFirst_I(iLine) == 0
+          if (IsFirstRun) iLineFirst_I(iLine) = iPoint
+          iLinePrev = iLine
+       end if
+       if (IsFirstRun) iLineLast_I(iLine) = iPoint
+    end do
+
+  end subroutine index_gm_lines
   
   !============================================================================
   subroutine lintpIM(xx,yy,n,x,y)
