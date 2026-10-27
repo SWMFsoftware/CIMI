@@ -3392,7 +3392,7 @@ subroutine FLS_2D(np,nt,iba,fb0,fb1,cl,cp,f2d,fal,fap,fupl,fupp)
      j_1=j-1
      j1=j+1
      j2=j+2
-     iloop: do i=1,np
+     iloop: do i=1,min(np, max(iba(j), iba(j+1) + 2))
         ! find fal
         xsign=sign(1.,cl(i,j))
         ! Upwind Scheme
