@@ -400,7 +400,7 @@ contains
          iCurrentTime_I(4),iCurrentTime_I(5),iCurrentTime_I(6)
     
     
-    energy_temp(1:nEnergy)=energy(n,1:nEnergy)
+    energy_temp(1:nEnergy)=energy(1:nEnergy,n)
     if (DoSaveSeparateFluxFiles(n)) then
        open(unit=UnitTmp_,&
             file='IM/plots/'//outnameSep//NameSpeciesExtension_I(n)//'.fls',&
@@ -567,7 +567,7 @@ contains
          iCurrentTime_I(1),iCurrentTime_I(2),iCurrentTime_I(3),'_',&
          iCurrentTime_I(4),iCurrentTime_I(5),iCurrentTime_I(6)
     
-    energy_temp(1:nEnergy)=energy(n,1:nEnergy)
+    energy_temp(1:nEnergy)=energy(1:nEnergy,n)
     if (DoSaveSeparateVLDriftFiles(n)) then
        open(unit=UnitTmp_,&
             file='IM/plots/'//outnameSep//NameSpeciesExtension_I(n)//'.vl',&
