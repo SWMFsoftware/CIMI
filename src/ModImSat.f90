@@ -114,7 +114,7 @@ contains
           LonSatGen=SatLon/(360.0/nLon)+1
           iSatLonMin=floor(LonSatGen)
           select case (iSatLonMax)
-          case (48)
+          case (nLon)
              iSatLonMax=iSatLonMax
           case DEFAULT
              iSatLonMax=mod(ceiling(LonSatGen),nLon)

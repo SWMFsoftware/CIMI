@@ -410,7 +410,7 @@ contains
     ! find Bi, Ndon, Sdon
     DipMr3=DipM/(rc*re_m)**3
     do j=1,np
-       do i=1,ibp(j)
+       do i=1,nl
           ! find Ndon
           coslat=cos(xlatp(i))
           coslat2=coslat*coslat
