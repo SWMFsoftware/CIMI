@@ -113,12 +113,8 @@ contains
           call locate1IM(LonGrid_G, nLon+2, SatLon, iSatLonMax)
           LonSatGen=SatLon/(360.0/nLon)+1
           iSatLonMin=floor(LonSatGen)
-          select case (iSatLonMax)
-          case (nLon)
-             iSatLonMax=iSatLonMax
-          case DEFAULT
-             iSatLonMax=mod(ceiling(LonSatGen),nLon)
-          end select
+          if (iSatLonMax /= nLon) &
+               iSatLonMax=mod(ceiling(LonSatGen),nLon)
           
           !get B^2 at sat
           SatB2 = SatLoc_3I(4,2,iSatIn)
