@@ -16,8 +16,8 @@ Module ModCimi
 
   real    :: DecayTimescale = 36000. ! Seconds
   real, allocatable:: SDtime(:,:,:,:), f2(:,:,:,:,:)
-  real, allocatable:: phot(:,:,:), Ppar_IC(:,:,:), &
-       Pressure_IC(:,:,:), PressurePar_IC(:,:,:)
+  real, allocatable:: phot(:,:,:), Ppar_CI(:,:,:), &
+       Pressure_CI(:,:,:), PressurePar_CI(:,:,:)
   real, allocatable:: FAC_C(:,:)
   real, allocatable:: Bmin_C(:,:)
 
@@ -25,9 +25,9 @@ Module ModCimi
   real, allocatable :: driftin(:), driftout(:), &
        rbsumLocal(:), rbsumGlobal(:), rcsumLocal(:), rcsumGlobal(:)
   real, allocatable :: &
-       eChangeOperator_VICI(:,:,:,:,:), pChangeOperator_VICI(:,:,:,:,:)
+       eChangeOperator_CIIV(:,:,:,:,:), pChangeOperator_CIIV(:,:,:,:,:)
   real, allocatable :: eChangeLocal(:,:), eChangeGlobal(:,:)
-  real, allocatable :: eTimeAccumult_ICI(:,:,:,:), pTimeAccumult_ICI(:,:,:,:)
+  real, allocatable :: eTimeAccumult_CII(:,:,:,:), pTimeAccumult_CII(:,:,:,:)
   real, allocatable :: energy(:,:), Ebound(:,:), delE(:,:)
   real, allocatable :: &
        preF(:,:,:,:), preP(:,:,:,:), Eje1(:,:,:) ! precipitation output
@@ -60,9 +60,9 @@ Module ModCimi
         fb(:,:,:,:)
 
   ! Global output array for proc 0 only
-  real, allocatable :: FACGlobal_C(:,:), PressureGlobal_IC(:,:,:), PressureParGlobal_IC(:,:,:), &
-    BminGlobal_C(:,:), photGlobal(:,:,:), PparGlobal_IC(:,:,:), DenGlobal_IC(:,:,:), &
-    TempGlobal_IC(:,:,:), prePGlobal(:,:,:,:), preFGlobal(:,:,:,:), Eje1Global(:,:,:), &
+  real, allocatable :: FACGlobal_C(:,:), PressureGlobal_CI(:,:,:), PressureParGlobal_CI(:,:,:), &
+    BminGlobal_C(:,:), photGlobal(:,:,:), PparGlobal_CI(:,:,:), DenGlobal_CI(:,:,:), &
+    TempGlobal_CI(:,:,:), prePGlobal(:,:,:,:), preFGlobal(:,:,:,:), Eje1Global(:,:,:), &
     vdr_q3Global(:,:,:), eng_q3Global(:,:,:), part_photGlobal(:,:,:,:), vexbGlobal(:,:,:), dif_q3Global(:,:,:), &
     fluxGlobal(:,:,:,:,:), psdGlobal(:,:,:,:,:), vlEaGlobal(:,:,:,:,:), vpEaGlobal(:,:,:,:,:)
 
@@ -96,9 +96,9 @@ contains
          f2(np,minLon:maxLon,nm,nk,nspec),     &
          SDtime(np,minLon:maxLon,nm,nk),         &
          phot(np,minLon:maxLon,nspec),           &
-         Ppar_IC(np,minLon:maxLon,nspec),        &
-         Pressure_IC(np,minLon:maxLon,nspec),    &
-         PressurePar_IC(np,minLon:maxLon,nspec), &
+         Ppar_CI(np,minLon:maxLon,nspec),        &
+         Pressure_CI(np,minLon:maxLon,nspec),    &
+         PressurePar_CI(np,minLon:maxLon,nspec), &
          FAC_C(np,minLon:maxLon),                &
          Bmin_C(np,minLon:maxLon),              &
          d4Element_C(np,nm,nk,nspec))
@@ -106,15 +106,15 @@ contains
     ! passed from GM to IM, now as an output of IM
 
     ! now allocate arrays for energy tracking
-    allocate(eChangeOperator_VICI(np,minLon:maxLon,neng+2,nOperator,nspec), &
+    allocate(eChangeOperator_CIIV(np,minLon:maxLon,neng+2,nOperator,nspec), &
          driftin(nspec), driftout(nspec), &
          rbsumLocal(nspec),rbsumGlobal(nspec), &
          rcsumLocal(nspec),rcsumGlobal(nspec))
 
-    allocate(pChangeOperator_VICI(np,minLon:maxLon,neng+2,nOperator,nspec), &
+    allocate(pChangeOperator_CIIV(np,minLon:maxLon,neng+2,nOperator,nspec), &
          eChangeLocal(nOperator,nspec),eChangeGlobal(nOperator,nspec), &
-         eTimeAccumult_ICI(np,minLon:maxLon,neng+2,nspec), &
-         pTimeAccumult_ICI(np,minLon:maxLon,neng+2,nspec))
+         eTimeAccumult_CII(np,minLon:maxLon,neng+2,nspec), &
+         pTimeAccumult_CII(np,minLon:maxLon,neng+2,nspec))
 
     allocate(preP(np,minLon:maxLon,neng+2,nspec), preF(np,minLon:maxLon,neng+2,nspec), &
          Eje1(np,minLon:maxLon,nspec), precipEnergyLoss(np,minLon:maxLon,neng+2,nspec), &
@@ -138,9 +138,9 @@ contains
     allocate( Part_phot( np, minLon:maxLon, neng, nspec ), dif_q3( np, minLon:maxLon, nspec ) )
     
     if(iProc == 0) then
-      allocate( FACGlobal_C(np,nt), PressureGlobal_IC(np,nt,nspec), &
-           PressureParGlobal_IC(np,nt,nspec), TempGlobal_IC(np,nt,nspec), &
-           BminGlobal_C(np,nt), photGlobal(np,nt,nspec), PparGlobal_IC(np,nt,nspec), DenGlobal_IC(np,nt,nspec), &
+      allocate( FACGlobal_C(np,nt), PressureGlobal_CI(np,nt,nspec), &
+           PressureParGlobal_CI(np,nt,nspec), TempGlobal_CI(np,nt,nspec), &
+           BminGlobal_C(np,nt), photGlobal(np,nt,nspec), PparGlobal_CI(np,nt,nspec), DenGlobal_CI(np,nt,nspec), &
            prePGlobal(np,nt,neng+2,nspec), preFGlobal(np,nt,neng+2,nspec), Eje1Global(np,nt,nspec), &
            vdr_q3Global(np,nt,nspec), eng_q3Global(np,nt,nspec), part_photGlobal(np,nt,neng,nspec), &
            vexbGlobal(np,nt,nspec), dif_q3Global(np,nt,nspec), &

@@ -18,8 +18,8 @@ subroutine cimi_run(delta_t)
        DoLstarInitialization
   use ModCimi, ONLY:	&
        minLon, maxLon, nTotalCell, &
-       f2, dt, dtmax,Time, phot, Ppar_IC, Pressure_IC, &
-       PressurePar_IC, FAC_C, Bmin_C, &
+       f2, dt, dtmax,Time, phot, Ppar_CI, Pressure_CI, &
+       PressurePar_CI, FAC_C, Bmin_C, &
        OpDrift_, OpBfield_, OpChargeEx_, &
        OpWaves_, OpStrongDiff_, OpLossCone_, &
        OpDecay_, OpFLC_, UseDecay, UseFLC, &
@@ -28,15 +28,15 @@ subroutine cimi_run(delta_t)
        driftin, driftout, IsStandAlone, &
        energy, Ebound, delE, &
        preP, preF, Eje1, UseStrongDiff, &
-       eChangeOperator_VICI, nOperator, &
+       eChangeOperator_CIIV, nOperator, &
        eChangeLocal, eChangeGlobal, &
        DoCalcPrecip, DtCalcPrecip, &
        vdr_q3, eng_q3, vexb, dif_q3, Part_phot, &
        achar, vl, vp, fb, vlEa, vpEa, flux, psd, &
        fluxGlobal, psdGlobal, vlEaGlobal, vpEaGlobal, &
        Eje1Global, prePGlobal, preFGlobal, &
-       DenGlobal_IC, PparGlobal_IC, photGlobal, PressureGlobal_IC, &
-       PressureParGlobal_IC, FACGlobal_C
+       DenGlobal_CI, PparGlobal_CI, photGlobal, PressureGlobal_CI, &
+       PressureParGlobal_CI, FACGlobal_C
   use ModCimiPlanet, ONLY: &
        re_m, dipmom, Hiono, rc, nspec, amu_I, dFactor_I, tFactor_I
   use ModCimiTrace, ONLY: &
@@ -46,7 +46,7 @@ subroutine cimi_run(delta_t)
        phi2o, gather_field_trace, ionization, ibaGlobal, &
        bradGlobal => roGlobal, phi2oGlobal, ftvGlobal => volumeGlobal, &
        boGlobal, bmGlobal, xoGlobal, yoGlobal
-  use ModGmCimi, ONLY: Den_IC, UseGm, UseGmKp, KpGm, UseGmAe, AeGm
+  use ModGmCimi, ONLY: Den_CI, UseGm, UseGmKp, KpGm, UseGmAe, AeGm
   use ModIeCimi, ONLY: UseWeimer, pot, potGlobal
   use ModCimiPlot
   use ModCimiRestart, ONLY: IsRestart
@@ -348,7 +348,7 @@ subroutine cimi_run(delta_t)
 
            call timing_start('cimi_plot_eq')
            call Cimi_plot_eq( np, nt, xoGlobal, yoGlobal, &
-                PressureGlobal_IC, PressureParGlobal_IC, photGlobal, PparGlobal_IC, DenGlobal_IC,&
+                PressureGlobal_CI, PressureParGlobal_CI, photGlobal, PparGlobal_CI, DenGlobal_CI,&
                 boGlobal, ftvGlobal, potGlobal, FACGlobal_C, Time, dt )
            call timing_stop('cimi_plot_eq')
 
@@ -358,7 +358,7 @@ subroutine cimi_run(delta_t)
 
            call timing_start('cimi_plot_iono')
            call Cimi_plot_iono( np, nt, xoGlobal, yoGlobal, &
-                PressureGlobal_IC, PressureParGlobal_IC, photGlobal, PparGlobal_IC, DenGlobal_IC,&
+                PressureGlobal_CI, PressureParGlobal_CI, photGlobal, PparGlobal_CI, DenGlobal_CI,&
                 boGlobal, ftvGlobal, potGlobal, FACGlobal_C, Time, dt )
            call timing_stop('cimi_plot_iono')
 
@@ -605,8 +605,8 @@ subroutine cimi_run(delta_t)
         
         call timing_start('cimi_plot_eq')
         call Cimi_plot_eq( np, nt, xoGlobal, yoGlobal, &
-             PressureGlobal_IC, PressureParGlobal_IC, photGlobal, PparGlobal_IC, &
-             DenGlobal_IC, boGlobal, ftvGlobal, potGlobal, FACGlobal_C, Time, dt )
+             PressureGlobal_CI, PressureParGlobal_CI, photGlobal, PparGlobal_CI, &
+             DenGlobal_CI, boGlobal, ftvGlobal, potGlobal, FACGlobal_C, Time, dt )
         call timing_stop('cimi_plot_eq')
 
      endif
@@ -619,8 +619,8 @@ subroutine cimi_run(delta_t)
         
         call timing_start('cimi_plot_iono')
         call Cimi_plot_iono( np, nt, xoGlobal, yoGlobal, &
-             PressureGlobal_IC, PressureParGlobal_IC, photGlobal, PparGlobal_IC, &
-             DenGlobal_IC, boGlobal, ftvGlobal, potGlobal, FACGlobal_C, Time, dt )
+             PressureGlobal_CI, PressureParGlobal_CI, photGlobal, PparGlobal_CI, &
+             DenGlobal_CI, boGlobal, ftvGlobal, potGlobal, FACGlobal_C, Time, dt )
         call timing_stop('cimi_plot_iono')
 
      endif
@@ -1115,12 +1115,12 @@ subroutine initial_f2(nspec,np,nt,amu_I,xjac,ib0)
 
   ! Set up initial distribution.
 
-  ! Input: nspec,np,nt,iba,Den_IC,Temp_IC,amu,vel,xjac
+  ! Input: nspec,np,nt,iba,Den_CI,Temp_CI,amu,vel,xjac
   ! Output: ib0,f2,rbsum,xleb,xled,xlel,xlee,xles,driftin,driftout
   !         (through common block cinitial_f2)
 
   use ModIoUnit, ONLY: UnitTmp_
-  use ModGmCimi, ONLY: Den_IC, Temp_IC, Temppar_IC
+  use ModGmCimi, ONLY: Den_CI, Temp_CI, Temppar_CI
   use ModCimi,   ONLY: f2, MinLon, MaxLon
   use ModCimiInitialize,   ONLY: IsEmptyInitial, IsDataInitial, IsRBSPData, &
        IsGmInitial, IsInitialElectrons, DoLstarInitialization, &
@@ -1145,7 +1145,7 @@ subroutine initial_f2(nspec,np,nt,amu_I,xjac,ib0)
   integer:: n, j, i, k, m, iError
   real:: velperp2, velpar2
   real:: pi,xmass,chmass,f21,vtchm
-  real:: Tempperp_IC(np,MinLonpar:MaxLonPar,nspec)
+  real:: Tempperp_CI(np,MinLonpar:MaxLonPar,nspec)
   real:: xleb(nspec),xled(nspec),xlel(nspec),xlee(nspec),xles(nspec)
 
   ! Variables needed for data initialization
@@ -1161,21 +1161,21 @@ subroutine initial_f2(nspec,np,nt,amu_I,xjac,ib0)
   f2(:,:,:,:,:)=1.0e-40
 
   if (IsGmInitial) then
-   Tempperp_IC(:,:,:) = (3*Temp_IC(:,:,:) - Temppar_IC(:,:,:))/2.
+   Tempperp_CI(:,:,:) = (3*Temp_CI(:,:,:) - Temppar_CI(:,:,:))/2.
    do n=1,nspec
       xmass=amu_I(n)*1.673e-27
       chmass=1.6e-19/xmass
       do j=MinLonPar,MaxLonPar
          do i=1,iba(j)
-            f21 = Den_IC(i,j,n) &
-                 /(2.*pi*xmass*Temppar_IC(i,j,n)*1.6e-19)**0.5 &
-                 /(2.*pi*xmass*Tempperp_IC(i,j,n)*1.6e-19)
+            f21 = Den_CI(i,j,n) &
+                 /(2.*pi*xmass*Temppar_CI(i,j,n)*1.6e-19)**0.5 &
+                 /(2.*pi*xmass*Tempperp_CI(i,j,n)*1.6e-19)
             do k=1,nk
                do m=1,nm
                   velperp2 = (vel(i,j,m,k,n)*sinA(i,j,k))**2
                   velpar2  = vel(i,j,m,k,n)**2 - velperp2
-                  vtchm = -velpar2/(2*Temppar_IC(i,j,n)*chmass) &
-                          -velperp2/(2*Tempperp_IC(i,j,n)*chmass)
+                  vtchm = -velpar2/(2*Temppar_CI(i,j,n)*chmass) &
+                          -velperp2/(2*Tempperp_CI(i,j,n)*chmass)
                   f2(i,j,m,k,n) = xjac(i,m,n)*f21*exp(vtchm)
                end do
             end do
@@ -1248,24 +1248,24 @@ subroutine initial_extra
   use ModCimiPlanet, 	ONLY: nSpec
   use ModCimiGrid,   	ONLY: nP, minLonPar, maxLonPar, nEng
   use ModCimi,   	ONLY: nOperator, driftin, driftout, &
-       eChangeOperator_VICI, echangeLocal, eChangeGlobal, &
-       pChangeOperator_VICI, eTimeAccumult_ICI, pTimeAccumult_ICI, &
+       eChangeOperator_CIIV, echangeLocal, eChangeGlobal, &
+       pChangeOperator_CIIV, eTimeAccumult_CII, pTimeAccumult_CII, &
        rbsumLocal, rbsumGlobal, rcsumLocal, rcsumGlobal, &
-       SDtime, phot, Ppar_IC, Pressure_IC, PressurePar_IC, FAC_C, Bmin_C
+       SDtime, phot, Ppar_CI, Pressure_CI, PressurePar_CI, FAC_C, Bmin_C
   !----------------------------------------------------------------------------
   ! Initialize allocated variables in ModCimi to 0.
   phot(1:np,minLonPar:maxLonPar,1:nspec) = 0.0
-  Ppar_IC(1:np,minLonPar:maxLonPar,1:nspec) = 0.0
-  Pressure_IC(1:np,minLonPar:maxLonPar,1:nspec) = 0.0
-  PressurePar_IC(1:np,minLonPar:maxLonPar,1:nspec) = 0.0
+  Ppar_CI(1:np,minLonPar:maxLonPar,1:nspec) = 0.0
+  Pressure_CI(1:np,minLonPar:maxLonPar,1:nspec) = 0.0
+  PressurePar_CI(1:np,minLonPar:maxLonPar,1:nspec) = 0.0
   FAC_C(1:np,minLonPar:maxLonPar) = 0.0
   Bmin_C(1:np,minLonPar:maxLonPar) = 0.0
 
   ! Setup variables for energy gain/loss from each process
-  eChangeOperator_VICI(1:np,minLonPar:maxLonPar,1:neng+2,1:nOperator,1:nspec)=0.0
-  pChangeOperator_VICI(1:np,minLonPar:maxLonPar,1:neng+2,1:nOperator,1:nspec)=0.0
-  eTimeAccumult_ICI(1:np,minLonPar:maxLonPar,1:neng+2,1:nspec) = 0.0
-  pTimeAccumult_ICI(1:np,minLonPar:maxLonPar,1:neng+2,1:nspec) = 0.0
+  eChangeOperator_CIIV(1:np,minLonPar:maxLonPar,1:neng+2,1:nOperator,1:nspec)=0.0
+  pChangeOperator_CIIV(1:np,minLonPar:maxLonPar,1:neng+2,1:nOperator,1:nspec)=0.0
+  eTimeAccumult_CII(1:np,minLonPar:maxLonPar,1:neng+2,1:nspec) = 0.0
+  pTimeAccumult_CII(1:np,minLonPar:maxLonPar,1:neng+2,1:nspec) = 0.0
 
   eChangeLocal(1:nOperator, 1:nspec) = 0.
   eChangeGlobal(1:nOperator, 1:nspec) = 0.
@@ -1576,7 +1576,7 @@ subroutine driftIM(iw2,nspec,np,nt,minLon,maxLon,nm,nk,dt,dlat,dphi,rb,driftin,d
   real:: slope,cl(np,minLon:maxLon),cp(np,minLon:maxLon),fal(0:np,minLon:maxLon),fap(np,minLon:maxLon),&
        fupl(0:np,minLon:maxLon),fupp(np,minLon:maxLon)
   real:: dEnerLocal_C(minLonPar:maxLonPar), dPartLocal_C(minLonPar:maxLonPar), &
-   dInLocal_V(nspec), dOutLocal_V(nspec), dBuf_VI(2,nspec), dSum_VI(2,nspec)
+   dInLocal_V(nspec), dOutLocal_V(nspec), dBuf_IV(2,nspec), dSum_IV(2,nspec)
   real:: f_upwind
   logical:: UseUpwind = .false.
 
@@ -1588,8 +1588,8 @@ subroutine driftIM(iw2,nspec,np,nt,minLon,maxLon,nm,nk,dt,dlat,dphi,rb,driftin,d
   real:: buf2D_recv( np, minLon:maxLon ), buf2D_send_1( np, 2 ), buf2D_recv_1( np, 2 )
 
   integer :: iG, nBcCount
-  real :: BcSendL_VI(2,nGhostCell,nm,nk,nspec), BcSendR_VI(2,nGhostCell,nm,nk,nspec), &
-           BcRecvL_VI(2,nGhostCell,nm,nk,nspec), BcRecvR_VI(2,nGhostCell,nm,nk,nspec)
+  real :: BcSendL_IV(2,nGhostCell,nm,nk,nspec), BcSendR_IV(2,nGhostCell,nm,nk,nspec), &
+           BcRecvL_IV(2,nGhostCell,nm,nk,nspec), BcRecvR_IV(2,nGhostCell,nm,nk,nspec)
 
   ! number of cells for current proc; should be the same
   ! MaxLonPar-MinLonPar+1
@@ -1626,10 +1626,10 @@ subroutine driftIM(iw2,nspec,np,nt,minLon,maxLon,nm,nk,dt,dlat,dphi,rb,driftin,d
      do k=1,nk
         do m=1,nm
            do iG=1,nGhostCell
-              BcSendL_VI(1,iG,m,k,n) = f2(1,MinLonPar+iG-1,m,k,n)
-              BcSendL_VI(2,iG,m,k,n) = fb(MinLonPar+iG-1,m,k,n)
-              BcSendR_VI(1,iG,m,k,n) = f2(1,MaxLonPar-nGhostCell+iG,m,k,n)
-              BcSendR_VI(2,iG,m,k,n) = fb(MaxLonPar-nGhostCell+iG,m,k,n)
+              BcSendL_IV(1,iG,m,k,n) = f2(1,MinLonPar+iG-1,m,k,n)
+              BcSendL_IV(2,iG,m,k,n) = fb(MinLonPar+iG-1,m,k,n)
+              BcSendR_IV(1,iG,m,k,n) = f2(1,MaxLonPar-nGhostCell+iG,m,k,n)
+              BcSendR_IV(2,iG,m,k,n) = fb(MaxLonPar-nGhostCell+iG,m,k,n)
            enddo
         enddo
      enddo
@@ -1638,16 +1638,16 @@ subroutine driftIM(iw2,nspec,np,nt,minLon,maxLon,nm,nk,dt,dlat,dphi,rb,driftin,d
   nBcCount = 2*nGhostCell*nm*nk*nspec
   if (nProc > 1) then
      ! what I send right becomes my right neighbour's left ghost cells
-     call MPI_Sendrecv(BcSendR_VI, nBcCount, MPI_REAL, iProcRight, 21, &
-                       BcRecvL_VI, nBcCount, MPI_REAL, iProcLeft,  21, &
+     call MPI_Sendrecv(BcSendR_IV, nBcCount, MPI_REAL, iProcRight, 21, &
+                       BcRecvL_IV, nBcCount, MPI_REAL, iProcLeft,  21, &
                        iComm, iStatus_I, iError)
      ! what I send left becomes my left neighbour's right ghost cells
-     call MPI_Sendrecv(BcSendL_VI, nBcCount, MPI_REAL, iProcLeft,  22, &
-                       BcRecvR_VI, nBcCount, MPI_REAL, iProcRight, 22, &
+     call MPI_Sendrecv(BcSendL_IV, nBcCount, MPI_REAL, iProcLeft,  22, &
+                       BcRecvR_IV, nBcCount, MPI_REAL, iProcRight, 22, &
                        iComm, iStatus_I, iError)
   else
-     BcRecvL_VI = BcSendR_VI
-     BcRecvR_VI = BcSendL_VI
+     BcRecvL_IV = BcSendR_IV
+     BcRecvR_IV = BcSendL_IV
   endif
 
   nloop: do n=1,nspec
@@ -1714,10 +1714,10 @@ subroutine driftIM(iw2,nspec,np,nt,minLon,maxLon,nm,nk,dt,dlat,dphi,rb,driftin,d
 
            ! fb0/fb1 ghost cells come from the exchange done before the loops
            do iG=1,nGhostCell
-              fb0(iLonLeft-nGhostCell+iG) = BcRecvL_VI(1,iG,m,k,n)
-              fb1(iLonLeft-nGhostCell+iG) = BcRecvL_VI(2,iG,m,k,n)
-              fb0(iLonRight+iG-1)         = BcRecvR_VI(1,iG,m,k,n)
-              fb1(iLonRight+iG-1)         = BcRecvR_VI(2,iG,m,k,n)
+              fb0(iLonLeft-nGhostCell+iG) = BcRecvL_IV(1,iG,m,k,n)
+              fb1(iLonLeft-nGhostCell+iG) = BcRecvL_IV(2,iG,m,k,n)
+              fb0(iLonRight+iG-1)         = BcRecvR_IV(1,iG,m,k,n)
+              fb1(iLonRight+iG-1)         = BcRecvR_IV(2,iG,m,k,n)
            enddo
 
            ! cp and cl depend on dt1, so they still need a per-iteration exchange
@@ -2008,18 +2008,18 @@ subroutine driftIM(iw2,nspec,np,nt,minLon,maxLon,nm,nk,dt,dlat,dphi,rb,driftin,d
      enddo kloop
   enddo nloop
 
-  dBuf_VI(1,:) = dInLocal_V
-  dBuf_VI(2,:) = dOutLocal_V
+  dBuf_IV(1,:) = dInLocal_V
+  dBuf_IV(2,:) = dOutLocal_V
   if (nProc > 1) then
-     call MPI_REDUCE(dBuf_VI, dSum_VI, 2*nspec, MPI_REAL, MPI_SUM, &
+     call MPI_REDUCE(dBuf_IV, dSum_IV, 2*nspec, MPI_REAL, MPI_SUM, &
           0, iComm, iError)
   else
-     dSum_VI = dBuf_VI
+     dSum_IV = dBuf_IV
   endif
 
   if (iProc == 0) then
-     driftin(1:nspec)  = driftin(1:nspec)  + dSum_VI(1,:)
-     driftout(1:nspec) = driftout(1:nspec) + dSum_VI(2,:)
+     driftin(1:nspec)  = driftin(1:nspec)  + dSum_IV(1,:)
+     driftout(1:nspec) = driftout(1:nspec) + dSum_IV(2,:)
   else
      driftin(1:nspec)  = 0.
      driftout(1:nspec) = 0.
@@ -2361,9 +2361,9 @@ subroutine sume_cimi(OperatorName)
   use ModCimi,       	ONLY: &
        f2, rbsum => rbsumLocal, rbsumGlobal, &
        rcsum => rcsumLocal, rcsumGlobal, &
-       xle => eChangeOperator_VICI, ple => pChangeOperator_VICI, &
+       xle => eChangeOperator_CIIV, ple => pChangeOperator_CIIV, &
        eChangeGlobal, eChangeLocal, &
-       esum => eTimeAccumult_ICI, psum => pTimeAccumult_ICI
+       esum => eTimeAccumult_CII, psum => pTimeAccumult_CII
   use ModCimiTrace, 	ONLY: iba, ekev, ro, iw2
   use ModCimiGrid,   	ONLY: &
        nProc, iProc, iComm, MinLonPar, MaxLonPar, d4Element_C, &
@@ -2471,11 +2471,11 @@ subroutine cimi_output( &
   !
   ! Input: np,nt,nm,nk,nspec,neng,npit,iba,ftv,f2,ekev,sinA,energy,sinAo,xjac
   !        delE,dmu,amu_I,pp,xmm,dmm,dk,xlat,dphi,re_m,Hiono,vl,vp
-  ! Output: flux,fac,phot,Ppar_IC,Den_IC,Temp_IC,vlEa,vpEa,psd
+  ! Output: flux,fac,phot,Ppar_CI,Den_CI,Temp_CI,vlEa,vpEa,psd
 
-  use ModGmCimi, ONLY: Den_IC, Temp_IC
+  use ModGmCimi, ONLY: Den_CI, Temp_CI
   use ModCimi, ONLY: flux, psd, f2, vl, vp, vlEa, vpEa, fac => FAC_C, phot, &
-    Ppar_IC, Pressure_IC, PressurePar_IC, MinLon, MaxLon
+    Ppar_CI, Pressure_CI, PressurePar_CI, MinLon, MaxLon
   use ModCimiTrace, ONLY: iba, ftv => volume, sinA, pp, ekev
   use ModConst,   ONLY: cProtonMass
   use ModNumConst, ONLY: cPi, cDegToRad
@@ -2521,9 +2521,9 @@ subroutine cimi_output( &
   fac=0.
   eta=0.
   phot=0.
-  Ppar_IC = 0.
-  PressurePar_IC = 0.
-  Pressure_IC = 0.
+  Ppar_CI = 0.
+  PressurePar_CI = 0.
+  Pressure_CI = 0.
   psd = 0.
 
   ! Some constants for pressure, fac calculations
@@ -2537,7 +2537,7 @@ subroutine cimi_output( &
   !  delEE=delE*sqrt(energy)
   xlatr=xlat*cDegToRad
 
-  ! Calculate CIMI ion density (m^-3), Den_IC,
+  ! Calculate CIMI ion density (m^-3), Den_CI,
   ! and flux (cm^-2 s^-1 keV^-1 sr^-1)
   ! at fixed energy & pitch-angle grids
 
@@ -2549,9 +2549,9 @@ subroutine cimi_output( &
            Pressure0=0.0
            Pressure1=0.0
            PressurePar1=0.0
-           Den_IC(i,j,n)=0.0
+           Den_CI(i,j,n)=0.0
            amu1=amu_I(n)**1.5
-!!!! Calculate Den_IC, and 2D flux, fl2D(log), ekev2D(log) and sinA1D
+!!!! Calculate Den_CI, and 2D flux, fl2D(log), ekev2D(log) and sinA1D
            do k=1,nk
               sinA1D(k) = sinA(i,j,k)
               cosA2(k) = 1 - sinA1D(k)**2
@@ -2580,7 +2580,7 @@ subroutine cimi_output( &
                  vp2D(m,k)=vp(i,j,m,k,n)
 
                  ! The old rho and p calculation based on RCM method:
-                 !   Den_IC(n,i,j) = Den_IC(n,i,j)+eta(i,j,m,k,n)/ftv1
+                 !   Den_CI(n,i,j) = Den_CI(n,i,j)+eta(i,j,m,k,n)/ftv1
                  !   Pressure0     = eta(i,j,m,k,n)*ekev(i,j,k,m)/ftv1
                  ! might be incorrect, giving different results from the
                  ! following calculation based on integration of flux.
@@ -2594,7 +2594,7 @@ subroutine cimi_output( &
                  !   P    = 4*pi/3*int(E*flx*p/M*dcosAdM)
                  !   Ppar = 4*pi*int(E*flx*p/M*(cosA)^2*dcosAdM)
 
-                 Den_IC(i,j,n) = Den_IC(i,j,n) &
+                 Den_CI(i,j,n) = Den_CI(i,j,n) &
                       + flx*pp(i,j,m,k,n)/xmm(m,n)*dmm(m,n)*dcosa
                  Pressure0 = ekev(i,j,m,k,n)*flx*pp(i,j,m,k,n)/xmm(m,n) &
                       *dmm(m,n)*dcosa
@@ -2603,11 +2603,11 @@ subroutine cimi_output( &
               enddo
            enddo
 
-           Den_IC(i,j,n) = Den_IC(i,j,n)*2.0*cPi/1.6e-20   ! density in m^-3
+           Den_CI(i,j,n) = Den_CI(i,j,n)*2.0*cPi/1.6e-20   ! density in m^-3
            ! Coeff = 1.6e-16*2./3.*1.e9                   ! for the old p
            Coeff = 4.*cPi/3.*1.e4*1.e9
-           Pressure_IC(i,j,n) = Pressure1*Coeff          ! pressure in nPa
-           PressurePar_IC(i,j,n) = PressurePar1*Coeff
+           Pressure_CI(i,j,n) = Pressure1*Coeff          ! pressure in nPa
+           PressurePar_CI(i,j,n) = PressurePar1*Coeff
 
 !!!! Map flux to fixed energy and pitch-angle grids (energy, sinAo)
            do k=1,neng
@@ -2645,7 +2645,7 @@ subroutine cimi_output( &
 
   Part_phot=0.
 
-  ! Calculate pressure of the 'hot' ring current phot, and temperature Temp_IC
+  ! Calculate pressure of the 'hot' ring current phot, and temperature Temp_CI
   jloop2: do j=MinLonPar,MaxLonPar
      iloop2: do i=1,iba(j)
 !!!! calculate pitch-angle averaged flux
@@ -2663,16 +2663,16 @@ subroutine cimi_output( &
               phot(i,j,n)=phot(i,j,n)+fave(i,j,k,n)*delEE(k,n)*pf(n) ! phot in nPa
               if (CIMIboundary) Part_phot(i,j,k,n) = fave(i,j,k,n)*delEE(k,n)*pf(n) 
            enddo
-           Temp_IC(i,j,n)=0.
-           if (Den_IC(i,j,n) > 0.) &
-                Temp_IC(i,j,n)=phot(i,j,n)*1.e-9/Den_IC(i,j,n)/1.6e-19   ! eV
+           Temp_CI(i,j,n)=0.
+           if (Den_CI(i,j,n) > 0.) &
+                Temp_CI(i,j,n)=phot(i,j,n)*1.e-9/Den_CI(i,j,n)/1.6e-19   ! eV
         enddo
 !!!! calculate parallel pressure
         cosAo2(1:npit) = 1-sinAo(1:npit)**2  ! store 1-sinAo^2
         do n=1,nspec
            do k=1,neng
               do m=1,npit
-                 Ppar_IC(i,j,n) = Ppar_IC(i,j,n) + flux(i,j,k,m,n) &
+                 Ppar_CI(i,j,n) = Ppar_CI(i,j,n) + flux(i,j,k,m,n) &
                       *cosAo2(m)*dmu(m)*delEE(k,n)*pf(n)*3.
               enddo
            enddo
@@ -2806,11 +2806,11 @@ end subroutine cimi_output
 subroutine cimi_gather( delta_t)
 
   use ModCimi,		ONLY: &
-       Time, FAC_C, Pressure_IC, PressurePar_IC, Bmin_C, &
-       phot, Ppar_IC, preP, preF, Eje1,&
+       Time, FAC_C, Pressure_CI, PressurePar_CI, Bmin_C, &
+       phot, Ppar_CI, preP, preF, Eje1,&
        vdr_q3, eng_q3, vexb, dif_q3, Part_phot, flux, psd, vlEa, vpEa, &
-       FACGlobal_C, PressureGlobal_IC, PressureParGlobal_IC, DenGlobal_IC, &
-       BminGlobal_C, photGlobal, PparGlobal_IC, TempGlobal_IC, &
+       FACGlobal_C, PressureGlobal_CI, PressureParGlobal_CI, DenGlobal_CI, &
+       BminGlobal_C, photGlobal, PparGlobal_CI, TempGlobal_CI, &
        prePGlobal, preFGlobal, Eje1Global, &
        vdr_q3Global, eng_q3Global, part_photGlobal, vexbGlobal, dif_q3Global, &
        fluxGlobal, psdGlobal, vlEaGlobal, vpEaGlobal, MinLonGlobal, MaxLonGlobal
@@ -2825,7 +2825,7 @@ subroutine cimi_gather( delta_t)
   use ModCimiPlot
   use ModCimiTrace,	ONLY:	gather_field_trace
   use ModCoupleSami,	ONLY:	DoCoupleSami
-  use ModGmCimi,	ONLY:	Den_IC, Temp_IC
+  use ModGmCimi,	ONLY:	Den_CI, Temp_CI
   use ModImSat,		ONLY:	DoWriteSats, DtSatOut
   use ModMPI
 
@@ -2844,12 +2844,12 @@ subroutine cimi_gather( delta_t)
   !----------------------------------------------------------------------------
   if (nProc == 1) then
     FACGlobal_C(:,:) = FAC_C(:,MinLonPar:MaxLonPar)
-    PressureGlobal_IC(:,:,:) = Pressure_IC(:,MinLonPar:MaxLonPar,:)
-    PressureParGlobal_IC(:,:,:) = PressurePar_IC(:,MinLonPar:MaxLonPar,:)
-    DenGlobal_IC(:,:,:) = Den_IC(:,MinLonPar:MaxLonPar,:)
+    PressureGlobal_CI(:,:,:) = Pressure_CI(:,MinLonPar:MaxLonPar,:)
+    PressureParGlobal_CI(:,:,:) = PressurePar_CI(:,MinLonPar:MaxLonPar,:)
+    DenGlobal_CI(:,:,:) = Den_CI(:,MinLonPar:MaxLonPar,:)
     BminGlobal_C(:,:) = Bmin_C(:,MinLonPar:MaxLonPar)
     photGlobal(:,:,:) = phot(:,MinLonPar:MaxLonPar,:)
-    PparGlobal_IC(:,:,:) = Ppar_IC(:,MinLonPar:MaxLonPar,:)
+    PparGlobal_CI(:,:,:) = Ppar_CI(:,MinLonPar:MaxLonPar,:)
     prePGlobal(:,:,:,:) = preP(:,MinLonPar:MaxLonPar,:,:)
     preFGlobal(:,:,:,:) = preF(:,MinLonPar:MaxLonPar,:,:)
     Eje1Global(:,:,:) = Eje1(:,MinLonPar:MaxLonPar,:)
@@ -2880,24 +2880,24 @@ subroutine cimi_gather( delta_t)
   if (iProc==0) potGlobal(:,:)=BufferRecv_C(:,:)
 
   do iSpecies=1,nspec
-     call gather_c(Pressure_IC(:,MinLonPar:MaxLonPar,iSpecies))
-     if (iProc==0) PressureGlobal_IC(:,:,iSpecies)=BufferRecv_C(:,:)
+     call gather_c(Pressure_CI(:,MinLonPar:MaxLonPar,iSpecies))
+     if (iProc==0) PressureGlobal_CI(:,:,iSpecies)=BufferRecv_C(:,:)
 
-     BufferSend_C(:,MinLonGlobal:MaxLonGlobal)=PressurePar_IC(:,MinLonPar:MaxLonPar,iSpecies)
-     call gather_c(PressurePar_IC(:,MinLonPar:MaxLonPar,iSpecies))
-     if (iProc==0) PressureParGlobal_IC(:,:,iSpecies)=BufferRecv_C(:,:)
+     BufferSend_C(:,MinLonGlobal:MaxLonGlobal)=PressurePar_CI(:,MinLonPar:MaxLonPar,iSpecies)
+     call gather_c(PressurePar_CI(:,MinLonPar:MaxLonPar,iSpecies))
+     if (iProc==0) PressureParGlobal_CI(:,:,iSpecies)=BufferRecv_C(:,:)
 
      call gather_c(phot(:,MinLonPar:MaxLonPar,iSpecies))
      if (iProc==0) photGlobal(:,:,iSpecies)=BufferRecv_C(:,:)
 
-     call gather_c(Ppar_IC(:,MinLonPar:MaxLonPar,iSpecies))
-     if (iProc==0) PparGlobal_IC(:,:,iSpecies)=BufferRecv_C(:,:)
+     call gather_c(Ppar_CI(:,MinLonPar:MaxLonPar,iSpecies))
+     if (iProc==0) PparGlobal_CI(:,:,iSpecies)=BufferRecv_C(:,:)
 
-     call gather_c(Den_IC(:,MinLonPar:MaxLonPar,iSpecies))
-     if (iProc==0) DenGlobal_IC(:,:,iSpecies)=BufferRecv_C(:,:)
+     call gather_c(Den_CI(:,MinLonPar:MaxLonPar,iSpecies))
+     if (iProc==0) DenGlobal_CI(:,:,iSpecies)=BufferRecv_C(:,:)
 
-     call gather_c(Temp_IC(:,MinLonPar:MaxLonPar,iSpecies))
-     if (iProc==0) TempGlobal_IC(:,:,iSpecies)=BufferRecv_C(:,:)
+     call gather_c(Temp_CI(:,MinLonPar:MaxLonPar,iSpecies))
+     if (iProc==0) TempGlobal_CI(:,:,iSpecies)=BufferRecv_C(:,:)
 
   enddo
 
@@ -2995,15 +2995,15 @@ subroutine cimi_gather_coupling
   ! coupling happens before cimi_run calls cimi_gather.
 
   use ModCimi,		ONLY: &
-       FAC_C, Pressure_IC, PressurePar_IC, Bmin_C, preP, preF, Eje1, &
-       FACGlobal_C, PressureGlobal_IC, PressureParGlobal_IC, DenGlobal_IC, &
+       FAC_C, Pressure_CI, PressurePar_CI, Bmin_C, preP, preF, Eje1, &
+       FACGlobal_C, PressureGlobal_CI, PressureParGlobal_CI, DenGlobal_CI, &
        BminGlobal_C, prePGlobal, preFGlobal, Eje1Global
   use ModCimiGrid,	ONLY: &
        iProc, nProc, iComm, nLonPar, nLonPar_P, nLonBefore_P, &
        MinLonPar, MaxLonPar, nt, np, neng
   use ModCimiPlanet,	ONLY: nspec
   use ModCimiTrace,	ONLY: iba, ibaGlobal
-  use ModGmCimi,	ONLY: Den_IC
+  use ModGmCimi,	ONLY: Den_CI
   use ModMPI
 
   implicit none
@@ -3015,9 +3015,9 @@ subroutine cimi_gather_coupling
   !----------------------------------------------------------------------------
   if (nProc == 1) then
     FACGlobal_C(:,:) = FAC_C(:,MinLonPar:MaxLonPar)
-    PressureGlobal_IC(:,:,:) = Pressure_IC(:,MinLonPar:MaxLonPar,:)
-    PressureParGlobal_IC(:,:,:) = PressurePar_IC(:,MinLonPar:MaxLonPar,:)
-    DenGlobal_IC(:,:,:) = Den_IC(:,MinLonPar:MaxLonPar,:)
+    PressureGlobal_CI(:,:,:) = Pressure_CI(:,MinLonPar:MaxLonPar,:)
+    PressureParGlobal_CI(:,:,:) = PressurePar_CI(:,MinLonPar:MaxLonPar,:)
+    DenGlobal_CI(:,:,:) = Den_CI(:,MinLonPar:MaxLonPar,:)
     BminGlobal_C(:,:) = Bmin_C(:,MinLonPar:MaxLonPar)
     prePGlobal(:,:,:,:) = preP(:,MinLonPar:MaxLonPar,:,:)
     preFGlobal(:,:,:,:) = preF(:,MinLonPar:MaxLonPar,:,:)
@@ -3037,14 +3037,14 @@ subroutine cimi_gather_coupling
   if (iProc==0) BminGlobal_C = BufferRecv_C
 
   do iSpecies = 1, nspec
-     call gather_c(Pressure_IC(:,MinLonPar:MaxLonPar,iSpecies))
-     if (iProc==0) PressureGlobal_IC(:,:,iSpecies) = BufferRecv_C
+     call gather_c(Pressure_CI(:,MinLonPar:MaxLonPar,iSpecies))
+     if (iProc==0) PressureGlobal_CI(:,:,iSpecies) = BufferRecv_C
 
-     call gather_c(PressurePar_IC(:,MinLonPar:MaxLonPar,iSpecies))
-     if (iProc==0) PressureParGlobal_IC(:,:,iSpecies) = BufferRecv_C
+     call gather_c(PressurePar_CI(:,MinLonPar:MaxLonPar,iSpecies))
+     if (iProc==0) PressureParGlobal_CI(:,:,iSpecies) = BufferRecv_C
 
-     call gather_c(Den_IC(:,MinLonPar:MaxLonPar,iSpecies))
-     if (iProc==0) DenGlobal_IC(:,:,iSpecies) = BufferRecv_C
+     call gather_c(Den_CI(:,MinLonPar:MaxLonPar,iSpecies))
+     if (iProc==0) DenGlobal_CI(:,:,iSpecies) = BufferRecv_C
 
      call gather_c(Eje1(:,MinLonPar:MaxLonPar,iSpecies))
      if (iProc==0) Eje1Global(:,:,iSpecies) = BufferRecv_C
@@ -3145,7 +3145,7 @@ subroutine cimi_precip_calc(dsec)
 
   use ModCimi,			ONLY:	&
        preF, preP, Eje1, &
-       xlel => eChangeOperator_VICI, plel => pChangeOperator_VICI, &
+       xlel => eChangeOperator_CIIV, plel => pChangeOperator_CIIV, &
        OpLossCone_, OpLossCone0_, OpFLC_, OpFLC0_, &
        precipEnergyLoss, precipNumberLoss
   use ModCimiTrace, 		ONLY:	iba, UsePrecipEnergyLoss

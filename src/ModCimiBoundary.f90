@@ -29,8 +29,8 @@ module ModCimiBoundary
     KappaMax_I(nSpec) = 30.0
   
   !boundary density in m^-3 and temperature in eV
-  real, public, allocatable :: BoundaryDens_IC(:,:),BoundaryTemp_IC(:,:),&
-   BoundaryTempPar_IC(:,:)
+  real, public, allocatable :: BoundaryDens_CI(:,:),BoundaryTemp_CI(:,:),&
+   BoundaryTempPar_CI(:,:)
 
 contains
   !============================================================================
@@ -38,10 +38,10 @@ contains
     use ModCimiGrid,    ONLY: MinLonPar,MaxLonPar
     use ModCimiPlanet,  ONLY: nSpec
 
-    if(allocated(BoundaryDens_IC)) RETURN
-    allocate(BoundaryDens_IC(MinLonPar:MaxLonPar,nSpec), &
-             BoundaryTemp_IC(MinLonPar:MaxLonPar,nSpec), &
-             BoundaryTempPar_IC(MinLonPar:MaxLonPar,nSpec))
+    if(allocated(BoundaryDens_CI)) RETURN
+    allocate(BoundaryDens_CI(MinLonPar:MaxLonPar,nSpec), &
+             BoundaryTemp_CI(MinLonPar:MaxLonPar,nSpec), &
+             BoundaryTempPar_CI(MinLonPar:MaxLonPar,nSpec))
 
     ! default kappa for electrons
     if(KappaConst_I(nSpec) == -100.) KappaConst_I(nSpec) = 3.0  
@@ -49,7 +49,7 @@ contains
   end subroutine init_cimi_boundary
   !============================================================================
   subroutine cimi_set_boundary_mhd
-    use ModGmCimi,      ONLY: Den_IC,Temp_IC,Temppar_IC,StateBmin_IIV,&
+    use ModGmCimi,      ONLY: Den_CI,Temp_CI,Temppar_CI,StateBmin_IIV,&
          TotalP_,TotalPpar_,TotalRho_, iBufferRho_I,iBufferP_I,&
          iBufferPpar_I, iLatMin,&
          UseTotalRhoGm, UseTotalPGm, UseTotalPparGm, UseMultiRhoGm , &
@@ -90,22 +90,22 @@ contains
               jLat = max(iLat, iLatMin)
 
               !write(*,*)StateBmin_IIV(jLat,iLon,TotalRho_)
-              Den_IC(iLat,iLon,iSpecies) = dFactor_I(iSpecies) * &
+              Den_CI(iLat,iLon,iSpecies) = dFactor_I(iSpecies) * &
                    StateBmin_IIV(jLat,iLonGlobal,TotalRho_)&
                    /(cProtonMass * FactorTotalDens)
-              Temp_IC(iLat,iLon,iSpecies) = tFactor_I(iSpecies) * &
+              Temp_CI(iLat,iLon,iSpecies) = tFactor_I(iSpecies) * &
                    StateBmin_IIV(jLat,iLonGlobal,TotalP_) &
                    * cProtonMass * FactorTotalDens &
                    / StateBmin_IIV(jLat,iLonGlobal,TotalRho_) &
                    * cJouleToEv
               if(UseTotalPparGm) then
-                 Temppar_IC(iLat,iLon,iSpecies) = tFactor_I(iSpecies) * &
+                 Temppar_CI(iLat,iLon,iSpecies) = tFactor_I(iSpecies) * &
                       StateBmin_IIV(jLat,iLonGlobal,TotalPpar_) &
                       * cProtonMass * FactorTotalDens &
                       / StateBmin_IIV(jLat,iLonGlobal,TotalRho_) &
                       * cJouleToEv
               else
-                 Temppar_IC(iLat,iLon,iSpecies) = Temp_IC(iLat,iLon,iSpecies)
+                 Temppar_CI(iLat,iLon,iSpecies) = Temp_CI(iLat,iLon,iSpecies)
               endif
            end do
         end do
@@ -124,25 +124,25 @@ contains
            ! Use boundary values for iLat>iLatMin
            jLat = max(iLat, iLatMin)
            do iSpecies = 1, nSpec-1
-              Den_IC(iLat,iLon,iSpecies) = &
+              Den_CI(iLat,iLon,iSpecies) = &
                    StateBmin_IIV(jLat,iLonGlobal,iBufferRho_I(iSpecies))&
                    / (cProtonMass*amu_I(iSpecies))
            enddo
            ! set electron density
-           Den_IC(iLat,iLon,nSpec) = sum(Den_IC(iLat,iLon,1:nSpec-1))
+           Den_CI(iLat,iLon,nSpec) = sum(Den_CI(iLat,iLon,1:nSpec-1))
            
            ! set temperatures
-           Temp_IC(iLat,iLon,1:nSpec) = tFactor_I(1:nSpec) * &
+           Temp_CI(iLat,iLon,1:nSpec) = tFactor_I(1:nSpec) * &
                 StateBmin_IIV(jLat,iLonGlobal,TotalP_)  &
-                /(Den_IC(iLat,iLon,nSpec)) &
+                /(Den_CI(iLat,iLon,nSpec)) &
                 * cJouleToEv
            if(UseTotalPparGm) then
-              Temppar_IC(iLat,iLon,1:nSpec) = tFactor_I(1:nSpec) * &
+              Temppar_CI(iLat,iLon,1:nSpec) = tFactor_I(1:nSpec) * &
                    StateBmin_IIV(jLat,iLonGlobal,TotalPpar_) &
-                   / (Den_IC(iLat,iLon,nSpec)) &
+                   / (Den_CI(iLat,iLon,nSpec)) &
                    * cJouleToEv
            else
-              Temppar_IC(iLat,iLon,1:nSpec) = Temp_IC(iLat,iLon,1:nSpec)
+              Temppar_CI(iLat,iLon,1:nSpec) = Temp_CI(iLat,iLon,1:nSpec)
            endif
            
         end do
@@ -161,34 +161,34 @@ contains
            jLat = max(iLat, iLatMin)
 
            do iSpecies = 1, nSpec-1
-              Den_IC(iLat,iLon,iSpecies) = &
+              Den_CI(iLat,iLon,iSpecies) = &
                    StateBmin_IIV(jLat,iLonGlobal,iBufferRho_I(iSpecies))&
                    / (cProtonMass*amu_I(iSpecies))
               
               !set temperatures
-              Temp_IC(iLat,iLon,iSpecies) = &
+              Temp_CI(iLat,iLon,iSpecies) = &
                    StateBmin_IIV(jLat,iLonGlobal,iBufferP_I(iSpecies))  &
-                   /(Den_IC(iLat,iLon,iSpecies)) &
+                   /(Den_CI(iLat,iLon,iSpecies)) &
                    * cJouleToEv
               if(UseMultiPparGm) then
-                 Temppar_IC(iLat,iLon,iSpecies) = &
+                 Temppar_CI(iLat,iLon,iSpecies) = &
                       StateBmin_IIV(jLat,iLonGlobal,iBufferPpar_I(iSpecies)) &
-                      / (Den_IC(iLat,iLon,iSpecies)) &
+                      / (Den_CI(iLat,iLon,iSpecies)) &
                       * cJouleToEv
               else
-                 Temppar_IC(iLat,iLon,iSpecies) = Temp_IC(iLat,iLon,iSpecies)
+                 Temppar_CI(iLat,iLon,iSpecies) = Temp_CI(iLat,iLon,iSpecies)
               endif
            enddo
 
            ! set electron density
-           Den_IC(iLat,iLon,nSpec) = sum(Den_IC(iLat,iLon,1:nSpec-1))
+           Den_CI(iLat,iLon,nSpec) = sum(Den_CI(iLat,iLon,1:nSpec-1))
            
            ! set electron temperatures
-           Temp_IC(iLat,iLon,nSpec) = &
+           Temp_CI(iLat,iLon,nSpec) = &
                 sum(StateBmin_IIV(jLat,iLonGlobal,iBufferP_I(1:nSpec-1)))  &
-                /(Den_IC(iLat,iLon,nSpec)) &
+                /(Den_CI(iLat,iLon,nSpec)) &
                 * cJouleToEv
-           Temppar_IC(iLat,iLon,nSpec) = Temp_IC(iLat,iLon,nSpec)
+           Temppar_CI(iLat,iLon,nSpec) = Temp_CI(iLat,iLon,nSpec)
         end do
      end do
   else
@@ -203,9 +203,9 @@ contains
         ib1=min(iba(iLon)+1,irm(iLon))
         do iLat=1,irm(iLon)
            jLat = max(iLat, iLatMin)
-           Temp_IC(iLat,iLon,nSpec) = StateBmin_IIV(jLat,iLonGlobal,TotalPe_)&
-                / Den_IC(iLat,iLon,nSpec)* cJouleToEv
-           Temppar_IC(iLat,iLon,nSpec) = Temp_IC(iLat,iLon,nSpec)
+           Temp_CI(iLat,iLon,nSpec) = StateBmin_IIV(jLat,iLonGlobal,TotalPe_)&
+                / Den_CI(iLat,iLon,nSpec)* cJouleToEv
+           Temppar_CI(iLat,iLon,nSpec) = Temp_CI(iLat,iLon,nSpec)
         end do
      end do
   endif
@@ -215,13 +215,13 @@ contains
      BOUNDARY_FILL: do iLon=MinLonPar,MaxLonPar
         ! Fill boundary arrays
         ib1=min(iba(iLon)+1,irm(iLon))
-        !write(*,*) iSpecies, ib1,iLon,Temp_IC (iSpecies,ib1,iLon) 
-        BoundaryDens_IC(iLon,iSpecies) = &
-             Den_IC (ib1,iLon,iSpecies)
-        BoundaryTemp_IC(iLon,iSpecies) = &
-             Temp_IC(ib1,iLon,iSpecies)
-        BoundaryTempPar_IC(iLon,iSpecies) = &
-             Temppar_IC(ib1,iLon,iSpecies)
+        !write(*,*) iSpecies, ib1,iLon,Temp_CI (iSpecies,ib1,iLon) 
+        BoundaryDens_CI(iLon,iSpecies) = &
+             Den_CI (ib1,iLon,iSpecies)
+        BoundaryTemp_CI(iLon,iSpecies) = &
+             Temp_CI(ib1,iLon,iSpecies)
+        BoundaryTempPar_CI(iLon,iSpecies) = &
+             Temppar_CI(ib1,iLon,iSpecies)
         
      end do BOUNDARY_FILL
   enddo
@@ -233,7 +233,7 @@ contains
   subroutine cimi_set_boundary_empirical
     use ModImTime,    ONLY: CurrentTime, TimeLagBoundary
     use ModCimiTrace,ONLY: iba, ro, xmlto, irm
-    use ModGmCimi,      ONLY: Den_IC,Temp_IC
+    use ModGmCimi,      ONLY: Den_CI,Temp_CI
     use ModImIndices,   ONLY: UseKpApF107IndicesFile,get_im_indices_F107,&
          get_im_indices_Kp
     use ModIndicesInterfaces
@@ -298,9 +298,9 @@ contains
 
     ! Fill boundary arrays for all species
     do iSpecies = 1, nSpec
-       BoundaryDens_IC(MinLonPar:MaxLonPar,iSpecies) = dFactor_I(iSpecies)*xn1(MinLonPar:MaxLonPar)
-       BoundaryTemp_IC(MinLonPar:MaxLonPar,iSpecies) = tFactor_I(iSpecies)*xkt1(MinLonPar:MaxLonPar)
-       BoundaryTempPar_IC(MinLonPar:MaxLonPar,iSpecies) = BoundaryTemp_IC(MinLonPar:MaxLonPar,iSpecies)
+       BoundaryDens_CI(MinLonPar:MaxLonPar,iSpecies) = dFactor_I(iSpecies)*xn1(MinLonPar:MaxLonPar)
+       BoundaryTemp_CI(MinLonPar:MaxLonPar,iSpecies) = tFactor_I(iSpecies)*xkt1(MinLonPar:MaxLonPar)
+       BoundaryTempPar_CI(MinLonPar:MaxLonPar,iSpecies) = BoundaryTemp_CI(MinLonPar:MaxLonPar,iSpecies)
     end do
  
  end subroutine cimi_set_boundary_empirical
@@ -439,10 +439,10 @@ contains
   ! density are from MHD (or empirical models if Weimer/Tsyganenko fields are
   ! used)
 
-  ! Input: nspec,np,nt,nm,nk,iba,irm,amu,xjac,Den_IC,Temp_IC,vel
+  ! Input: nspec,np,nt,nm,nk,iba,irm,amu,xjac,Den_CI,Temp_CI,vel
   ! Output: fb
 
-  use ModGmCimi, ONLY:  Temp_IC, Temppar_IC
+  use ModGmCimi, ONLY:  Temp_CI, Temppar_CI
   use ModCimi,        ONLY: MinLon,MaxLon, f2, fb
   use ModCimiTrace,  ONLY: sinA,ekev,iw2,pp, iba, irm, vel, bo
   use ModCimiUtil,     ONLY: ln_gamma
@@ -459,7 +459,7 @@ contains
   real:: fbb,fbb1,parE1,perE1,den1,temp32,y2,x2,Psq,&
        Pper2,Ppar2
   real:: erpp,Vsq,Vper2,Vpar2
-  real:: BoundaryTempperp_IC(minLon:maxLon,nspec)
+  real:: BoundaryTempperp_CI(minLon:maxLon,nspec)
   real:: kappa,kappa_plus_one,kappa_minus_half,ln_gamma_diff,gamma_ratio
   real:: e_min, Beta, TempCoreFactor
 
@@ -473,8 +473,8 @@ contains
 
   do n=1,nspec
      do j=MinLonPar,MaxLonPar
-        BoundaryTempperp_IC(j,n) = &
-             (3*BoundaryTemp_IC(j,n) - BoundaryTempPar_IC(j,n))/2
+        BoundaryTempperp_CI(j,n) = &
+             (3*BoundaryTemp_CI(j,n) - BoundaryTempPar_CI(j,n))/2
      enddo
   enddo
 
@@ -485,7 +485,7 @@ contains
      xmass=amu_I(n)*1.673e-27
      chmass=1.6e-19/xmass
      do j=MinLonPar,MaxLonPar
-        den1 =BoundaryDens_IC(j,n)                     ! density in m-3
+        den1 =BoundaryDens_CI(j,n)                     ! density in m-3
         TempCoreFactor=1.0
         ib1=iba(j)+1   ! difference bewteen cimi standalone where ib1=iba(j)
         if (ib1 > irm(j)) ib1=irm(j)
@@ -494,17 +494,17 @@ contains
         kappa=KappaConst_I(n)
         if(UseDynamicKappa) then
           ! Find species plasma beta
-          Beta = den1 * BoundaryTemp_IC(j,n) * cElectronCharge &
+          Beta = den1 * BoundaryTemp_CI(j,n) * cElectronCharge &
             / (bo(ib1,j)**2 / (2 * cMu))
           ! Use Eyelade (2021) fit for kappa as a function of beta + temp
-          kappa = dynamic_kappa(Beta, BoundaryTemp_IC(j,n)/1000., &
+          kappa = dynamic_kappa(Beta, BoundaryTemp_CI(j,n)/1000., &
                                     n, UseKappaTotalFit)
           kappa = min(max(kappa,KappaMin_I(n)),KappaMax_I(n))  ! enforce min/max
         end if
         if(DoRescaleKappaTemp .and. kappa > 0.) &
           TempCoreFactor = (kappa - 1.5)/kappa   ! rescale T to conserve energy
-        parE1=TempCoreFactor*BoundaryTempPar_IC(j,n)/1000. ! characteristic in keV
-        perE1= TempCoreFactor*BoundaryTempPerp_IC(j,n)/1000.! characteristic in keV
+        parE1=TempCoreFactor*BoundaryTempPar_CI(j,n)/1000. ! characteristic in keV
+        perE1= TempCoreFactor*BoundaryTempPerp_CI(j,n)/1000.! characteristic in keV
         
         temp32=sqrt(parE1)*perE1*1.6e-16**1.5
         if (kappa > 0.) then    !    kappa, for electrons only
@@ -524,7 +524,7 @@ contains
            do m=1,iw2(k,n)   ! magnetic moment
               fbb=0.
               if ((ekev(ib1,j,m,k,n) > e_min) .and. &
-                   (BoundaryDens_IC(j,n) > 0.)) then
+                   (BoundaryDens_CI(j,n) > 0.)) then
 
                  if (kappa > 0.) then   ! KAPPA FOR ELECTRONS
                     Psq=pp(ib1,j,m,k,n)*pp(ib1,j,m,k,n)

@@ -14,14 +14,14 @@ contains
   subroutine cimi_read_restart
     use ModCimiPlanet,ONLY: nspec
     use ModCimiGrid,  ONLY: np,nt,nm,nk,neng,d4Element_C
-    use ModCimi,      ONLY: f2, phot, Pressure_IC, PressurePar_IC, FAC_C, &
-         Ppar_IC, Bmin_C, &
-         eTimeAccumult_ICI, eChangeOperator_VICI, eChangeGlobal, &
-         pTimeAccumult_ICI, pChangeOperator_VICI, &
+    use ModCimi,      ONLY: f2, phot, Pressure_CI, PressurePar_CI, FAC_C, &
+         Ppar_CI, Bmin_C, &
+         eTimeAccumult_CII, eChangeOperator_CIIV, eChangeGlobal, &
+         pTimeAccumult_CII, pChangeOperator_CIIV, &
          driftin, driftout, rbsumGlobal, rcsumGlobal, nOperator, &
          PreF, PreP, Eje1
     use ModCimiTrace, ONLY: iba, iw2
-    use ModGmCimi,    ONLY: Den_IC
+    use ModGmCimi,    ONLY: Den_CI
     use ModIoUnit,    ONLY: UnitTmp_
     use ModUtilities, ONLY: open_file, close_file
     use ModCimiGrid,  ONLY: iProc,nProc,iComm
@@ -41,19 +41,19 @@ contains
           status='old',form='unformatted', NameCaller=NameSub)
 
      read(UnitTmp_) f2  
-     read(UnitTmp_) Den_IC
+     read(UnitTmp_) Den_CI
      read(UnitTmp_) phot
-     read(UnitTmp_) Pressure_IC           
-     read(UnitTmp_) PressurePar_IC           
+     read(UnitTmp_) Pressure_CI           
+     read(UnitTmp_) PressurePar_CI           
      read(UnitTmp_) FAC_C             
      read(UnitTmp_) iba
-     read(UnitTmp_) Ppar_IC
+     read(UnitTmp_) Ppar_CI
      read(UnitTmp_) Bmin_C
-     read(UnitTmp_) eTimeAccumult_ICI
-     read(UnitTmp_) eChangeOperator_VICI
+     read(UnitTmp_) eTimeAccumult_CII
+     read(UnitTmp_) eChangeOperator_CIIV
      read(UnitTmp_) eChangeGlobal
-     read(UnitTmp_) pTimeAccumult_ICI
-     read(UnitTmp_) pChangeOperator_VICI
+     read(UnitTmp_) pTimeAccumult_CII
+     read(UnitTmp_) pChangeOperator_CIIV
      read(UnitTmp_) rbsumGlobal
      read(UnitTmp_) rcsumGlobal
      read(UnitTmp_) driftin
@@ -70,14 +70,14 @@ contains
 
     use ModCimiPlanet,ONLY: nspec
     use ModCimiGrid,  ONLY: np,nt,nm,nk,neng,MinLonPar,MaxLonPar
-    use ModCimi,      ONLY: f2,time, phot, Pressure_IC, PressurePar_IC, &
-         FAC_C, Ppar_IC, Bmin_C, &
-         eTimeAccumult_ICI, eChangeOperator_VICI, eChangeGlobal, &
-         pTimeAccumult_ICI, pChangeOperator_VICI, &
+    use ModCimi,      ONLY: f2,time, phot, Pressure_CI, PressurePar_CI, &
+         FAC_C, Ppar_CI, Bmin_C, &
+         eTimeAccumult_CII, eChangeOperator_CIIV, eChangeGlobal, &
+         pTimeAccumult_CII, pChangeOperator_CIIV, &
          driftin, driftout, rbsumGlobal, rcsumGlobal, nOperator, &
          PreF, PreP, Eje1
     use ModCimiTrace,ONLY: iba,iw2    
-    use ModGmCimi,    ONLY: Den_IC
+    use ModGmCimi,    ONLY: Den_CI
     use ModIoUnit,    ONLY: UnitTmp_
     use ModUtilities, ONLY: open_file, close_file, cTab
     use ModCimiGrid,  ONLY: iProc,nProc,iComm,nLonPar,nLonPar_P,nLonBefore_P
@@ -100,19 +100,19 @@ contains
      call open_file(file=trim(NameRestartOutDir)//'data.restart'//trim(iProcStr), &
           form='unformatted', NameCaller=NameSub)
      write(UnitTmp_) f2
-     write(UnitTmp_) Den_IC
+     write(UnitTmp_) Den_CI
      write(UnitTmp_) phot
-     write(UnitTmp_) Pressure_IC
-     write(UnitTmp_) PressurePar_IC
+     write(UnitTmp_) Pressure_CI
+     write(UnitTmp_) PressurePar_CI
      write(UnitTmp_) FAC_C
      write(UnitTmp_) iba                
-     write(UnitTmp_) Ppar_IC
+     write(UnitTmp_) Ppar_CI
      write(UnitTmp_) Bmin_C
-     write(UnitTmp_) eTimeAccumult_ICI
-     write(UnitTmp_) eChangeOperator_VICI
+     write(UnitTmp_) eTimeAccumult_CII
+     write(UnitTmp_) eChangeOperator_CIIV
      write(UnitTmp_) eChangeGlobal
-     write(UnitTmp_) pTimeAccumult_ICI
-     write(UnitTmp_) pChangeOperator_VICI
+     write(UnitTmp_) pTimeAccumult_CII
+     write(UnitTmp_) pChangeOperator_CIIV
      write(UnitTmp_) rbsumGlobal
      write(UnitTmp_) rcsumGlobal
      write(UnitTmp_) driftin

@@ -29,8 +29,8 @@ Module ModGmCimi
   real :: KpGm=-1.0, AeGm=-1.0
   logical :: UseGmKp=.false.,UseGmAe=.false.
   
-  real, allocatable :: Den_IC(:,:,:), Temp_IC(:,:,:), &
-       Temppar_IC(:,:,:)
+  real, allocatable :: Den_CI(:,:,:), Temp_CI(:,:,:), &
+       Temppar_CI(:,:,:)
   integer :: iLatMin=22 !Minimum latitude in MHD boundary
   
   logical :: UseGm                  = .false.
@@ -41,14 +41,14 @@ contains
  subroutine init_cimi_gm
    integer :: iSpecies
    !----------------------------------------------------------------------
-   if(allocated(Den_IC)) RETURN
+   if(allocated(Den_CI)) RETURN
 
-   allocate(Den_IC(nLat,MinLonPar:MaxLonPar,nspec), &
-            Temp_IC(nLat,MinLonPar:MaxLonPar,nspec), &
-            Temppar_IC(nLat,MinLonPar:MaxLonPar,nspec))
-   Den_IC = 0.0
-   Temp_IC = 0.0
-   Temppar_IC = 0.0
+   allocate(Den_CI(nLat,MinLonPar:MaxLonPar,nspec), &
+            Temp_CI(nLat,MinLonPar:MaxLonPar,nspec), &
+            Temppar_CI(nLat,MinLonPar:MaxLonPar,nspec))
+   Den_CI = 0.0
+   Temp_CI = 0.0
+   Temppar_CI = 0.0
  end subroutine init_cimi_gm
   
 end Module ModGmCimi

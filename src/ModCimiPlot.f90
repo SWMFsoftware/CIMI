@@ -77,8 +77,8 @@ module ModCimiPlot
 
 contains
   subroutine Cimi_plot_eq(nLat, nLon, X_C, Y_C, &
-       Pressure_IC, PressurePar_IC, PressureHot_IC, PparHot_IC, &
-       Den_IC, Beq_C, Volume_C, Potential_C, FAC_C, Time, Dt)
+       Pressure_CI, PressurePar_CI, PressureHot_CI, PparHot_CI, &
+       Den_CI, Beq_C, Volume_C, Potential_C, FAC_C, Time, Dt)
     
     use ModIoUnit,     		ONLY:	UnitTmp_
     use ModPlotFile,		ONLY:	save_plot_file
@@ -94,13 +94,13 @@ contains
     
     integer, intent(in) :: nLat, nLon
     real,    intent(in) :: X_C(nLat,nLon), Y_C(nLat,nLon), Time, Dt
-    real,    intent(in) :: Pressure_IC(nLat,nLon,nspec), &
-                           PressurePar_IC(nLat,nLon,nspec), &
-                           Den_IC(nLat,nLon,nspec), & 
+    real,    intent(in) :: Pressure_CI(nLat,nLon,nspec), &
+                           PressurePar_CI(nLat,nLon,nspec), &
+                           Den_CI(nLat,nLon,nspec), & 
                            Beq_C(nLat,nLon),Volume_C(nLat,nLon),   &
                            Potential_C(nLat,nLon), &
-                           PressureHot_IC(nLat,nLon,nspec), &
-                           PparHot_IC(nLat,nLon,nspec), &
+                           PressureHot_CI(nLat,nLon,nspec), &
+                           PparHot_CI(nLat,nLon,nspec), &
                            FAC_C(nLat,nLon)
     real, allocatable   :: Coord_DII(:,:,:), PlotState_IIV(:,:,:)
     integer             :: iLat,iLon,iSpecies, nprint
@@ -135,30 +135,30 @@ contains
     do iSpecies = 1, nspec
        do iLon = 1, nLon
        PlotState_IIV( 1 : iba( iLon ), iLon, iPplot_I( iSpecies + 1 ) ) = &
-            Pressure_IC( 1:iba(iLon),iLon,iSpecies ) 
+            Pressure_CI( 1:iba(iLon),iLon,iSpecies ) 
        PlotState_IIV( 1 : iba( iLon ), iLon, iPparplot_I( iSpecies + 1 ) ) = &
-            PressurePar_IC( 1:iba(iLon),iLon,iSpecies ) 
+            PressurePar_CI( 1:iba(iLon),iLon,iSpecies ) 
        PlotState_IIV( 1 : iba( iLon ), iLon, iPhotplot_I( iSpecies + 1 ) ) = &
-            PressureHot_IC( 1:iba(iLon),iLon,iSpecies )
+            PressureHot_CI( 1:iba(iLon),iLon,iSpecies )
        PlotState_IIV( 1 : iba( iLon ), iLon, iPparhotplot_I( iSpecies + 1 ) ) = &
-            PparHot_IC( 1:iba(iLon),iLon,iSpecies )
+            PparHot_CI( 1:iba(iLon),iLon,iSpecies )
        PlotState_IIV( 1 : iba( iLon ),iLon, iNplot_I( iSpecies + 1 ) ) = &
-            Den_IC( 1:iba(iLon),iLon,iSpecies )  
+            Den_CI( 1:iba(iLon),iLon,iSpecies )  
        PlotState_IIV( 1 : iba( iLon ), iLon, iPplot_I( 1 ) ) = &
             PlotState_IIV( 1 : iba( iLon ),iLon, iPplot_I( 1 ) ) + &
-            Pressure_IC( 1:iba(iLon),iLon,iSpecies ) 
+            Pressure_CI( 1:iba(iLon),iLon,iSpecies ) 
        PlotState_IIV( 1 : iba( iLon ), iLon, iPparplot_I( 1 ) ) = &
             PlotState_IIV(1:iba( iLon ), iLon, iPparplot_I( 1 ) ) + &
-            PressurePar_IC( 1:iba(iLon),iLon,iSpecies ) 
+            PressurePar_CI( 1:iba(iLon),iLon,iSpecies ) 
        PlotState_IIV( 1 : iba( iLon ), iLon, iPhotplot_I( 1 ) ) = &
             PlotState_IIV(1:iba( iLon ), iLon, iPhotplot_I( 1 ) ) + &
-            PressureHot_IC( 1:iba(iLon),iLon,iSpecies )
+            PressureHot_CI( 1:iba(iLon),iLon,iSpecies )
        PlotState_IIV( 1 : iba( iLon ),iLon, iPparhotplot_I( 1 ) ) = &
             PlotState_IIV( 1 : iba( iLon ), iLon, iPparhotplot_I( 1 ) ) + &
-            PparHot_IC( 1:iba(iLon),iLon,iSpecies )
+            PparHot_CI( 1:iba(iLon),iLon,iSpecies )
        PlotState_IIV( 1 : iba( iLon ), iLon, iNplot_I( 1 ) ) = &
             PlotState_IIV( 1 : iba( iLon ), iLon, iNplot_I( 1 ) ) + &
-            Den_IC( 1:iba(iLon),iLon,iSpecies ) 
+            Den_CI( 1:iba(iLon),iLon,iSpecies ) 
     end do
  end do
     do iLon=1,nLon
@@ -221,8 +221,8 @@ contains
   end subroutine Cimi_plot_eq
 
   subroutine Cimi_plot_iono(nLat, nLon, X_C, Y_C, &
-       Pressure_IC, PressurePar_IC, PressureHot_IC, PparHot_IC, &
-       Den_IC, Beq_C, Volume_C, Potential_C, FAC_C, Time, Dt)
+       Pressure_CI, PressurePar_CI, PressureHot_CI, PparHot_CI, &
+       Den_CI, Beq_C, Volume_C, Potential_C, FAC_C, Time, Dt)
     
     use ModIoUnit,     		ONLY:	UnitTmp_
     use ModPlotFile,		ONLY:	save_plot_file
@@ -238,13 +238,13 @@ contains
     
     integer, intent(in) :: nLat, nLon
     real,    intent(in) :: X_C(nLat,nLon), Y_C(nLat,nLon), Time, Dt
-    real,    intent(in) :: Pressure_IC(nLat,nLon,nspec), &
-                           PressurePar_IC(nLat,nLon,nspec), &
-                           Den_IC(nLat,nLon,nspec), & 
+    real,    intent(in) :: Pressure_CI(nLat,nLon,nspec), &
+                           PressurePar_CI(nLat,nLon,nspec), &
+                           Den_CI(nLat,nLon,nspec), & 
                            Beq_C(nLat,nLon),Volume_C(nLat,nLon),   &
                            Potential_C(nLat,nLon), &
-                           PressureHot_IC(nLat,nLon,nspec), &
-                           PparHot_IC(nLat,nLon,nspec), &
+                           PressureHot_CI(nLat,nLon,nspec), &
+                           PparHot_CI(nLat,nLon,nspec), &
                            FAC_C(nLat,nLon)
     real, allocatable   :: CoordIono_DII(:,:,:), PlotState_IIV(:,:,:)
     integer             :: iLat,iLon,iSpecies, nprint
@@ -285,30 +285,30 @@ contains
     do iSpecies = 1, nspec
        do iLon = 1, nLon
        PlotState_IIV( 1 : iba( iLon ), iLon, iPplot_I( iSpecies + 1 ) ) = &
-            Pressure_IC( 1:iba(iLon),iLon,iSpecies ) 
+            Pressure_CI( 1:iba(iLon),iLon,iSpecies ) 
        PlotState_IIV( 1 : iba( iLon ), iLon, iPparplot_I( iSpecies + 1 ) ) = &
-            PressurePar_IC( 1:iba(iLon),iLon,iSpecies ) 
+            PressurePar_CI( 1:iba(iLon),iLon,iSpecies ) 
        PlotState_IIV( 1 : iba( iLon ), iLon, iPhotplot_I( iSpecies + 1 ) ) = &
-            PressureHot_IC( 1:iba(iLon),iLon,iSpecies )
+            PressureHot_CI( 1:iba(iLon),iLon,iSpecies )
        PlotState_IIV( 1 : iba( iLon ), iLon, iPparhotplot_I( iSpecies + 1 ) ) = &
-            PparHot_IC( 1:iba(iLon),iLon,iSpecies )
+            PparHot_CI( 1:iba(iLon),iLon,iSpecies )
        PlotState_IIV( 1 : iba( iLon ),iLon, iNplot_I( iSpecies + 1 ) ) = &
-            Den_IC( 1:iba(iLon),iLon,iSpecies )  
+            Den_CI( 1:iba(iLon),iLon,iSpecies )  
        PlotState_IIV( 1 : iba( iLon ), iLon, iPplot_I( 1 ) ) = &
             PlotState_IIV( 1 : iba( iLon ),iLon, iPplot_I( 1 ) ) + &
-            Pressure_IC( 1:iba(iLon),iLon,iSpecies ) 
+            Pressure_CI( 1:iba(iLon),iLon,iSpecies ) 
        PlotState_IIV( 1 : iba( iLon ), iLon, iPparplot_I( 1 ) ) = &
             PlotState_IIV(1:iba( iLon ), iLon, iPparplot_I( 1 ) ) + &
-            PressurePar_IC( 1:iba(iLon),iLon,iSpecies ) 
+            PressurePar_CI( 1:iba(iLon),iLon,iSpecies ) 
        PlotState_IIV( 1 : iba( iLon ), iLon, iPhotplot_I( 1 ) ) = &
             PlotState_IIV(1:iba( iLon ), iLon, iPhotplot_I( 1 ) ) + &
-            PressureHot_IC( 1:iba(iLon),iLon,iSpecies )
+            PressureHot_CI( 1:iba(iLon),iLon,iSpecies )
        PlotState_IIV( 1 : iba( iLon ),iLon, iPparhotplot_I( 1 ) ) = &
             PlotState_IIV( 1 : iba( iLon ), iLon, iPparhotplot_I( 1 ) ) + &
-            PparHot_IC( 1:iba(iLon),iLon,iSpecies )
+            PparHot_CI( 1:iba(iLon),iLon,iSpecies )
        PlotState_IIV( 1 : iba( iLon ), iLon, iNplot_I( 1 ) ) = &
             PlotState_IIV( 1 : iba( iLon ), iLon, iNplot_I( 1 ) ) + &
-            Den_IC( 1:iba(iLon),iLon,iSpecies ) 
+            Den_CI( 1:iba(iLon),iLon,iSpecies ) 
     end do
  end do
     do iLon=1,nLon
@@ -925,9 +925,9 @@ contains
     use ModCimiTrace,   ONLY: roGlobal,bmGlobal,xmltoGlobal,irmGlobal
     use ModCimiRestart, ONLY: IsRestart
     use ModCimiGrid, ONLY: nlat=>np,nLon=>nt,neng
-    use ModCimi, ONLY: photGlobal,PressureGlobal_IC,energy, &
+    use ModCimi, ONLY: photGlobal,PressureGlobal_CI,energy, &
          part_photGlobal, dif_q3Global, eng_q3Global, vdr_q3Global, &
-         vexbGlobal, DenGlobal_IC, TempGlobal_IC
+         vexbGlobal, DenGlobal_CI, TempGlobal_CI
     
     real, intent(in) :: time
     
@@ -971,9 +971,9 @@ contains
           if (iLat.gt.irmGlobal(iLon)) dif1=0.0
           
           phot1 = PhotGlobal(iLat,iLon,1)
-          press1 = PressureGlobal_IC(iLat,iLon,1)
-          den1 = DenGlobal_IC(iLat,iLon,1)/1.e6
-          temp1 = TempGlobal_IC(iLat,iLon,1)/1000. ! in keV
+          press1 = PressureGlobal_CI(iLat,iLon,1)
+          den1 = DenGlobal_CI(iLat,iLon,1)/1.e6
+          temp1 = TempGlobal_CI(iLat,iLon,1)/1000. ! in keV
           
           write(UnitTmp_,'(2i10,2f8.3,1p,8e11.3)') &
                iLon,iLat,xmlt1,ro1,phot1,press1,temp1,den1,eng1,vexb1,vdr1,dif1

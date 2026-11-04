@@ -708,7 +708,7 @@ contains
 
     ! use CON_time, ONLY : get_time
     use ModCimiGrid,  ONLY: iSize=>np, jSize=>nt
-    use ModCimi,      ONLY: PressureGlobal_IC, PressureParGlobal_IC, DenGlobal_IC, BminGlobal_C, Pmin
+    use ModCimi,      ONLY: PressureGlobal_CI, PressureParGlobal_CI, DenGlobal_CI, BminGlobal_C, Pmin
     use ModGmCimi,    ONLY: iLatMin!, DoMultiFluidGMCoupling, &
     ! DoAnisoPressureGMCoupling
     use ModCimiTrace, ONLY: ibaGlobal
@@ -770,7 +770,7 @@ contains
                 Buffer_IIV(i,j,iVarCimi) = -1.
              else
                 Buffer_IIV(i,j,iVarCimi) = &
-                     sum(DenGlobal_IC (i,j,1:nspec-1)*cProtonMass*amu_I(1:nspec-1))
+                     sum(DenGlobal_CI (i,j,1:nspec-1)*cProtonMass*amu_I(1:nspec-1))
              end if
           enddo; enddo
        case('p')
@@ -781,7 +781,7 @@ contains
                 ! make sure pressure passed to GM is not lower than Pmin [nPa]
                 ! to avoid too low GM pressure (only ion pressure)
                 Buffer_IIV(i,j,iVarCimi) = &
-                     max(sum(PressureGlobal_IC(i,j,1:nspec-1)), Pmin)*1e-9
+                     max(sum(PressureGlobal_CI(i,j,1:nspec-1)), Pmin)*1e-9
              end if
           enddo; enddo
           ! write(*,*) 'IM max min p', &
@@ -794,7 +794,7 @@ contains
                 ! make sure pressure passed to GM is not lower than Pmin [nPa]
                 ! to avoid too low GM pressure
                 Buffer_IIV(i,j,iVarCimi) = &
-                     max(sum(PressureParGlobal_IC(i,j,1:nspec-1)), Pmin)*1e-9
+                     max(sum(PressureParGlobal_CI(i,j,1:nspec-1)), Pmin)*1e-9
              end if
           enddo; enddo
           ! write(*,*) 'IM max min ppar', &
@@ -807,7 +807,7 @@ contains
                 ! make sure pressure passed to GM is not lower than Pmin [nPa]
                 ! to avoid too low GM pressure (only ion pressure)
                 Buffer_IIV(i,j,iVarCimi) = &
-                     max(PressureGlobal_IC(i,j,e_), Pmin)*1e-9
+                     max(PressureGlobal_CI(i,j,e_), Pmin)*1e-9
              end if
           enddo; enddo
        case('PePar')
@@ -818,7 +818,7 @@ contains
                 ! make sure pressure passed to GM is not lower than Pmin [nPa]
                 ! to avoid too low GM pressure (only ion pressure)
                 Buffer_IIV(i,j,iVarCimi) = &
-                     max(PressureParGlobal_IC(i,j,e_), Pmin)*1e-9
+                     max(PressureParGlobal_CI(i,j,e_), Pmin)*1e-9
              end if
           enddo; enddo
        case('HpRho')
@@ -827,7 +827,7 @@ contains
                 Buffer_IIV(i,j,iVarCimi) = -1.
              else
                 Buffer_IIV(i,j,iVarCimi) = &
-                     DenGlobal_IC (i,j,H_)*cProtonMass*amu_I(H_)
+                     DenGlobal_CI (i,j,H_)*cProtonMass*amu_I(H_)
              end if
           enddo; enddo
        case('HpP')
@@ -838,7 +838,7 @@ contains
                 ! make sure pressure passed to GM is not lower than Pmin [nPa]
                 ! to avoid too low GM pressure (only ion pressure)
                 Buffer_IIV(i,j,iVarCimi) = &
-                     max(PressureGlobal_IC(i,j,H_), Pmin)*1e-9
+                     max(PressureGlobal_CI(i,j,H_), Pmin)*1e-9
              end if
           enddo; enddo
        case('HpPpar')
@@ -849,7 +849,7 @@ contains
                 ! make sure pressure passed to GM is not lower than Pmin [nPa]
                 ! to avoid too low GM pressure
                 Buffer_IIV(i,j,iVarCimi) = &
-                     max(PressureParGlobal_IC(i,j,H_), Pmin)*1e-9
+                     max(PressureParGlobal_CI(i,j,H_), Pmin)*1e-9
              end if
           enddo; enddo
        case('OpRho')
@@ -858,7 +858,7 @@ contains
                 Buffer_IIV(i,j,iVarCimi) = -1.
              else
                 Buffer_IIV(i,j,iVarCimi) = &
-                     DenGlobal_IC (i,j,O_)*cProtonMass*amu_I(O_)
+                     DenGlobal_CI (i,j,O_)*cProtonMass*amu_I(O_)
              end if
           enddo; enddo
        case('OpP')
@@ -869,7 +869,7 @@ contains
                 ! make sure pressure passed to GM is not lower than Pmin [nPa]
                 ! to avoid too low GM pressure (only ion pressure)
                 Buffer_IIV(i,j,iVarCimi) = &
-                     max(PressureGlobal_IC(i,j,O_), Pmin)*1e-9
+                     max(PressureGlobal_CI(i,j,O_), Pmin)*1e-9
              end if
           enddo; enddo
        case('OpPpar')
@@ -880,7 +880,7 @@ contains
                 ! make sure pressure passed to GM is not lower than Pmin [nPa]
                 ! to avoid too low GM pressure
                 Buffer_IIV(i,j,iVarCimi) = &
-                     max(PressureParGlobal_IC(i,j,O_), Pmin)*1e-9
+                     max(PressureParGlobal_CI(i,j,O_), Pmin)*1e-9
              end if
           enddo; enddo
        case('HpSwRho')
@@ -889,7 +889,7 @@ contains
                 Buffer_IIV(i,j,iVarCimi) = -1.
              else
                 Buffer_IIV(i,j,iVarCimi) = &
-                     DenGlobal_IC(i,j,Sw_)*cProtonMass*amu_I(Sw_)
+                     DenGlobal_CI(i,j,Sw_)*cProtonMass*amu_I(Sw_)
              end if
           enddo; enddo
        case('HpSwP')
@@ -900,7 +900,7 @@ contains
                 ! make sure pressure passed to GM is not lower than Pmin [nPa]
                 ! to avoid too low GM pressure (only ion pressure)
                 Buffer_IIV(i,j,iVarCimi) = &
-                     max(PressureGlobal_IC(i,j,Sw_), Pmin)*1e-9
+                     max(PressureGlobal_CI(i,j,Sw_), Pmin)*1e-9
              end if
           enddo; enddo
        case('HpSwPpar')
@@ -911,7 +911,7 @@ contains
                 ! make sure pressure passed to GM is not lower than Pmin [nPa]
                 ! to avoid too low GM pressure
                 Buffer_IIV(i,j,iVarCimi) = &
-                     max(PressureParGlobal_IC(i,j,Sw_), Pmin)*1e-9
+                     max(PressureParGlobal_CI(i,j,Sw_), Pmin)*1e-9
              end if
           enddo; enddo
        case('HpPsRho')
@@ -1056,8 +1056,8 @@ contains
 
     ! use CON_time, ONLY : get_time
     use ModCimiGrid,  ONLY: iSize=>np, jSize=>nt, iProc
-    use ModCimi,      ONLY: Pressure_IC, PressurePar_IC, Bmin_C, Time, Pmin
-    use ModGmCimi,    ONLY: Den_IC, iLatMin!, DoMultiFluidGMCoupling, &
+    use ModCimi,      ONLY: Pressure_CI, PressurePar_CI, Bmin_C, Time, Pmin
+    use ModGmCimi,    ONLY: Den_CI, iLatMin!, DoMultiFluidGMCoupling, &
     ! DoAnisoPressureGMCoupling
     use ModCimiTrace, ONLY: ibaGlobal
     use ModCimiPlanet, ONLY: nspec,amu_I
@@ -1132,32 +1132,32 @@ contains
        else
           ! make sure pressure passed to GM is not lower than Pmin [nPa]
           ! to avoid too low GM pressure
-          Buffer_IIV(i,j,pres_) = max(sum(Pressure_IC(:,i,j)), Pmin)*1e-9
+          Buffer_IIV(i,j,pres_) = max(sum(Pressure_CI(:,i,j)), Pmin)*1e-9
           Buffer_IIV(i,j,dens_) = &
-               sum(Den_IC (1:nspec-1,i,j)*cProtonMass*amu_I(1:nspec-1))
+               sum(Den_CI (1:nspec-1,i,j)*cProtonMass*amu_I(1:nspec-1))
           if(DoAnisoPressureGMCoupling)then
              Buffer_IIV(i,j,parpres_) = &
-                  max(sum(PressurePar_IC(:,i,j)), Pmin)*1e-9
+                  max(sum(PressurePar_CI(:,i,j)), Pmin)*1e-9
              ! fill minimum B
              Buffer_IIV(i,j,bmin_) = Bmin_C(i,j)
           end if
           if(DoMultiFluidGMCoupling)then
-             Buffer_IIV(i,j,Hpres_) = max(Pressure_IC(1,i,j), Pmin)*1e-9
+             Buffer_IIV(i,j,Hpres_) = max(Pressure_CI(1,i,j), Pmin)*1e-9
              Buffer_IIV(i,j,Hdens_) = &
-                  Den_IC (1,i,j)*cProtonMass*amu_I(1)
-             Buffer_IIV(i,j,Opres_) = max(Pressure_IC(2,i,j), Pmin)*1e-9
+                  Den_CI (1,i,j)*cProtonMass*amu_I(1)
+             Buffer_IIV(i,j,Opres_) = max(Pressure_CI(2,i,j), Pmin)*1e-9
              Buffer_IIV(i,j,Odens_) = &
-                  Den_IC (2,i,j)*cProtonMass*amu_I(2)
+                  Den_CI (2,i,j)*cProtonMass*amu_I(2)
              if (DoCoupleSw) then
                 Buffer_IIV(i,j,Swdens_) = &
-                     Den_IC (1,i,j)*cProtonMass*amu_I(1)
-                Buffer_IIV(i,j,Swpres_) = max(Pressure_IC(1,i,j), Pmin)*1e-9
-                Buffer_IIV(i,j,Hpres_) = max(Pressure_IC(2,i,j), Pmin)*1e-9
+                     Den_CI (1,i,j)*cProtonMass*amu_I(1)
+                Buffer_IIV(i,j,Swpres_) = max(Pressure_CI(1,i,j), Pmin)*1e-9
+                Buffer_IIV(i,j,Hpres_) = max(Pressure_CI(2,i,j), Pmin)*1e-9
                 Buffer_IIV(i,j,Hdens_) = &
-                     Den_IC (2,i,j)*cProtonMass*amu_I(2)
-                Buffer_IIV(i,j,Opres_) = max(Pressure_IC(3,i,j), Pmin)*1e-9
+                     Den_CI (2,i,j)*cProtonMass*amu_I(2)
+                Buffer_IIV(i,j,Opres_) = max(Pressure_CI(3,i,j), Pmin)*1e-9
                 Buffer_IIV(i,j,Odens_) = &
-                     Den_IC (3,i,j)*cProtonMass*amu_I(3)
+                     Den_CI (3,i,j)*cProtonMass*amu_I(3)
              endif
           end if
        end if
