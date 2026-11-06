@@ -56,9 +56,9 @@
   
    i0=1   
 
-   if(iOrderLon > 2 * nGhostCell) & 
-      call CON_stop('IM ModInterFlux: Not enough ghost cells for high order'//&
-                    'scheme')
+   if(iOrderLon > 2 * nGhostCell) &
+      call CON_stop('IM ModInterFlux: not enough ghost cells for the high '//&
+           'order scheme; reconfigure with Config.pl -ng=4 for iOrderLon=7')
 
 !!erLat=3
 !!erLon=3
@@ -102,7 +102,7 @@
   b77=7./10080.
   b78=-1./10080.
 
-  fwbc(1:ir,1:ip)=f(1:ir,1:ip)        ! flwbc is f with boundary condition
+  fwbc(1:ir,MinLon:MaxLon)=f(1:ir,MinLon:MaxLon) ! fwbc is f with boundary condition
 
 ! up boundary condition
   do j=MinLonPar-1,MaxLonPar
@@ -342,7 +342,7 @@
            if (acurv.ge.adel) then
               fhop(i,j)=fc
            else
-              if (cl1.ne.0.) then
+              if (cp1.ne.0.) then
                  ref=fu+(fc-fu)/cp1
               else
                  ref=fu

@@ -209,9 +209,9 @@ test_Prerun:
 	make   test_check_Prerun
 	ls -l test_*.diff
 
-test_Highordelsr:
+test_Highorder:
 	@echo "test_compile..." > test_cimi.diff
-	make   test_compile_UniformL
+	make   test_compile_Highorder
 	@echo "test_rundir_Highorder..." >> test_cimi.diff
 	make   test_rundir_Highorder
 	@echo "test_run..."    >> test_cimi.diff
@@ -229,6 +229,10 @@ test_compile_Prerun:
 
 test_compile_UniformL:
 	./Config.pl -EarthHO -GridUniformL -show
+	make CIMI
+
+test_compile_Highorder:
+	./Config.pl -EarthHO -GridUniformL -ng=4 -show
 	make CIMI
 
 test_rundir:

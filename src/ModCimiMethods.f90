@@ -799,6 +799,12 @@ subroutine cimi_init
      nLonBefore_P(iPe) = sum(nLonPar_P(0:iPe-1))
   end do
 
+  ! The longitude ghost-cell exchange needs every proc to own at least
+  ! nGhostCell longitudes
+  if (minval(nLonPar_P) < nGhostCell) call CON_stop( &
+       'IM: each processor needs at least nGhostCell longitudes; '// &
+       'use fewer processors or a smaller nGhostCell')
+
   MinLonPar = 1
   MaxLonPar = nLonPar
   if (iProc == 0) then
