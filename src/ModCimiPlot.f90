@@ -853,9 +853,10 @@ contains
   subroutine Cimi_plot_Lstar(xk,time)
     use ModIoUnit,	ONLY: UnitTmp_
     use ModCimiGrid,	ONLY: nLat=>np, nLon=>nt, &
-         nm, nk, xlat,xmlt
+         nm, nk, xlat, xmlt => xmltGlobal
     use ModCimiPlanet,	ONLY: nSpecies=>nspec, re_m, rc
-    use ModCimiTrace,	ONLY: ro,bm,xmlto,irm
+    use ModCimiTrace,	ONLY: ro => roGlobal, bm => bmGlobal, &
+         xmlto => xmltoGlobal, irm => irmGlobal
     use ModCimiRestart,	ONLY: IsRestart
     use ModImTime,      ONLY:iCurrentTime_I   ! for separate files
                                               ! only do need right now

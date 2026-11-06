@@ -95,6 +95,7 @@ subroutine cimi_run(delta_t)
   real:: delta_t
   integer:: iLat, iLon, iSpecies, iSat, iOperator
   logical:: IsFirstCall =.true.
+  logical:: DoPlotLstarNow
   real::  AE_temp = 0., Kp_temp = 0.
   integer:: iError
   integer :: k
@@ -373,8 +374,7 @@ subroutine cimi_run(delta_t)
         endif
 
         if ( DoSaveLstar ) then
-           call gather_lstar
-
+           ! L* was already gathered in the IsFirstCall block above
            call Cimi_plot_Lstar(xk,time)
 
         endif
@@ -587,15 +587,26 @@ subroutine cimi_run(delta_t)
   ! When nProc >1 gather all relevant output variables.
   call cimi_gather( delta_t)
 
+  ! calc_Lstar1, calc_Lstar2 and gather_lstar are collective (MPI) calls,
+  ! so they must be called on all procs, not only inside iProc == 0
+  DoPlotLstarNow = DoSaveLstar .and. &
+       ( floor( ( Time + 1.0e-5 ) / DtLstarOutput ) /= &
+         floor( ( Time + 1.0e-5 - delta_t ) / DtLstarOutput ) )
+
   call timing_start('calc_Lstar1')
   call calc_Lstar1
   call timing_stop('calc_Lstar1')
+
+  if ( DoPlotLstarNow ) then
+     call timing_start('calc_Lstar2')
+     call calc_Lstar2
+     call timing_stop('calc_Lstar2')
+  endif
+
+  ! Gathers both Lstar_C and Lstarm to proc 0
   call gather_lstar
 
-
   if ( iProc == 0 ) then
-
-     
 
      ! Plot CIMI parameters at the equator
      if ( ( DoSaveEq ) .and. &
@@ -625,19 +636,7 @@ subroutine cimi_run(delta_t)
 
      endif
 
-     if ( DoSaveLstar .and. &
-           ( floor( ( Time + 1.0e-5 ) / DtLstarOutput ) /= &
-             floor( ( Time + 1.0e-5 - delta_t ) / DtLstarOutput ) ) ) &
-     then
-        
-        call timing_start('calc_Lstar2')
-        call calc_Lstar2
-        call timing_stop('calc_Lstar2')
-        call gather_lstar
-
-        call Cimi_plot_Lstar( xk, time )
-
-     endif
+     if ( DoPlotLstarNow ) call Cimi_plot_Lstar( xk, time )
 
      if ( DoSavePlas .and. UseCorePsModel .and. iProc==0) then
         call save_plot_plasmasphere(time,floor(real(time)/dtmax),IsRestart)
