@@ -261,8 +261,8 @@ subroutine cimi_run(delta_t)
 
      
      !  read wave diffcoef 
-     if (IsFirstCall) call ReadDiffCoef(np,nt)
-     
+     if (IsFirstCall) call ReadDiffCoef(np,MinLon,MaxLon)
+
      call WavePower(np,Time,PlasDensity_C(:,MinLonGlobal:MaxLonGlobal),AE_temp,Kp_Temp, &
           Bo,brad,xmlto,iba,MinLon,MaxLon,MinLonPar,MaxLonPar)
 

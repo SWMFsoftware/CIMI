@@ -146,6 +146,13 @@ contains
            vexbGlobal(np,nt,nspec), dif_q3Global(np,nt,nspec), &
            fluxGlobal(np,nt,neng,npit,nspec), psdGlobal(np,nt,nm,nk,nspec), &
            vlEaGlobal(np,nt,neng,npit,nspec), vpEaGlobal(np,nt,neng,npit,nspec))
+      FACGlobal_C = 0.0; PressureGlobal_CI = 0.0; PressureParGlobal_CI = 0.0
+      TempGlobal_CI = 0.0; BminGlobal_C = 0.0; photGlobal = 0.0
+      PparGlobal_CI = 0.0; DenGlobal_CI = 0.0
+      prePGlobal = 0.0; preFGlobal = 0.0; Eje1Global = 0.0
+      vdr_q3Global = 0.0; eng_q3Global = 0.0; part_photGlobal = 0.0
+      vexbGlobal = 0.0; dif_q3Global = 0.0
+      fluxGlobal = 0.0; psdGlobal = 0.0; vlEaGlobal = 0.0; vpEaGlobal = 0.0
     endif
 
   end subroutine init_mod_cimi

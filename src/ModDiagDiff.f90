@@ -76,7 +76,7 @@ module ModDiagDiff
   real, allocatable, dimension(:,:,:,:) :: Dqq1K, Dqq2K, dQ2dEK, E_Q2K, PSD_Q, PSDcopy, PSD_Qcopy
   real cLambda2D           ! 1 / analytic solution decay time scale
   real,allocatable :: PSD_CHTest(:),PSD_HITest(:)
-  real rpp(ip)
+  real, allocatable :: rpp(:)
   integer, allocatable :: ipc0(:,:),iph0(:,:),iLpp(:)
   
   logical :: UseDiagDiffusion=.true.,&
@@ -88,12 +88,17 @@ module ModDiagDiff
 contains
 
   subroutine init_diag_diff
-    
+    use ModCimi, ONLY: MinLon, MaxLon
+
     if( allocated( PSD_Q ) ) RETURN
-    allocate( PSD_Q(ir,ip,iq,ik), Dqq1K(ir,ip,iq,0:ik+1), &
-         Dqq2K(ir,ip,iq,0:ik+1), dQ2dEK(ir,ip,iq,0:ik+1), &
-         E_Q2K(ir,ip,iq,0:ik+1), ipc0(ir,ip), iph0(ir,ip), iLpp(ip), &
-         PSDcopy(ir,ip,iw,ik), PSD_Qcopy(ir,ip,iq,ik) )
+    allocate( PSD_Q(ir,MinLon:MaxLon,iq,ik), &
+         Dqq1K(ir,MinLon:MaxLon,iq,0:ik+1), &
+         Dqq2K(ir,MinLon:MaxLon,iq,0:ik+1), &
+         dQ2dEK(ir,MinLon:MaxLon,iq,0:ik+1), &
+         E_Q2K(ir,MinLon:MaxLon,iq,0:ik+1), &
+         ipc0(ir,MinLon:MaxLon), iph0(ir,MinLon:MaxLon), &
+         iLpp(MinLon:MaxLon), rpp(MinLon:MaxLon), &
+         PSDcopy(ir,MinLon:MaxLon,iw,ik), PSD_Qcopy(ir,MinLon:MaxLon,iq,ik) )
     
   end subroutine init_diag_diff
 
@@ -102,16 +107,18 @@ contains
 !  Routine calculates the plasmapause locations
 ! ************************************************************************
   subroutine find_loc_plasmapause
-  use ModCimiGrid, only: np,nt, MinLonPar,MaxLonPar
+  use ModCimiGrid, only: np,nt, MinLonPar,MaxLonPar,MinLonGlobal
   use ModCimiTrace, only: ro,iba
   use ModPlasmasphere, ONLY:PlasDensity_C,PlasmaPauseDensity
   implicit none
 
-  integer i,j
+  integer i,j,iLonGlobal
 
   do j=MinLonPar,MaxLonPar
+     ! Plasmasphere is still global
+     iLonGlobal = MinLonGlobal + j - 1
      find_Lpp: do i=iba(j),1,-1
-        if (PlasDensity_C(i,j).ge.PlasmaPauseDensity) then
+        if (PlasDensity_C(i,iLonGlobal).ge.PlasmaPauseDensity) then
            rpp(j)=ro(i,j)
            iLpp(j)=i
            exit find_Lpp 
@@ -1685,14 +1692,14 @@ end subroutine spline
   use ModNumConst, ONLY: cPi
   use ModCimiPlanet, ONLY: nspec
   use ModCimiGrid, ONLY: nm
-  use ModCimi, ONLY: f2
+  use ModCimi, ONLY: f2, MinLonPar, MaxLonPar
   use ModCimiTrace, ONLY: sinA
   
   implicit none 
 
   integer,intent(in) :: iChorMltLoc,&  ! MLT index for chorus wave test
                         iHissMltLoc    !   "       "   hiss wave test
-  real,intent(in) :: D0,xjac(nspec,ir,nm)
+  real,intent(in) :: D0,xjac(ir,nm,nspec)
   integer m,&  ! varK index
           n,i,j,k,&
           iChorLatLoc,&
@@ -1734,7 +1741,7 @@ end subroutine spline
      enddo
      cLambda2D=c4*D0
      ! set PSD_Q
-     do j=1,ip
+     do j=MinLonPar,MaxLonPar
         do m=1,ik
            do i=1,iLpp(j)
               PSD_Q(i,j,:,m)=PSD_HITest(m)
@@ -1745,15 +1752,15 @@ end subroutine spline
         enddo
      enddo
      ! set f2
-     do m=1,ik
-        do k=1,nm
-           do j=1,ip
-              do n=1,nspec
+     do n=1,nspec
+        do m=1,ik
+           do k=1,nm
+              do j=MinLonPar,MaxLonPar
                  do i=1,iLpp(j)
-                    f2(n,i,j,k,m)=xjac(n,i,k)*PSD_HITest(m)
+                    f2(i,j,k,m,n)=xjac(i,k,n)*PSD_HITest(m)
                  enddo
                  do i=iLpp(j)+1,ir
-                    f2(n,i,j,k,m)=xjac(n,i,k)*PSD_CHTest(m)
+                    f2(i,j,k,m,n)=xjac(i,k,n)*PSD_CHTest(m)
                  enddo
               enddo
            enddo

@@ -70,14 +70,15 @@ contains
   !  Routine reads chorus and hiss diffusion coeff.
   !  directly adapted from standalone code
   !*****************************************************************************
-  subroutine readDiffCoef(ir,ip)
-    
+  subroutine readDiffCoef(ir,MinLon,MaxLon)
+
     implicit none
-    integer, intent(in)::ir,ip
+    integer, intent(in)::ir,MinLon,MaxLon
     integer :: m
-    
-    !allocate arrays 
-    allocate(CHpower(ir,ip),HIpower(ir,ip),ompe(ir,ip))
+
+    !allocate arrays
+    allocate(CHpower(ir,MinLon:MaxLon),HIpower(ir,MinLon:MaxLon), &
+         ompe(ir,MinLon:MaxLon))
 
     !set the filetype for hiss and chorus based on the file name
     if (UseHiss) then
