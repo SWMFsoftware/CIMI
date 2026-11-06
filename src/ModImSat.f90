@@ -10,7 +10,7 @@ module ModImSat
   real    :: DtSatOut = 60.0 !Default write sat output every minute
   real,               allocatable :: SatLoc_3I(:,:,:), SatFlux_3I(:,:,:)
   real,               allocatable :: BfieldEq2_G(:,:)
-  real,               allocatable :: LonGrid_G(:), Flux_G(:,:,:,:,:)
+  real,               allocatable :: Flux_G(:,:,:,:,:)
   character(len=100), allocatable :: NameSat_I(:)
 
   ! Variables for the Prerunsat output.
@@ -26,9 +26,8 @@ contains
     use ModNumConst,    ONLY: cDegToRad,cRadToDeg
     use ModCimi,        ONLY: t=>time, Energy
     use ModCimiPlanet,  ONLY: nSpecies=>nspec,NameSpeciesExtension_I
-    use ModCimiGrid,    ONLY: LonGrid_I=>phiGlobal, LatGrid_I=>xlat, &
-                              AngleGrid_I=>sinAo
-    use ModCimiTrace,  ONLY: BfieldEq_C => boGlobal, iba
+    use ModCimiGrid,    ONLY: LatGrid_I=>xlat, AngleGrid_I=>sinAo
+    use ModCimiTrace,  ONLY: BfieldEq_C => boGlobal, iba => ibaGlobal
     use ModImTime,      ONLY: iCurrentTime_I
     use ModCimiUtil,    ONLY: locate1IM
 
@@ -68,14 +67,7 @@ contains
     if(.not. allocated(BfieldEq2_G)) &
        allocate(BfieldEq2_G(nLat,0:nLon+1))
     
-    ! Allocate Lat, Lon and Flux grids with Ghost Cells
-    if(.not. allocated(LonGrid_G)) then
-       allocate(LonGrid_G(0:nLon+1))
-       LonGrid_G(1:nLon)=LonGrid_I(1:nLon)*cRadToDeg
-       LonGrid_G(nLon+1)=360.0
-       LonGrid_G(0)=LonGrid_I(nLon)-360.0
-    endif
-    
+    ! Allocate Flux grid with longitude ghost cells
     if(.not. allocated(Flux_G)) &
          allocate(Flux_G(nLat,0:nLon+1,nEnergy,nAngle,nSpecies))
     if(iSatIn == 1) then
@@ -101,7 +93,7 @@ contains
        ! Get satellite location in generalized coordinates.
        ! and interpolate flux to satellite location
        SatLat=SatLoc_3I(1,2,iSatIn)
-       SatLon=mod(SatLoc_3I(2,2,iSatIn),360.0)
+       SatLon=modulo(SatLoc_3I(2,2,iSatIn),360.0)
        if (SatLoc_3I(3,2,iSatIn) == 3 .and. SatLat <= maxval(LatGrid_I)) then
           !get generallized sat lat
           call locate1IM(LatGrid_I, nLat, SatLat, iSatLat)
@@ -109,12 +101,11 @@ contains
                + (LatGrid_I(iSatLat+1) - SatLat) &
                / (LatGrid_I(iSatLat+1)-LatGrid_I(iSatLat))
           
-          !get generallized sat lon
-          call locate1IM(LonGrid_G, nLon+2, SatLon, iSatLonMax)
+          !get generallized sat lon and its two neighbors on the periodic
+          !longitude grid 1:nLon
           LonSatGen=SatLon/(360.0/nLon)+1
-          iSatLonMin=floor(LonSatGen)
-          if (iSatLonMax /= nLon) &
-               iSatLonMax=mod(ceiling(LonSatGen),nLon)
+          iSatLonMin=modulo(floor(LonSatGen)-1,nLon)+1
+          iSatLonMax=modulo(iSatLonMin,nLon)+1
           
           !get B^2 at sat
           SatB2 = SatLoc_3I(4,2,iSatIn)
@@ -190,7 +181,7 @@ contains
           do iAngle=1,nAngle
              do iEnergy=1,nEnergy
                 write(NameChannel,"(F10.1,A4,I2.2,A3)") &
-                     Energy( iSpecies, iEnergy ),'keV@',&
+                     Energy( iEnergy, iSpecies ),'keV@',&
                      INT( ASIN( AngleGrid_I( iAngle ) ) * cRadToDeg ),'deg'
                 HeadVar = trim(HeadVar) // NameChannel
              enddo
