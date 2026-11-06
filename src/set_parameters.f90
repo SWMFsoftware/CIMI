@@ -43,7 +43,7 @@ subroutine CIMI_set_parameters(NameAction)
   use ModLstar,		 ONLY: DoVerboseLstar
   use ModPlasmasphere,   ONLY: &
        DoSavePlas, DtPlasOutput, UseCorePsModel, PlasMinDensity,&
-       PlasmaPauseDensity
+       PlasmaPauseDensity, TypePlasmapause
   use ModInterFlux,      ONLY: UseHigherOrder, iOrderLat, iOrderLon
   use GIMME_cimi_interface, ONLY: DtGimmePlot, UseGimme
   use ModUtilities, ONLY: CON_stop
@@ -851,7 +851,20 @@ subroutine CIMI_set_parameters(NameAction)
         call read_var('iLonTest',iLonTest)
         
      case('#PLASMAPAUSEDENSITY')
+        ! kept for backward compatibility: fixed density threshold
+        TypePlasmapause = 'absolute'
         call read_var('DensityP [m^3]',PlasmaPauseDensity)
+
+     case('#PLASMAPAUSE')
+        call read_var('TypePlasmapause',TypePlasmapause, IsLowerCase=.true.)
+        select case(TypePlasmapause)
+         case('relative')
+         case('absolute')
+            call read_var('PlasmaPauseDensity [m^-3]',PlasmaPauseDensity)
+         case default
+            call CON_stop(NameSub//': unknown TypePlasmapause='// &
+                TypePlasmapause)
+         end select
 
      case('#COREPLASMASPHERE')
         call read_var('UseCorePsModel',UseCorePsModel)

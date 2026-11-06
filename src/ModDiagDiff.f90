@@ -78,6 +78,8 @@ module ModDiagDiff
   real,allocatable :: PSD_CHTest(:),PSD_HITest(:)
   real, allocatable :: rpp(:)
   integer, allocatable :: ipc0(:,:),iph0(:,:),iLpp(:)
+  ! true = hiss, false = chorus
+  logical, allocatable :: IsPlasmasphere_C(:,:)
   
   logical :: UseDiagDiffusion=.true.,&
        UsePitchAngleDiffusionTest=.false.,&
@@ -98,32 +100,38 @@ contains
          E_Q2K(ir,MinLon:MaxLon,iq,0:ik+1), &
          ipc0(ir,MinLon:MaxLon), iph0(ir,MinLon:MaxLon), &
          iLpp(MinLon:MaxLon), rpp(MinLon:MaxLon), &
-         PSDcopy(ir,MinLon:MaxLon,iw,ik), PSD_Qcopy(ir,MinLon:MaxLon,iq,ik) )
+         PSDcopy(ir,MinLon:MaxLon,iw,ik), PSD_Qcopy(ir,MinLon:MaxLon,iq,ik), &
+         IsPlasmasphere_C(ir,MinLon:MaxLon) )
+    IsPlasmasphere_C = .false.
+    iLpp = 0
     
   end subroutine init_diag_diff
 
 ! ************************************************************************
 !                        find_loc_plasmapause
-!  Routine calculates the plasmapause locations
+!  Routine finds which cells are located in the plasmasphere
 ! ************************************************************************
   subroutine find_loc_plasmapause
   use ModCimiGrid, only: np,nt, MinLonPar,MaxLonPar,MinLonGlobal
-  use ModCimiTrace, only: ro,iba
-  use ModPlasmasphere, ONLY:PlasDensity_C,PlasmaPauseDensity
+  use ModCimiTrace, only: ro,iba,volume
+  use ModPlasmasphere, ONLY:PlasDensity_C,find_plasmasphere_column
   implicit none
 
   integer i,j,iLonGlobal
 
   do j=MinLonPar,MaxLonPar
-     ! Plasmasphere is still global
      iLonGlobal = MinLonGlobal + j - 1
-     find_Lpp: do i=iba(j),1,-1
-        if (PlasDensity_C(i,iLonGlobal).ge.PlasmaPauseDensity) then
+     IsPlasmasphere_C(:,j)=.false.
+     iLpp(j)=0
+     rpp(j)=0.
+     call find_plasmasphere_column(iba(j),PlasDensity_C(1:iba(j),iLonGlobal),&
+          ro(1:iba(j),j),volume(1:iba(j),j),IsPlasmasphere_C(1:iba(j),j))
+     do i=1,iba(j)
+        if (IsPlasmasphere_C(i,j)) then
            rpp(j)=ro(i,j)
            iLpp(j)=i
-           exit find_Lpp 
         endif
-     enddo find_Lpp
+     enddo
   enddo
 
   end subroutine find_loc_plasmapause
@@ -177,11 +185,11 @@ contains
   do j=MinLonPar,MaxLonPar    ! start of j
      do i=1,iba(j)      ! start of i
         DoDiff=.False.
-        if (i.gt.iLpp(j).and.UseChorus) then
+        if (.not.IsPlasmasphere_C(i,j).and.UseChorus) then
 !(3) outside plasmasphere
            Po=(BLc0/bo(i,j))*CHpower(i,j)/Cpower0
            DoDiff=.True.
-        else if (i.le.iLpp(j).and.UseHiss) then
+        else if (IsPlasmasphere_C(i,j).and.UseHiss) then
 !(4) inside plasmasphere
            Po=(BLh0/bo(i,j))*HIpower(i,j)/Hpower0
            DoDiff=.True.
@@ -315,7 +323,7 @@ contains
         dU_Q1=log(VarK(2)/VarK(1))
         jac0=dt/dU_Q1/dU_Q1
         DoDiff=.False.
-        if (i.gt.iLpp(j).and.UseChorus) then
+        if (.not.IsPlasmasphere_C(i,j).and.UseChorus) then
 !(3) outside plasmasphere
            Po=(BLc0/bo(i,j))*CHpower(i,j)/Cpower0
            DoDiff=.True.
@@ -918,8 +926,8 @@ contains
 
   do j=MinLonPar,MaxLonPar
 !(1) interpolate begins when L>Lpp for chorus
-     do i=iLpp(j)+1,iba(j)
-        if (UseChorus) then
+     do i=1,iba(j)
+        if (UseChorus.and..not.IsPlasmasphere_C(i,j)) then
            ipc1=ipc0(i,j)
            a0(0:ik+1)=asin(y(i,j,0:ik+1))*RadToDeg
            m1=ik+1
@@ -989,8 +997,8 @@ contains
   enddo                  ! end of j
   do j=MinLonPar,MaxLonPar
 !(5) interpolate begins when L<Lpp for hiss
-     do i=1,iLpp(j)
-        if (UseHiss) then
+     do i=1,iba(j)
+        if (UseHiss.and.IsPlasmasphere_C(i,j)) then
            iph1=iph0(i,j)
            a0(:)=asin(y(i,j,:))*RadToDeg
            m1=ik+1
@@ -1105,11 +1113,11 @@ contains
   do j=MinLonPar,MaxLonPar
      do i=1,iba(j)
         DoMapping=.False.
-        if (UseChorus .and.i.gt.iLpp(j)) then
+        if (UseChorus .and..not.IsPlasmasphere_C(i,j)) then
            DoMapping=.True.
            ! no mapping if CHpower =< 0.
            if (CHpower(i,j).le.0.) DoMapping=.False.
-        else if (UseHiss.and.i.le.iLpp(j)) then
+        else if (UseHiss.and.IsPlasmasphere_C(i,j)) then
            DoMapping=.True.
            ! no mapping if HIpower =< 0.
            if (HIpower(i,j).le.0.) DoMapping=.False.
@@ -1193,11 +1201,11 @@ contains
   do j=MinLonPar,MaxLonPar
      do i=1,iba(j)
         DoMapping=.False.
-        if (UseChorus.and.i.gt.iLpp(j)) then
+        if (UseChorus.and..not.IsPlasmasphere_C(i,j)) then
            DoMapping=.True.
            ! no mapping if CHpower =< 0.
            if (CHpower(i,j).le.0.) DoMapping=.False.
-        else if (UseHiss.and.i.le.iLpp(j)) then
+        else if (UseHiss.and.IsPlasmasphere_C(i,j)) then
            DoMapping=.True.
            ! no mapping if HIpower =< 0.
            if (HIpower(i,j).le.0.) DoMapping=.False.

@@ -1000,6 +1000,47 @@ true to use this option.
 
 </command>
 
+<command name="PLASMAPAUSE">
+  <parameter name="TypePlasmapause" type="string" input="select"
+	     case="lower">
+    <option name="relative"/>
+    <option name="absolute" default="T"/>
+  </parameter>
+  <if expr="$TypePlasmapause eq 'absolute'">
+    <parameter name="PlasmaPauseDensity" type="real" min="0"
+	       default="1e8"/>
+  </if>
+
+#PLASMAPAUSE
+relative		TypePlasmapause
+
+#PLASMAPAUSE
+absolute		TypePlasmapause
+1e8			PlasmaPauseDensity [m^-3]
+
+Decide how to determine the plasmapause for wave diffusion. Chorus waves are
+applied outside plasmasphere, hiss waves are applied inside. If TypePlasmapause
+is 'relative', inside the plasmasphere is considered as the region where the
+density is larger than the geometric mean of the minimum/trough and saturated
+plasmasphere densities. This is roughly 100/cc at L=4, and 10/cc at 6.6 Re.
+If TypePlasmapause is 'absolute', inside the plasmasphere is considered as the 
+region where the density is larger than the PlasmaPauseDensity value.
+
+Default is the absolute values shown.
+
+</command>
+
+<command name="PLASMAPAUSEDENSITY">
+  <parameter name="PlasmaPauseDensity" type="real" min="0" default="1e8"/>
+
+#PLASMAPAUSEDENSITY
+1e8			DensityP [m^-3]
+
+Same as #PLASMAPAUSE with TypePlasmapause='absolute'. Kept for backward
+compatibility.
+
+</command>
+
 <command name="DECAY">
   <parameter name="UseDecay" type="logical" default="F"/>
   <if expr="$UseDecay">

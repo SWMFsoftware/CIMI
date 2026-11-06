@@ -55,8 +55,11 @@ module ModPlasmasphere
   logical, public :: UseCorePsModel=.true.
   real   , public :: PlasSpinUpTime=86400. !one day
   real   , public :: PlasMinDensity = 1e4 !m-3 = 0.01/cc
-  real   , public :: PlasmaPauseDensity = 1e8 !m-3 = 10/cc
+  real   , public :: PlasmaPauseDensity = 1e8 !m-3 = 100/cc
+  character(len=8), public :: TypePlasmapause = 'absolute'
 
+  public :: is_plasmasphere
+  public :: find_plasmasphere_column
   public :: unit_test_plasmasphere
   public :: init_plasmasphere
   public :: advance_plasmasphere
@@ -773,6 +776,52 @@ contains
     enddo
 
   end subroutine refill_loss
+
+
+  !*******************************************************************************
+  logical function is_plasmasphere(Density, rEq, Volume)
+    !-------------------------------------------------------------------------
+    ! Returns true if the given fluxtube is in the plasmasphere
+    ! TypePlasmapause='relative': the density is at least the geometric mean
+    ! of the trough floor density and the saturated density
+    ! TypePlasmapause='absolute': the density is at least PlasmaPauseDensity.
+
+    real, intent(in) :: Density, rEq, Volume
+
+    real :: DensitySat, DensityTrough
+    !-------------------------------------------------------------------------
+    if (TypePlasmapause == 'absolute' .or. Volume <= 0.) then
+       is_plasmasphere = Density >= PlasmaPauseDensity
+       RETURN
+    end if
+
+    DensitySat    = 1.e6*10.0**(-0.3145*rEq + 3.9043)
+    DensityTrough = NTro/Volume
+    is_plasmasphere = Density >= sqrt(DensitySat*DensityTrough) .or. &
+      DensityTrough >= 0.5*DensitySat 
+
+  end function is_plasmasphere
+
+  !*******************************************************************************
+  subroutine find_plasmasphere_column(nCell, Density_I, rEq_I, Volume_I, &
+       IsPlasmasphere_I)
+    !-------------------------------------------------------------------------
+    ! Run is plasmasphere for each cell in a column
+    ! This is mostly here to setup for future ability to calculate based on a 
+    ! gradient in L
+
+    integer, intent(in) :: nCell
+    real,    intent(in) :: Density_I(nCell), rEq_I(nCell), Volume_I(nCell)
+    logical, intent(out):: IsPlasmasphere_I(nCell)
+
+    integer :: i
+    !-------------------------------------------------------------------------
+    do i = 1, nCell
+       IsPlasmasphere_I(i) = &
+            is_plasmasphere(Density_I(i), rEq_I(i), Volume_I(i))
+    end do
+
+  end subroutine find_plasmasphere_column
 
 
   !*******************************************************************************

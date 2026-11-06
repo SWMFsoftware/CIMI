@@ -27,7 +27,7 @@ module ModWaveDiff
   use ModCimi, ONLY: MinLon, MaxLon
   use ModCimiPlanet,	ONLY:	nspec
   use ModCimiTrace,	ONLY: 	&
-       ekev, tya, y => sinA, Bo, ro, xmlto, lintpIM, bm
+       ekev, tya, y => sinA, Bo, ro, xmlto, lintpIM, bm, volume
   use ModNumConst,	ONLY:	pi => cPi
   use ModUtilities,	ONLY:	CON_STOP
   use CIMI_waves,         ONLY: cOmpe,hOmpe,ckeV,hkeV,cDaa,cDEE,cDaE,&
@@ -82,7 +82,7 @@ contains
 !!!!!!!!!!!!!!!!!!!   main  subroutine  for diffusion in pitch-angle !!!!!!!!!!!!
 
   subroutine diffuse_aa(f2,dt,xjac,iba,iw2)
-    use ModPlasmasphere, ONLY:PlasDensity_C,PlasmaPauseDensity
+    use ModPlasmasphere, ONLY:PlasDensity_C,find_plasmasphere_column
     use ModMPI
     use ModCimiGrid,   ONLY: MinLonPar,MaxLonPar,MinLonGlobal
     use ModCimiUtil, ONLY: lintp3IM,tridagIM
@@ -93,6 +93,7 @@ contains
     integer,parameter :: ie=40 ! diffusion subroutine has its own energy grid
     integer i,j,m,k,irun,n,nn,ier
     integer iba(MinLon:MaxLon),iw2(ik,nspec), iLonGlobal
+    logical IsPlasmasphere, IsPlasmasphere_I(ir)
     real f2(ir,MinLon:MaxLon,iw,ik,nspec),xjac(ir,iw,nspec),dt  ! xjac has different dimension from CIMI !
     
     
@@ -131,7 +132,11 @@ contains
     !   do j=1,ip
     do j=MinLonPar,MaxLonPar
        iLonGlobal = MinLonGlobal + j - 1
+       call find_plasmasphere_column(iba(j),&
+            PlasDensity_C(1:iba(j),iLonGlobal),ro(1:iba(j),j),&
+            volume(1:iba(j),j),IsPlasmasphere_I(1:iba(j)))
        do i=1,iba(j)
+          IsPlasmasphere=IsPlasmasphere_I(i)
           ro1=ro(i,j)
           ompe1=ompe(i,j)                           ! fpe/fce
           Cfactor=(BLc0/bo(i,j))*CHpower(i,j)/Cpower0
@@ -204,7 +209,7 @@ contains
                       if (ao_d.lt.cPA(1)) ao_d=cPA(1)
                       if (ao_d.gt.cPA(ipa)) ao_d=cPA(ipa)
                       cDaoao=0.
-                      if (UseChorus.and.PlasDensity_C(i,iLonGlobal).le.PlasmaPauseDensity) then
+                      if (UseChorus.and..not.IsPlasmasphere) then
                          if (ein(k).ge.ckeV(1).and.ein(k).le.ckeV(iwc)) &
                               call lintp3IM(cOmpe,ckeV_log,cPA,cDaa,ipc,iwc, &
                               ipa,ompe1,ein_log(k),ao_d,cDaoao)
@@ -218,7 +223,7 @@ contains
                       hDaoao=0.
                       if(UseHiss.and.&
                            ompe1.ge.2..and.&
-                           PlasDensity_C(i,iLonGlobal).gt.PlasmaPauseDensity)then
+                           IsPlasmasphere)then
                          if (ein(k).ge.hkeV(1).and.ein(k).le.hkeV(iwh))&
                               call lintp3IM(hOmpe,hkeV_log,cPA,hDaa,iph,iwh, &
                               ipa,ompe1,ein_log(k),ao_d,hDaoao)
@@ -330,7 +335,7 @@ contains
 !****************************************************************************
   subroutine diffuse_EE(f2,dt,xmm,xjac,iw2,iba)
     
-    use ModPlasmasphere, ONLY:PlasDensity_C,PlasmaPauseDensity
+    use ModPlasmasphere, ONLY:PlasDensity_C,find_plasmasphere_column
     use ModMPI
     use ModCimiGrid,   ONLY: MinLonPar,MaxLonPar,MinLonGlobal
     use ModCimiUtil,   ONLY: lintp3IM,tridagIM
@@ -341,6 +346,7 @@ contains
     integer i,j,k,m,k1,k2,iww,irun,nrun,ier,n
     real xjac(ir,iw,nspec),xmm(0:iw+1,nspec)  ! xjac and xmm have different dimension from CIMI !
     integer iba(MinLon:MaxLon),iw2(ik,nspec), iLonGlobal
+    logical IsPlasmasphere, IsPlasmasphere_I(ir)
     real dt,Eo,f2(ir,MinLon:MaxLon,iw,ik,nspec),fl(iw), &
          xlam,alam,um(iw),up(iw),ompe1,ro1,PA1, &
          fr(iw),a1d(iw),b1d(iw),c1d(iw),&
@@ -372,7 +378,11 @@ contains
     
     do j=MinLonPar,MaxLonPar
        iLonGlobal = MinLonGlobal + j - 1
+       call find_plasmasphere_column(iba(j),&
+            PlasDensity_C(1:iba(j),iLonGlobal),ro(1:iba(j),j),&
+            volume(1:iba(j),j),IsPlasmasphere_I(1:iba(j)))
        do i=1,iba(j)
+          IsPlasmasphere=IsPlasmasphere_I(i)
           ro1=ro(i,j)
           Cfactor=(BLc0/bo(i,j))*CHpower(i,j)/Cpower0
           Ufactor=0.0!(BLu0/bo(i,j))*UBCpower(i,j)/Upower0
@@ -423,7 +433,7 @@ contains
                    Ep_log=log10(Ep)
                    if (k.ge.k1) dEn(k)=E1(k)-E1(k-1)
                    DEEc=0.
-                   if (UseChorus.and.PlasDensity_C(i,iLonGlobal).le.PlasmaPauseDensity) then
+                   if (UseChorus.and..not.IsPlasmasphere) then
                       if (Ep.ge.ckeV(1).and.Ep.le.ckeV(iwc)) call lintp3IM(cOmpe, &
                            ckeV_log,cPA,cDEE,ipc,iwc,ipa,ompe1,Ep_log,PA1,DEEc)
                    endif
@@ -433,7 +443,7 @@ contains
                    !        ukeV_log,cPA,uDEE,ipu,iwu,ipa,ompe1,Ep_log,PA1,DEEu)
                    !endif
                    DEEh=0.
-                   if(UseHiss.and.ompe1.ge.2..and.PlasDensity_C(i,iLonGlobal).gt.PlasmaPauseDensity)then
+                   if(UseHiss.and.ompe1.ge.2..and.IsPlasmasphere)then
                       if (Ep.ge.hkeV(1).and.Ep.le.hkeV(iwh)) call lintp3IM(hOmpe, &
                            hkeV_log,cPA,hDEE,iph,iwh,ipa,ompe1,Ep_log,PA1,DEEh)
                    endif
@@ -544,7 +554,7 @@ contains
 ! dominant processes like convection and precipitation.
   subroutine diffuse_aE(f2,dt,xjac,iw2,iba,time)
 
-    use ModPlasmasphere, ONLY:PlasDensity_C,PlasmaPauseDensity
+    use ModPlasmasphere, ONLY:PlasDensity_C,find_plasmasphere_column
     use ModMPI
     use ModCimiGrid,   ONLY: MinLonPar,MaxLonPar,MinLonGlobal
     use ModCimiUtil,   ONLY: lintp3IM,tridagIM
@@ -553,6 +563,7 @@ contains
     integer,parameter :: ie=80
     integer i,j,m,k,k1,k2,nrun,n,ier,iww,nn
     integer iba(MinLonPar:MaxLonPar),iw2(ik,nspec),nrun2,iLonGlobal
+    logical IsPlasmasphere, IsPlasmasphere_I(ir)
     real f2(ir,MinLonPar:MaxLonPar,iw,ik,nspec),xjac(ir,iw,nspec),einlog, &
          ein_log(ie),&
          fl(0:ie+1),f1d(iw),ein(ie),ao(0:ik+1),dao(ik),ao1, &
@@ -594,7 +605,11 @@ contains
     !   do j=1,ip
     do j=MinLonPar,MaxLonPar
        iLonGlobal = MinLonGlobal + j - 1
+       call find_plasmasphere_column(iba(j),&
+            PlasDensity_C(1:iba(j),iLonGlobal),ro(1:iba(j),j),&
+            volume(1:iba(j),j),IsPlasmasphere_I(1:iba(j)))
        do i=1,iba(j)
+          IsPlasmasphere=IsPlasmasphere_I(i)
           ompe1=ompe(i,j)                         ! fpe/fce
           ro1=ro(i,j)
           Cfactor=(BLc0/bo(i,j))*CHpower(i,j)/Cpower0
@@ -682,7 +697,7 @@ contains
                 if (ao1.gt.cPA(ipa)) ao1=cPA(ipa)
                 do k=k1-1,k2+1
                    DaEc=0.
-                   if (UseChorus.and.PlasDensity_C(i,iLonGlobal).le.PlasmaPauseDensity) then
+                   if (UseChorus.and..not.IsPlasmasphere) then
                       if (ein(k).ge.ckeV(1).and.ein(k).le.ckeV(iwc)) &
                            call lintp3IM(cOmpe,ckeV_log,cPA,cDaE,ipc,iwc,ipa,&
                            ompe1,ein_log(k),ao1,DaEc)
@@ -694,7 +709,7 @@ contains
                    !        ompe1,ein_log(k),ao1,DaEu)
                    !endif
                    DaEh=0.
-                   if(UseHiss.and.ompe1.ge.2..and.PlasDensity_C(i,iLonGlobal).gt.PlasmaPauseDensity)then
+                   if(UseHiss.and.ompe1.ge.2..and.IsPlasmasphere)then
                       if (ein(k).ge.hkeV(1).and.ein(k).le.hkeV(iwh)) &
                            call lintp3IM(hOmpe,hkeV_log,cPA,hDaE,iph,iwh,ipa, &
                            ompe1,ein_log(k),ao1,DaEh)
