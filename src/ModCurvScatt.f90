@@ -14,8 +14,8 @@ module ModCurvScatt
   real, public, allocatable :: tau_flc(:,:,:), &
                     Daa_flc(:,:,:,:,:), pc_flc(:,:),zeta1(:,:),zeta2(:,:)
 
-  ! index of K, 2nd adiabatic invariant at the loss cone pitch-angle.
-  integer, allocatable :: m_lc(:,:,:) 
+  ! K index of the first (largest) pitch angle inside the loss cone
+  integer, allocatable :: k_lc(:,:)
 
   ! number of points used in curvature calc. The "half" is really how many on
   ! each side of ibmin with the ibmin point in the middle
@@ -52,7 +52,7 @@ contains
 
     ! allocate needed variables
     if(.not. allocated(tau_flc)) allocate(tau_flc(ir,MinLon:MaxLon,nspec),&
-         Daa_flc(ir,MinLon:MaxLon,iw,ik,nspec),  m_lc(ir,MinLon:MaxLon,ik), &
+         Daa_flc(ir,MinLon:MaxLon,iw,ik,nspec),  k_lc(ir,MinLon:MaxLon), &
          pc_flc(ir,MinLon:MaxLon),zeta1(ir,MinLon:MaxLon),zeta2(ir,MinLon:MaxLon))
 
     !When r less than 4Re (or whatever value) just use the dipole
@@ -272,7 +272,7 @@ contains
        cosa_bar,&   ! cos(a0) at maximum of Amax
        Dmax         ! diffusion coefficient upper limit
   real,dimension(iw,ik) :: Amax,Aa0
-  integer n,k,m,m_bar
+  integer n,k,m,k_bar
   real :: ekev0,pc
 
   do n = 1,nspec
@@ -284,11 +284,12 @@ contains
   !sinaL=sqrt(bo/Bi)
   !find largest PA inside loss cone
   !set default as ik since ik is the smallest PA.
-  m_lc(i,j,:)=ik
+  k_lc(i,j)=ik
+  sinaL=sinA(i,j,ik)
   LOSS_CONE:do k=1,ik
      if (alscone(i,j,1,k,1) < 1.) then
         sinaL=sinA(i,j,k)
-        m_lc(i,j,k)=k                ! index at loss cone
+        k_lc(i,j)=k                  ! index at loss cone
         exit LOSS_CONE
      endif
   end do LOSS_CONE
@@ -336,20 +337,20 @@ contains
      enddo
    
      do m=1,iw
-        m_bar=maxloc(abs(Aa0(m,:)),dim=1)
-        cosa_bar=cosa(m_bar)
+        k_bar=maxloc(abs(Aa0(m,:)),dim=1)
+        cosa_bar=cosa(k_bar)
         do k=1,ik
            Amx0=Amax(m,k)
            if (Amx0.ne.0.) then
               tb=Tbounce(i,j,m,k,n)
-              N2=1./Aa0(m,m_bar)/Aa0(m,m_bar)
+              N2=1./Aa0(m,k_bar)/Aa0(m,k_bar)
               if (tb>1e-5) then
                  D0=0.5*Amx0*Amx0/tb
               else
                  D0=0.
               endif
               !Dmax=4.9348/tb    ! da0=0.5pi during 0.5*tb
-              if (m<m_lc(i,j,k)) then
+              if (k<k_lc(i,j)) then
                  Dmax=2.*a0sq(k)/tb ! da0=a0 during 0.5*tb
               else
                  Dmax=2.*aLsq/tb    ! da0=aL during 0.5*tb
@@ -390,53 +391,54 @@ contains
                    
     real, intent(in):: Dt
     real :: tau_flc1,tau_flc2
-    integer ::  n,i,j,k,m,m_L,m_loc
-        
-    
+    integer ::  n,i,j,k,m,k_L,k_loc
+
+
    do n=1,nspec
-      do m=1,ik
-         do k=1,iw
+      do k=1,ik
+         do m=1,iw
             do j=MinLonPar, MaxLonPar
                do i=1,iba(j)
-                   m_L=m_lc(i,j,m)
-                   if (Daa_flc(i,j,k,m_L,n)/=0.) then
-                      m_loc=m_L
-                      if (m<m_L) m_loc=minloc(Daa_flc(i,j,k,m:m_L,n),1)
-                      if (Daa_flc(i,j,k,m_loc,n)/=0.) then
-                         tau_flc2=0.5*abs(1.-sinA(i,j,m_loc-1)/sinA(i,j,m_loc)) &
-                                  /Daa_flc(i,j,k,m_loc,n) ! loss timescale at Daa max
-                         !write(*,*) tau_flc2, Daa_flc(i,j,k,m_loc,n)
-                         !write(*,*) sinA(i,j,m_L),Daa_flc(i,j,k,m_L,n),tau_flc2,Tbounce(i,j,k,m) 
-                         tau_flc1=0.5*abs(1.-log(sinA(i,j,m_L)))/Daa_flc(i,j,k,m_L,n) & 
+                   k_L=k_lc(i,j)
+                   if (Daa_flc(i,j,m,k_L,n)/=0.) then
+                      k_loc=k_L
+                      ! minloc returns the position within the k:k_L slice
+                      if (k<k_L) k_loc=k-1+minloc(Daa_flc(i,j,m,k:k_L,n),1)
+                      if (Daa_flc(i,j,m,k_loc,n)/=0.) then
+                         tau_flc2=0.5*abs(1.-sinA(i,j,k_loc-1)/sinA(i,j,k_loc)) &
+                                  /Daa_flc(i,j,m,k_loc,n) ! loss timescale at Daa max
+                         !write(*,*) tau_flc2, Daa_flc(i,j,m,k_loc,n)
+                         !write(*,*) sinA(i,j,k_L),Daa_flc(i,j,m,k_L,n),tau_flc2,Tbounce(i,j,m,k,n)
+                         tau_flc1=0.5*abs(1.-log(sinA(i,j,k_L)))/Daa_flc(i,j,m,k_L,n) &
                               ! timescale from 90deg to loss cone + half bounce time
-                              +tau_flc2 + 0.5*Tbounce(i,j,k,m,n)
-                         f2(i,j,k,m,n)=f2(i,j,k,m,n)*exp(-Dt/tau_flc1)
-                      endif  
+                              +tau_flc2 + 0.5*Tbounce(i,j,m,k,n)
+                         f2(i,j,m,k,n)=f2(i,j,m,k,n)*exp(-Dt/tau_flc1)
+                      endif
 !\
 ! \
 ! print loss timescale
- if (i==1 .and. j==24 .and. n==1 .and. k==nm/2 .and. m==1) then
-    write(*,*) 'write(*,*) n,j,k,m ',n,j,k,m
+ if (i==1 .and. j==24 .and. n==1 .and. m==nm/2 .and. k==1) then
+    write(*,*) 'write(*,*) n,j,m,k ',n,j,m,k
     write(*,*) 'H+: ro, ekev, tau_flc, Tbounce*0.5, Daa'
  endif
- if (i==1 .and. j==24 .and. n==nspec .and. k==nm/2 .and. m==1) then
-    write(*,*) 'write(*,*) n,j,k,m ',n,j,k,m
+ if (i==1 .and. j==24 .and. n==nspec .and. m==nm/2 .and. k==1) then
+    write(*,*) 'write(*,*) n,j,m,k ',n,j,m,k
     write(*,*) 'e-: ro, ekev, tau_flc1, tau_flc2, Tbounce*0.5, Daa'
  endif
- if (j==24 .and. n==1 .and. k==nm/2 .and. m==1) &
+ if (j==24 .and. n==1 .and. m==nm/2 .and. k==1) &
     write(*,'(f7.2,1p5E11.3)') &
-     ro(i,j),ekev(i,j,k,m,n),tau_flc1,tau_flc2,Tbounce(i,j,k,m,n)*0.5,Daa_flc(i,j,k,m_L,n)
- if (j==24 .and. n==nspec .and. k==nm/2 .and. m==1) &
+     ro(i,j),ekev(i,j,m,k,n),tau_flc1,tau_flc2,Tbounce(i,j,m,k,n)*0.5,Daa_flc(i,j,m,k_L,n)
+ if (j==24 .and. n==nspec .and. m==nm/2 .and. k==1) &
     write(*,'(f7.2,1p5E11.3)') &
-     ro(i,j),ekev(i,j,k,m,n),tau_flc1,tau_flc2,Tbounce(i,j,k,m,n)*0.5,Daa_flc(i,j,k,m_L,n)
+     ro(i,j),ekev(i,j,m,k,n),tau_flc1,tau_flc2,Tbounce(i,j,m,k,n)*0.5,Daa_flc(i,j,m,k_L,n)
 ! /
 !/
                    endif
-                enddo
-             enddo!  k
-          enddo   !  n
-       enddo      !  i
-    enddo         !  j
+                enddo         !  i
+             enddo            !  j
+          enddo               !  m
+       enddo                  !  k
+    enddo                     !  n
 
   end subroutine FLC_loss
 
