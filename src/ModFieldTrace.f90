@@ -74,9 +74,16 @@ Module ModCimiTrace
          tanA2(ir,minLon:maxLon,0:ik+1),phi2o(ir,minLon:maxLon),&
          volume(ir,minLon:maxLon),bm(ir,minLon:maxLon,ik),gamma(ir,minLon:maxLon,iw,ik),&
          xo(ir,minLon:maxLon),yo(ir,minLon:maxLon),tya(ir,minLon:maxLon,0:ik+1),gridoc(ir,minLon:maxLon))
-    if(iProc==0) allocate(roGlobal(ir,ip), xmltoGlobal(ir,ip), bmGlobal(ir,ip,ik), boGlobal(ir,ip), xoGlobal(ir,ip), &
-       yoGlobal(ir,ip), volumeGlobal(ir,ip), irmGlobal(ip), ibaGlobal(ip), phi2oGlobal(ir,ip)) 
-    
+    if(iProc==0) then
+       allocate(roGlobal(ir,ip), xmltoGlobal(ir,ip), bmGlobal(ir,ip,ik), &
+            boGlobal(ir,ip), xoGlobal(ir,ip), yoGlobal(ir,ip), &
+            volumeGlobal(ir,ip), irmGlobal(ip), ibaGlobal(ip), &
+            phi2oGlobal(ir,ip))
+       roGlobal = 0.0; xmltoGlobal = 0.0; bmGlobal = 0.0; boGlobal = 0.0
+       xoGlobal = 0.0; yoGlobal = 0.0; volumeGlobal = 0.0; phi2oGlobal = 0.0
+       irmGlobal = 0; ibaGlobal = 0
+    end if
+
   end subroutine init_mod_field_trace
 
   !***********************************************************************
