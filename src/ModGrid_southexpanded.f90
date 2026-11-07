@@ -57,7 +57,8 @@ Module ModCimiGrid
   real	  :: rb = 15.0
 
   ! Define MPI parameters affecting grid
-  integer :: iProc, nProc, iComm, nLonPar, MinLonPar, MaxLonPar
+  integer :: iProc, nProc, iComm, nLonPar, MinLonPar, MaxLonPar, &
+     MinLonGlobal, MaxLonGlobal
   integer, allocatable :: nLonPar_P(:),nLonBefore_P(:)
   integer ::iProcLeft, iProcRight, iLonLeft, iLonRight
   integer :: iProcMidnight, iLonMidnight

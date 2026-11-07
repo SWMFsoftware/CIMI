@@ -1,6 +1,7 @@
 Module ModCimi
   use ModCimiGrid
   use ModCimiPlanet,ONLY: nspec
+  use ModUtilities, ONLY: CON_Stop
   implicit none
 
   SAVE
@@ -86,6 +87,9 @@ contains
     else
       ! nLonPar is the number of points per proccess
       nLonPar=nt/nProc
+    endif
+    if(nLonPar < nGhostCell) then
+      call CON_stop('Error: nLonPar<nGhostCell, increase nt or decrease nProc')
     endif
     minLon = -nGhostCell+1
     maxLon = nLonPar+nGhostCell
