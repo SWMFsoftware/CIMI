@@ -1,4 +1,4 @@
-module ModDiffusionTests
+module CIMI_DiffusionTests
 
     implicit none
 
@@ -35,8 +35,8 @@ subroutine diffusion_test_run(DtAdvance)
   use CIMI_waves, ONLY:	&
         UseDiagDiffusion, UseKpIndex, ReadDiffCoef, WavePower,&
         TypeChorus, TypeHiss, HIpower, CHpower
-  use whistler_model, ONLY: init_whistlers, WPowTotal,&
-        update_wave_power
+  use CIMI_LocalWave, ONLY: init_whistlers, WPowTotal,&
+        update_wave_power, write_resonances, write_verbose_output
   use ModImIndices, ONLY: &
         interpolate_ae, UseAeKyoto, UseKpApF107IndicesFile, &
         get_im_indices_Kp
@@ -59,10 +59,12 @@ subroutine diffusion_test_run(DtAdvance)
   ! regular variables
   real,intent(in):: DtAdvance
   integer, save :: ib0(nt)
-  real:: flux(nspec,np,nt,neng,npit), psd(nspec,np,nt,nm,nk)
+  real,dimension(nspec,np,nt,neng,npit):: flux
+  real,dimension(nspec,np,nt,nm,nk):: psd, ppar, pperp
   real::  AE_temp = 0., Kp_temp = 0.
   integer:: iLat, iLon, iSpecies, iSat, iOperator
   logical:: IsFirstCall =.true.
+  logical:: IsVerbose = .false.
   integer:: iError
   integer:: n,i,j,k,m
 
@@ -75,8 +77,8 @@ subroutine diffusion_test_run(DtAdvance)
   ! do field line integration and determine vel, ekev, momentum (pp), etc.
   call timing_start('cimi_fieldpara')
   !if ( IsFirstCall ) then
-    call fieldpara(Time,dt,cLightSpeed,cElectronCharge,xlat,xmlt,phi,xk,&
-                   .false.)
+  call fieldpara(Time,dt,cLightSpeed,cElectronCharge,xlat,xmlt,phi,xk,&
+                 .false.)
     ! TODO implement a better solution here
     irm(1) = 1 ! overwrite irm since it doesnt work right with single point
     iba(1) = 1 ! overwrite iba since it doesnt work right with single point
@@ -125,7 +127,6 @@ subroutine diffusion_test_run(DtAdvance)
   call simple_plasmasphere(Kp_temp)
   call timing_stop('simple_plasmasphere')
 
-
   !  read wave diffcoef 
   if (IsFirstCall)then
       call ReadDiffCoef(np,MinLon,MaxLon)
@@ -135,6 +136,12 @@ subroutine diffusion_test_run(DtAdvance)
                  AE_temp,Kp_Temp,bo,brad,xmlto,iba,&
                  MinLon,MaxLon,MinLonPar,MaxLonPar)
 
+  ! setup initial distribution
+  if (IsFirstCall) then
+     call initial_f2(nspec,np,nt,iba,amu_I,vel,xjac,ib0)
+     call initial_PAdependence(0.6)
+     call cimi_output_flux(flux,pperp,ppar,psd)
+  endif
 
   if (IsFirstCall .and. UseDiagDiffusion) then
     call init_diag_diff
@@ -147,23 +154,35 @@ subroutine diffusion_test_run(DtAdvance)
         call interpol_D_coefK
         call timing_stop('cimi_interpol_D_coefK')
     end select
-    call init_whistlers(pp(1,1,:,1,3),bo(1,1))
+    call timing_start('init_whistlers')
+    call init_whistlers(pp(3,1,1,:,:),sinA(1,1,:),PlasDensity_C(1,1),bo(1,1))
+    IsFirstCall=.false.
+    call timing_stop('init_whistlers')
   endif
 
-  ! setup initial distribution
-  if (IsFirstCall) then
-     call initial_f2(nspec,np,nt,amu_I,xjac,ib0)
-     IsFirstCall=.false.
+
+  if (.not.DoSavePlot) call cimi_output_flux(flux,pperp,ppar,psd)
+
+  call timing_start('update_wave_power')
+  ! NOTE: CIMI psd is fi/(1.6e19 * p^2)
+  !             where fi - 1/(cm2 s sr keV)
+  !                   p^2 - SI: [(m * kg) / s]^2
+  !
+  !                Still don't know what 1.6e19 is doing there ...
+  call update_wave_power(pp(3,1,1,:,:),sinA(1,1,:),&
+                         psd(3,1,1,:,:)*1.6e19*pp(3,1,1,:,:)**2,&
+                         PlasDensity_C(1,1),bo(1,1),brad(1,1)*6371e3,dt,&
+                         IsVerbose)
+  call timing_stop('update_wave_power')
+
+
+  !if ( mod(Time,3600.0).eq.0) then
+  if ( mod(Time,1.0).eq.0) then
+    write(*,*) 'HIpower, CHpower, Localpower: ',&
+                HIpower(1,1), CHpower(1,1), WPowTotal
   endif
-
-  call cimi_output_flux(flux,psd)
-
-  call update_wave_power(pp(1,1,:,1,3),sinA,&
-                         psd(1,1,:,:,3)*1.61e19,&
-                         PlasDesnsity_C(:,1,1),bo(1,1),ro(1,1)*6371e3,dt)
-
-  write(*,*) 'HIpower, CHpower, Localpower: ',&
-              HIpower(1,1), CHpower(1,1), WPowTotal
+  HIpower(1,1) = WPowTotal
+  CHpower(1,1) = WPowTotal
 
   HIpower(1,1) = WpowTotal
   CHpower(1,1) = WpowTotal
@@ -210,10 +229,11 @@ subroutine diffusion_test_run(DtAdvance)
   !if ( DoSavePlot .and. mod(Time,50.0).eq.0) then
   if ( DoSavePlot ) then
      call timing_start('cimi_output')
-     call cimi_output_flux(flux,psd)
+     call cimi_output_flux(flux,pperp,ppar,psd)
      call timing_stop('cimi_output')
 
-     if ( mod(Time,50.0).eq.0) then
+     if ( mod(Time,1.0).eq.0) then
+        call timing_start('cimi_save')
         do iSpecies = 1, nspec
             if ( DoSaveFlux( iSpecies ) ) &
                 call Cimi_plot_fls( flux( iSpecies, :, :, :, : ), &
@@ -222,6 +242,11 @@ subroutine diffusion_test_run(DtAdvance)
                 call Cimi_plot_psd( psd( iSpecies, :, :, :, : ), &
                                     iSpecies, time, xmm, xk )
         enddo
+        call write_resonances(301,Time,PlasDensity_C(1,1),bo(1,1))
+        call write_verbose_output(301,Time,PlasDensity_C(1,1),bo(1,1),&
+                                  pp(3,1,1,:,:),sinA(1,1,:),&
+                                  psd(3,1,1,:,:)*1.6e19*pp(3,1,1,:,:)**2)
+        call timing_stop('cimi_save')
      endif 
   endif
 
@@ -229,8 +254,38 @@ subroutine diffusion_test_run(DtAdvance)
   Time = Time+dt
 
 end subroutine diffusion_test_run
+
 !==============================================================================
-subroutine cimi_output_flux(flux,psd)
+subroutine initial_PAdependence(alpha_factor)
+  use ModCimiPlanet, ONLY: nspec
+  use ModCimi, ONLY: f2
+  use ModCimiGrid, ONLY: nm, nk, MinLonPar, MaxLonPar
+  use ModCimiTrace, ONLY: sinA, iba
+
+  implicit none
+
+  real, intent(in) :: alpha_factor
+
+  integer:: i, j, k, m, n
+
+  !----------------------------------------------------------------------------
+  longloop:do j=MinLonPar,MaxLonPar
+    latloop:do i=1,iba(j)
+        speciesloop:do n=1,nspec
+            ! Loop over M-K space to adjust the flux to have PA dependence
+            do m=1,nk
+                do k=1,nm
+                    f2(n,i,j,k,m) = f2(n,i,j,k,m) * &
+                                                  sinA(i,j,m)**(2*alpha_factor)
+                enddo
+            enddo
+        enddo speciesloop
+    enddo latloop
+  enddo longloop
+end subroutine initial_PAdependence
+
+!==============================================================================
+subroutine cimi_output_flux(flux,pperp,ppar,psd)
 
   use ModCimiPlanet, ONLY: nspec, amu_I
   use ModConst,	ONLY: cLightSpeed, cElectronCharge
@@ -243,8 +298,8 @@ subroutine cimi_output_flux(flux,psd)
 
   implicit none
 
-  real, intent(inout):: &
-       flux(:,:,:,:,:), psd(:,:,:,:,:)
+  real, intent(inout),dimension(:,:,:,:,:):: flux
+  real, intent(inout),dimension(:,:,:,:,:):: pperp,ppar, psd
   ! Locals
   real:: ekev2D(nm,nk), sinA1D(nk), aloge(neng,nspec), flux2D(nm,nk)
 
@@ -267,6 +322,7 @@ subroutine cimi_output_flux(flux,psd)
               sinA1D(k) = sinA(i,j,k)
             enddo
             ! Loop over M-K space for PSD output
+<<<<<<< HEAD:src/ModDiffusionTests.f90
             do k=1,nk
                 do m=1,nm
                     psd1=f2(i,j,m,k,n)/1.e20/1.e19/xjac(i,m,n)! mug^-3cm^-6s^3
@@ -275,6 +331,18 @@ subroutine cimi_output_flux(flux,psd)
                     if (flx > 1.e-50) flux2D(m,k)=log10(flx)
                     ekev2D(m,k)=log10(ekev(i,j,m,k,n))
                     psd(i,j,m,k,n)=psd1
+=======
+            do m=1,nk
+                do k=1,nm
+                    psd1=f2(n,i,j,k,m)/1.e20/1.e19/xjac(n,i,k)! mug^-3cm^-6s^3
+                    flx=psd1*(1.6e19*pp(n,i,j,k,m))*pp(n,i,j,k,m)
+                    flux2D(k,m)=-50.
+                    if (flx > 1.e-50) flux2D(k,m)=log10(flx)
+                    ekev2D(k,m)=log10(ekev(n,i,j,k,m))
+                    psd(n,i,j,k,m)=psd1
+                    pperp(n,i,j,k,m) = pp(n,i,j,k,m) * sinA(i,j,m)
+                    ppar(n,i,j,k,m)  = pp(n,i,j,k,m) * sqrt(1-sinA(i,j,m)**2)
+>>>>>>> 5f2e907 (> update some file names and clean up comments/ unused code):src/CIMI_DiffusionTests.f90
                 enddo
             enddo
 
@@ -292,5 +360,5 @@ subroutine cimi_output_flux(flux,psd)
   enddo longloop
 end subroutine cimi_output_flux
 !==============================================================================
-end module ModDiffusionTests
+end module CIMI_DiffusionTests
 

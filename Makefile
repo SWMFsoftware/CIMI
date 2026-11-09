@@ -520,7 +520,7 @@ rundir:
 			ln -s ${EMPIRICALIEDIR}/data EIE;\
 		fi;)
 	cd ${RUNDIR}/IM; \
-		cp ${IMDIR}/input/quiet*fin . ;\
+		cp ${IMDIR}/input/*fin . ;\
 		cp ${IMDIR}/input/IndicesKpApF107.dat . ;\
 		cp ${IMDIR}/input/WaveData/*dat . ;\
 		mkdir plots restartIN restartOUT

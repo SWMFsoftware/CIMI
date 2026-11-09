@@ -18,7 +18,7 @@ program integration_test
   use CON_planet,        ONLY: init_planet_const, set_planet_defaults
   use ModCimiTrace,      ONLY: init_mod_field_trace
   use ModCimiMethods,    ONLY: cimi_init
-  use ModDiffusionTests, ONLY: diffusion_test_run
+  use CIMI_DiffusionTests, ONLY: diffusion_test_run
  
   implicit none
  
@@ -34,9 +34,6 @@ program integration_test
   iComm = MPI_COMM_WORLD
   call MPI_COMM_RANK(iComm,iProc,iError)
   call MPI_COMM_SIZE(iComm,nProc,iError)
-  !iComm = 0   ! Dummy communicator for serial execution
-  !iProc = 0   ! Rank 0 (Master)
-  !nProc = 1   ! Total 1 processor
   
   !****************************************************************************
   ! Read the input file
@@ -79,7 +76,7 @@ program integration_test
   DtAdvance = 5.0
   
   ! Run the specific diffusion test routine
-  do iStep=0,10
+  do iStep=0,25
     if (mod(Time,3600.0).eq.0) then
         write(*,'(a,i4,i8,f10.2)') 'IM: In Time Loop iProc, iStep, Time = ',&
                                                      iProc, iStep, Time

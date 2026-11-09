@@ -12,7 +12,7 @@ Module ModCimiInitialize
        IsRBSPData = .false., IsGmInitial = .true., &
        IsInitialElectrons = .false., DoLstarInitialization = .false.
 
-  character(11) :: NameFinFile = 'quiet_x.fin'
-  character(5)	:: FinFilePrefix = 'xxxxx'
+  character(16) :: NameFinFile = 'quiet_x.fin'
+  character(11)	:: FinFilePrefix = 'xxxxxxxx'
 
 end Module ModCimiInitialize

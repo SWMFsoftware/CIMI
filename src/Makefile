@@ -13,7 +13,7 @@ OBJECTS = \
 	ModImIndices.o\
 	ModInterFlux.o\
 	ModPlasmasphere.o\
-	ModLocalWave.o\
+	CIMI_LocalWave.o\
 	ModCimiPlot.o\
 	CIMI_aurora.o\
 	ModFieldTrace.o\
@@ -140,10 +140,12 @@ distclean: clean
 
 
 ######## UNIT TEST TARGETS
+OBJ_UTILS = \
+        ModCimiUtil.o
 OBJ_PLASMASPHERE = \
         ModPlasmasphere.o
 OBJ_LOCALWAVE = \
-        ModLocalWave.o
+        CIMI_LocalWave.o
 
 
 unit_test_plasmasphere_compile:
@@ -155,10 +157,12 @@ unit_test_plasmasphere_compile:
 		-L${LIBDIR} -lSHARE ${LflagMpi}
 
 unit_test_localwave_compile:
-	@(make ModLocalWave.o)
+	@(make ModCimiUtil.o)
+	@(make CIMI_LocalWave.o)
 	@(make unit_test_localwave.o) 
 	${LINK.f90} -o ${BINDIR}/unit_test_localwave.exe \
 		${OBJ_LOCALWAVE} \
+		${OBJ_UTILS} \
 		unit_test_localwave.o \
 		-L${LIBDIR} -lSHARE ${LflagMpi}
 
@@ -169,7 +173,7 @@ OBJ_INTEGRATION = \
 	ModImIndices.o\
 	ModInterFlux.o\
 	ModPlasmasphere.o\
-	ModLocalWave.o\
+	CIMI_LocalWave.o\
 	ModCimiPlot.o\
 	CIMI_aurora.o\
 	ModFieldTrace.o\
@@ -197,7 +201,6 @@ OBJ_INTEGRATION = \
 	ModDiagDiff.o\
         ModLstar.o\
 	ModCurvScatt.o\
-	ModLocalWave.o
 
 DEPEND_INTEGRATION:
 	@${SCRIPTDIR}/depend.pl ${SEARCHDIR} ${OBJ_INTEGRATION}

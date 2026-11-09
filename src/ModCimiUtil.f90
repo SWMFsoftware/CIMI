@@ -12,6 +12,8 @@ module ModCimiUtil
     public::locate1IM
     public::tridagIM
     public::ln_gamma
+    public::linspace
+    public::logspace
 
 contains
 !==============================================================================
@@ -469,5 +471,45 @@ real function ln_gamma(xx)
   ln_gamma = tmp + log(stp*ser)
 
 end function ln_gamma
+!==============================================================================
+subroutine linspace(xmin,xmax,nx,x,dx_out)
+    ! Simple linearly spaced grid given min, max, number of points
+    ! Outputs the grid and the spacing (optional)
+    implicit none
+    real, intent(in) :: xmin,xmax
+    integer, intent(in) :: nx
+    integer :: i
+    real, intent(out) :: x(nx)
+    real, intent(out), optional :: dx_out
+    real :: dx
+
+    x(1) = xmin
+    x(nx) = xmax
+    dx = (xmax - xmin) / (float(nx)-1.)
+    do i=2,nx-1
+        x(i) = x(i-1)+dx
+    enddo
+    if ( present(dx_out) ) dx_out=dx
+end subroutine linspace
+!==============================================================================
+subroutine logspace(xmin,xmax,nx,x,dlnx_out)
+    ! Simple logarithmic spaced grid given min, max, number of points
+    ! Outputs the grid and the spacing (optional)
+    implicit none
+    real, intent(in) :: xmin,xmax
+    integer, intent(in) :: nx
+    integer :: i
+    real, intent(out) :: x(nx)
+    real, intent(out), optional :: dlnx_out
+    real :: dlnx
+
+    x(1) = xmin
+    x(nx) = xmax
+    dlnx = (log(xmax)-log(xmin)) / (float(nx)-1.)
+    do i=2,nx-1
+        x(i) = exp(log(x(i-1)) + dlnx)
+    enddo
+    if ( present(dlnx_out) ) dlnx_out=dlnx
+end subroutine logspace
 
 end module ModCimiUtil
