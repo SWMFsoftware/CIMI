@@ -119,6 +119,8 @@ contains
          eChangeLocal(nOperator,nspec),eChangeGlobal(nOperator,nspec), &
          eTimeAccumult_CII(np,minLon:maxLon,neng+2,nspec), &
          pTimeAccumult_CII(np,minLon:maxLon,neng+2,nspec))
+    eChangeOperator_CIIV = 0.0; pChangeOperator_CIIV = 0.0
+    eTimeAccumult_CII = 0.0; pTimeAccumult_CII = 0.0
 
     allocate(preP(np,minLon:maxLon,neng+2,nspec), preF(np,minLon:maxLon,neng+2,nspec), &
          Eje1(np,minLon:maxLon,nspec), precipEnergyLoss(np,minLon:maxLon,neng+2,nspec), &

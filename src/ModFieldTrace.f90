@@ -67,7 +67,8 @@ Module ModCimiTrace
     
     if(allocated(bo)) RETURN
     allocate( bo(ir,minLon:maxLon),ro(ir,minLon:maxLon),xmlto(ir,minLon:maxLon),sinA(ir,minLon:maxLon,0:ik+1), &
-          irm(minLon:maxLon), irm0(minLon:maxLon), iba(minLon:maxLon), ib0(minLon:maxLon))
+         irm(minLon:maxLon), irm0(minLon:maxLon), iba(minLon:maxLon), ib0(minLon:maxLon))
+    iba = 0; irm = 0; ib0 = 0; irm0 = 0
     allocate(Have(ir,minLon:maxLon,ik),pp(ir,minLon:maxLon,iw,ik,nspec),vel(ir,minLon:maxLon,iw,ik,nspec),&
          ekev(ir,minLon:maxLon,iw,ik,nspec),rmir(ir,minLon:maxLon,ik),alscone(ir,minLon:maxLon,iw,ik,nspec),&
          Tbounce(ir,minLon:maxLon,iw,ik,nspec),ionization(ir,minLon:maxLon,iw,ik,nspec),&

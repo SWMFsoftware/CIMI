@@ -12,8 +12,9 @@ subroutine trace_dipoleIM(Re,LatStart,nStep,nStepInside,&
 !  real, parameter :: MagCoef = 7.84e15   ! T m^3
   !  real, parameter :: rBoundary = 2.5
   real :: rBoundary
-  real    :: Lat, dLat, Length, LatMax, Length1,LatOuter,LatInner 
-  integer :: iStep
+  real    :: Lat, dLat, Length, LatMax, Length1,LatOuter,LatInner
+  real    :: LengthMid
+  integer :: iStep, iMirror
 
   character(len=*), parameter :: NameSub='trace_dipoleIM'
   !----------------------------------------------------------------------------
@@ -48,6 +49,20 @@ subroutine trace_dipoleIM(Re,LatStart,nStep,nStepInside,&
      RadialDist_I(iStep) = L*cos(Lat)**2.0
      if(iStep < nStepInside) Lat = Lat - dLat
   enddo
+
+  if (nStep == 2*nStepInside) then
+     ! When a field line is not in MHD domain, manually set
+     ! southern hemisphere to avoid compiler dependent behavior
+     LengthMid = calc_dipole_length(L,Lat,-Lat)
+     do iStep = 1, nStepInside
+        iMirror = nStep + 1 - iStep
+        Bfield_I(iMirror)     = Bfield_I(iStep)
+        RadialDist_I(iMirror) = RadialDist_I(iStep)
+        LineLength_I(iMirror) = 2*LineLength_I(nStepInside) + LengthMid &
+             - LineLength_I(iStep)
+     enddo
+     RETURN
+  endif
 
   if (nStep > 2*nStepInside) then
      !Loop over part outside boundary
