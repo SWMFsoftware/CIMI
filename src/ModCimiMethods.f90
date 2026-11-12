@@ -3092,6 +3092,7 @@ subroutine core_ps_gather
   use ModCimiTrace,	ONLY: &
        ftv => volume, phi2o, phi2oGlobal, brad => ro, bradGlobal => roGlobal, iba, ibaGlobal, &
        ftvGlobal => volumeGlobal
+  use ModIeCimi, ONLY: pot, potGlobal
   use ModMPI
 
   implicit none
@@ -3110,6 +3111,7 @@ subroutine core_ps_gather
     phi2oGlobal(:,:) = phi2o(:,MinLonPar:MaxLonPar)
     bradGlobal(:,:) = brad(:,MinLonPar:MaxLonPar)
     ibaGlobal(:) = iba(MinLonPar:MaxLonPar)
+    potGlobal(:,:) = pot(:,MinLonPar:MaxLonPar)
     return
   end if
 
@@ -3143,6 +3145,12 @@ subroutine core_ps_gather
        MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
        MPI_REAL, 0, iComm, iError)
   if (iProc==0) bradGlobal(:,:)=BufferRecv_C(:,:)
+
+  BufferSend_C(:,MinLonGlobal:MaxLonGlobal)=pot(:,MinLonPar:MaxLonPar)
+  call MPI_GATHERV(BufferSend_C(:,MinLonGlobal:MaxLonGlobal), iSendCount, &
+       MPI_REAL, BufferRecv_C, iReceiveCount_P, iDisplacement_P, &
+       MPI_REAL, 0, iComm, iError)
+  if (iProc==0) potGlobal(:,:)=BufferRecv_C(:,:)
 
 end subroutine core_ps_gather
 !==============================================================================
