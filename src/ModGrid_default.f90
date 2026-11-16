@@ -6,6 +6,7 @@ Module ModCimiGrid
   
   logical, parameter :: DoUseUniformLGrid = .false.
   logical :: DoVerboseLatGrid = .false.
+  logical :: DoSingleGrid = .false.
   
   ! define dimensions of CIMI grids
   integer,parameter :: nm=48,nk=29 ! dimension of CIMI magnetic moment and K

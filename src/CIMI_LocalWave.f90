@@ -456,9 +456,9 @@ contains
             write(UnitTmp_,*)"! ntimes, nfreq, npperp"
             write(UnitTmp_,"(3i6)")nsteps,nFreq,nPperp
             write(UnitTmp_,*)"! resonant frequencies"
-            write(UnitTmp_,"(7e10.3)") wResW_I
+            write(UnitTmp_,"(7e14.3e3)") wResW_I
             write(UnitTmp_,*)"! perpendicular momentum grid"
-            write(UnitTmp_,"(7e10.3)") pperpP_I
+            write(UnitTmp_,"(7e14.3e3)") pperpP_I
         else
             open(unit=UnitTmp_,&
                 file='IM/plots/localwave_resonances.dat',&
@@ -480,12 +480,12 @@ contains
                 pR(ipperp) = calc_pR(wResW_I(ifreq),wp,wg,pperpP_I(ipperp))
                 delR(ipperp) = calc_delR(wResW_I(ifreq),wp,wg,pperpP_I(ipperp))
             enddo
-            write(UnitTmp_,"(1a11)") "! gammaL"
-            write(UnitTmp_,"(7e11.3)") gammaL
-            write(UnitTmp_,"(1a11)") "! pR"
-            write(UnitTmp_,"(7e11.3)") pR
-            write(UnitTmp_,"(1a11)") "! delR"
-            write(UnitTmp_,"(7e11.3)") delR
+            write(UnitTmp_,"(1a14)") "! gammaL"
+            write(UnitTmp_,"(7e14.3e3)") gammaL
+            write(UnitTmp_,"(1a14)") "! pR"
+            write(UnitTmp_,"(7e14.3e3)") pR
+            write(UnitTmp_,"(1a14)") "! delR"
+            write(UnitTmp_,"(7e14.3e3)") delR
         enddo
         if (isFirstResonanceWrite) then 
             write(*,*)"SAVED: IM/plots/localwave_resonances.dat"
@@ -578,9 +578,9 @@ contains
                 write(UnitTmp_,*)"! ntimes, nppar, npperp"
                 write(UnitTmp_,"(3i6)")nsteps,nPpar,nPperp
                 write(UnitTmp_,*)"! parallel momentum grid"
-                write(UnitTmp_,"(7e10.3)") pparP_I
+                write(UnitTmp_,"(7e14.3e3)") pparP_I
                 write(UnitTmp_,*)"! perpendicular momentum grid"
-                write(UnitTmp_,"(7e10.3)") pperpP_I
+                write(UnitTmp_,"(7e14.3e3)") pperpP_I
             else
                 open(unit=UnitTmp_,&
                     file=trim(NameFile),&
@@ -591,7 +591,7 @@ contains
             write(UnitTmp_,*)"! tSim"
             write(UnitTmp_,"(f6.1)") tSim
             do ippar=1,nPpar
-                write(UnitTmp_,"(7e11.3)") PSD_arr(ippar,:)
+                write(UnitTmp_,"(7e14.3e3)") PSD_arr(ippar,:)
             enddo
             if (isFirstPSDWrite) write(*,*)"SAVED: ",trim(NameFile)
             close(UnitTmp_)
@@ -641,7 +641,7 @@ contains
         S = 0.3
 
         ! Injection PSD function (gaussian) parameters
-        PSD0_inj = 9e4
+        PSD0_inj = 1e4
         ppar0_inj = momentum(ckeV2Joule*1e3) ! 1 MeV
         pperp0_inj = momentum(ckeV2Joule*1e3) ! 1 MeV
 

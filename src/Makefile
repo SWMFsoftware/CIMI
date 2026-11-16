@@ -147,7 +147,6 @@ OBJ_PLASMASPHERE = \
 OBJ_LOCALWAVE = \
         CIMI_LocalWave.o
 
-
 unit_test_plasmasphere_compile:
 	@(make ModPlasmasphere.o)
 	@(make unit_test_plasmasphere.o) 
@@ -156,7 +155,7 @@ unit_test_plasmasphere_compile:
 		unit_test_plasmasphere.o \
 		-L${LIBDIR} -lSHARE ${LflagMpi}
 
-unit_test_localwave_compile:
+UNIT_LOCALWAVE:
 	@(make ModCimiUtil.o)
 	@(make CIMI_LocalWave.o)
 	@(make unit_test_localwave.o) 
@@ -190,7 +189,7 @@ OBJ_INTEGRATION = \
 	ModPrerunField.o\
 	simple_plasmasphere.o\
 	ModCimiMethods.o\
-	ModDiffusionTests.o\
+	CIMI_DiffusionTests.o\
 	ModCimiUtil.o\
 	CIMI_SetParams.o\
 	plot_fieldline.o\

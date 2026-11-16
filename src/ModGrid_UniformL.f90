@@ -6,6 +6,7 @@ Module ModCimiGrid
 
   logical, parameter :: DoUseUniformLGrid = .true.
   logical :: DoVerboseLatGrid = .false.
+  logical :: DoSingleGrid = .false.
   
   ! define dimensions of CIMI grids
   integer,parameter :: nm=48,nk=29 ! dimension of CIMI magnetic moment and K
@@ -127,16 +128,39 @@ contains
  ! This subroutine initializes and defines MLT grid
 !-----------------------------------------------------------------------------
  use ModNumConst,    ONLY: cDegToRad,cPi
+ use ModUtilities, ONLY: CON_stop
+ use ModMpi
  implicit none
 
- integer i
+ integer i, iError, iMidnightLocal, iLonGlobal
 
- ! CIMI xmlt grid
- dphi=2.*cPi/nt
- do i=1,nt
-    phi(i)=(i-1)*dphi
+  ! CIMI xmlt grid
+  dphi=2.*cPi/nt
+  do i=1,nt
+     phiGlobal(i)=(i-1)*dphi
+     xmltGlobal(i)=mod(phiGlobal(i)*12.0/cPi + 12.0,24.0)
+  enddo
+  
+  iMidnightLocal = -1
+  do i = MinLon, MaxLon
+    iLonGlobal = MinLonGlobal + i - 1
+    if (iLonGlobal > nt) iLonGlobal = iLonGlobal - nt
+    if (iLonGlobal < 1) iLonGlobal = iLonGlobal + nt
+    phi(i) = phiGlobal(iLonGlobal)
     xmlt(i)=mod(phi(i)*12.0/cPi + 12.0,24.0)
- enddo
+    !
+    if(xmlt(i) <= 0.01 .and. i >= MinLonPar .and. i <= MaxLonPar) then 
+      iLonMidnight = i
+      iMidnightLocal = iProc
+    end if
+  end do
+  if(nProc > 1) then
+    call MPI_Allreduce(iMidnightLocal, iProcMidnight,1,MPI_INTEGER,MPI_MAX, &
+                      iComm, iError)
+  else
+    iProcMidnight = iMidnightLocal
+  end if
+  if(iProcMidnight < 0) call CON_stop('IM error: No Midnight Proc Found')
 
  end subroutine init_mlt
 !-----------------------------------------------------------------------------

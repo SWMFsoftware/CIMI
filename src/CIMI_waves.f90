@@ -210,15 +210,15 @@ contains
     cDEE(icL,:,:,:)=0.
     do j=1,icfpefce
        ! Read coefficients
-       do k=1,icEnergy
+       do m=1,icEnergy
           read(UnitTmp_,'(a80)') header
           read(UnitTmp_,'(a80)') header
-          do m=1,icPa
+          do k=1,icPa
              read(UnitTmp_,*) pa,daa,dap,dpp,daE,dEE
              cPa(m) = pa
-             cDaa(icL,j,k,m) = daa    ! coeff in 1/sec
-             cDaE(icL,j,k,m) = daE
-             cDEE(icL,j,k,m) = dEE
+             cDaa(icL,j,m,k) = daa    ! coeff in 1/sec
+             cDaE(icL,j,m,k) = daE
+             cDEE(icL,j,m,k) = dEE
           enddo
        enddo
     enddo
@@ -270,13 +270,13 @@ contains
        ! Read coefficients
        read(UnitTmp_,'(a80)') header
        read(UnitTmp_,'(a80)') header
-       do k=1,ihEnergy
-          do m=1,ihPa
+       do m=1,ihEnergy
+          do k=1,ihPa
              read(UnitTmp_,*) Lh0,EEo,pa,daa,dap,dpp,daE,dEE
-             hPa(m) = pa
-             hDaa(ihL,j,k,m) = daa    ! coeff in 1/sec
-             hDaE(ihL,j,k,m) = daE
-             hDEE(ihL,j,k,m) = dEE
+             hPa(k) = pa
+             hDaa(ihL,j,m,k) = daa    ! coeff in 1/sec
+             hDaE(ihL,j,m,k) = daE
+             hDEE(ihL,j,m,k) = dEE
           enddo
        enddo
     enddo
@@ -345,26 +345,23 @@ contains
     ! Loop over blocks (Lshell -> fpe/fce -> Energy/EQ2)
     do i = 1, iL
        do j = 1, ifpefce
-          do k = 1, iEnergy
-
+          do m = 1, iEnergy
              ! Read block header
              read(UnitTmp_, *) blk_E, blk_fpe, blk_L
-
              ! Skip the column header line
              read(UnitTmp_, '(a80)') header
-
-             do m = 1, iPa
+             do k = 1, iPa
                 ! Column 5: Eq2(keV) -> eq2_val
                 ! Column 6: Dq1q1    -> raw_dq1q1
                 ! Column 7: Dq2q2/Q2^2 (sec^-1 -> raw_dq2q2
                 read(UnitTmp_, *) &
-                                  Pa(m), raw_daa, raw_dap, raw_dpp, &
+                                  Pa(k), raw_daa, raw_dap, raw_dpp, &
                                   eq2_val, raw_dq1q1, raw_dq2q2
                ! Store the local EQ2 coordinate for this (L, fpe/fce, E, Pa)
-                EQ2(i, j, k, m) = eq2_val
+                EQ2(i, j, m, k) = eq2_val
                 ! Store Dq1q1, and Dq2q2 directly
-                Dq1q1(i, j, k, m) = raw_dq1q1
-                Dq2q2(i, j, k, m) = raw_dq2q2
+                Dq1q1(i, j, m, k) = raw_dq1q1
+                Dq2q2(i, j, m, k) = raw_dq2q2
              enddo
           enddo
        enddo
@@ -439,29 +436,29 @@ contains
     ! Loop over blocks (Block order: Lshell -> fpe/fce -> Energy)
     do i = 1, iL
        do j = 1, ifpefce
-          do k = 1, iEnergy
+          do m = 1, iEnergy
              ! Read block header
              read(UnitTmp_, *) blk_E, blk_fpe, blk_L
              ! Skip the column header line
              read(UnitTmp_, '(a80)') header
              ! Current energy in keV for conversion
-             E_keV = keV(k)
+             E_keV = keV(m)
              ! Relativistic conversion: velocity (v/c)
              gamma = (E_keV / cE_rest) + 1.0
              v_c = sqrt(gamma**2 - 1.0) / gamma
-             do m = 1, iPa
+             do k = 1, iPa
                 ! Read the 7 data columns
-                read(UnitTmp_, *) Pa(m), raw_daa, raw_dap, raw_dpp, &
+                read(UnitTmp_, *) Pa(k), raw_daa, raw_dap, raw_dpp, &
                                   dum_Eq2, dum_Dq1, dum_Dq2
                 ! --- UNIT & PHYSICS CONVERSION ---
                 ! <Daa> is already the correct units (Daa/p^2)
-                Daa(i,j,k,m) = raw_daa
+                Daa(i,j,m,k) = raw_daa
                 ! <DaE> (1/sec) from Dap/E^2:
                 ! D_aE = v * D_ap -> <DaE> rate = v_c * E_keV * (Dap / E^2)
-                DaE(i,j,k,m) = v_c * E_keV * raw_dap
+                DaE(i,j,m,k) = v_c * E_keV * raw_dap
                 ! <DEE> (1/sec) from Dpp/E^2:
                 ! D_EE = v^2 * D_pp -> <DEE> rate = (v_c**2) * (Dpp / E^2)
-                DEE(i,j,k,m) = (v_c**2) * raw_dpp
+                DEE(i,j,m,k) = (v_c**2) * raw_dpp
              enddo
           enddo
        enddo

@@ -42,18 +42,17 @@ help:
 	@echo '    test_Prerun                   (test Prerun)'
 	@echo '    test_Highorder                (test high order scheme)'
 	@echo '    test_Highorder_Default'
+	@echo '    test_integration			     (test single point diffusion)'
 	@echo '    test_all                      (all tests)'
 	@echo '    test_rundir_all               (create run directory for all tests)'
 	@echo '    test_check_all                (check all tests)'
 	@echo ' '
+	@echo '    test_unit_localwave			 (perform local wave unit test)'
+	@echo ' '
 	@echo '    PLASMASPHERE                  (perform plasma sphere unit test)'
 	@echo '    PLASMASPHERE_compile          (compile plasma sphere test)'
 	@echo '    PLASMASPHERE_rundir           (create rundir plasma sphere test)'
-	@echo '    LOCALWAVE                     (perform local wave unit test)'
-	@echo '    LOCALWAVE_compile             (compile local wave test)'
-	@echo '    LOCALWAVE_rundir              (create rundir local wave test)'
 	@echo ' '
-	@echo '    INTEGRATION             		 (perform integration test)'
 
 
 
@@ -219,6 +218,25 @@ test_Highorder:
 	@echo "test_check_flux..."  >> test_cimi.diff
 	make   test_check_flux_Highorder
 
+test_integration:
+	@echo "test_integration..." > test_cimi.diff
+	make   test_compile_integration
+	@echo "test_rundir_integration..." >> test_cimi.diff
+	make   test_rundir_integration
+	@echo "test_run_integration..."    >> test_cimi.diff
+	make   test_run_integration
+	# TODO: once values are verified, turn on check
+	#@echo "test_check_flux..."  >> test_cimi.diff
+	#make   test_check_flux_integration
+
+test_unit_localwave:
+	@echo "test_unit_localwave..." > test_cimi.diff
+	make test_compile_unit_localwave
+	@echo "test_rundir_unit_localwave..." >> test_cimi.diff
+	make test_rundir_unit_localwave
+	@echo "test_run_unit_localwave..."    >> test_cimi.diff
+	make   test_run_unit_localwave
+
 test_compile:
 	./Config.pl -EarthHO -GridDefault -show
 	make CIMI
@@ -234,6 +252,13 @@ test_compile_UniformL:
 test_compile_Highorder:
 	./Config.pl -EarthHO -GridUniformL -ng=4 -show
 	make CIMI
+
+test_compile_integration:
+	./Config.pl -EarthHO -GridSinglePoint -show
+	make INTEGRATION
+
+test_compile_unit_localwave:
+	make UNIT_LOCALWAVE
 
 test_rundir:
 	rm -rf ${TESTDIR}
@@ -301,8 +326,26 @@ test_rundir_DiagDiff:
 	cp input/testfiles/PARAM.in.test.DiagDiff ${TESTDIR}/PARAM.in
 	cp tools/constq.pro ${TESTDIR}/
 
+test_rundir_integration:
+	rm -rf ${TESTDIR}
+	make rundir RUNDIR=${TESTDIR} STANDALONE=YES IMDIR=`pwd`
+	cp input/testfiles/*.dat ${TESTDIR}/
+	cp input/testfiles/PARAM.in.test.WaveDiff ${TESTDIR}/PARAM.in
+	cd ${TESTDIR}; ln -s ${BINDIR}/integration.exe
+
+test_rundir_unit_localwave:
+	rm -rf ${TESTDIR}
+	make rundir RUNDIR=${TESTDIR}
+	cd ${TESTDIR}; ln -s ${BINDIR}/unit_test_localwave.exe
+
 test_run:
 	cd ${TESTDIR}; ${MPIRUN} ./cimi.exe | tee runlog 
+
+test_run_integration:
+	cd ${TESTDIR}; ./integration.exe | tee runlog 
+
+test_run_unit_localwave:
+	cd ${TESTDIR}; ./unit_test_localwave.exe | tee runlog 
 
 # reduced set of checks for the SWMF nightly tests
 test_check:
@@ -412,6 +455,20 @@ test_check_flux_Highorder:
 	-${DIFFNUM} -r=0.001 -a=1e-10 \
 		${TESTDIR}/IM/plots/CimiFlux_n00000000_e.fls \
 		output/CimiFlux_e.fls.Highorder.gz \
+		>> test_cimi_flux.diff
+
+test_check_flux_integration:
+	-${DIFFNUM} -r=0.001 -a=1e-10 \
+		${TESTDIR}/IM/plots/CimiFlux_n00000000_h.fls \
+		output/CimiFlux_h.fls.integration.gz \
+		> test_cimi_flux.diff
+	-${DIFFNUM} -r=0.001 -a=1e-10 \
+		${TESTDIR}/IM/plots/CimiFlux_n00000000_o.fls \
+		output/CimiFlux_o.fls.integration.gz \
+		>> test_cimi_flux.diff
+	-${DIFFNUM} -r=0.001 -a=1e-10 \
+		${TESTDIR}/IM/plots/CimiFlux_n00000000_e.fls \
+		output/CimiFlux_e.fls.integration.gz \
 		>> test_cimi_flux.diff
 
 test_check_psd:
@@ -586,29 +643,12 @@ PLASMASPHERE_rundir:
 #                data/output/plasmasphere.out \
 #                > test_plasmasphere.diff)
 
-LOCALWAVE:
-	make LOCALWAVE_compile
-	make LOCALWAVE_rundir
-	@cd ${TESTDIR};   ./unit_test_localwave.exe
-
-LOCALWAVE_compile:
-	@cd ${SHAREDIR};        make LIB
-	@cd src;        make unit_test_localwave_compile
-
-LOCALWAVE_rundir:
-	rm -rf ${TESTDIR}
-	@make rundir RUNDIR=${TESTDIR}
-	@cd ${TESTDIR}; ln -s ${BINDIR}/unit_test_localwave.exe
+UNIT_LOCALWAVE:
+	@cd ${SHAREDIR};  	make LIB
+	@cd src;			make UNIT_LOCALWAVE
 
 ########## Integration Tests
 INTEGRATION:
-	make INTEGRATION_compile
-	make INTEGRATION_rundir
-	@cd ${TESTDIR};   ./integration.exe
-
-INTEGRATION_compile:
-	./Config.pl -EarthHO -GridSinglePoint -show
-	#./Config.pl -EarthHO -GridDefault -show
 	@cd ${SHAREDIR};  	make LIB
 	@cd ${NOMPIDIR};	make LIB
 	@cd ${TIMINGDIR}; 	make LIB 
@@ -618,11 +658,3 @@ INTEGRATION_compile:
 	@cd srcGIMME;	make LIB
 	@cd src;	make LIB_INTEGRATION
 	@cd src;	make INTEGRATION
-
-INTEGRATION_rundir:
-	rm -rf ${TESTDIR}
-	@make rundir RUNDIR=${TESTDIR} STANDALONE=YES IMDIR=`pwd`
-	@cp input/testfiles/*.dat ${TESTDIR}/
-	@cp input/testfiles/PARAM.in.test.WaveDiff ${TESTDIR}/PARAM.in
-	@cd ${TESTDIR}; ln -s ${BINDIR}/integration.exe
-
