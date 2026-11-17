@@ -64,9 +64,6 @@ Module ModCimiGrid
           varNpower=1.5
   logical :: DoDefineVarNpower = .false.
 
-  real :: xlatr(np), dlat(np), sinAo(npit), xmltGlobal(nt)
-  real, allocatable :: phi(:), xmlt(:)
-
   real, allocatable :: d4Element_C(:,:,:,:) !4D element (dlat*dphi*dmm*dk)
   
   ! Defines the outer boundary maximum distance.
