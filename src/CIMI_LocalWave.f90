@@ -20,7 +20,7 @@ module CIMI_LocalWave
     real, allocatable,public :: wResW_I(:), pperpP_I(:), pparP_I(:),&
                                 rIonoW_I(:)
     real, allocatable, save  :: lnp(:,:), lnf(:,:), sina(:)
-    real :: FreqGridFactor=0.95
+    real, public :: FreqGridFactor=0.95
     real :: dlnpperp, dlnppar
 
     ! Grid & Simulation parameters (To be allocated outside the module)
@@ -42,7 +42,7 @@ module CIMI_LocalWave
     public :: calc_derivativesPA
     public :: momentum, energy, wplasma, wgyro,&
               calc_kr, calc_gamma_lorentz, calc_pR, calc_delR,calc_norm1,&
-              calc_growth_rate
+              calc_growth_rate, calc_vgroup, calc_a_rel, calc_eta_rel
     public :: write_resonances,write_verbose_output
     public :: unit_test_localwave
 

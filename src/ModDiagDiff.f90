@@ -626,7 +626,7 @@ subroutine find_ompe_index(OmpeTab,iOmpeTab,iompe)
 
 !(4) calculate Daa and Dqq2 at the fixed grids of (a0,Q2)
      call DaEtoDQQ(cDaa0,cDEE0,cDaE0,Eq,E_Q2c,VarQ,&
-                   icL,icfpefce,icEnergy,icPa,iq,&
+                   icL,icfpefce,iq,icPa,iq,&
                    cDqq1,cDqq2,'chorus')
   endif
 
@@ -663,7 +663,7 @@ subroutine find_ompe_index(OmpeTab,iOmpeTab,iompe)
      if (UseHiss) call write_Q2info(hDEE,hDaE,hDaa0,hDaE0,hDEE0,&
                                     hDqq1,hDqq2,&
                                     hLshell,hOmpe,hkeV,hPa,&
-                                    ihL,ihfpefce,ihEnergy,ihPa,iq,&
+                                    ihL,ihfpefce,iq,ihPa,iq,&
                                     Eq,E_Q2h,&
                        'IM/plots/hiss_constQ.dat',&
                        'IM/plots/hiss_constQ2.dat',&
@@ -1004,7 +1004,7 @@ subroutine find_ompe_index(OmpeTab,iOmpeTab,iompe)
                                     logE(k),DaE0(i,j,k,m),'interpol_D_coef')
                     call lintp(keVlog,xSign(i,j,:,m),iEnergy,&
                                             logE(k),sign1,'interpol_D_coef')
-                    if (DaE0(i,j,k,m).gt.minDoo) then
+                    if (DaE0(i,j,k,m).ge.minDoo) then
                             DaE0(i,j,k,m)=sign(exp(DaE0(i,j,k,m)),sign1)
                     else
                         DaE0(i,j,k,m)=0.
@@ -1014,9 +1014,9 @@ subroutine find_ompe_index(OmpeTab,iOmpeTab,iompe)
                         DaE0(i,j,k,m)=0.
                     else
                         DaEmax=sqrt(Daa0(i,j,k,m)*DEE0(i,j,k,m))
-                    endif
-                    if (abs(DaE0(i,j,k,m)).gt.DaEmax) &
+                        if (abs(DaE0(i,j,k,m)).gt.DaEmax) &
                                               DaE0(i,j,k,m)=sign(DaEmax,sign1)
+                    endif
                 enddo
             enddo
         enddo
@@ -1121,7 +1121,6 @@ subroutine find_ompe_index(OmpeTab,iOmpeTab,iompe)
                                       icL,icPa,&
                                       ro(i,j),a0(m),Dqq1K(i,j,k,m),.false.)
                     end select
-                    if (Dqq1K(i,j,k,m).lt.0.) Dqq1K(i,j,k,m) = 0.
                     if (Dqq1K(i,j,k,m).ne.Dqq1K(i,j,k,m).or.&
                         Dqq1K(i,j,k,m).lt.0.) then
                         write(*,*) 'i,j,k,m =',i,j,k,m
@@ -1218,7 +1217,6 @@ subroutine find_ompe_index(OmpeTab,iOmpeTab,iompe)
                                       ihL,ihPa,&
                                       ro(i,j),a0(m),Dqq1K(i,j,k,m),.false.)
                     end select
-                    if (Dqq1K(i,j,k,m).lt.0.) Dqq1K(i,j,k,m) = 0.
                     if (Dqq1K(i,j,k,m).ne.Dqq1K(i,j,k,m).or.& 
                         Dqq1K(i,j,k,m).lt.0.) then
                         write(*,*) 'i,j,k,m =',i,j,k,m

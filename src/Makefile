@@ -165,6 +165,16 @@ UNIT_LOCALWAVE:
 		unit_test_localwave.o \
 		-L${LIBDIR} -lSHARE ${LflagMpi}
 
+KP_LIMIT_FAST:
+	@(make ModCimiUtil.o)
+	@(make CIMI_LocalWave.o)
+	@(make kp_main.o)
+	${LINK.f90} -o ${BINDIR}/kp_limit_fast.exe \
+		${OBJ_LOCALWAVE} \
+		${OBJ_UTILS} \
+		kp_main.o \
+		-L${LIBDIR} -lSHARE ${LflagMpi}
+
 ######## INTEGRATION TEST TARGETS
 OBJ_INTEGRATION = \
         ModPlanet.o\

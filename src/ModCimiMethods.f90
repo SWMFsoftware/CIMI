@@ -1221,7 +1221,7 @@ subroutine initial_f2(nspec,np,nt,amu_I,xjac,ib0)
                        if (e1 < ei(1)) e1=ei(1)    ! flat dist. at low E
                        if (roii < roi(1)) roii=roi(1) ! flat dist @ lowL
                        if (roii > roi(il)) roii=roi(il) ! flat @ high L
-                       call lintp2IM(roi,ei,fi,il,ie,roii,e1,x,.false.)
+                       call lintp2IM(roi,ei,fi,il,ie,roii,e1,x,.true.)
                        fluxi=10.**x          ! flux in (cm^2 s sr keV)^-1
                        psd2=fluxi/(1.6e19*pp(i,j,m,k,n))/pp(i,j,m,k,n)
                    

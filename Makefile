@@ -237,6 +237,25 @@ test_unit_localwave:
 	@echo "test_run_unit_localwave..."    >> test_cimi.diff
 	make   test_run_unit_localwave
 
+test_kp_limit_fast:
+	@echo "test_kp_limit_fast..." > test_cimi.diff
+	make test_compile_kp_limit_fast
+	@echo "test_rundir_kp_limit_fast..." >> test_cimi.diff
+	make test_rundir_kp_limit_fast
+	@echo "test_run_kp_limit_fast..."    >> test_cimi.diff
+	make test_run_kp_limit_fast
+
+test_compile_kp_limit_fast:
+	make KP_LIMIT_FAST
+
+test_rundir_kp_limit_fast:
+	rm -rf ${TESTDIR}
+	make rundir RUNDIR=${TESTDIR}
+	cd ${TESTDIR}; ln -s ${BINDIR}/kp_limit_fast.exe
+
+test_run_kp_limit_fast:
+	cd ${TESTDIR}; ./kp_limit_fast.exe | tee runlog
+
 test_compile:
 	./Config.pl -EarthHO -GridDefault -show
 	make CIMI
@@ -646,6 +665,10 @@ PLASMASPHERE_rundir:
 UNIT_LOCALWAVE:
 	@cd ${SHAREDIR};  	make LIB
 	@cd src;			make UNIT_LOCALWAVE
+
+KP_LIMIT_FAST:
+	@cd ${SHAREDIR};  	make LIB
+	@cd src;			make KP_LIMIT_FAST
 
 ########## Integration Tests
 INTEGRATION:

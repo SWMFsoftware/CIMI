@@ -215,7 +215,7 @@ contains
           read(UnitTmp_,'(a80)') header
           do k=1,icPa
              read(UnitTmp_,*) pa,daa,dap,dpp,daE,dEE
-             cPa(m) = pa
+             cPa(k) = pa
              cDaa(icL,j,m,k) = daa    ! coeff in 1/sec
              cDaE(icL,j,m,k) = daE
              cDEE(icL,j,m,k) = dEE
