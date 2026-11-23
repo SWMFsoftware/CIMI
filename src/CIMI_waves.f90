@@ -181,7 +181,7 @@ contains
     !reference L location for waves
     real :: Lc0 !
   
-    character header*80
+    character(len=80) :: header
     !---------------------------------------------------------------------------
     
     open(unit=UnitTmp_,file='IM/'//NameChorusFile,status='old')
@@ -239,7 +239,7 @@ contains
     !reference L location for waves
     real :: Lh0 , EEo
   
-    character header*80
+    character(len=80) :: header
     !---------------------------------------------------------------------------
     
     open(unit=UnitTmp_,file='IM/'//NameHissFile,status='old')
@@ -292,7 +292,7 @@ contains
     use ModIoUnit, ONLY: UnitTmp_
 
     ! Inputs
-    character,intent(in):: NameFile
+    character(len=*),intent(in):: NameFile
     ! Outputs
     real,intent(out):: power0
     integer,intent(out):: iL,ifpefce,iEnergy,iPa
@@ -309,7 +309,7 @@ contains
     character(len=100) :: header
     !---------------------------------------------------------------------------
 
-    open(unit=UnitTmp_, file='IM/'//NameHissFile, status='old')
+    open(unit=UnitTmp_, file='IM/'//NameFile, status='old')
 
     ! Read nominal wave power
     read(UnitTmp_, *) power0, header

@@ -167,8 +167,11 @@ subroutine CIMI_set_parameters(NameAction)
     end subroutine STOP_command
     !-------------------------------------------------------------------------
     subroutine STARTTIME_command
+        use ModTimeConvert,  ONLY: time_int_to_real
         use ModCimi,		 ONLY: IsStandAlone
-        use ModImTime,	     ONLY: iStartTime_I
+        use ModImTime,	     ONLY: iStartTime_I, StartTime
+        use CON_axes,        ONLY: init_axes
+        use ModPlanetConst,  ONLY: iPlanet
 
         integer :: iDate
 
@@ -177,6 +180,8 @@ subroutine CIMI_set_parameters(NameAction)
             do iDate=1,6
                 call read_var('iStartTime',iStartTime_I(iDate))
             enddo
+            call time_int_to_real(iStartTime_I, StartTime)
+            call init_axes(StartTime)
 
         else
             write(*,*)'IM WARNING:#STARTTIME command is ignored in the &

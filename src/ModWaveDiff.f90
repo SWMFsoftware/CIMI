@@ -297,7 +297,7 @@ contains
                    enddo
                    
                    ! reduce time step if u_mx > u_max
-                   irun=ifix(u_mx/u_max)+1
+                   irun=int(u_mx/u_max)+1
                    do m=1,ik
                       um(m)=um(m)/irun
                       up(m)=up(m)/irun
@@ -568,7 +568,7 @@ contains
                 enddo
                 
                 ! reduce time step size if up or um is too large
-                irun=ifix(u_mx)+1
+                irun=int(u_mx)+1
                 do k=k1,k2
                    um(k)=um(k)/irun
                    up(k)=up(k)/irun
@@ -868,7 +868,7 @@ contains
              u_mx1=maxval(u1)
              u_mx2=maxval(u2)
              u_mx=max(u_mx1,u_mx2)
-             nrun=ifix(u_mx)+1
+             nrun=int(u_mx)+1
              
              
              u1=u1/nrun

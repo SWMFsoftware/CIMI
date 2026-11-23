@@ -898,9 +898,9 @@ subroutine find_ompe_index(OmpeTab,iOmpeTab,iompe)
      implicit none
 
      ! Inputs
-     real,dimension(iL,ifpefce,iEnergy,iPa),intent(in) :: D
-     real,intent(in) :: keV(iEnergy),logE(0:iq+1)
      integer,intent(in) :: iL,ifpefce,iEnergy,iPa
+     real,dimension(:,:,:,:),intent(in) :: D
+     real,intent(in) :: keV(iEnergy),logE(0:iq+1)
      ! Outputs
      real,dimension(iL,ifpefce,0:iq+1,iPa),intent(out) :: D0
      ! Locals
@@ -908,7 +908,7 @@ subroutine find_ompe_index(OmpeTab,iOmpeTab,iompe)
      real minDoo
      integer i,j,k,m
 
-     keVlog(:)=log(keV(:))
+     keVlog=log(keV)
      D0(:,:,:,:)=0.   
      do i=1,iL
         do j=1,ifpefce
@@ -945,9 +945,9 @@ subroutine find_ompe_index(OmpeTab,iOmpeTab,iompe)
      implicit none
 
      ! Inputs
-     real,dimension(iL,ifpefce,iEnergy,iPa),intent(in) :: Daa,DaE,DEE,xSign
-     real,intent(in) :: keV(iEnergy),logE(0:iq+1)
      integer,intent(in) :: iL,ifpefce,iEnergy,iPa
+     real,dimension(:,:,:,:),intent(in) :: Daa,DaE,DEE,xSign
+     real,intent(in) :: keV(iEnergy),logE(0:iq+1)
      ! Outputs
      real,dimension(iL,ifpefce,0:iq+1,iPa),intent(out) :: Daa0,DaE0,DEE0
      ! Locals
@@ -955,7 +955,7 @@ subroutine find_ompe_index(OmpeTab,iOmpeTab,iompe)
      real minDoo,sign1,DaEmax,dE,dE2
      integer i,j,k,m,kk
 
-     keVlog(:)=log(keV(:))
+     keVlog=log(keV)
      Daa0(:,:,:,:)=0.   
      DaE0(:,:,:,:)=0.   
      DEE0(:,:,:,:)=0.   

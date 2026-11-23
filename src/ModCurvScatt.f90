@@ -417,18 +417,18 @@ contains
 !\
 ! \
 ! print loss timescale
- if (i==1 .and. j==24 .and. n==1 .and. m==nm/2 .and. k==1) then
+ if (i==1 .and. j==24 .and. n==1 .and. m==iw/2 .and. k==1) then
     write(*,*) 'write(*,*) n,j,m,k ',n,j,m,k
     write(*,*) 'H+: ro, ekev, tau_flc, Tbounce*0.5, Daa'
  endif
- if (i==1 .and. j==24 .and. n==nspec .and. m==nm/2 .and. k==1) then
+ if (i==1 .and. j==24 .and. n==nspec .and. m==iw/2 .and. k==1) then
     write(*,*) 'write(*,*) n,j,m,k ',n,j,m,k
     write(*,*) 'e-: ro, ekev, tau_flc1, tau_flc2, Tbounce*0.5, Daa'
  endif
- if (j==24 .and. n==1 .and. m==nm/2 .and. k==1) &
+ if (j==24 .and. n==1 .and. m==iw/2 .and. k==1) &
     write(*,'(f7.2,1p5E11.3)') &
      ro(i,j),ekev(i,j,m,k,n),tau_flc1,tau_flc2,Tbounce(i,j,m,k,n)*0.5,Daa_flc(i,j,m,k_L,n)
- if (j==24 .and. n==nspec .and. m==nm/2 .and. k==1) &
+ if (j==24 .and. n==nspec .and. m==iw/2 .and. k==1) &
     write(*,'(f7.2,1p5E11.3)') &
      ro(i,j),ekev(i,j,m,k,n),tau_flc1,tau_flc2,Tbounce(i,j,m,k,n)*0.5,Daa_flc(i,j,m,k_L,n)
 ! /

@@ -80,7 +80,9 @@ contains
 
   subroutine init_cimi_planet_const
 
-    use ModPlanetConst,	ONLY: Earth_, DipoleStrengthPlanet_I, rPlanet_I
+    use ModPlanetConst,	ONLY: iPlanet, Earth_, DipoleStrengthPlanet_I, rPlanet_I
+
+    iPlanet=Earth_
 
     ! ionosphere altitude in km
     Hiono = 120.0

@@ -34,12 +34,12 @@ OBJECTS = \
 	CIMI_SetParams.o\
 	plot_fieldline.o\
 	trace_dipole.o\
-	geopack.o \
 	CIMI_waves.o\
 	ModDiagDiff.o\
 	ModWaveDiff.o\
         ModLstar.o\
 	ModCurvScatt.o
+	#geopack.o
 
 DEPEND:
 	@${SCRIPTDIR}/depend.pl ${SEARCHDIR} ${OBJECTS}
@@ -204,12 +204,11 @@ OBJ_INTEGRATION = \
 	CIMI_SetParams.o\
 	plot_fieldline.o\
 	trace_dipole.o\
-	geopack.o \
 	CIMI_waves.o\
 	ModWaveDiff.o\
 	ModDiagDiff.o\
         ModLstar.o\
-	ModCurvScatt.o\
+	ModCurvScatt.o
 
 DEPEND_INTEGRATION:
 	@${SCRIPTDIR}/depend.pl ${SEARCHDIR} ${OBJ_INTEGRATION}

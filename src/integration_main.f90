@@ -40,14 +40,14 @@ program integration_test
   !****************************************************************************
   IsStandAlone = .true.
 
+  ! Initialize the planetary constant library and set Earth as default
+  call init_planet_const
+  call set_planet_defaults
+
   ! Initial setup for the model
   call read_file('PARAM.in', iComm)
   call read_init('  ', iSessionIn=1, iLineIn=0)
   call CIMI_set_parameters('READ')
-
-  ! Initialize the planetary constant library and set Earth as default
-  call init_planet_const
-  call set_planet_defaults
 
   !****************************************************************************
   ! Initialize the model

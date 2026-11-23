@@ -68,7 +68,7 @@ Module ModCimiTrace
     if(allocated(bo)) RETURN
     allocate( bo(ir,minLon:maxLon),ro(ir,minLon:maxLon),xmlto(ir,minLon:maxLon),sinA(ir,minLon:maxLon,0:ik+1), &
          irm(minLon:maxLon), irm0(minLon:maxLon), iba(minLon:maxLon), ib0(minLon:maxLon))
-    iba = 0; irm = 0; ib0 = 0; irm0 = 0
+    iba = 1; irm = 1; ib0 = 1; irm0 = 1
     allocate(Have(ir,minLon:maxLon,ik),pp(ir,minLon:maxLon,iw,ik,nspec),vel(ir,minLon:maxLon,iw,ik,nspec),&
          ekev(ir,minLon:maxLon,iw,ik,nspec),rmir(ir,minLon:maxLon,ik),alscone(ir,minLon:maxLon,iw,ik,nspec),&
          Tbounce(ir,minLon:maxLon,iw,ik,nspec),ionization(ir,minLon:maxLon,iw,ik,nspec),&
@@ -82,7 +82,7 @@ Module ModCimiTrace
             phi2oGlobal(ir,ip))
        roGlobal = 0.0; xmltoGlobal = 0.0; bmGlobal = 0.0; boGlobal = 0.0
        xoGlobal = 0.0; yoGlobal = 0.0; volumeGlobal = 0.0; phi2oGlobal = 0.0
-       irmGlobal = 0; ibaGlobal = 0
+       irmGlobal = 1; ibaGlobal = 1
     end if
 
   end subroutine init_mod_field_trace
@@ -101,10 +101,11 @@ Module ModCimiTrace
     use ModNumConst,		ONLY: pi => cPi, cDegToRad
     use ModCimiInitialize,	ONLY: xmm
     use ModMpi
-    use ModImTime,		ONLY: iCurrentTime_I
+    use ModImTime,		ONLY: iCurrentTime_I,CurrentTime
     use ModDstOutput,		ONLY: DstOutput
     use ModCimiUtil,    ONLY: locate1IM
     use CIMI_aurora, ONLY: calc_fang_loss
+    use CON_axes,          ONLY: get_axes
     
     ! uncomment when T04 Tracing fixed
     common/geopack/aa(10),sps,cps,bb(3),ps,cc(11),kk(2),dd(8)
@@ -113,7 +114,7 @@ Module ModCimiTrace
     logical, intent(in) :: IsRestart
     real :: aa,sps,cps,bb,ps,cc,dd
     integer :: kk
-    integer :: iday1
+    !integer :: iday1
 
     integer, parameter :: np=10000,nd=3
     real :: t, dt, c
@@ -138,6 +139,8 @@ Module ModCimiTrace
             Dtya3Ro(np),&           ! d tya, gyro-bounce path in RE
             Dh3(np),&     ! d h3, hydrogen density * tya
             bsi           ! =bs, averaged magnetic field strength btwn 2 points
+
+    real :: MagAxisTiltGsm
 
     integer :: imax
     integer :: iBufferSend_I(minLon:maxLon)
@@ -177,15 +180,20 @@ Module ModCimiTrace
        call TsyParmod(parmod)
 
        !  Call recalc to calculate the dipole tilt
-       iday1=julianday(iCurrentTime_I(1),iCurrentTime_I(2),iCurrentTime_I(3)) 
-       if (imod.le.2) then     
-          ps=0.                ! force ps = 0 when using Tsy models
-          cps=cos(ps)
-          sps=sin(ps)
-       else
-          call recalc(iCurrentTime_I(1),iday1,iCurrentTime_I(4),&
-               iCurrentTime_I(5),iCurrentTime_I(6))
-       endif
+       !iday1=julianday(iCurrentTime_I(1),iCurrentTime_I(2),iCurrentTime_I(3)) 
+       
+       !ps=0.                ! force ps = 0 when using Tsy models
+       !cps=cos(ps)
+       !sps=sin(ps)
+       !call recalc(iCurrentTime_I(1),iday1,iCurrentTime_I(4),&
+       !            iCurrentTime_I(5),iCurrentTime_I(6))
+
+       call get_axes(CurrentTime,MagAxisTiltGsm)
+
+       ps = MagAxisTiltGsm
+       sps = sin(ps)
+       cps = cos(ps)
+
     endif
 
     if (imod <= 2) then
@@ -556,9 +564,11 @@ Module ModCimiTrace
     enddo
 
     ! Reduce irm by 1 for convenience in calculating vl at i=irm+0.5
-    do j=MinLonPar,MaxLonPar
-       irm(j)=irm(j)-1
-    enddo
+    if (size(irm) .gt. 1) then
+        do j=MinLonPar,MaxLonPar
+            irm(j)=irm(j)-1
+        enddo
+    endif
 
     ! Find iba
     xBoundary = 0.0
@@ -660,12 +670,12 @@ Module ModCimiTrace
     ! Set for midnight
     if (iProc==iProcMidnight .and. IsFirstCall .and. .not.IsRestart) then
        do n=1,nspec
-          do m=1,ik
-             iw2(m,n)=iw
-             find_iw2: do k=1,iw
+          do k=1,ik
+             iw2(k,n)=iw
+             find_iw2: do m=1,iw
                 !if (ekev(irm(1),1,k,m).gt.energy(neng)) then
-                if (ekev(irm(iLonMidnight),iLonMidnight,k,m,n).gt.energy(neng,n)) then
-                   iw2(m,n)=k
+                if (ekev(irm(iLonMidnight),iLonMidnight,m,k,n).gt.energy(neng,n)) then
+                   iw2(k,n)=m
                    exit find_iw2
                 endif
              enddo find_iw2
@@ -864,15 +874,25 @@ Module ModCimiTrace
     !  Routine calculate the total (T96 or T04 external and dipole fields) field
     !  in SM.
     
+    use ModCoordTransform, ONLY: rot_matrix_y
     use EGM_ModTsyganenko, ONLY: t96_01, t04_s, dipole, dipole_t96
 
     integer :: imod, iopt
-    real    :: ps, t, xsm, ysm, zsm, bxsm, bysm, bzsm
+    real, intent(in)  :: ps, t, xsm, ysm, zsm
+    real, intent(out) :: bxsm, bysm, bzsm
     integer, parameter :: i_1=1, m_1=-1
     real :: bx,bxext, bxint, by,byint, byext, bz, bzint, bzext, xgsm,ygsm,zgsm
     real parmod(10)
+    real, dimension(3) :: xgsm_DD,bsm_DD
+    real :: MagAxisTiltGsm
     
-    call smgsm(xsm,ysm,zsm,xgsm,ygsm,zgsm,i_1)
+    !call smgsm(xsm,ysm,zsm,xgsm,ygsm,zgsm,i_1)
+
+    xgsm_DD = matmul(rot_matrix_y(ps), [xsm,ysm,zsm])
+    xgsm = xgsm_DD(1)
+    ygsm = xgsm_DD(2)
+    zgsm = xgsm_DD(3)
+
     if (imod.eq.0) then
        bxext=0.
        byext=0.
@@ -891,7 +911,13 @@ Module ModCimiTrace
     bx=bxint+bxext           ! gsm bx
     by=byint+byext           ! gsm by
     bz=bzint+bzext           ! gsm bz
-    call smgsm(bxsm,bysm,bzsm,bx,by,bz,m_1)
+
+    bsm_DD = matmul(rot_matrix_y(-ps), [bx,by,bz])
+    bxsm = bsm_DD(1)
+    bysm = bsm_DD(2)
+    bzsm = bsm_DD(3)
+
+    !call smgsm(bxsm,bysm,bzsm,bx,by,bz,m_1)
     
   end subroutine tsyndipoleSM
   

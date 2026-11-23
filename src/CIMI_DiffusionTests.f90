@@ -89,7 +89,7 @@ subroutine diffusion_test_run(DtAdvance)
             iw2(k,n)=nk
             find_iw2: do m=1,nm
                 if (ekev(irm(1),1,m,k,n).gt.energy(neng,n)) then
-                    iw2(k,n)=k
+                    iw2(k,n)=m
                     exit find_iw2
                 endif
             enddo find_iw2
@@ -310,7 +310,7 @@ subroutine cimi_output_flux(flux,pperp,ppar,psd)
   psd =1e-50
   ! Get log of energy
   do n=1,nspec
-    aloge(1:neng,n) = log10(energy(n,1:neng))
+    aloge(1:neng,n) = log10(energy(1:neng,n))
   enddo
   speciesloop:do n=1,nspec
     longloop:do j=MinLonPar,MaxLonPar

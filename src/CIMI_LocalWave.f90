@@ -19,7 +19,7 @@ module CIMI_LocalWave
     integer,public :: nFreq=181, nPperp=100, nPpar=100
     real, allocatable,public :: wResW_I(:), pperpP_I(:), pparP_I(:),&
                                 rIonoW_I(:)
-    real, allocatable, save  :: lnp(:,:), lnf(:,:), sina(:)
+    real, allocatable  :: lnp(:,:), lnf(:,:), sina(:)
     real, public :: FreqGridFactor=0.95
     real :: dlnpperp, dlnppar
 
@@ -47,8 +47,8 @@ module CIMI_LocalWave
     public :: unit_test_localwave
 
     ! Flag for berbose output files
-    logical, save :: isFirstPSDWrite=.true.
-    logical, save :: isFirstResonanceWrite=.true.
+    logical :: isFirstPSDWrite=.true.
+    logical :: isFirstResonanceWrite=.true.
     
 contains
     ! ======================================================================

@@ -14,7 +14,7 @@ Module ModCimiPlanet
   integer :: H_=1, O_=2, He_=3, e_=4
 
   !unset indexes needed for GM coupling
-  integer :: Sw_-1
+  integer :: Sw_=-1
   
   ! a0,a1,... are coef. of a polynomial which defines the 
   ! exponent of the charge exchange cross section
@@ -47,8 +47,8 @@ Module ModCimiPlanet
   integer, dimension(nspec+1) :: iPhotplot_I =(/11,12,13,14,15/) 
   integer, dimension(nspec+1) :: iPparhotplot_I =(/16,17,18,19,20/)
   integer, dimension(nspec+1) :: iNplot_I    =(/21,22,23,24,25/)
-  integer, parameter          :: Beq_=26,Vol_=27,Pot_=28, FAC_=29, FAC_=30, &
-                                 Lstar_=31, Plas_=32,nVar=32
+  integer, parameter          :: Beq_=26,Vol_=27,Pot_=28, FAC_=29, &
+                                 Lstar_=30, Plas_=31,nVar=31
 
   !set coupling variables for GM
   character(len=*), parameter :: &
@@ -78,7 +78,9 @@ contains
 
   subroutine init_cimi_planet_const
 
-    use ModPlanetConst,	ONLY: Earth_, DipoleStrengthPlanet_I, rPlanet_I
+    use ModPlanetConst,	ONLY: iPlanet, Earth_, DipoleStrengthPlanet_I, rPlanet_I
+
+    iPlanet=Earth_
 
     ! ionosphere altitude in km
     Hiono = 120.0
