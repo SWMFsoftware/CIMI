@@ -819,7 +819,6 @@ subroutine cimi_init
 
   ! The longitude ghost-cell exchange needs every proc to own at least
   ! nGhostCell longitudes
-  write(*,*) nLonPar_P
   if (minval(nLonPar_P) < nGhostCell .and. .not. DoSingleGrid) call CON_stop( &
        'IM: each processor needs at least nGhostCell longitudes; '// &
        'use fewer processors or a smaller nGhostCell')

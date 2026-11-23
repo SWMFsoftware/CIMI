@@ -626,7 +626,7 @@ subroutine find_ompe_index(OmpeTab,iOmpeTab,iompe)
 
 !(4) calculate Daa and Dqq2 at the fixed grids of (a0,Q2)
      call DaEtoDQQ(cDaa0,cDEE0,cDaE0,Eq,E_Q2c,VarQ,&
-                   icL,icfpefce,iq,icPa,iq,&
+                   icL,icfpefce,icEnergy,icPa,iq,&
                    cDqq1,cDqq2,'chorus')
   endif
 
@@ -663,7 +663,7 @@ subroutine find_ompe_index(OmpeTab,iOmpeTab,iompe)
      if (UseHiss) call write_Q2info(hDEE,hDaE,hDaa0,hDaE0,hDEE0,&
                                     hDqq1,hDqq2,&
                                     hLshell,hOmpe,hkeV,hPa,&
-                                    ihL,ihfpefce,iq,ihPa,iq,&
+                                    ihL,ihfpefce,ihEnergy,ihPa,iq,&
                                     Eq,E_Q2h,&
                        'IM/plots/hiss_constQ.dat',&
                        'IM/plots/hiss_constQ2.dat',&
